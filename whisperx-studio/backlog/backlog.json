@@ -1,0 +1,289 @@
+﻿{
+    "schemaVersion":  1,
+    "updatedAt":  "2026-03-19T18:14:09+01:00",
+    "statuses":  [
+                     "todo",
+                     "in_progress",
+                     "blocked",
+                     "done"
+                 ],
+    "tasks":  [
+                  {
+                      "id":  "WX-201",
+                      "title":  "Edition temporelle start/end sur waveform",
+                      "status":  "todo",
+                      "priority":  "P0",
+                      "estimate":  "2d",
+                      "dependsOn":  [
+
+                                    ],
+                      "scope":  [
+                                    "src/App.tsx",
+                                    "src/App.css",
+                                    "src-tauri/src/lib.rs"
+                                ],
+                      "execute":  [
+                                      "npm run build",
+                                      "cargo check"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Chaque segment editable expose start/end dans l UI.",
+                                               "L utilisateur peut modifier start/end par drag handles sur la waveform.",
+                                               "Les valeurs restent bornees et coherent start \u003c= end."
+                                           ],
+                      "acceptance":  [
+                                         "Drag gauche/droite met a jour start/end en temps reel.",
+                                         "Le seek lecteur suit les changements sans freeze \u003e 200ms.",
+                                         "Export JSON conserve les nouvelles bornes."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-202",
+                      "title":  "Zoom timeline + snap temporel + raccourcis clavier",
+                      "status":  "todo",
+                      "priority":  "P1",
+                      "estimate":  "1.5d",
+                      "dependsOn":  [
+                                        "WX-201"
+                                    ],
+                      "scope":  [
+                                    "src/App.tsx",
+                                    "src/App.css"
+                                ],
+                      "execute":  [
+                                      "npm run build"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Zoom horizontal de la waveform disponible (x1 a x20).",
+                                               "Snap optionnel au pas configurable (10/20/40 ms).",
+                                               "Raccourcis clavier pour seek fin et navigation segment."
+                                           ],
+                      "acceptance":  [
+                                         "Ctrl+molette zoome autour du curseur.",
+                                         "Le snap peut etre active/desactive sans rechargement.",
+                                         "Touches J/K/L ou equivalent fonctionnent avec focus editor."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-203",
+                      "title":  "Split et merge de segments sur curseur",
+                      "status":  "todo",
+                      "priority":  "P0",
+                      "estimate":  "1.5d",
+                      "dependsOn":  [
+                                        "WX-201"
+                                    ],
+                      "scope":  [
+                                    "src/App.tsx",
+                                    "src-tauri/src/lib.rs"
+                                ],
+                      "execute":  [
+                                      "npm run build",
+                                      "cargo check"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Split segment a la position curseur.",
+                                               "Merge segment courant avec precedent/suivant.",
+                                               "UI garde textes et speakers coherents apres operation."
+                                           ],
+                      "acceptance":  [
+                                         "Split cree deux segments continus sans overlap.",
+                                         "Merge concatene texte avec normalisation d espaces.",
+                                         "Annulation operation impossible tant que save non fait est signalee."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-204",
+                      "title":  "Pile undo/redo unifiee texte + timings",
+                      "status":  "todo",
+                      "priority":  "P1",
+                      "estimate":  "2d",
+                      "dependsOn":  [
+                                        "WX-201",
+                                        "WX-203"
+                                    ],
+                      "scope":  [
+                                    "src/App.tsx"
+                                ],
+                      "execute":  [
+                                      "npm run build"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Historique en memoire avec limite configurable.",
+                                               "Undo/redo couvrent edit texte, split/merge, drag timings.",
+                                               "Raccourcis Ctrl+Z / Ctrl+Y actifs."
+                                           ],
+                      "acceptance":  [
+                                         "50 operations consecutives sans corruption d etat.",
+                                         "Undo puis save exporte exactement l etat affiche."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-205",
+                      "title":  "Autosave de brouillon + recovery au redemarrage",
+                      "status":  "todo",
+                      "priority":  "P1",
+                      "estimate":  "1d",
+                      "dependsOn":  [
+                                        "WX-201"
+                                    ],
+                      "scope":  [
+                                    "src/App.tsx",
+                                    "src-tauri/src/lib.rs"
+                                ],
+                      "execute":  [
+                                      "npm run build",
+                                      "cargo check"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Autosave toutes les N secondes sur fichier .draft.json.",
+                                               "Prompt recovery au chargement d un transcript source.",
+                                               "Purge manuelle des brouillons depuis UI."
+                                           ],
+                      "acceptance":  [
+                                         "Crash simulation puis relance propose recovery.",
+                                         "Aucune perte de donnees entre deux autosaves."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-206",
+                      "title":  "Export aligne avance (JSON/SRT/VTT/TXT) avec regles temporelles",
+                      "status":  "todo",
+                      "priority":  "P0",
+                      "estimate":  "1.5d",
+                      "dependsOn":  [
+                                        "WX-201",
+                                        "WX-203"
+                                    ],
+                      "scope":  [
+                                    "src-tauri/src/lib.rs",
+                                    "src/App.tsx"
+                                ],
+                      "execute":  [
+                                      "cargo check",
+                                      "npm run build"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Regles min duration / min gap configurables.",
+                                               "Suppression overlaps automatiquement corrigeable.",
+                                               "Rapport d export affiche corrections appliquees."
+                                           ],
+                      "acceptance":  [
+                                         "Aucun timecode negatif ou inverse dans exports.",
+                                         "Validation sur un transcript \u003e 10k segments."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-207",
+                      "title":  "Panneau QA transcript (gaps, overlaps, debit parole)",
+                      "status":  "todo",
+                      "priority":  "P1",
+                      "estimate":  "1.5d",
+                      "dependsOn":  [
+                                        "WX-206"
+                                    ],
+                      "scope":  [
+                                    "src/App.tsx",
+                                    "src/App.css"
+                                ],
+                      "execute":  [
+                                      "npm run build"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Liste anomalies temporelles et texte.",
+                                               "Jump direct vers segment en erreur.",
+                                               "Auto-fix unitaire par anomalie."
+                                           ],
+                      "acceptance":  [
+                                         "Sur un jeu de test, detection des overlaps \u003e 99%.",
+                                         "L utilisateur peut corriger puis re-scanner en une action."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-208",
+                      "title":  "Generation waveform en tache de fond avec progression",
+                      "status":  "todo",
+                      "priority":  "P1",
+                      "estimate":  "2d",
+                      "dependsOn":  [
+
+                                    ],
+                      "scope":  [
+                                    "src-tauri/src/lib.rs",
+                                    "src/App.tsx"
+                                ],
+                      "execute":  [
+                                      "cargo check",
+                                      "npm run build"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Generation peaks non bloquante avec events de progression.",
+                                               "Annulation generation waveform possible.",
+                                               "Cache invalide automatiquement sur changement media."
+                                           ],
+                      "acceptance":  [
+                                         "Fichier 2h traite sans freeze UI.",
+                                         "Cancel stoppe ffmpeg proprement."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-209",
+                      "title":  "Assistant first-run pour runtime local (sans Docker)",
+                      "status":  "todo",
+                      "priority":  "P0",
+                      "estimate":  "1.5d",
+                      "dependsOn":  [
+
+                                    ],
+                      "scope":  [
+                                    "src/App.tsx",
+                                    "scripts/setup-local-runtime.ps1",
+                                    "README.md"
+                                ],
+                      "execute":  [
+                                      "npm run build",
+                                      "npm run tauri build"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Wizard detecte absence Python/WhisperX/ffmpeg.",
+                                               "Bouton lance setup local et affiche logs.",
+                                               "Validation finale runtime avant premier job whisperx."
+                                           ],
+                      "acceptance":  [
+                                         "Installation from scratch reussie sans ligne de commande.",
+                                         "Messages d erreur actionnables en cas d echec."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-210",
+                      "title":  "Smoke tests end-to-end et checklist release",
+                      "status":  "todo",
+                      "priority":  "P1",
+                      "estimate":  "1d",
+                      "dependsOn":  [
+                                        "WX-203",
+                                        "WX-206",
+                                        "WX-209"
+                                    ],
+                      "scope":  [
+                                    "scripts",
+                                    "README.md",
+                                    "package.json"
+                                ],
+                      "execute":  [
+                                      "npm run build",
+                                      "cargo check",
+                                      "npm run tauri build"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Script smoke test lance job mock + edition + export.",
+                                               "Checklist release versionnee.",
+                                               "Artefacts MSI/EXE verifies et traces."
+                                           ],
+                      "acceptance":  [
+                                         "Pipeline smoke passe sur machine propre.",
+                                         "Checklist permet release reproductible."
+                                     ]
+                  }
+              ]
+}
