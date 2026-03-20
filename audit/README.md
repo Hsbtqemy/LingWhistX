@@ -9,6 +9,7 @@ Scope: `c:\Dev\whisperX`
 - `audit/wrapper-feasibility.md`: faisabilite d'un wrapper audio/video pour calibration, nettoyage et alignement.
 - `audit/implementation-roadmap.md`: plan d'implementation priorise.
 - `audit/findings-evidence.md`: references precises de code pour les constats critiques.
+- `audit/audit-resume-2026-03-20.md`: reprise d'audit post-correctifs, statut resolu/restant.
 
 ## Conclusion rapide
 
