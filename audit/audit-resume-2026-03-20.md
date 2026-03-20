@@ -80,6 +80,7 @@ Preuves:
   - `tests/test_transcribe_cli_contract.py:89`
   - `tests/test_worker_hf_token_transport.py:33`
   - `tests/test_writer_golden_outputs.py:80`
+  - `tests/test_pipeline_e2e_real_audio.py:75`
   - `tests/golden/writers/english_sentence.srt:1`
 
 ## 3) Points restant ouverts
@@ -88,7 +89,8 @@ Preuves:
 
 Constat:
 - une base golden est en place pour les writers (`JSON/SRT/VTT`) et `segment_resolution`.
-- pas encore de tests end-to-end sur vrai audio (ASR + align + diarization) avec artefacts attendus.
+- un test E2E sur vrai audio est present en mode opt-in (`WHISPERX_RUN_AUDIO_E2E=1`).
+- pas encore d'execution E2E audio reel dans la CI standard.
 
 Risque:
 - regressions silencieuses possibles sur pipeline complet (pas seulement format d'export).
