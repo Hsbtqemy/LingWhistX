@@ -8,7 +8,31 @@ on:
   workflow_dispatch: # Allows manual triggering from GitHub UI
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.14"
+          python-version: "3.11"
+
+      - name: Check if lockfile is up to date
+        run: uv lock --check
+
+      - name: Install the project
+        run: uv sync --all-extras
+
+      - name: Lint (ruff)
+        run: uv run --with ruff ruff check whisperx tests
+
+      - name: Run tests
+        run: uv run --with pytest pytest -q tests
+
   test:
+    needs: quality
     runs-on: ubuntu-latest
     strategy:
       matrix:

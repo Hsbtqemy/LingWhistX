@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -120,6 +121,27 @@ def run_mock(job_id: str, input_path: str, out_dir: Path) -> list[str]:
     return [str(raw_file), str(aligned_file)]
 
 
+def resolve_hf_token(options: dict[str, object]) -> str | None:
+    token = options.get("hfToken")
+    if isinstance(token, str):
+        token = token.strip()
+        if token:
+            return token
+
+    for env_name in (
+        "WHISPERX_STUDIO_HF_TOKEN",
+        "WHISPERX_HF_TOKEN",
+        "HF_TOKEN",
+        "HUGGINGFACE_TOKEN",
+    ):
+        env_value = os.environ.get(env_name)
+        if env_value:
+            candidate = env_value.strip()
+            if candidate:
+                return candidate
+    return None
+
+
 def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> list[str]:
     output_format = str(options.get("outputFormat", "all"))
     command = [
@@ -157,11 +179,15 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
     if isinstance(vad_method, str) and vad_method.strip():
         command.extend(["--vad_method", vad_method.strip()])
 
+    command_env = os.environ.copy()
+    hf_token = resolve_hf_token(options)
+    if hf_token:
+        command_env["WHISPERX_HF_TOKEN"] = hf_token
+        command_env.setdefault("HF_TOKEN", hf_token)
+        command_env.setdefault("HUGGINGFACE_TOKEN", hf_token)
+
     if options.get("diarize") is True:
         command.append("--diarize")
-        hf_token = options.get("hfToken")
-        if isinstance(hf_token, str) and hf_token.strip():
-            command.extend(["--hf_token", hf_token.strip()])
 
     if options.get("noAlign") is True:
         command.append("--no_align")
@@ -169,7 +195,17 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
     if options.get("printProgress") is True:
         command.extend(["--print_progress", "True"])
 
-    visible_command = " ".join(part for part in command if not part.startswith("hf_"))
+    visible_parts: list[str] = []
+    hide_next = False
+    for part in command:
+        if hide_next:
+            visible_parts.append("***")
+            hide_next = False
+            continue
+        visible_parts.append(part)
+        if part == "--hf_token":
+            hide_next = True
+    visible_command = " ".join(visible_parts)
     emit_log("info", "whisperx", f"Commande: {visible_command}", 15)
     emit_log("info", "whisperx", "Execution whisperx...", 30)
 
@@ -179,6 +215,7 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         stderr=subprocess.STDOUT,
         text=True,
         bufsize=1,
+        env=command_env,
     )
 
     assert process.stdout is not None

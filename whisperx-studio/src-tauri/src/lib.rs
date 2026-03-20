@@ -298,6 +298,13 @@ fn now_ms() -> u64 {
     }
 }
 
+fn redact_whisperx_options_for_storage(options: Option<WhisperxOptions>) -> Option<WhisperxOptions> {
+    options.map(|mut options| {
+        options.hf_token = None;
+        options
+    })
+}
+
 fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
     let data_dir = app
         .path()
@@ -1727,7 +1734,18 @@ fn run_worker(
         .stderr(Stdio::piped());
 
     if let Some(options) = whisperx_options {
-        let options_json = serde_json::to_string(options)
+        let mut worker_options = options.clone();
+        if let Some(raw_token) = worker_options.hf_token.take() {
+            let token = raw_token.trim();
+            if !token.is_empty() {
+                command
+                    .env("WHISPERX_STUDIO_HF_TOKEN", token)
+                    .env("WHISPERX_HF_TOKEN", token)
+                    .env("HF_TOKEN", token)
+                    .env("HUGGINGFACE_TOKEN", token);
+            }
+        }
+        let options_json = serde_json::to_string(&worker_options)
             .map_err(|err| format!("Serialize worker options failed: {err}"))?;
         command.arg("--options-json").arg(options_json);
     }
@@ -2103,6 +2121,8 @@ fn create_job(
         .map_err(|err| format!("Unable to create output directory: {err}"))?;
 
     let ts = now_ms();
+    let whisperx_options_for_storage =
+        redact_whisperx_options_for_storage(request.whisperx_options.clone());
     let job = Job {
         id: job_id.clone(),
         input_path: request.input_path.clone(),
@@ -2115,7 +2135,7 @@ fn create_job(
         updated_at_ms: ts,
         error: None,
         output_files: vec![],
-        whisperx_options: request.whisperx_options.clone(),
+        whisperx_options: whisperx_options_for_storage,
     };
 
     if let Ok(mut lock) = state.jobs.lock() {

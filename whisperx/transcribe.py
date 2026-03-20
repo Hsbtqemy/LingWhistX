@@ -35,7 +35,11 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
     device: str = args.pop("device")
     device_index: int = args.pop("device_index")
     compute_type: str = args.pop("compute_type")
+    fp16: bool = args.pop("fp16")
     verbose: bool = args.pop("verbose")
+
+    if compute_type == "default" and device.startswith("cuda"):
+        compute_type = "float16" if fp16 else "float32"
 
     # model_flush: bool = args.pop("model_flush")
     os.makedirs(output_dir, exist_ok=True)
@@ -50,7 +54,17 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
 
     return_char_alignments: bool = args.pop("return_char_alignments")
 
-    hf_token: str = args.pop("hf_token")
+    hf_token: str | None = args.pop("hf_token")
+    if isinstance(hf_token, str):
+        hf_token = hf_token.strip() or None
+    if hf_token is None:
+        hf_token = (
+            os.getenv("WHISPERX_HF_TOKEN")
+            or os.getenv("HF_TOKEN")
+            or os.getenv("HUGGINGFACE_TOKEN")
+        )
+        if isinstance(hf_token, str):
+            hf_token = hf_token.strip() or None
     vad_method: str = args.pop("vad_method")
     vad_onset: float = args.pop("vad_onset")
     vad_offset: float = args.pop("vad_offset")
@@ -98,13 +112,14 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
 
     asr_options = {
         "beam_size": args.pop("beam_size"),
+        "best_of": args.pop("best_of"),
         "patience": args.pop("patience"),
         "length_penalty": args.pop("length_penalty"),
         "temperatures": temperature,
         "compression_ratio_threshold": args.pop("compression_ratio_threshold"),
         "log_prob_threshold": args.pop("logprob_threshold"),
         "no_speech_threshold": args.pop("no_speech_threshold"),
-        "condition_on_previous_text": False,
+        "condition_on_previous_text": args.pop("condition_on_previous_text"),
         "initial_prompt": args.pop("initial_prompt"),
         "hotwords": args.pop("hotwords"),
         "suppress_tokens": [int(x) for x in args.pop("suppress_tokens").split(",")],
@@ -112,14 +127,18 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
     }
 
     writer = get_writer(output_format, output_dir)
+    segment_resolution = args.pop("segment_resolution")
     word_options = ["highlight_words", "max_line_count", "max_line_width"]
     if no_align:
         for option in word_options:
             if args[option]:
                 parser.error(f"--{option} not possible with --no_align")
+        if segment_resolution != "sentence":
+            parser.error("--segment_resolution not possible with --no_align")
     if args["max_line_count"] and not args["max_line_width"]:
         warnings.warn("--max_line_count has no effect without --max_line_width")
     writer_args = {arg: args.pop(arg) for arg in word_options}
+    writer_args["segment_resolution"] = segment_resolution
 
     # Part 1: VAD & ASR Loop
     results = []
@@ -170,6 +189,7 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
             align_language, device, model_name=align_model, model_dir=model_dir, model_cache_only=model_cache_only
         )
         for result, audio_path in tmp_results:
+            detected_language = result.get("language")
             # >> Align
             if len(tmp_results) > 1:
                 input_audio = audio_path
@@ -197,6 +217,8 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
                     return_char_alignments=return_char_alignments,
                     print_progress=print_progress,
                 )
+            if detected_language is not None:
+                result["language"] = detected_language
 
             results.append((result, audio_path))
 
@@ -234,5 +256,6 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
             results.append((result, input_audio_path))
     # >> Write
     for result, audio_path in results:
-        result["language"] = align_language
+        if result.get("language") is None:
+            result["language"] = args["language"] if args["language"] is not None else align_language
         writer(result, audio_path, writer_args)

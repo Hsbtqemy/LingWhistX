@@ -253,8 +253,9 @@ class SubtitlesWriter(ResultWriter):
         raw_max_line_width: Optional[int] = options["max_line_width"]
         max_line_count: Optional[int] = options["max_line_count"]
         highlight_words: bool = options["highlight_words"]
+        segment_resolution: str = options.get("segment_resolution", "sentence")
         max_line_width = 1000 if raw_max_line_width is None else raw_max_line_width
-        preserve_segments = max_line_count is None or raw_max_line_width is None
+        preserve_segments = segment_resolution != "chunk"
 
         if len(result["segments"]) == 0:
             return
