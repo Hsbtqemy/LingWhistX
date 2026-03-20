@@ -138,6 +138,25 @@ type TranscriptDocument = {
   segments: EditableSegment[];
 };
 
+type TranscriptDraftDocument = {
+  sourcePath: string;
+  draftPath: string;
+  updatedAtMs: number;
+  language?: string | null;
+  segments: EditableSegment[];
+};
+
+type SaveDraftRequest = {
+  path: string;
+  language?: string | null;
+  segments: EditableSegment[];
+};
+
+type SaveDraftResponse = {
+  draftPath: string;
+  updatedAtMs: number;
+};
+
 type EditorSnapshot = {
   language: string;
   segments: EditableSegment[];
@@ -224,6 +243,9 @@ const DEFAULT_KEYBOARD_SEEK_SEC = 1;
 const DEFAULT_EDITOR_HISTORY_LIMIT = 200;
 const MIN_EDITOR_HISTORY_LIMIT = 50;
 const MAX_EDITOR_HISTORY_LIMIT = 2000;
+const DEFAULT_DRAFT_AUTOSAVE_SEC = 8;
+const MIN_DRAFT_AUTOSAVE_SEC = 3;
+const MAX_DRAFT_AUTOSAVE_SEC = 120;
 
 const defaultExportRules: ExportTimingRules = {
   minDurationSec: 0.02,
@@ -465,6 +487,14 @@ function App() {
   const [editorHistoryLimitInput, setEditorHistoryLimitInput] = useState(
     String(DEFAULT_EDITOR_HISTORY_LIMIT),
   );
+  const [draftAutosaveSecInput, setDraftAutosaveSecInput] = useState(
+    String(DEFAULT_DRAFT_AUTOSAVE_SEC),
+  );
+  const [editorDraftPath, setEditorDraftPath] = useState("");
+  const [editorDraftUpdatedAtMs, setEditorDraftUpdatedAtMs] = useState<number | null>(null);
+  const [editorAutosaveMessage, setEditorAutosaveMessage] = useState("");
+  const [editorAutosaveError, setEditorAutosaveError] = useState("");
+  const [isAutosavingDraft, setIsAutosavingDraft] = useState(false);
   const [editorStatus, setEditorStatus] = useState<string>("");
   const [editorError, setEditorError] = useState<string>("");
   const [editorLastOutputPath, setEditorLastOutputPath] = useState<string>("");
@@ -479,6 +509,8 @@ function App() {
   const editorUndoStackRef = useRef<EditorSnapshot[]>([]);
   const editorRedoStackRef = useRef<EditorSnapshot[]>([]);
   const editorBaselineRef = useRef<EditorSnapshot | null>(null);
+  const lastAutosavedSnapshotRef = useRef<EditorSnapshot | null>(null);
+  const autosaveInFlightRef = useRef(false);
   const dragStartSnapshotRef = useRef<EditorSnapshot | null>(null);
   const dragHasHistoryChangeRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -536,6 +568,17 @@ function App() {
       MAX_EDITOR_HISTORY_LIMIT,
     );
   }, [editorHistoryLimitInput]);
+  const draftAutosaveSec = useMemo(() => {
+    const parsed = Number(draftAutosaveSecInput);
+    if (!Number.isFinite(parsed)) {
+      return DEFAULT_DRAFT_AUTOSAVE_SEC;
+    }
+    return clampNumber(
+      Math.floor(parsed),
+      MIN_DRAFT_AUTOSAVE_SEC,
+      MAX_DRAFT_AUTOSAVE_SEC,
+    );
+  }, [draftAutosaveSecInput]);
   const canUndoEditor = editorUndoStack.length > 0;
   const canRedoEditor = editorRedoStack.length > 0;
 
@@ -664,6 +707,74 @@ function App() {
     setEditorSnapshotState(next);
     setEditorError("");
     setEditorStatus("Redo applique.");
+  }
+
+  async function autosaveEditorDraft(force = false): Promise<boolean> {
+    if (!editorSourcePath) {
+      return false;
+    }
+    if (autosaveInFlightRef.current) {
+      return false;
+    }
+
+    const snapshot = getCurrentEditorSnapshot();
+    if (!force && !editorDirty) {
+      return false;
+    }
+
+    const lastSaved = lastAutosavedSnapshotRef.current;
+    if (!force && lastSaved && areEditorSnapshotsEqual(snapshot, lastSaved)) {
+      return false;
+    }
+
+    autosaveInFlightRef.current = true;
+    setIsAutosavingDraft(true);
+    try {
+      const response = await invoke<SaveDraftResponse>("save_transcript_draft", {
+        request: {
+          path: editorSourcePath,
+          language: snapshot.language.trim() || null,
+          segments: snapshot.segments,
+        } as SaveDraftRequest,
+      });
+      lastAutosavedSnapshotRef.current = cloneEditorSnapshot(snapshot);
+      setEditorDraftPath(response.draftPath);
+      setEditorDraftUpdatedAtMs(response.updatedAtMs);
+      setEditorAutosaveError("");
+      setEditorAutosaveMessage(
+        `Brouillon autosauve: ${new Date(response.updatedAtMs).toLocaleString()}`,
+      );
+      return true;
+    } catch (e) {
+      setEditorAutosaveError(String(e));
+      return false;
+    } finally {
+      autosaveInFlightRef.current = false;
+      setIsAutosavingDraft(false);
+    }
+  }
+
+  async function purgeTranscriptDraft(manual: boolean) {
+    if (!editorSourcePath) {
+      return;
+    }
+    try {
+      const deleted = await invoke<boolean>("delete_transcript_draft", {
+        path: editorSourcePath,
+      });
+      if (deleted) {
+        setEditorDraftPath("");
+        setEditorDraftUpdatedAtMs(null);
+        setEditorAutosaveError("");
+        setEditorAutosaveMessage(manual ? "Brouillon purge." : "");
+        lastAutosavedSnapshotRef.current = manual ? getCurrentEditorSnapshot() : null;
+      } else if (manual) {
+        setEditorAutosaveMessage("Aucun brouillon a purger.");
+        lastAutosavedSnapshotRef.current = getCurrentEditorSnapshot();
+      }
+    } catch (e) {
+      setEditorAutosaveError(String(e));
+    }
   }
 
   const nearestSegmentIndex = useMemo(
@@ -1142,22 +1253,63 @@ function App() {
     setEditorStatus("");
     setEditorLastOutputPath("");
     setLastExportReport(null);
+    setEditorAutosaveError("");
+    setEditorAutosaveMessage("");
     setIsEditorLoading(true);
     try {
       const doc = await invoke<TranscriptDocument>("load_transcript_document", { path });
-      const loadedSnapshot = buildEditorSnapshot(doc.language ?? "", doc.segments);
+      const sourceSnapshot = buildEditorSnapshot(doc.language ?? "", doc.segments);
+      let loadedSnapshot = sourceSnapshot;
+      let recoveredFromDraft = false;
+
+      const maybeDraft = await invoke<TranscriptDraftDocument | null>("load_transcript_draft", {
+        path: doc.path,
+      });
+      if (maybeDraft) {
+        const draftSnapshot = buildEditorSnapshot(
+          maybeDraft.language ?? "",
+          maybeDraft.segments,
+        );
+        setEditorDraftPath(maybeDraft.draftPath);
+        setEditorDraftUpdatedAtMs(maybeDraft.updatedAtMs);
+        lastAutosavedSnapshotRef.current = cloneEditorSnapshot(draftSnapshot);
+
+        if (!areEditorSnapshotsEqual(sourceSnapshot, draftSnapshot)) {
+          const shouldRecover = window.confirm(
+            `Un brouillon autosauve existe (${new Date(maybeDraft.updatedAtMs).toLocaleString()}). Restaurer ce brouillon ?`,
+          );
+          if (shouldRecover) {
+            loadedSnapshot = draftSnapshot;
+            recoveredFromDraft = true;
+          }
+        }
+      } else {
+        setEditorDraftPath("");
+        setEditorDraftUpdatedAtMs(null);
+        lastAutosavedSnapshotRef.current = null;
+      }
+
       setEditorSourcePath(doc.path);
-      editorBaselineRef.current = cloneEditorSnapshot(loadedSnapshot);
+      editorBaselineRef.current = cloneEditorSnapshot(sourceSnapshot);
       setEditorHistoryStacks([], []);
       setEditorSnapshotState(loadedSnapshot);
       setEditorVisibleCount(120);
       setActiveSegmentIndex(loadedSnapshot.segments.length > 0 ? 0 : null);
-      setEditorStatus(`Transcript charge: ${loadedSnapshot.segments.length} segment(s).`);
+      if (recoveredFromDraft) {
+        setEditorStatus(
+          `Transcript charge avec recovery du brouillon (${loadedSnapshot.segments.length} segment(s)).`,
+        );
+      } else {
+        setEditorStatus(`Transcript charge: ${loadedSnapshot.segments.length} segment(s).`);
+      }
     } catch (e) {
       editorBaselineRef.current = null;
+      lastAutosavedSnapshotRef.current = null;
       setEditorHistoryStacks([], []);
       setEditorSnapshotState(buildEditorSnapshot("", []));
       setEditorSourcePath("");
+      setEditorDraftPath("");
+      setEditorDraftUpdatedAtMs(null);
       setActiveSegmentIndex(null);
       setLastExportReport(null);
       setEditorError(String(e));
@@ -1344,6 +1496,11 @@ function App() {
       const savedSnapshot = getCurrentEditorSnapshot();
       editorBaselineRef.current = savedSnapshot;
       updateEditorDirtyFromSnapshot(savedSnapshot);
+      lastAutosavedSnapshotRef.current = null;
+      setEditorDraftPath("");
+      setEditorDraftUpdatedAtMs(null);
+      setEditorAutosaveError("");
+      setEditorAutosaveMessage("");
       setEditorLastOutputPath(outPath);
       setEditorStatus(`JSON sauvegarde: ${outPath}`);
       await refreshJobs();
@@ -1496,6 +1653,17 @@ function App() {
       setEditorHistoryStacks(trimmedUndo, trimmedRedo);
     }
   }, [editorHistoryLimit]);
+
+  useEffect(() => {
+    if (!editorSourcePath) {
+      return;
+    }
+    const intervalMs = draftAutosaveSec * 1000;
+    const timer = window.setInterval(() => {
+      void autosaveEditorDraft(false);
+    }, intervalMs);
+    return () => window.clearInterval(timer);
+  }, [editorSourcePath, draftAutosaveSec, editorDirty]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -2489,6 +2657,26 @@ function App() {
                         onBlur={() => setEditorHistoryLimitInput(String(editorHistoryLimit))}
                       />
                     </label>
+                    <label className="editor-history-limit">
+                      Autosave (s)
+                      <input
+                        type="number"
+                        min={MIN_DRAFT_AUTOSAVE_SEC}
+                        max={MAX_DRAFT_AUTOSAVE_SEC}
+                        step="1"
+                        value={draftAutosaveSecInput}
+                        onChange={(e) => setDraftAutosaveSecInput(e.currentTarget.value)}
+                        onBlur={() => setDraftAutosaveSecInput(String(draftAutosaveSec))}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="ghost"
+                      disabled={isEditorSaving || isEditorLoading || !editorSourcePath}
+                      onClick={() => purgeTranscriptDraft(true)}
+                    >
+                      Purger brouillon
+                    </button>
                     <button type="button" disabled={isEditorSaving || isEditorLoading} onClick={() => saveEditedJson(false)}>
                       Sauver JSON
                     </button>
@@ -2576,6 +2764,17 @@ function App() {
                     {editorDirty ? " | Modifications non sauvegardees" : ""} | Undo/Redo:{" "}
                     {editorUndoStack.length}/{editorRedoStack.length} (max {editorHistoryLimit})
                   </p>
+                  <p className="small">
+                    Autosave brouillon: toutes les {draftAutosaveSec}s |{" "}
+                    {isAutosavingDraft
+                      ? "en cours..."
+                      : editorDraftUpdatedAtMs
+                        ? `dernier ${new Date(editorDraftUpdatedAtMs).toLocaleString()}`
+                        : "aucun brouillon"}
+                  </p>
+                  {editorDraftPath ? <p className="small mono">{editorDraftPath}</p> : null}
+                  {editorAutosaveMessage ? <p className="small">{editorAutosaveMessage}</p> : null}
+                  {editorAutosaveError ? <p className="error-box">{editorAutosaveError}</p> : null}
                   {isEditorLoading ? <p className="small">Chargement editeur...</p> : null}
                   {editorStatus ? <p className="small">{editorStatus}</p> : null}
                   {editorError ? <p className="error-box">{editorError}</p> : null}

@@ -100,6 +100,16 @@ struct TranscriptDocument {
     segments: Vec<EditableSegment>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TranscriptDraftDocument {
+    source_path: String,
+    draft_path: String,
+    updated_at_ms: u64,
+    language: Option<String>,
+    segments: Vec<EditableSegment>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SaveTranscriptRequest {
@@ -107,6 +117,21 @@ struct SaveTranscriptRequest {
     language: Option<String>,
     segments: Vec<EditableSegment>,
     overwrite: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveTranscriptDraftRequest {
+    path: String,
+    language: Option<String>,
+    segments: Vec<EditableSegment>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveTranscriptDraftResponse {
+    draft_path: String,
+    updated_at_ms: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -576,6 +601,44 @@ fn edited_path_with_ext(source_path: &Path, extension_without_dot: &str) -> Path
         format!("{stem}.edited")
     };
     parent.join(format!("{base}.{extension_without_dot}"))
+}
+
+fn draft_path_for_source(source_path: &Path) -> PathBuf {
+    let parent = source_path.parent().unwrap_or_else(|| Path::new("."));
+    let stem = source_path
+        .file_stem()
+        .and_then(|raw| raw.to_str())
+        .unwrap_or("transcript");
+    let base = if stem.ends_with(".draft") {
+        stem.to_string()
+    } else {
+        format!("{stem}.draft")
+    };
+    parent.join(format!("{base}.json"))
+}
+
+fn system_time_to_ms(value: SystemTime) -> u64 {
+    match value.duration_since(UNIX_EPOCH) {
+        Ok(duration) => duration.as_millis() as u64,
+        Err(_) => 0,
+    }
+}
+
+fn build_transcript_draft_json(
+    source_path: &Path,
+    language: Option<String>,
+    segments: &[EditableSegment],
+) -> serde_json::Value {
+    let mut payload = build_transcript_json(language, segments);
+    if let serde_json::Value::Object(ref mut root) = payload {
+        root.insert("draft".into(), serde_json::json!(true));
+        root.insert(
+            "sourcePath".into(),
+            serde_json::json!(source_path.to_string_lossy().to_string()),
+        );
+        root.insert("autosavedAtMs".into(), serde_json::json!(now_ms()));
+    }
+    payload
 }
 
 fn format_timestamp(seconds: f64, decimal_marker: char) -> String {
@@ -1801,10 +1864,95 @@ fn load_transcript_document(path: String) -> Result<TranscriptDocument, String> 
 }
 
 #[tauri::command]
+fn load_transcript_draft(path: String) -> Result<Option<TranscriptDraftDocument>, String> {
+    let source = PathBuf::from(&path);
+    let draft_path = draft_path_for_source(&source);
+    if !draft_path.exists() {
+        return Ok(None);
+    }
+    if !draft_path.is_file() {
+        return Err("Draft path exists but is not a file".into());
+    }
+
+    let text =
+        std::fs::read_to_string(&draft_path).map_err(|err| format!("Unable to read draft: {err}"))?;
+    let value: serde_json::Value =
+        serde_json::from_str(&text).map_err(|err| format!("Invalid draft JSON content: {err}"))?;
+    let language = value
+        .get("language")
+        .and_then(|lang| lang.as_str())
+        .map(ToOwned::to_owned);
+    let segments = load_segments_from_json(&value);
+    if segments.is_empty() {
+        return Ok(None);
+    }
+
+    let updated_at_ms = draft_path
+        .metadata()
+        .ok()
+        .and_then(|metadata| metadata.modified().ok())
+        .map(system_time_to_ms)
+        .unwrap_or_else(now_ms);
+
+    Ok(Some(TranscriptDraftDocument {
+        source_path: source.to_string_lossy().to_string(),
+        draft_path: draft_path.to_string_lossy().to_string(),
+        updated_at_ms,
+        language,
+        segments,
+    }))
+}
+
+#[tauri::command]
+fn save_transcript_draft(
+    request: SaveTranscriptDraftRequest,
+) -> Result<SaveTranscriptDraftResponse, String> {
+    let source = PathBuf::from(&request.path);
+    let draft_path = draft_path_for_source(&source);
+    let payload = build_transcript_draft_json(&source, request.language, &request.segments);
+    let serialized =
+        serde_json::to_string_pretty(&payload).map_err(|err| format!("Unable to serialize draft JSON: {err}"))?;
+
+    if let Some(parent) = draft_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|err| format!("Unable to create draft directory: {err}"))?;
+    }
+
+    std::fs::write(&draft_path, serialized)
+        .map_err(|err| format!("Unable to write transcript draft: {err}"))?;
+
+    let updated_at_ms = draft_path
+        .metadata()
+        .ok()
+        .and_then(|metadata| metadata.modified().ok())
+        .map(system_time_to_ms)
+        .unwrap_or_else(now_ms);
+
+    Ok(SaveTranscriptDraftResponse {
+        draft_path: draft_path.to_string_lossy().to_string(),
+        updated_at_ms,
+    })
+}
+
+#[tauri::command]
+fn delete_transcript_draft(path: String) -> Result<bool, String> {
+    let source = PathBuf::from(&path);
+    let draft_path = draft_path_for_source(&source);
+    if !draft_path.exists() {
+        return Ok(false);
+    }
+    if !draft_path.is_file() {
+        return Err("Draft path exists but is not a file".into());
+    }
+    std::fs::remove_file(&draft_path).map_err(|err| format!("Unable to delete draft file: {err}"))?;
+    Ok(true)
+}
+
+#[tauri::command]
 fn save_transcript_json(request: SaveTranscriptRequest) -> Result<String, String> {
     let source = PathBuf::from(&request.path);
     let target_path = if request.overwrite.unwrap_or(false) {
-        source
+        source.clone()
     } else {
         edited_path_with_ext(&source, "json")
     };
@@ -1820,6 +1968,12 @@ fn save_transcript_json(request: SaveTranscriptRequest) -> Result<String, String
 
     std::fs::write(&target_path, serialized)
         .map_err(|err| format!("Unable to write transcript JSON: {err}"))?;
+
+    let draft_path = draft_path_for_source(&source);
+    if draft_path.exists() && draft_path.is_file() {
+        let _ = std::fs::remove_file(draft_path);
+    }
+
     Ok(target_path.to_string_lossy().to_string())
 }
 
@@ -1991,6 +2145,9 @@ pub fn run() {
             start_runtime_setup,
             build_waveform_peaks,
             load_transcript_document,
+            load_transcript_draft,
+            save_transcript_draft,
+            delete_transcript_draft,
             save_transcript_json,
             export_transcript,
             read_text_preview,

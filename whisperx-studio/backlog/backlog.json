@@ -1,6 +1,6 @@
 ﻿{
     "schemaVersion":  1,
-    "updatedAt":  "2026-03-20T09:56:55+01:00",
+    "updatedAt":  "2026-03-20T10:09:17+01:00",
     "statuses":  [
                      "todo",
                      "in_progress",
@@ -121,7 +121,7 @@
                   {
                       "id":  "WX-205",
                       "title":  "Autosave de brouillon + recovery au redemarrage",
-                      "status":  "todo",
+                      "status":  "done",
                       "priority":  "P1",
                       "estimate":  "1d",
                       "dependsOn":  [
