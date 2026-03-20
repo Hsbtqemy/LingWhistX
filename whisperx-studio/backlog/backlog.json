@@ -1,6 +1,6 @@
 ﻿{
     "schemaVersion":  1,
-    "updatedAt":  "2026-03-20T09:01:08+01:00",
+    "updatedAt":  "2026-03-20T09:11:22+01:00",
     "statuses":  [
                      "todo",
                      "in_progress",
@@ -67,7 +67,7 @@
                   {
                       "id":  "WX-203",
                       "title":  "Split et merge de segments sur curseur",
-                      "status":  "todo",
+                      "status":  "done",
                       "priority":  "P0",
                       "estimate":  "1.5d",
                       "dependsOn":  [

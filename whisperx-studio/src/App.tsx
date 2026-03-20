@@ -172,6 +172,8 @@ const profilePresets: ProfilePreset[] = [
   },
 ];
 
+const MIN_SEGMENT_DURATION_SEC = 0.02;
+
 function formatTimestamp(ms: number): string {
   if (!ms) {
     return "-";
@@ -262,6 +264,35 @@ function closestSegmentIndex(segments: EditableSegment[], timeSec: number): numb
     }
   }
   return bestIndex;
+}
+
+function roundSecondsMs(seconds: number): number {
+  return Math.round(seconds * 1000) / 1000;
+}
+
+function splitSegmentText(text: string): [string, string] {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return ["", ""];
+  }
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length <= 1) {
+    return [trimmed, ""];
+  }
+  const pivot = Math.ceil(words.length / 2);
+  return [words.slice(0, pivot).join(" "), words.slice(pivot).join(" ")];
+}
+
+function joinSegmentTexts(left: string, right: string): string {
+  const a = left.trim();
+  const b = right.trim();
+  if (!a) {
+    return b;
+  }
+  if (!b) {
+    return a;
+  }
+  return `${a} ${b}`;
 }
 
 function isRuntimeReady(status: RuntimeStatus | null): boolean {
@@ -398,6 +429,28 @@ function App() {
       ? "ew-resize"
       : "crosshair";
 
+  const actionSegmentIndex = useMemo(() => {
+    if (activeSegmentIndex !== null && editorSegments[activeSegmentIndex]) {
+      return activeSegmentIndex;
+    }
+    return focusedSegmentIndex;
+  }, [activeSegmentIndex, editorSegments, focusedSegmentIndex]);
+
+  const canSplitActiveSegment = useMemo(() => {
+    if (actionSegmentIndex === null) {
+      return false;
+    }
+    const segment = editorSegments[actionSegmentIndex];
+    if (!segment) {
+      return false;
+    }
+    return segment.end - segment.start > MIN_SEGMENT_DURATION_SEC * 2;
+  }, [actionSegmentIndex, editorSegments]);
+
+  const canMergePrev = actionSegmentIndex !== null && actionSegmentIndex > 0;
+  const canMergeNext =
+    actionSegmentIndex !== null && actionSegmentIndex < editorSegments.length - 1;
+
   async function refreshJobs() {
     try {
       const nextJobs = await invoke<Job[]>("list_jobs");
@@ -437,7 +490,6 @@ function App() {
         return current;
       }
 
-      const minDuration = 0.02;
       const maxDuration = waveform?.durationSec && waveform.durationSec > 0
         ? waveform.durationSec
         : Number.POSITIVE_INFINITY;
@@ -447,30 +499,30 @@ function App() {
       const clampedInput = Math.max(0, Number.isFinite(rawSeconds) ? rawSeconds : 0);
 
       if (edge === "start") {
-        start = Math.min(clampedInput, end - minDuration);
+        start = Math.min(clampedInput, end - MIN_SEGMENT_DURATION_SEC);
         if (start < 0) {
           start = 0;
         }
-        if (start > maxDuration - minDuration) {
-          start = Math.max(0, maxDuration - minDuration);
+        if (start > maxDuration - MIN_SEGMENT_DURATION_SEC) {
+          start = Math.max(0, maxDuration - MIN_SEGMENT_DURATION_SEC);
         }
       } else {
-        end = Math.max(clampedInput, start + minDuration);
+        end = Math.max(clampedInput, start + MIN_SEGMENT_DURATION_SEC);
         if (end > maxDuration) {
           end = maxDuration;
         }
       }
 
-      if (end < start + minDuration) {
-        end = start + minDuration;
+      if (end < start + MIN_SEGMENT_DURATION_SEC) {
+        end = start + MIN_SEGMENT_DURATION_SEC;
       }
       start = Math.max(0, start);
-      end = Math.max(start + minDuration, end);
+      end = Math.max(start + MIN_SEGMENT_DURATION_SEC, end);
 
       next[index] = {
         ...segment,
-        start: Math.round(start * 1000) / 1000,
-        end: Math.round(end * 1000) / 1000,
+        start: roundSecondsMs(start),
+        end: roundSecondsMs(end),
       };
       return next;
     });
@@ -698,6 +750,115 @@ function App() {
     }
     setActiveSegmentIndex(index);
     seekMedia(segment.start);
+  }
+
+  function editableTargetSegmentIndex(): number | null {
+    return actionSegmentIndex;
+  }
+
+  function splitActiveSegmentAtCursor() {
+    const targetIndex = editableTargetSegmentIndex();
+    if (targetIndex === null) {
+      setEditorError("Aucun segment actif a split.");
+      return;
+    }
+    const segment = editorSegments[targetIndex];
+    if (!segment) {
+      setEditorError("Segment actif introuvable.");
+      return;
+    }
+
+    const lowerBound = segment.start + MIN_SEGMENT_DURATION_SEC;
+    const upperBound = segment.end - MIN_SEGMENT_DURATION_SEC;
+    if (upperBound <= lowerBound) {
+      setEditorError("Segment trop court pour un split.");
+      return;
+    }
+
+    const rawCursor = Number.isFinite(cursorTimeSec)
+      ? cursorTimeSec
+      : segment.start + (segment.end - segment.start) / 2;
+    let splitAt = Math.min(upperBound, Math.max(lowerBound, rawCursor));
+    splitAt = roundSecondsMs(splitAt);
+    if (splitAt <= segment.start || splitAt >= segment.end) {
+      setEditorError("Position de split invalide.");
+      return;
+    }
+
+    const [leftText, rightText] = splitSegmentText(segment.text);
+    const leftSegment: EditableSegment = {
+      ...segment,
+      end: splitAt,
+      text: leftText,
+    };
+    const rightSegment: EditableSegment = {
+      ...segment,
+      start: splitAt,
+      text: rightText,
+    };
+
+    setEditorSegments((current) => {
+      const next = [...current];
+      if (!next[targetIndex]) {
+        return current;
+      }
+      next.splice(targetIndex, 1, leftSegment, rightSegment);
+      return next;
+    });
+    setActiveSegmentIndex(targetIndex + 1);
+    setWaveformCursorSec(splitAt);
+    setEditorError("");
+    setEditorStatus(`Segment #${targetIndex + 1} split a ${splitAt.toFixed(3)}s.`);
+    setEditorDirty(true);
+  }
+
+  function mergeActiveSegment(direction: "prev" | "next") {
+    const targetIndex = editableTargetSegmentIndex();
+    if (targetIndex === null) {
+      setEditorError("Aucun segment actif a fusionner.");
+      return;
+    }
+
+    const neighborIndex = direction === "prev" ? targetIndex - 1 : targetIndex + 1;
+    if (neighborIndex < 0 || neighborIndex >= editorSegments.length) {
+      setEditorError("Fusion impossible: segment voisin manquant.");
+      return;
+    }
+
+    const firstIndex = Math.min(targetIndex, neighborIndex);
+    const secondIndex = Math.max(targetIndex, neighborIndex);
+    const first = editorSegments[firstIndex];
+    const second = editorSegments[secondIndex];
+    if (!first || !second) {
+      setEditorError("Fusion impossible: segment introuvable.");
+      return;
+    }
+
+    const leftSpeaker = first.speaker?.trim() || "";
+    const rightSpeaker = second.speaker?.trim() || "";
+    const mergedSpeaker = leftSpeaker || rightSpeaker || undefined;
+    const mergedSegment: EditableSegment = {
+      start: roundSecondsMs(Math.min(first.start, second.start)),
+      end: roundSecondsMs(Math.max(first.end, second.end)),
+      text: joinSegmentTexts(first.text, second.text),
+      speaker: mergedSpeaker,
+    };
+
+    setEditorSegments((current) => {
+      const next = [...current];
+      if (!next[firstIndex] || !next[secondIndex]) {
+        return current;
+      }
+      next.splice(firstIndex, 2, mergedSegment);
+      return next;
+    });
+    setActiveSegmentIndex(firstIndex);
+    setWaveformCursorSec(mergedSegment.start);
+    setEditorError("");
+    setEditorStatus(
+      `Segments #${firstIndex + 1} et #${secondIndex + 1} fusionnes.`,
+    );
+    setEditorDirty(true);
   }
 
   async function saveEditedJson(overwrite: boolean) {
@@ -1489,6 +1650,15 @@ function App() {
                       <button type="button" className="ghost" onClick={() => setActiveSegmentIndex(focusedSegment.index)}>
                         Definir segment actif
                       </button>
+                      <button type="button" className="ghost" onClick={splitActiveSegmentAtCursor} disabled={!canSplitActiveSegment}>
+                        Split au curseur
+                      </button>
+                      <button type="button" className="ghost" onClick={() => mergeActiveSegment("prev")} disabled={!canMergePrev}>
+                        Fusionner precedent
+                      </button>
+                      <button type="button" className="ghost" onClick={() => mergeActiveSegment("next")} disabled={!canMergeNext}>
+                        Fusionner suivant
+                      </button>
                       <button type="button" className="ghost" onClick={() => seekMedia(focusedSegment.segment.start)}>
                         Aller debut segment
                       </button>
@@ -1611,6 +1781,7 @@ function App() {
                       <div
                         className={`editor-segment ${activeSegmentIndex === index ? "selected" : ""}`}
                         key={`${segment.start}-${segment.end}-${index}`}
+                        onClick={() => setActiveSegmentIndex(index)}
                       >
                         <p className="small">
                           #{index + 1} | {segment.start.toFixed(3)}s - {segment.end.toFixed(3)}s
