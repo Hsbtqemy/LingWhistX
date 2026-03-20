@@ -1,6 +1,6 @@
 ﻿{
     "schemaVersion":  1,
-    "updatedAt":  "2026-03-20T11:12:51+01:00",
+    "updatedAt":  "2026-03-20T11:25:34+01:00",
     "statuses":  [
                      "todo",
                      "in_progress",
@@ -257,7 +257,7 @@
                   {
                       "id":  "WX-210",
                       "title":  "Smoke tests end-to-end et checklist release",
-                      "status":  "todo",
+                      "status":  "done",
                       "priority":  "P1",
                       "estimate":  "1d",
                       "dependsOn":  [

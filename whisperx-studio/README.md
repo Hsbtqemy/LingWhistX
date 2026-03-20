@@ -95,11 +95,28 @@ Main Windows outputs:
 - `src-tauri/target/release/bundle/msi/whisperx-studio_0.1.0_x64_en-US.msi`
 - `src-tauri/target/release/bundle/nsis/whisperx-studio_0.1.0_x64-setup.exe`
 
+## Smoke E2E + Release Trace
+
+Run the end-to-end smoke flow (`mock job -> transcript edit/save -> export -> installer build -> artifact hashes`):
+
+```bash
+npm run smoke:e2e
+```
+
+The script generates a report under:
+
+- `runs/smoke/smoke-release-<timestamp>.md`
+
+Release checklist versioned in repo:
+
+- `release-checklist.v1.md`
+
 ## Project Layout
 
 - `src/`: React UI (jobs, logs, run details, transcript editor, runtime status)
 - `src-tauri/src/lib.rs`: Rust commands (`create_job`, `list_jobs`, `get_job`, runtime checks, waveform peaks, transcript export/edit helpers)
 - `python/worker.py`: worker entrypoint used by Rust (`mock` + `whisperx`)
 - `scripts/setup-local-runtime.ps1`: local runtime bootstrap (venv + whisperx install)
+- `scripts/smoke-e2e.ps1`: smoke orchestration + MSI/EXE verification report
 - `src-tauri/tauri.conf.json`: Tauri config + resource bundling
 - `src-tauri/capabilities/default.json`: desktop permissions

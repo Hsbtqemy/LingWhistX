@@ -13,6 +13,8 @@
     "backlog:show": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backlog.ps1 -Action show",
     "backlog:set": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backlog.ps1 -Action set",
     "runtime:setup": "powershell -ExecutionPolicy Bypass -File .\\scripts\\setup-local-runtime.ps1",
+    "smoke:e2e": "powershell -ExecutionPolicy Bypass -File .\\scripts\\smoke-e2e.ps1",
+    "smoke:release": "npm run smoke:e2e",
     "tauri": "tauri"
   },
   "dependencies": {
