@@ -308,6 +308,14 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function parseFiniteNumberInput(raw: string): number | null {
+  if (raw.trim() === "") {
+    return null;
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function formatTimestamp(ms: number): string {
   if (!ms) {
     return "-";
@@ -610,6 +618,8 @@ function App() {
   const [runtimeSetupRunning, setRuntimeSetupRunning] = useState(false);
   const [runtimeSetupLogs, setRuntimeSetupLogs] = useState<RuntimeSetupLogEvent[]>([]);
   const [runtimeSetupMessage, setRuntimeSetupMessage] = useState("");
+  const [runtimeSetupSuccess, setRuntimeSetupSuccess] = useState<boolean | null>(null);
+  const [runtimeLastCheckedAtMs, setRuntimeLastCheckedAtMs] = useState<number | null>(null);
   const [waveform, setWaveform] = useState<WaveformPeaks | null>(null);
   const [isWaveformLoading, setIsWaveformLoading] = useState(false);
   const [waveformTaskId, setWaveformTaskId] = useState("");
@@ -721,6 +731,22 @@ function App() {
   );
 
   const runtimeReady = useMemo(() => isRuntimeReady(runtimeStatus), [runtimeStatus]);
+  const runtimeMissingComponents = useMemo(() => {
+    if (!runtimeStatus) {
+      return [] as string[];
+    }
+    const missing: string[] = [];
+    if (!runtimeStatus.pythonOk) {
+      missing.push("Python");
+    }
+    if (!runtimeStatus.whisperxOk) {
+      missing.push("WhisperX");
+    }
+    if (!runtimeStatus.ffmpegOk) {
+      missing.push("ffmpeg");
+    }
+    return missing;
+  }, [runtimeStatus]);
   const editorHistoryLimit = useMemo(() => {
     const parsed = Number(editorHistoryLimitInput);
     if (!Number.isFinite(parsed)) {
@@ -1193,6 +1219,7 @@ function App() {
     try {
       const status = await invoke<RuntimeStatus>("get_runtime_status");
       setRuntimeStatus(status);
+      setRuntimeLastCheckedAtMs(Date.now());
     } catch (e) {
       setError(String(e));
     } finally {
@@ -1212,6 +1239,7 @@ function App() {
   async function startRuntimeSetup() {
     setError("");
     setRuntimeSetupMessage("");
+    setRuntimeSetupSuccess(null);
     setRuntimeSetupLogs([]);
     try {
       await invoke("start_runtime_setup");
@@ -1962,6 +1990,7 @@ function App() {
       (event) => {
         setRuntimeSetupRunning(false);
         setRuntimeSetupMessage(event.payload.message);
+        setRuntimeSetupSuccess(event.payload.success);
         void refreshRuntimeStatus();
         void refreshRuntimeSetupStatus();
       },
@@ -2467,10 +2496,35 @@ function App() {
             <p className="small">Aucun diagnostic runtime disponible pour l'instant.</p>
           ) : (
             <>
+              <div className={`runtime-readiness ${runtimeReady ? "ready" : "pending"}`}>
+                {runtimeReady ? (
+                  <p className="runtime-readiness-title">
+                    Runtime local pret: Python + WhisperX + ffmpeg detectes.
+                  </p>
+                ) : (
+                  <p className="runtime-readiness-title">
+                    Runtime local incomplet
+                    {runtimeMissingComponents.length > 0
+                      ? ` (${runtimeMissingComponents.join(", ")} manquant${runtimeMissingComponents.length > 1 ? "s" : ""})`
+                      : ""}
+                    .
+                  </p>
+                )}
+                {runtimeLastCheckedAtMs ? (
+                  <p className="small">
+                    Derniere verification: {new Date(runtimeLastCheckedAtMs).toLocaleTimeString()}
+                  </p>
+                ) : null}
+              </div>
               <p className="small">
                 Python: {runtimeStatus.pythonOk ? "ok" : "ko"} | WhisperX:{" "}
                 {runtimeStatus.whisperxOk ? "ok" : "ko"} | ffmpeg: {runtimeStatus.ffmpegOk ? "ok" : "ko"}
               </p>
+              {runtimeSetupMessage ? (
+                <p className={`runtime-setup-feedback ${runtimeSetupSuccess === false ? "error" : "ok"}`}>
+                  {runtimeSetupMessage}
+                </p>
+              ) : null}
               <p className="small mono">Commande Python: {runtimeStatus.pythonCommand}</p>
               {runtimeStatus.whisperxVersion ? (
                 <p className="small">WhisperX version: {runtimeStatus.whisperxVersion}</p>
@@ -2498,13 +2552,13 @@ function App() {
                       onClick={() => {
                         setRuntimeSetupLogs([]);
                         setRuntimeSetupMessage("");
+                        setRuntimeSetupSuccess(null);
                       }}
                       disabled={runtimeSetupRunning || runtimeSetupLogs.length === 0}
                     >
                       Effacer logs setup
                     </button>
                   </div>
-                  {runtimeSetupMessage ? <p className="small">{runtimeSetupMessage}</p> : null}
                   {runtimeSetupLogs.length > 0 ? (
                     <ul className="runtime-setup-log-list">
                       {runtimeSetupLogs.map((entry, idx) => (
@@ -2894,13 +2948,12 @@ function App() {
                         max={MAX_WAVEFORM_ZOOM}
                         step="0.1"
                         value={waveformZoom}
-                        onChange={(e) =>
-                          setWaveformZoomAround(
-                            Number(e.currentTarget.value),
-                            waveformCursorSec ?? mediaCurrentSec,
-                            0.5,
-                          )
-                        }
+                        onChange={(e) => {
+                          const nextZoom = parseFiniteNumberInput(e.currentTarget.value);
+                          if (nextZoom !== null) {
+                            setWaveformZoomAround(nextZoom, waveformCursorSec ?? mediaCurrentSec, 0.5);
+                          }
+                        }}
                         disabled={!waveform}
                       />
                       <button
@@ -2929,7 +2982,12 @@ function App() {
                       max={waveformMaxViewStartSec}
                       step="0.02"
                       value={Math.min(waveformViewStartSec, waveformMaxViewStartSec)}
-                      onChange={(e) => setWaveformViewStart(Number(e.currentTarget.value))}
+                      onChange={(e) => {
+                        const nextStart = parseFiniteNumberInput(e.currentTarget.value);
+                        if (nextStart !== null) {
+                          setWaveformViewStart(nextStart);
+                        }
+                      }}
                       disabled={!waveform || waveformMaxViewStartSec <= 0}
                     />
                   </label>
@@ -3188,8 +3246,8 @@ function App() {
                         min="0.001"
                         value={exportRules.minDurationSec}
                         onChange={(e) => {
-                          const next = Number(e.currentTarget.value);
-                          if (Number.isFinite(next)) {
+                          const next = parseFiniteNumberInput(e.currentTarget.value);
+                          if (next !== null) {
                             setExportRules((prev) => ({ ...prev, minDurationSec: next }));
                           }
                         }}
@@ -3203,8 +3261,8 @@ function App() {
                         min="0"
                         value={exportRules.minGapSec}
                         onChange={(e) => {
-                          const next = Number(e.currentTarget.value);
-                          if (Number.isFinite(next)) {
+                          const next = parseFiniteNumberInput(e.currentTarget.value);
+                          if (next !== null) {
                             setExportRules((prev) => ({ ...prev, minGapSec: next }));
                           }
                         }}
@@ -3375,8 +3433,8 @@ function App() {
                               step="0.001"
                               value={segment.start}
                               onChange={(e) => {
-                                const value = Number(e.currentTarget.value);
-                                if (Number.isFinite(value)) {
+                                const value = parseFiniteNumberInput(e.currentTarget.value);
+                                if (value !== null) {
                                   updateEditorSegmentBoundary(index, "start", value);
                                 }
                               }}
@@ -3389,8 +3447,8 @@ function App() {
                               step="0.001"
                               value={segment.end}
                               onChange={(e) => {
-                                const value = Number(e.currentTarget.value);
-                                if (Number.isFinite(value)) {
+                                const value = parseFiniteNumberInput(e.currentTarget.value);
+                                if (value !== null) {
                                   updateEditorSegmentBoundary(index, "end", value);
                                 }
                               }}
