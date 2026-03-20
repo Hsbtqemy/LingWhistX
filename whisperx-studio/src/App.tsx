@@ -157,6 +157,24 @@ type SaveDraftResponse = {
   updatedAtMs: number;
 };
 
+type TranscriptQaIssueType =
+  | "invalid_duration"
+  | "overlap"
+  | "gap"
+  | "speech_rate_high"
+  | "speech_rate_low"
+  | "empty_text";
+
+type TranscriptQaIssue = {
+  id: string;
+  type: TranscriptQaIssueType;
+  severity: "error" | "warning";
+  segmentIndex: number;
+  relatedSegmentIndex?: number;
+  message: string;
+  canAutoFix: boolean;
+};
+
 type EditorSnapshot = {
   language: string;
   segments: EditableSegment[];
@@ -246,6 +264,9 @@ const MAX_EDITOR_HISTORY_LIMIT = 2000;
 const DEFAULT_DRAFT_AUTOSAVE_SEC = 8;
 const MIN_DRAFT_AUTOSAVE_SEC = 3;
 const MAX_DRAFT_AUTOSAVE_SEC = 120;
+const DEFAULT_QA_GAP_SEC = 1.2;
+const DEFAULT_QA_MIN_WPS = 1.2;
+const DEFAULT_QA_MAX_WPS = 5.5;
 
 const defaultExportRules: ExportTimingRules = {
   minDurationSec: 0.02,
@@ -438,6 +459,107 @@ function areEditorSnapshotsEqual(left: EditorSnapshot, right: EditorSnapshot): b
   return left.language === right.language && areSegmentsEqual(left.segments, right.segments);
 }
 
+function countSegmentWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function buildTranscriptQaIssues(
+  segments: EditableSegment[],
+  gapThresholdSec: number,
+  minWps: number,
+  maxWps: number,
+): TranscriptQaIssue[] {
+  const issues: TranscriptQaIssue[] = [];
+  const safeGap = Math.max(0, gapThresholdSec);
+  const safeMinWps = Math.max(0.1, minWps);
+  const safeMaxWps = Math.max(safeMinWps, maxWps);
+
+  for (let i = 0; i < segments.length; i += 1) {
+    const segment = segments[i];
+    if (!segment) {
+      continue;
+    }
+    const duration = segment.end - segment.start;
+    const words = countSegmentWords(segment.text);
+
+    if (duration <= 0) {
+      issues.push({
+        id: `invalid_duration-${i}`,
+        type: "invalid_duration",
+        severity: "error",
+        segmentIndex: i,
+        message: `Duree invalide (${duration.toFixed(3)}s).`,
+        canAutoFix: true,
+      });
+    }
+
+    if (!segment.text.trim()) {
+      issues.push({
+        id: `empty_text-${i}`,
+        type: "empty_text",
+        severity: "warning",
+        segmentIndex: i,
+        message: "Texte vide.",
+        canAutoFix: true,
+      });
+    }
+
+    if (duration > 0.000001 && words > 0) {
+      const wps = words / duration;
+      if (wps > safeMaxWps) {
+        issues.push({
+          id: `speech_rate_high-${i}`,
+          type: "speech_rate_high",
+          severity: "warning",
+          segmentIndex: i,
+          message: `Debit eleve (${wps.toFixed(2)} mots/s > ${safeMaxWps.toFixed(2)}).`,
+          canAutoFix: true,
+        });
+      } else if (wps < safeMinWps && words >= 3) {
+        issues.push({
+          id: `speech_rate_low-${i}`,
+          type: "speech_rate_low",
+          severity: "warning",
+          segmentIndex: i,
+          message: `Debit faible (${wps.toFixed(2)} mots/s < ${safeMinWps.toFixed(2)}).`,
+          canAutoFix: true,
+        });
+      }
+    }
+
+    if (i === 0) {
+      continue;
+    }
+    const previous = segments[i - 1];
+    if (!previous) {
+      continue;
+    }
+    const delta = segment.start - previous.end;
+    if (delta < -0.000001) {
+      issues.push({
+        id: `overlap-${i - 1}-${i}`,
+        type: "overlap",
+        severity: "error",
+        segmentIndex: i,
+        relatedSegmentIndex: i - 1,
+        message: `Overlap de ${Math.abs(delta).toFixed(3)}s avec segment #${i + 1}.`,
+        canAutoFix: true,
+      });
+    } else if (delta > safeGap) {
+      issues.push({
+        id: `gap-${i - 1}-${i}`,
+        type: "gap",
+        severity: "warning",
+        segmentIndex: i,
+        relatedSegmentIndex: i - 1,
+        message: `Gap de ${delta.toFixed(3)}s (seuil ${safeGap.toFixed(3)}s).`,
+        canAutoFix: true,
+      });
+    }
+  }
+  return issues;
+}
+
 function isRuntimeReady(status: RuntimeStatus | null): boolean {
   if (!status) {
     return false;
@@ -495,6 +617,14 @@ function App() {
   const [editorAutosaveMessage, setEditorAutosaveMessage] = useState("");
   const [editorAutosaveError, setEditorAutosaveError] = useState("");
   const [isAutosavingDraft, setIsAutosavingDraft] = useState(false);
+  const [qaGapThresholdSecInput, setQaGapThresholdSecInput] = useState(
+    String(DEFAULT_QA_GAP_SEC),
+  );
+  const [qaMinWpsInput, setQaMinWpsInput] = useState(String(DEFAULT_QA_MIN_WPS));
+  const [qaMaxWpsInput, setQaMaxWpsInput] = useState(String(DEFAULT_QA_MAX_WPS));
+  const [qaIssues, setQaIssues] = useState<TranscriptQaIssue[]>([]);
+  const [qaScannedAtMs, setQaScannedAtMs] = useState<number | null>(null);
+  const [qaStatus, setQaStatus] = useState("");
   const [editorStatus, setEditorStatus] = useState<string>("");
   const [editorError, setEditorError] = useState<string>("");
   const [editorLastOutputPath, setEditorLastOutputPath] = useState<string>("");
@@ -579,6 +709,27 @@ function App() {
       MAX_DRAFT_AUTOSAVE_SEC,
     );
   }, [draftAutosaveSecInput]);
+  const qaGapThresholdSec = useMemo(() => {
+    const parsed = Number(qaGapThresholdSecInput);
+    if (!Number.isFinite(parsed)) {
+      return DEFAULT_QA_GAP_SEC;
+    }
+    return Math.max(0, parsed);
+  }, [qaGapThresholdSecInput]);
+  const qaMinWps = useMemo(() => {
+    const parsed = Number(qaMinWpsInput);
+    if (!Number.isFinite(parsed)) {
+      return DEFAULT_QA_MIN_WPS;
+    }
+    return Math.max(0.1, parsed);
+  }, [qaMinWpsInput]);
+  const qaMaxWps = useMemo(() => {
+    const parsed = Number(qaMaxWpsInput);
+    if (!Number.isFinite(parsed)) {
+      return DEFAULT_QA_MAX_WPS;
+    }
+    return Math.max(0.1, parsed);
+  }, [qaMaxWpsInput]);
   const canUndoEditor = editorUndoStack.length > 0;
   const canRedoEditor = editorRedoStack.length > 0;
 
@@ -775,6 +926,162 @@ function App() {
     } catch (e) {
       setEditorAutosaveError(String(e));
     }
+  }
+
+  function qaIssueLabel(type: TranscriptQaIssueType): string {
+    switch (type) {
+      case "invalid_duration":
+        return "Duree invalide";
+      case "overlap":
+        return "Overlap";
+      case "gap":
+        return "Gap";
+      case "speech_rate_high":
+        return "Debit eleve";
+      case "speech_rate_low":
+        return "Debit faible";
+      case "empty_text":
+        return "Texte vide";
+      default:
+        return type;
+    }
+  }
+
+  function runTranscriptQaScan() {
+    const maxWps = Math.max(qaMinWps, qaMaxWps);
+    const issues = buildTranscriptQaIssues(
+      editorSegmentsRef.current,
+      qaGapThresholdSec,
+      qaMinWps,
+      maxWps,
+    );
+    setQaIssues(issues);
+    setQaScannedAtMs(Date.now());
+    setQaStatus(
+      issues.length === 0
+        ? "QA: aucune anomalie detectee."
+        : `QA: ${issues.length} anomalie(s) detectee(s).`,
+    );
+  }
+
+  function ensureEditorSegmentVisible(index: number) {
+    if (index < 0) {
+      return;
+    }
+    const pageSize = 120;
+    if (index >= editorVisibleCount) {
+      const nextVisible = Math.ceil((index + 1) / pageSize) * pageSize;
+      setEditorVisibleCount(nextVisible);
+    }
+  }
+
+  function jumpToQaIssue(issue: TranscriptQaIssue) {
+    const index = issue.segmentIndex;
+    const segment = editorSegmentsRef.current[index];
+    if (!segment) {
+      return;
+    }
+    ensureEditorSegmentVisible(index);
+    setActiveSegmentIndex(index);
+    seekMedia(segment.start);
+    setQaStatus(`QA focus: segment #${index + 1}.`);
+  }
+
+  function autoFixQaIssue(issue: TranscriptQaIssue) {
+    const maxWps = Math.max(qaMinWps, qaMaxWps);
+    const changed = applyEditorSnapshotMutation((current) => {
+      const nextSegments = cloneEditableSegments(current.segments);
+      const index = issue.segmentIndex;
+      const segment = nextSegments[index];
+      if (!segment) {
+        return current;
+      }
+      const prev = index > 0 ? nextSegments[index - 1] : undefined;
+      const next = index + 1 < nextSegments.length ? nextSegments[index + 1] : undefined;
+      const maxDuration = waveform?.durationSec && waveform.durationSec > 0
+        ? waveform.durationSec
+        : Number.POSITIVE_INFINITY;
+
+      switch (issue.type) {
+        case "invalid_duration": {
+          const nextEnd = roundSecondsMs(segment.start + MIN_SEGMENT_DURATION_SEC);
+          nextSegments[index] = { ...segment, end: nextEnd };
+          break;
+        }
+        case "overlap":
+        case "gap": {
+          if (!prev) {
+            return current;
+          }
+          const nextStart = roundSecondsMs(Math.max(0, prev.end));
+          let nextEnd = Math.max(segment.end, nextStart + MIN_SEGMENT_DURATION_SEC);
+          if (Number.isFinite(maxDuration)) {
+            nextEnd = Math.min(nextEnd, maxDuration);
+          }
+          nextSegments[index] = {
+            ...segment,
+            start: nextStart,
+            end: roundSecondsMs(Math.max(nextStart + MIN_SEGMENT_DURATION_SEC, nextEnd)),
+          };
+          break;
+        }
+        case "empty_text": {
+          nextSegments[index] = { ...segment, text: "[inaudible]" };
+          break;
+        }
+        case "speech_rate_high": {
+          const words = countSegmentWords(segment.text);
+          if (words === 0) {
+            return current;
+          }
+          const desiredDuration = words / maxWps;
+          let nextEnd = Math.max(segment.end, segment.start + desiredDuration);
+          if (next) {
+            nextEnd = Math.min(nextEnd, next.start - MIN_SEGMENT_DURATION_SEC);
+          }
+          if (Number.isFinite(maxDuration)) {
+            nextEnd = Math.min(nextEnd, maxDuration);
+          }
+          nextEnd = Math.max(segment.start + MIN_SEGMENT_DURATION_SEC, nextEnd);
+          if (nextEnd <= segment.end + 0.000001) {
+            return current;
+          }
+          nextSegments[index] = { ...segment, end: roundSecondsMs(nextEnd) };
+          break;
+        }
+        case "speech_rate_low": {
+          const words = countSegmentWords(segment.text);
+          if (words === 0) {
+            return current;
+          }
+          const desiredDuration = words / qaMinWps;
+          let nextEnd = Math.max(segment.start + MIN_SEGMENT_DURATION_SEC, segment.start + desiredDuration);
+          if (next) {
+            nextEnd = Math.min(nextEnd, next.start - MIN_SEGMENT_DURATION_SEC);
+          }
+          nextEnd = Math.min(segment.end, nextEnd);
+          if (nextEnd >= segment.end - 0.000001) {
+            return current;
+          }
+          nextSegments[index] = { ...segment, end: roundSecondsMs(nextEnd) };
+          break;
+        }
+        default:
+          return current;
+      }
+
+      return buildEditorSnapshot(current.language, nextSegments);
+    });
+
+    if (!changed) {
+      setQaStatus(`Auto-fix impossible pour ${qaIssueLabel(issue.type).toLowerCase()}.`);
+      return;
+    }
+
+    setQaStatus(`Auto-fix applique (${qaIssueLabel(issue.type)}) sur segment #${issue.segmentIndex + 1}.`);
+    ensureEditorSegmentVisible(issue.segmentIndex);
+    setActiveSegmentIndex(issue.segmentIndex);
+    runTranscriptQaScan();
   }
 
   const nearestSegmentIndex = useMemo(
@@ -1302,6 +1609,19 @@ function App() {
       } else {
         setEditorStatus(`Transcript charge: ${loadedSnapshot.segments.length} segment(s).`);
       }
+      const initialQaIssues = buildTranscriptQaIssues(
+        loadedSnapshot.segments,
+        qaGapThresholdSec,
+        qaMinWps,
+        Math.max(qaMinWps, qaMaxWps),
+      );
+      setQaIssues(initialQaIssues);
+      setQaScannedAtMs(Date.now());
+      setQaStatus(
+        initialQaIssues.length === 0
+          ? "QA: aucune anomalie detectee."
+          : `QA: ${initialQaIssues.length} anomalie(s) detectee(s).`,
+      );
     } catch (e) {
       editorBaselineRef.current = null;
       lastAutosavedSnapshotRef.current = null;
@@ -1312,6 +1632,9 @@ function App() {
       setEditorDraftUpdatedAtMs(null);
       setActiveSegmentIndex(null);
       setLastExportReport(null);
+      setQaIssues([]);
+      setQaScannedAtMs(null);
+      setQaStatus("");
       setEditorError(String(e));
     } finally {
       setIsEditorLoading(false);
@@ -1664,6 +1987,15 @@ function App() {
     }, intervalMs);
     return () => window.clearInterval(timer);
   }, [editorSourcePath, draftAutosaveSec, editorDirty]);
+
+  useEffect(() => {
+    if (editorSourcePath) {
+      return;
+    }
+    setQaIssues([]);
+    setQaScannedAtMs(null);
+    setQaStatus("");
+  }, [editorSourcePath]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -2758,6 +3090,86 @@ function App() {
                       </ul>
                     </div>
                   ) : null}
+
+                  <div className="qa-panel">
+                    <div className="qa-toolbar">
+                      <label>
+                        Gap &gt; (s)
+                        <input
+                          type="number"
+                          step="0.05"
+                          min="0"
+                          value={qaGapThresholdSecInput}
+                          onChange={(e) => setQaGapThresholdSecInput(e.currentTarget.value)}
+                          onBlur={() => setQaGapThresholdSecInput(qaGapThresholdSec.toFixed(2))}
+                        />
+                      </label>
+                      <label>
+                        Debit min (mots/s)
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          value={qaMinWpsInput}
+                          onChange={(e) => setQaMinWpsInput(e.currentTarget.value)}
+                          onBlur={() => setQaMinWpsInput(qaMinWps.toFixed(2))}
+                        />
+                      </label>
+                      <label>
+                        Debit max (mots/s)
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          value={qaMaxWpsInput}
+                          onChange={(e) => setQaMaxWpsInput(e.currentTarget.value)}
+                          onBlur={() => setQaMaxWpsInput(qaMaxWps.toFixed(2))}
+                        />
+                      </label>
+                      <button type="button" className="ghost" onClick={runTranscriptQaScan}>
+                        Rescanner QA
+                      </button>
+                    </div>
+                    <p className="small">
+                      QA scan: {qaScannedAtMs ? new Date(qaScannedAtMs).toLocaleString() : "jamais"} |{" "}
+                      anomalies: {qaIssues.length}
+                    </p>
+                    {qaStatus ? <p className="small">{qaStatus}</p> : null}
+                    {qaIssues.length === 0 ? (
+                      <p className="small">Aucune anomalie QA pour les regles courantes.</p>
+                    ) : (
+                      <ul className="qa-issue-list">
+                        {qaIssues.map((issue) => (
+                          <li className={`qa-issue ${issue.severity}`} key={issue.id}>
+                            <div className="qa-issue-main">
+                              <span className={`qa-severity ${issue.severity}`}>{issue.severity}</span>
+                              <strong>{qaIssueLabel(issue.type)}</strong>
+                              <span className="small">
+                                Segment #{issue.segmentIndex + 1}
+                                {issue.relatedSegmentIndex !== undefined
+                                  ? ` / #${issue.relatedSegmentIndex + 1}`
+                                  : ""}
+                              </span>
+                              <span>{issue.message}</span>
+                            </div>
+                            <div className="qa-issue-actions">
+                              <button type="button" className="ghost" onClick={() => jumpToQaIssue(issue)}>
+                                Aller
+                              </button>
+                              <button
+                                type="button"
+                                className="ghost"
+                                onClick={() => autoFixQaIssue(issue)}
+                                disabled={!issue.canAutoFix}
+                              >
+                                Auto-fix
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
 
                   <p className="small">
                     Segments: {editorSegments.length} | Affiches: {displayedEditorSegments.length}

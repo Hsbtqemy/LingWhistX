@@ -640,6 +640,94 @@ button.danger {
   color: #2a5763;
 }
 
+.qa-panel {
+  border: 1px solid rgba(16, 95, 105, 0.22);
+  border-radius: 8px;
+  padding: 8px;
+  background: #f4fbff;
+  display: grid;
+  gap: 6px;
+}
+
+.qa-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+
+.qa-toolbar label {
+  min-width: 140px;
+  font-size: 0.74rem;
+}
+
+.qa-toolbar input {
+  padding: 6px 8px;
+  font-size: 0.78rem;
+}
+
+.qa-issue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.qa-issue {
+  border: 1px solid rgba(15, 91, 101, 0.2);
+  border-radius: 8px;
+  padding: 6px;
+  background: #fcffff;
+  display: grid;
+  gap: 6px;
+}
+
+.qa-issue.error {
+  border-color: rgba(183, 67, 48, 0.3);
+  background: #fff7f5;
+}
+
+.qa-issue.warning {
+  border-color: rgba(166, 122, 36, 0.3);
+  background: #fffaf0;
+}
+
+.qa-issue-main {
+  display: grid;
+  gap: 2px;
+  font-size: 0.78rem;
+  color: #1f4d57;
+}
+
+.qa-severity {
+  display: inline-flex;
+  width: fit-content;
+  text-transform: uppercase;
+  font-size: 0.67rem;
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-weight: 700;
+}
+
+.qa-severity.error {
+  background: #ffe4de;
+  color: #a53d2e;
+}
+
+.qa-severity.warning {
+  background: #fbeecd;
+  color: #8d6428;
+}
+
+.qa-issue-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .editor-last-output {
   border: 1px dashed rgba(11, 93, 102, 0.24);
   border-radius: 8px;
@@ -831,6 +919,10 @@ button.danger {
 
   .export-rules-grid {
     grid-template-columns: 1fr;
+  }
+
+  .qa-toolbar label {
+    min-width: 100%;
   }
 
   .timeline-list li {
