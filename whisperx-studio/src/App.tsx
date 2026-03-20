@@ -78,6 +78,31 @@ type WaveformPeaks = {
   cached: boolean;
 };
 
+type ExportTimingRules = {
+  minDurationSec: number;
+  minGapSec: number;
+  fixOverlaps: boolean;
+};
+
+type ExportCorrectionReport = {
+  inputSegments: number;
+  outputSegments: number;
+  minDurationSec: number;
+  minGapSec: number;
+  fixOverlaps: boolean;
+  reorderedSegments: boolean;
+  overlapsFixed: number;
+  minGapAdjustments: number;
+  minDurationAdjustments: number;
+  totalAdjustments: number;
+  notes: string[];
+};
+
+type ExportTranscriptResponse = {
+  outputPath: string;
+  report: ExportCorrectionReport;
+};
+
 type SegmentEdge = "start" | "end";
 
 type SegmentDragState = {
@@ -174,6 +199,12 @@ const profilePresets: ProfilePreset[] = [
 
 const MIN_SEGMENT_DURATION_SEC = 0.02;
 
+const defaultExportRules: ExportTimingRules = {
+  minDurationSec: 0.02,
+  minGapSec: 0,
+  fixOverlaps: true,
+};
+
 function formatTimestamp(ms: number): string {
   if (!ms) {
     return "-";
@@ -207,6 +238,20 @@ function normalizeWhisperxOptions(source: UiWhisperxOptions): WhisperxOptions {
     noAlign: source.noAlign,
     vadMethod: source.vadMethod,
     printProgress: source.printProgress,
+  };
+}
+
+function normalizeExportRules(source: ExportTimingRules): ExportTimingRules {
+  const minDurationSec = Number.isFinite(source.minDurationSec)
+    ? Math.min(10, Math.max(0.001, source.minDurationSec))
+    : defaultExportRules.minDurationSec;
+  const minGapSec = Number.isFinite(source.minGapSec)
+    ? Math.min(10, Math.max(0, source.minGapSec))
+    : defaultExportRules.minGapSec;
+  return {
+    minDurationSec: Math.round(minDurationSec * 1000) / 1000,
+    minGapSec: Math.round(minGapSec * 1000) / 1000,
+    fixOverlaps: source.fixOverlaps,
   };
 }
 
@@ -335,6 +380,8 @@ function App() {
   const [editorStatus, setEditorStatus] = useState<string>("");
   const [editorError, setEditorError] = useState<string>("");
   const [editorLastOutputPath, setEditorLastOutputPath] = useState<string>("");
+  const [exportRules, setExportRules] = useState<ExportTimingRules>(defaultExportRules);
+  const [lastExportReport, setLastExportReport] = useState<ExportCorrectionReport | null>(null);
   const [isEditorLoading, setIsEditorLoading] = useState(false);
   const [isEditorSaving, setIsEditorSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -710,6 +757,7 @@ function App() {
     setEditorError("");
     setEditorStatus("");
     setEditorLastOutputPath("");
+    setLastExportReport(null);
     setIsEditorLoading(true);
     try {
       const doc = await invoke<TranscriptDocument>("load_transcript_document", { path });
@@ -725,6 +773,7 @@ function App() {
       setEditorLanguage("");
       setEditorSegments([]);
       setActiveSegmentIndex(null);
+      setLastExportReport(null);
       setEditorError(String(e));
     } finally {
       setIsEditorLoading(false);
@@ -901,23 +950,27 @@ function App() {
       setEditorError("Aucun transcript charge dans l'editeur.");
       return;
     }
+    const normalizedRules = normalizeExportRules(exportRules);
+    setExportRules(normalizedRules);
     setEditorError("");
     setEditorStatus("");
     setIsEditorSaving(true);
     try {
-      const outPath = await invoke<string>("export_transcript", {
+      const result = await invoke<ExportTranscriptResponse>("export_transcript", {
         request: {
           path: editorSourcePath,
           language: editorLanguage.trim() || null,
           segments: editorSegments,
           format,
+          rules: normalizedRules,
         },
       });
-      setEditorLastOutputPath(outPath);
-      setEditorStatus(`Export ${format.toUpperCase()} genere: ${outPath}`);
+      setEditorLastOutputPath(result.outputPath);
+      setLastExportReport(result.report);
+      setEditorStatus(`Export ${format.toUpperCase()} genere: ${result.outputPath}`);
       await refreshJobs();
-      if (isPreviewableFile(outPath)) {
-        void previewOutput(outPath);
+      if (isPreviewableFile(result.outputPath)) {
+        void previewOutput(result.outputPath);
       }
     } catch (e) {
       setEditorError(String(e));
@@ -1752,6 +1805,68 @@ function App() {
                       Export JSON
                     </button>
                   </div>
+
+                  <div className="export-rules-grid">
+                    <label>
+                      Min Duration (s)
+                      <input
+                        type="number"
+                        step="0.005"
+                        min="0.001"
+                        value={exportRules.minDurationSec}
+                        onChange={(e) => {
+                          const next = Number(e.currentTarget.value);
+                          if (Number.isFinite(next)) {
+                            setExportRules((prev) => ({ ...prev, minDurationSec: next }));
+                          }
+                        }}
+                      />
+                    </label>
+                    <label>
+                      Min Gap (s)
+                      <input
+                        type="number"
+                        step="0.005"
+                        min="0"
+                        value={exportRules.minGapSec}
+                        onChange={(e) => {
+                          const next = Number(e.currentTarget.value);
+                          if (Number.isFinite(next)) {
+                            setExportRules((prev) => ({ ...prev, minGapSec: next }));
+                          }
+                        }}
+                      />
+                    </label>
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={exportRules.fixOverlaps}
+                        onChange={(e) =>
+                          setExportRules((prev) => ({ ...prev, fixOverlaps: e.currentTarget.checked }))
+                        }
+                      />
+                      Corriger overlaps
+                    </label>
+                  </div>
+
+                  {lastExportReport ? (
+                    <div className="export-report-box">
+                      <p className="small">
+                        Rapport export: adjustments={lastExportReport.totalAdjustments} | overlaps fixes=
+                        {lastExportReport.overlapsFixed} | min-gap={lastExportReport.minGapAdjustments} |
+                        min-duration={lastExportReport.minDurationAdjustments}
+                      </p>
+                      <p className="small">
+                        Segments in/out: {lastExportReport.inputSegments} / {lastExportReport.outputSegments}
+                        {lastExportReport.reorderedSegments ? " | Reordonnancement applique" : ""}
+                      </p>
+                      <ul className="report-notes">
+                        {lastExportReport.notes.map((note, idx) => (
+                          <li key={`${note}-${idx}`}>{note}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
 
                   <p className="small">
                     Segments: {editorSegments.length} | Affiches: {displayedEditorSegments.length}

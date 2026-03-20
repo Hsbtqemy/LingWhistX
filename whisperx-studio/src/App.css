@@ -529,6 +529,46 @@ button.danger {
   font-size: 0.78rem;
 }
 
+.export-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  border: 1px dashed rgba(11, 89, 97, 0.22);
+  border-radius: 8px;
+  padding: 8px;
+  background: #f3fbfa;
+}
+
+.export-rules-grid label {
+  font-size: 0.76rem;
+}
+
+.export-rules-grid input[type="number"] {
+  padding: 6px 8px;
+  font-size: 0.78rem;
+}
+
+.export-report-box {
+  border: 1px solid rgba(11, 92, 101, 0.2);
+  border-radius: 8px;
+  padding: 8px;
+  background: #f6ffff;
+  display: grid;
+  gap: 4px;
+}
+
+.report-notes {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+}
+
+.report-notes li {
+  font-size: 0.74rem;
+  color: #2a5763;
+}
+
 .editor-last-output {
   border: 1px dashed rgba(11, 93, 102, 0.24);
   border-radius: 8px;
@@ -703,6 +743,10 @@ button.danger {
   }
 
   .segment-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .export-rules-grid {
     grid-template-columns: 1fr;
   }
 

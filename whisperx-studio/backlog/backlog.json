@@ -1,6 +1,6 @@
 ﻿{
     "schemaVersion":  1,
-    "updatedAt":  "2026-03-20T09:11:22+01:00",
+    "updatedAt":  "2026-03-20T09:18:00+01:00",
     "statuses":  [
                      "todo",
                      "in_progress",
@@ -148,7 +148,7 @@
                   {
                       "id":  "WX-206",
                       "title":  "Export aligne avance (JSON/SRT/VTT/TXT) avec regles temporelles",
-                      "status":  "todo",
+                      "status":  "done",
                       "priority":  "P0",
                       "estimate":  "1.5d",
                       "dependsOn":  [

@@ -116,6 +116,38 @@ struct ExportTranscriptRequest {
     language: Option<String>,
     segments: Vec<EditableSegment>,
     format: String,
+    rules: Option<ExportTimingRules>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportTimingRules {
+    min_duration_sec: Option<f64>,
+    min_gap_sec: Option<f64>,
+    fix_overlaps: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportCorrectionReport {
+    input_segments: usize,
+    output_segments: usize,
+    min_duration_sec: f64,
+    min_gap_sec: f64,
+    fix_overlaps: bool,
+    reordered_segments: bool,
+    overlaps_fixed: u32,
+    min_gap_adjustments: u32,
+    min_duration_adjustments: u32,
+    total_adjustments: u32,
+    notes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportTranscriptResponse {
+    output_path: String,
+    report: ExportCorrectionReport,
 }
 
 #[derive(Default)]
@@ -359,6 +391,122 @@ fn normalize_segments(segments: &[EditableSegment]) -> Vec<EditableSegment> {
             }
         })
         .collect()
+}
+
+fn normalized_export_rules(rules: Option<&ExportTimingRules>) -> (f64, f64, bool) {
+    let min_duration_sec = rules
+        .and_then(|r| r.min_duration_sec)
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .map(|value| value.clamp(0.001, 10.0))
+        .unwrap_or(0.02);
+    let min_gap_sec = rules
+        .and_then(|r| r.min_gap_sec)
+        .filter(|value| value.is_finite() && *value >= 0.0)
+        .map(|value| value.clamp(0.0, 10.0))
+        .unwrap_or(0.0);
+    let fix_overlaps = rules
+        .and_then(|r| r.fix_overlaps)
+        .unwrap_or(true);
+    (min_duration_sec, min_gap_sec, fix_overlaps)
+}
+
+fn apply_export_timing_rules(
+    segments: &[EditableSegment],
+    rules: Option<&ExportTimingRules>,
+) -> (Vec<EditableSegment>, ExportCorrectionReport) {
+    let (min_duration_sec, min_gap_sec, fix_overlaps) = normalized_export_rules(rules);
+    let mut normalized = normalize_segments(segments);
+    let input_segments = segments.len();
+
+    let was_sorted = normalized.windows(2).all(|pair| {
+        let left = &pair[0];
+        let right = &pair[1];
+        (left.start < right.start)
+            || ((left.start - right.start).abs() < f64::EPSILON && left.end <= right.end)
+    });
+    if !was_sorted {
+        normalized.sort_by(|a, b| {
+            a.start
+                .partial_cmp(&b.start)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| {
+                    a.end
+                        .partial_cmp(&b.end)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+        });
+    }
+
+    let mut overlaps_fixed: u32 = 0;
+    let mut min_gap_adjustments: u32 = 0;
+    let mut min_duration_adjustments: u32 = 0;
+
+    let mut adjusted: Vec<EditableSegment> = Vec::with_capacity(normalized.len());
+    let mut previous_end = 0.0f64;
+    for (idx, mut segment) in normalized.into_iter().enumerate() {
+        if idx == 0 {
+            if segment.start < 0.0 {
+                segment.start = 0.0;
+            }
+        } else {
+            if fix_overlaps && segment.start < previous_end {
+                segment.start = previous_end;
+                overlaps_fixed += 1;
+            }
+            let required_start = previous_end + min_gap_sec;
+            if segment.start < required_start {
+                segment.start = required_start;
+                min_gap_adjustments += 1;
+            }
+        }
+
+        let min_end = segment.start + min_duration_sec;
+        if segment.end < min_end {
+            segment.end = min_end;
+            min_duration_adjustments += 1;
+        }
+
+        segment.start = (segment.start * 1000.0).round() / 1000.0;
+        segment.end = (segment.end * 1000.0).round() / 1000.0;
+        previous_end = segment.end;
+        adjusted.push(segment);
+    }
+
+    let mut notes: Vec<String> = Vec::new();
+    if !was_sorted {
+        notes.push("Segments were reordered by timestamp before export.".into());
+    }
+    if overlaps_fixed > 0 {
+        notes.push(format!("Fixed {overlaps_fixed} overlap(s)."));
+    }
+    if min_gap_adjustments > 0 {
+        notes.push(format!(
+            "Applied min-gap adjustments to {min_gap_adjustments} segment(s)."
+        ));
+    }
+    if min_duration_adjustments > 0 {
+        notes.push(format!(
+            "Extended {min_duration_adjustments} segment(s) to min duration."
+        ));
+    }
+    if notes.is_empty() {
+        notes.push("No timing correction needed.".into());
+    }
+
+    let report = ExportCorrectionReport {
+        input_segments,
+        output_segments: adjusted.len(),
+        min_duration_sec,
+        min_gap_sec,
+        fix_overlaps,
+        reordered_segments: !was_sorted,
+        overlaps_fixed,
+        min_gap_adjustments,
+        min_duration_adjustments,
+        total_adjustments: overlaps_fixed + min_gap_adjustments + min_duration_adjustments,
+        notes,
+    };
+    (adjusted, report)
 }
 
 fn build_transcript_json(language: Option<String>, segments: &[EditableSegment]) -> serde_json::Value {
@@ -1443,13 +1591,14 @@ fn save_transcript_json(request: SaveTranscriptRequest) -> Result<String, String
 }
 
 #[tauri::command]
-fn export_transcript(request: ExportTranscriptRequest) -> Result<String, String> {
+fn export_transcript(request: ExportTranscriptRequest) -> Result<ExportTranscriptResponse, String> {
     let format = request.format.trim().to_lowercase();
     let source = PathBuf::from(&request.path);
+    let (segments_for_export, report) = apply_export_timing_rules(&request.segments, request.rules.as_ref());
     let output = match format.as_str() {
         "json" => {
             let target_path = edited_path_with_ext(&source, "json");
-            let payload = build_transcript_json(request.language, &request.segments);
+            let payload = build_transcript_json(request.language.clone(), &segments_for_export);
             let serialized = serde_json::to_string_pretty(&payload)
                 .map_err(|err| format!("Unable to serialize transcript JSON: {err}"))?;
             if let Some(parent) = target_path.parent() {
@@ -1462,7 +1611,7 @@ fn export_transcript(request: ExportTranscriptRequest) -> Result<String, String>
         }
         "srt" => {
             let target_path = edited_path_with_ext(&source, "srt");
-            let serialized = to_srt_text(&request.segments);
+            let serialized = to_srt_text(&segments_for_export);
             if let Some(parent) = target_path.parent() {
                 std::fs::create_dir_all(parent)
                     .map_err(|err| format!("Unable to create export directory: {err}"))?;
@@ -1473,7 +1622,7 @@ fn export_transcript(request: ExportTranscriptRequest) -> Result<String, String>
         }
         "vtt" => {
             let target_path = edited_path_with_ext(&source, "vtt");
-            let serialized = to_vtt_text(&request.segments);
+            let serialized = to_vtt_text(&segments_for_export);
             if let Some(parent) = target_path.parent() {
                 std::fs::create_dir_all(parent)
                     .map_err(|err| format!("Unable to create export directory: {err}"))?;
@@ -1484,7 +1633,7 @@ fn export_transcript(request: ExportTranscriptRequest) -> Result<String, String>
         }
         "txt" => {
             let target_path = edited_path_with_ext(&source, "txt");
-            let serialized = to_txt_text(&request.segments);
+            let serialized = to_txt_text(&segments_for_export);
             if let Some(parent) = target_path.parent() {
                 std::fs::create_dir_all(parent)
                     .map_err(|err| format!("Unable to create export directory: {err}"))?;
@@ -1496,7 +1645,10 @@ fn export_transcript(request: ExportTranscriptRequest) -> Result<String, String>
         other => return Err(format!("Unsupported export format: {other}")),
     };
 
-    Ok(output.to_string_lossy().to_string())
+    Ok(ExportTranscriptResponse {
+        output_path: output.to_string_lossy().to_string(),
+        report,
+    })
 }
 
 #[tauri::command]
