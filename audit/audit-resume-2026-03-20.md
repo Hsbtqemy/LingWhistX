@@ -90,7 +90,8 @@ Preuves:
 Constat:
 - une base golden est en place pour les writers (`JSON/SRT/VTT`) et `segment_resolution`.
 - un test E2E sur vrai audio est present en mode opt-in (`WHISPERX_RUN_AUDIO_E2E=1`).
-- pas encore d'execution E2E audio reel dans la CI standard.
+- execution E2E audio reel branchee dans un workflow dedie `nightly + manuel`:
+  - `.github/workflows/audio-e2e-nightly.yml:1`
 
 Risque:
 - regressions silencieuses possibles sur pipeline complet (pas seulement format d'export).

@@ -1,0 +1,46 @@
+name: WhisperX Audio E2E
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+jobs:
+  audio-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.14"
+          python-version: "3.11"
+
+      - name: Check if lockfile is up to date
+        run: uv lock --check
+
+      - name: Install the project
+        run: uv sync --all-extras
+
+      - name: Run audio E2E test
+        env:
+          WHISPERX_RUN_AUDIO_E2E: "1"
+          WHISPERX_E2E_MODEL: "tiny.en"
+          WHISPERX_E2E_DEVICE: "cpu"
+        run: |
+          uv run --with pytest pytest -q tests/test_pipeline_e2e_real_audio.py -r a --junitxml=pytest-audio-e2e.xml
+
+      - name: Upload E2E report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-audio-e2e
+          path: pytest-audio-e2e.xml
