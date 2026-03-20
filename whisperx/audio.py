@@ -22,7 +22,39 @@ FRAMES_PER_SECOND = exact_div(SAMPLE_RATE, HOP_LENGTH)  # 10ms per audio frame
 TOKENS_PER_SECOND = exact_div(SAMPLE_RATE, N_SAMPLES_PER_TOKEN)  # 20ms per audio token
 
 
-def load_audio(file: str, sr: int = SAMPLE_RATE) -> np.ndarray:
+def probe_audio_duration(file: str) -> Optional[float]:
+    """Return media duration in seconds using ffprobe, or None if unavailable."""
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        file,
+    ]
+    try:
+        out = subprocess.run(cmd, capture_output=True, check=True, text=True).stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+    if not out:
+        return None
+    try:
+        duration = float(out)
+    except ValueError:
+        return None
+    if duration <= 0 or not np.isfinite(duration):
+        return None
+    return duration
+
+
+def load_audio(
+    file: str,
+    sr: int = SAMPLE_RATE,
+    start_time: Optional[float] = None,
+    duration: Optional[float] = None,
+) -> np.ndarray:
     """
     Open an audio file and read as mono waveform, resampling as necessary
 
@@ -33,6 +65,12 @@ def load_audio(file: str, sr: int = SAMPLE_RATE) -> np.ndarray:
 
     sr: int
         The sample rate to resample the audio if necessary
+
+    start_time: Optional[float]
+        Optional start offset in seconds.
+
+    duration: Optional[float]
+        Optional decode duration in seconds.
 
     Returns
     -------
@@ -46,6 +84,14 @@ def load_audio(file: str, sr: int = SAMPLE_RATE) -> np.ndarray:
             "-nostdin",
             "-threads",
             "0",
+        ]
+        if start_time is not None and start_time > 0:
+            cmd.extend(["-ss", f"{start_time:.6f}"])
+        if duration is not None:
+            if duration <= 0:
+                return np.array([], dtype=np.float32)
+            cmd.extend(["-t", f"{duration:.6f}"])
+        cmd.extend([
             "-i",
             file,
             "-f",
@@ -57,7 +103,7 @@ def load_audio(file: str, sr: int = SAMPLE_RATE) -> np.ndarray:
             "-ar",
             str(sr),
             "-",
-        ]
+        ])
         out = subprocess.run(cmd, capture_output=True, check=True).stdout
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to load audio: {e.stderr.decode()}") from e

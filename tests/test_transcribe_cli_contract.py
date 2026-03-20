@@ -41,9 +41,12 @@ def _base_args(tmp_path: Path, **overrides):
         "vad_onset": 0.5,
         "vad_offset": 0.363,
         "chunk_size": 30,
+        "pipeline_chunk_seconds": None,
+        "pipeline_chunk_overlap_seconds": 0.0,
         "diarize": False,
         "min_speakers": None,
         "max_speakers": None,
+        "force_n_speakers": None,
         "diarize_model": "pyannote/speaker-diarization-community-1",
         "speaker_embeddings": False,
         "temperature": 0.0,
@@ -68,6 +71,16 @@ def _base_args(tmp_path: Path, **overrides):
         "threads": 0,
         "hf_token": None,
         "print_progress": False,
+        "analysis_pause_min": 0.15,
+        "analysis_pause_ignore_below": 0.1,
+        "analysis_pause_max": None,
+        "analysis_include_nonspeech": True,
+        "analysis_nonspeech_min_duration": 0.15,
+        "analysis_ipu_min_words": 1,
+        "analysis_ipu_min_duration": 0.0,
+        "analysis_ipu_bridge_short_gaps_under": 0.0,
+        "export_data_science": True,
+        "analyze_only_from": None,
     }
     args.update(overrides)
     return args
@@ -171,5 +184,183 @@ def test_transcribe_keeps_detected_language_after_alignment(tmp_path, monkeypatc
     transcribe_mod.transcribe_task(args, parser)
 
     assert writes[0][0]["language"] == "fr"
+    timeline = writes[0][0]["timeline"]
+    assert timeline["version"] == 1
+    assert timeline["segments"][0]["text"] == "bonjour"
+    assert timeline["words"][0]["token"] == "bonjour"
+    assert timeline["analysis"]["config"]["pause_min"] == 0.15
+    assert timeline["analysis"]["config"]["include_nonspeech"] is True
+    assert timeline["analysis"]["config"]["ipu_min_words"] == 1
+    assert timeline["analysis"]["config"]["ipu_min_duration"] == 0.0
     assert align_load_calls[0] == "en"
     assert "fr" in align_load_calls
+
+
+def test_transcribe_merges_pipeline_chunks_with_global_offsets(tmp_path, monkeypatch):
+    parser = argparse.ArgumentParser(prog="whisperx")
+    writes = []
+    _patch_runtime_dependencies(monkeypatch, writes)
+
+    calls = []
+
+    def fake_load_audio(_path, sr=16000, start_time=None, duration=None):
+        calls.append((sr, start_time, duration))
+        marker = 0.0 if start_time is None else float(start_time)
+        return [marker]
+
+    class _ChunkModel:
+        def transcribe(self, audio, *_args, **_kwargs):
+            start_marker = float(audio[0]) if len(audio) > 0 else 0.0
+            return {
+                "segments": [
+                    {
+                        "start": 0.0,
+                        "end": 0.5,
+                        "text": f"chunk-{start_marker:.1f}",
+                    }
+                ],
+                "language": "fr",
+            }
+
+    monkeypatch.setattr(transcribe_mod, "load_audio", fake_load_audio)
+    monkeypatch.setattr(transcribe_mod, "probe_audio_duration", lambda _path: 5.0)
+    monkeypatch.setattr(transcribe_mod, "load_model", lambda *_args, **_kwargs: _ChunkModel())
+
+    args = _base_args(
+        tmp_path,
+        no_align=True,
+        pipeline_chunk_seconds=2.0,
+        pipeline_chunk_overlap_seconds=0.5,
+    )
+    transcribe_mod.transcribe_task(args, parser)
+
+    result = writes[0][0]
+    starts = [segment["start"] for segment in result["segments"]]
+    assert starts == [0.0, 1.5, 3.0, 4.5]
+    assert result["language"] == "fr"
+    assert result["timeline"]["segments"][3]["start"] == 4.5
+    assert len(calls) == 4
+
+
+def test_transcribe_rejects_force_n_with_min_max(tmp_path, monkeypatch):
+    parser = argparse.ArgumentParser(prog="whisperx")
+    writes = []
+    _patch_runtime_dependencies(monkeypatch, writes)
+    monkeypatch.setattr(transcribe_mod, "load_model", lambda *_args, **_kwargs: _DummyModel())
+
+    args = _base_args(
+        tmp_path,
+        no_align=True,
+        diarize=True,
+        force_n_speakers=2,
+        min_speakers=1,
+    )
+    with pytest.raises(SystemExit):
+        transcribe_mod.transcribe_task(args, parser)
+
+
+def test_transcribe_rejects_invalid_ipu_options(tmp_path, monkeypatch):
+    parser = argparse.ArgumentParser(prog="whisperx")
+    writes = []
+    _patch_runtime_dependencies(monkeypatch, writes)
+    monkeypatch.setattr(transcribe_mod, "load_model", lambda *_args, **_kwargs: _DummyModel())
+
+    args = _base_args(
+        tmp_path,
+        no_align=True,
+        analysis_ipu_min_words=0,
+    )
+    with pytest.raises(SystemExit):
+        transcribe_mod.transcribe_task(args, parser)
+
+
+def test_transcribe_forwards_force_n_speakers_to_diarization(tmp_path, monkeypatch):
+    parser = argparse.ArgumentParser(prog="whisperx")
+    writes = []
+    _patch_runtime_dependencies(monkeypatch, writes)
+    monkeypatch.setattr(transcribe_mod, "load_model", lambda *_args, **_kwargs: _DummyModel())
+
+    captured = {}
+
+    class _FakeDiarizationPipeline:
+        def __init__(self, *_args, **_kwargs):
+            captured["init"] = _kwargs
+
+        def __call__(self, _path, **kwargs):
+            captured["call"] = kwargs
+            return []
+
+    monkeypatch.setattr(transcribe_mod, "DiarizationPipeline", _FakeDiarizationPipeline)
+    monkeypatch.setattr(
+        transcribe_mod,
+        "assign_word_speakers",
+        lambda _diarize_segments, result, _speaker_embeddings=None: result,
+    )
+
+    args = _base_args(
+        tmp_path,
+        no_align=True,
+        diarize=True,
+        force_n_speakers=2,
+    )
+    transcribe_mod.transcribe_task(args, parser)
+
+    assert captured["call"]["num_speakers"] == 2
+    assert captured["call"]["min_speakers"] is None
+    assert captured["call"]["max_speakers"] is None
+
+
+def test_transcribe_emits_data_science_exports(tmp_path, monkeypatch):
+    parser = argparse.ArgumentParser(prog="whisperx")
+    writes = []
+    _patch_runtime_dependencies(monkeypatch, writes)
+    monkeypatch.setattr(transcribe_mod, "load_model", lambda *_args, **_kwargs: _DummyModel(language="fr"))
+
+    export_calls = []
+
+    def fake_export(**kwargs):
+        export_calls.append(kwargs)
+        return {}
+
+    monkeypatch.setattr(transcribe_mod, "write_data_science_exports", fake_export)
+
+    args = _base_args(
+        tmp_path,
+        no_align=True,
+        export_data_science=True,
+    )
+    transcribe_mod.transcribe_task(args, parser)
+
+    assert len(export_calls) == 1
+    call = export_calls[0]
+    assert call["audio_path"].endswith("input.wav")
+    assert call["result"]["pipeline_chunking"]["mode"] == "single_pass"
+    assert call["run_metadata"]["config"]["analysis"]["pause_min"] == 0.15
+
+
+def test_transcribe_analyze_only_skips_model_loading(tmp_path, monkeypatch):
+    parser = argparse.ArgumentParser(prog="whisperx")
+    source_json = tmp_path / "existing.json"
+    source_json.write_text('{"segments":[{"start":0.0,"end":0.5,"text":"hello"}]}', encoding="utf-8")
+
+    monkeypatch.setattr(
+        transcribe_mod,
+        "load_model",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("load_model must not run")),
+    )
+
+    called = {}
+
+    def fake_run_analyze_only(**kwargs):
+        called.update(kwargs)
+
+    monkeypatch.setattr(transcribe_mod, "_run_analyze_only", fake_run_analyze_only)
+
+    args = _base_args(
+        tmp_path,
+        analyze_only_from=str(source_json),
+    )
+    transcribe_mod.transcribe_task(args, parser)
+
+    assert called["analyze_only_from"] == str(source_json)
+    assert called["timeline_analysis_config"]["pause_min"] == 0.15

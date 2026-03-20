@@ -62,12 +62,112 @@ class SingleAlignedSegment(TypedDict):
     chars: Optional[List[SingleCharSegment]]
 
 
+class CanonicalTimelineWord(TypedDict):
+    token: str
+    start: float
+    end: float
+    speaker: NotRequired[str]
+    confidence: NotRequired[float]
+    flags: NotRequired[List[str]]
+
+
+class CanonicalTimelineSegment(TypedDict):
+    text: str
+    start: float
+    end: float
+    speaker: NotRequired[str]
+    confidence: NotRequired[float]
+
+
+class CanonicalTimelineSpeakerTurn(TypedDict):
+    speaker: str
+    start: float
+    end: float
+
+
+class CanonicalTimelineEvent(TypedDict):
+    type: str
+    start: float
+    end: float
+    speakers: NotRequired[List[str]]
+
+
+class CanonicalTimelinePause(TypedDict):
+    start: float
+    end: float
+    dur: float
+    type: str
+    speaker: NotRequired[str]
+
+
+class CanonicalTimelineNonSpeechInterval(TypedDict):
+    start: float
+    end: float
+    dur: float
+    method: str
+
+
+class CanonicalTimelineIpu(TypedDict):
+    start: float
+    end: float
+    dur: float
+    text: str
+    n_words: int
+    speaker: NotRequired[str]
+
+
+CanonicalTimelineTransition = TypedDict(
+    "CanonicalTimelineTransition",
+    {"from": str, "to": str, "gap": float, "start": float, "end": float},
+)
+
+
+class CanonicalTimelineOverlap(TypedDict):
+    speakers: List[str]
+    start: float
+    end: float
+    dur: float
+
+
+class CanonicalTimelineAnalysisConfig(TypedDict):
+    pause_min: float
+    pause_ignore_below: float
+    pause_effective_min: float
+    pause_max: NotRequired[float]
+    include_nonspeech: bool
+    nonspeech_min_duration: float
+    ipu_min_words: int
+    ipu_min_duration: float
+    ipu_bridge_short_gaps_under: float
+
+
+class CanonicalTimelineAnalysis(TypedDict):
+    config: CanonicalTimelineAnalysisConfig
+    pauses: List[CanonicalTimelinePause]
+    nonspeech_intervals: List[CanonicalTimelineNonSpeechInterval]
+    ipus: List[CanonicalTimelineIpu]
+    transitions: List[CanonicalTimelineTransition]
+    overlaps: List[CanonicalTimelineOverlap]
+
+
+class CanonicalTimeline(TypedDict):
+    version: int
+    words: List[CanonicalTimelineWord]
+    segments: List[CanonicalTimelineSegment]
+    speaker_turns: List[CanonicalTimelineSpeakerTurn]
+    events: List[CanonicalTimelineEvent]
+    analysis: NotRequired[CanonicalTimelineAnalysis]
+
+
 class TranscriptionResult(TypedDict):
     """
     A list of segments and word segments of a speech.
     """
     segments: List[SingleSegment]
     language: str
+    timeline: NotRequired[CanonicalTimeline]
+    speaker_turns: NotRequired[List[CanonicalTimelineSpeakerTurn]]
+    events: NotRequired[List[CanonicalTimelineEvent]]
 
 
 class AlignedTranscriptionResult(TypedDict):
@@ -76,3 +176,6 @@ class AlignedTranscriptionResult(TypedDict):
     """
     segments: List[SingleAlignedSegment]
     word_segments: List[SingleWordSegment]
+    timeline: NotRequired[CanonicalTimeline]
+    speaker_turns: NotRequired[List[CanonicalTimelineSpeakerTurn]]
+    events: NotRequired[List[CanonicalTimelineEvent]]

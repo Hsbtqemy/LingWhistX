@@ -40,11 +40,14 @@ def cli():
     parser.add_argument("--vad_onset", type=float, default=0.500, help="Onset threshold for VAD (see pyannote.audio), reduce this if speech is not being detected")
     parser.add_argument("--vad_offset", type=float, default=0.363, help="Offset threshold for VAD (see pyannote.audio), reduce this if speech is not being detected.")
     parser.add_argument("--chunk_size", type=int, default=30, help="Chunk size for merging VAD segments. Default is 30, reduce this if the chunk is too long.")
+    parser.add_argument("--pipeline_chunk_seconds", type=optional_float, default=None, help="optional media-level chunk duration in seconds for long files; merges chunk transcripts with global offsets")
+    parser.add_argument("--pipeline_chunk_overlap_seconds", type=float, default=0.0, help="optional overlap in seconds between media-level chunks (used only with --pipeline_chunk_seconds)")
 
     # diarization params
     parser.add_argument("--diarize", action="store_true", help="Apply diarization to assign speaker labels to each segment/word")
     parser.add_argument("--min_speakers", default=None, type=int, help="Minimum number of speakers to in audio file")
     parser.add_argument("--max_speakers", default=None, type=int, help="Maximum number of speakers to in audio file")
+    parser.add_argument("--force_n_speakers", default=None, type=optional_int, help="Force an exact number of speakers (exclusive with --min_speakers/--max_speakers)")
     parser.add_argument("--diarize_model", default="pyannote/speaker-diarization-community-1", type=str, help="Name of the speaker diarization model to use")
     parser.add_argument("--speaker_embeddings", action="store_true", help="Include speaker embeddings in JSON output (only works with --diarize)")
 
@@ -77,6 +80,16 @@ def cli():
     parser.add_argument("--hf_token", type=str, default=None, help="Hugging Face Access Token to access PyAnnote gated models")
 
     parser.add_argument("--print_progress", type=str2bool, default = False, help = "if True, progress will be printed in transcribe() and align() methods.")
+    parser.add_argument("--analysis_pause_min", type=float, default=0.15, help="minimum lexicalized pause duration in seconds (word-to-word intra-speaker gaps)")
+    parser.add_argument("--analysis_pause_ignore_below", type=float, default=0.10, help="ignore lexicalized gaps below this duration to reduce timestamp jitter")
+    parser.add_argument("--analysis_pause_max", type=optional_float, default=None, help="optional maximum lexicalized pause duration; longer gaps are excluded from pause analysis")
+    parser.add_argument("--analysis_include_nonspeech", type=str2bool, default=True, help="include acoustic non-speech intervals derived from VAD speech gaps in timeline analysis")
+    parser.add_argument("--analysis_nonspeech_min_duration", type=float, default=0.15, help="minimum duration in seconds for non-speech acoustic intervals")
+    parser.add_argument("--analysis_ipu_min_words", type=int, default=1, help="minimum number of words required for an IPU")
+    parser.add_argument("--analysis_ipu_min_duration", type=float, default=0.0, help="minimum IPU duration in seconds")
+    parser.add_argument("--analysis_ipu_bridge_short_gaps_under", type=float, default=0.0, help="merge adjacent IPU candidates when the inter-word gap is below this threshold")
+    parser.add_argument("--export_data_science", type=str2bool, default=True, help="when True, export run.json + timeline.json + words/pauses/ipu CSV artifacts")
+    parser.add_argument("--analyze_only_from", type=str, default=None, help="path to an existing transcript/timeline JSON to recompute analysis metrics without rerunning ASR")
     parser.add_argument("--version", "-V", action="version", version=f"%(prog)s {importlib.metadata.version('whisperx')}",help="Show whisperx version information and exit")
     parser.add_argument("--python-version", "-P", action="version", version=f"Python {platform.python_version()} ({platform.python_implementation()})",help="Show python version information and exit")
     # fmt: on

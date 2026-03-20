@@ -19,6 +19,7 @@ from pathlib import Path
 
 LOG_PREFIX = "__WXLOG__"
 RESULT_PREFIX = "__WXRESULT__"
+SUPPORTED_OUTPUT_FORMATS = {"all", "json", "srt", "vtt", "txt", "tsv", "aud"}
 
 
 def emit_log(
@@ -50,7 +51,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--mode",
         default="mock",
-        choices=["mock", "whisperx"],
+        choices=["mock", "whisperx", "analyze_only"],
         help="Execution mode",
     )
     parser.add_argument(
@@ -142,8 +143,130 @@ def resolve_hf_token(options: dict[str, object]) -> str | None:
     return None
 
 
+def parse_positive_int_option(options: dict[str, object], key: str) -> int | None:
+    raw_value = options.get(key)
+    if raw_value is None or isinstance(raw_value, bool):
+        return None
+
+    numeric_value: float
+    if isinstance(raw_value, (int, float)):
+        numeric_value = float(raw_value)
+    elif isinstance(raw_value, str):
+        stripped = raw_value.strip()
+        if not stripped:
+            return None
+        try:
+            numeric_value = float(stripped)
+        except ValueError:
+            return None
+    else:
+        return None
+
+    if not numeric_value.is_integer():
+        return None
+    as_int = int(numeric_value)
+    return as_int if as_int > 0 else None
+
+
+def parse_non_negative_float_option(options: dict[str, object], key: str) -> float | None:
+    raw_value = options.get(key)
+    if raw_value is None or isinstance(raw_value, bool):
+        return None
+
+    if isinstance(raw_value, (int, float)):
+        numeric_value = float(raw_value)
+    elif isinstance(raw_value, str):
+        stripped = raw_value.strip()
+        if not stripped:
+            return None
+        try:
+            numeric_value = float(stripped)
+        except ValueError:
+            return None
+    else:
+        return None
+
+    if numeric_value < 0:
+        return None
+    return numeric_value
+
+
+def parse_optional_float_option(options: dict[str, object], key: str) -> float | None:
+    raw_value = options.get(key)
+    if raw_value is None or isinstance(raw_value, bool):
+        return None
+
+    if isinstance(raw_value, (int, float)):
+        return float(raw_value)
+    if isinstance(raw_value, str):
+        stripped = raw_value.strip()
+        if not stripped:
+            return None
+        try:
+            return float(stripped)
+        except ValueError:
+            return None
+    return None
+
+
+def parse_bool_option(options: dict[str, object], key: str) -> bool | None:
+    value = options.get(key)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes", "on"}:
+            return True
+        if lowered in {"false", "0", "no", "off"}:
+            return False
+    return None
+
+
+def append_analysis_options(command: list[str], options: dict[str, object]) -> None:
+    pause_min = parse_non_negative_float_option(options, "analysisPauseMin")
+    if pause_min is not None:
+        command.extend(["--analysis_pause_min", f"{pause_min:g}"])
+
+    pause_ignore_below = parse_non_negative_float_option(options, "analysisPauseIgnoreBelow")
+    if pause_ignore_below is not None:
+        command.extend(["--analysis_pause_ignore_below", f"{pause_ignore_below:g}"])
+
+    pause_max = parse_optional_float_option(options, "analysisPauseMax")
+    if pause_max is not None:
+        command.extend(["--analysis_pause_max", f"{pause_max:g}"])
+
+    include_nonspeech = parse_bool_option(options, "analysisIncludeNonspeech")
+    if include_nonspeech is not None:
+        command.extend(["--analysis_include_nonspeech", str(include_nonspeech)])
+
+    nonspeech_min_duration = parse_non_negative_float_option(options, "analysisNonspeechMinDuration")
+    if nonspeech_min_duration is not None:
+        command.extend(["--analysis_nonspeech_min_duration", f"{nonspeech_min_duration:g}"])
+
+    ipu_min_words = parse_positive_int_option(options, "analysisIpuMinWords")
+    if ipu_min_words is not None:
+        command.extend(["--analysis_ipu_min_words", str(ipu_min_words)])
+
+    ipu_min_duration = parse_non_negative_float_option(options, "analysisIpuMinDuration")
+    if ipu_min_duration is not None:
+        command.extend(["--analysis_ipu_min_duration", f"{ipu_min_duration:g}"])
+
+    ipu_bridge = parse_non_negative_float_option(options, "analysisIpuBridgeShortGapsUnder")
+    if ipu_bridge is not None:
+        command.extend(["--analysis_ipu_bridge_short_gaps_under", f"{ipu_bridge:g}"])
+
+
 def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> list[str]:
-    output_format = str(options.get("outputFormat", "all"))
+    requested_output_format = str(options.get("outputFormat", "all")).strip().lower() or "all"
+    if requested_output_format not in SUPPORTED_OUTPUT_FORMATS:
+        requested_output_format = "all"
+    # Studio transcript/workspace features rely on a JSON artifact.
+    # Force `all` for non-JSON single-format requests so `.json` remains available.
+    output_format = (
+        requested_output_format
+        if requested_output_format in {"all", "json"}
+        else "all"
+    )
     command = [
         sys.executable,
         "-m",
@@ -154,6 +277,14 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         "--output_format",
         output_format,
     ]
+
+    if output_format != requested_output_format:
+        emit_log(
+            "info",
+            "whisperx",
+            f"Format demande '{requested_output_format}' -> execution '{output_format}' pour conserver le JSON Studio.",
+            12,
+        )
 
     model = options.get("model")
     if isinstance(model, str) and model.strip():
@@ -179,6 +310,20 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
     if isinstance(vad_method, str) and vad_method.strip():
         command.extend(["--vad_method", vad_method.strip()])
 
+    pipeline_chunk_seconds = options.get("pipelineChunkSeconds")
+    if isinstance(pipeline_chunk_seconds, (int, float)) and float(pipeline_chunk_seconds) > 0:
+        command.extend(["--pipeline_chunk_seconds", f"{float(pipeline_chunk_seconds):g}"])
+
+    pipeline_chunk_overlap_seconds = options.get("pipelineChunkOverlapSeconds")
+    if isinstance(pipeline_chunk_overlap_seconds, (int, float)) and float(pipeline_chunk_overlap_seconds) >= 0:
+        command.extend(
+            [
+                "--pipeline_chunk_overlap_seconds",
+                f"{float(pipeline_chunk_overlap_seconds):g}",
+            ]
+        )
+    append_analysis_options(command, options)
+
     command_env = os.environ.copy()
     hf_token = resolve_hf_token(options)
     if hf_token:
@@ -188,6 +333,22 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
 
     if options.get("diarize") is True:
         command.append("--diarize")
+        force_n_speakers = parse_positive_int_option(options, "forceNSpeakers")
+        min_speakers = parse_positive_int_option(options, "minSpeakers")
+        max_speakers = parse_positive_int_option(options, "maxSpeakers")
+        if force_n_speakers is not None:
+            if min_speakers is not None or max_speakers is not None:
+                emit_log(
+                    "warning",
+                    "whisperx",
+                    "forceNSpeakers defini: minSpeakers/maxSpeakers ignores.",
+                )
+            command.extend(["--force_n_speakers", str(force_n_speakers)])
+        else:
+            if min_speakers is not None:
+                command.extend(["--min_speakers", str(min_speakers)])
+            if max_speakers is not None:
+                command.extend(["--max_speakers", str(max_speakers)])
 
     if options.get("noAlign") is True:
         command.append("--no_align")
@@ -232,6 +393,47 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
     return [str(path) for path in sorted(out_dir.glob("*")) if path.is_file()]
 
 
+def run_analyze_only(input_path: str, out_dir: Path, options: dict[str, object]) -> list[str]:
+    command = [
+        sys.executable,
+        "-m",
+        "whisperx",
+        input_path,
+        "--output_dir",
+        str(out_dir),
+        "--output_format",
+        "json",
+        "--analyze_only_from",
+        input_path,
+    ]
+    append_analysis_options(command, options)
+
+    emit_log("info", "analyze_only", f"Analyse-only source: {input_path}", 10)
+    emit_log("info", "analyze_only", f"Commande: {' '.join(command)}", 15)
+    emit_log("info", "analyze_only", "Recalcul des metriques analytiques...", 40)
+
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+
+    assert process.stdout is not None
+    for line in process.stdout:
+        clean = line.strip()
+        if clean:
+            emit_log("info", "analyze_only", clean)
+
+    return_code = process.wait()
+    if return_code != 0:
+        raise RuntimeError(f"analyze-only command failed with exit code {return_code}")
+
+    emit_log("info", "analyze_only", "Analyse-only termine, collecte des fichiers...", 96)
+    return [str(path) for path in sorted(out_dir.rglob("*")) if path.is_file()]
+
+
 def main() -> int:
     args = parse_args()
     out_dir = ensure_output_dir(args.output_dir)
@@ -247,6 +449,9 @@ def main() -> int:
         if args.mode == "mock":
             outputs = run_mock(args.job_id, args.input_path, out_dir)
             message = "Mock pipeline completed"
+        elif args.mode == "analyze_only":
+            outputs = run_analyze_only(args.input_path, out_dir, options)
+            message = "Analyze-only pipeline completed"
         else:
             outputs = run_whisperx(args.input_path, out_dir, options)
             message = "WhisperX pipeline completed"

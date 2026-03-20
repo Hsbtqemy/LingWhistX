@@ -2,10 +2,10 @@ import { FormEvent, MouseEvent, WheelEvent, useEffect, useMemo, useRef, useState
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-import { openPath } from "@tauri-apps/plugin-opener";
 import "./App.css";
 
 type JobStatus = "queued" | "running" | "done" | "error" | "cancelled";
+type JobFormStep = "import" | "configure";
 
 type WhisperxOptions = {
   model?: string;
@@ -13,7 +13,20 @@ type WhisperxOptions = {
   device?: string;
   computeType?: string;
   batchSize?: number;
+  pipelineChunkSeconds?: number;
+  pipelineChunkOverlapSeconds?: number;
   diarize?: boolean;
+  minSpeakers?: number;
+  maxSpeakers?: number;
+  forceNSpeakers?: number;
+  analysisPauseMin?: number;
+  analysisPauseIgnoreBelow?: number;
+  analysisPauseMax?: number;
+  analysisIncludeNonspeech?: boolean;
+  analysisNonspeechMinDuration?: number;
+  analysisIpuMinWords?: number;
+  analysisIpuMinDuration?: number;
+  analysisIpuBridgeShortGapsUnder?: number;
   hfToken?: string;
   outputFormat?: string;
   noAlign?: boolean;
@@ -27,7 +40,20 @@ type UiWhisperxOptions = {
   device: "auto" | "cpu" | "cuda";
   computeType: "default" | "float16" | "float32" | "int8";
   batchSize: string;
+  pipelineChunkSeconds: string;
+  pipelineChunkOverlapSeconds: string;
   diarize: boolean;
+  minSpeakers: string;
+  maxSpeakers: string;
+  forceNSpeakers: string;
+  analysisPauseMin: string;
+  analysisPauseIgnoreBelow: string;
+  analysisPauseMax: string;
+  analysisIncludeNonspeech: boolean;
+  analysisNonspeechMinDuration: string;
+  analysisIpuMinWords: string;
+  analysisIpuMinDuration: string;
+  analysisIpuBridgeShortGapsUnder: string;
   hfToken: string;
   outputFormat: "all" | "json" | "srt" | "vtt" | "txt" | "tsv" | "aud";
   noAlign: boolean;
@@ -213,7 +239,7 @@ type EditorSnapshot = {
 type CreateJobRequest = {
   inputPath: string;
   outputDir?: string | null;
-  mode?: "mock" | "whisperx";
+  mode?: "mock" | "whisperx" | "analyze_only";
   whisperxOptions?: WhisperxOptions;
 };
 
@@ -230,7 +256,20 @@ const defaultWhisperxOptions: UiWhisperxOptions = {
   device: "auto",
   computeType: "default",
   batchSize: "8",
+  pipelineChunkSeconds: "",
+  pipelineChunkOverlapSeconds: "0",
   diarize: false,
+  minSpeakers: "",
+  maxSpeakers: "",
+  forceNSpeakers: "",
+  analysisPauseMin: "0.15",
+  analysisPauseIgnoreBelow: "0.1",
+  analysisPauseMax: "",
+  analysisIncludeNonspeech: true,
+  analysisNonspeechMinDuration: "0.15",
+  analysisIpuMinWords: "1",
+  analysisIpuMinDuration: "0",
+  analysisIpuBridgeShortGapsUnder: "0",
   hfToken: "",
   outputFormat: "all",
   noAlign: false,
@@ -337,13 +376,66 @@ function upsertJobInList(current: Job[], incoming: Job): Job[] {
 
 function normalizeWhisperxOptions(source: UiWhisperxOptions): WhisperxOptions {
   const batchSize = Number(source.batchSize);
+  const pipelineChunkSeconds = Number(source.pipelineChunkSeconds);
+  const pipelineChunkOverlapSeconds = Number(source.pipelineChunkOverlapSeconds);
+  const minSpeakers = Number(source.minSpeakers);
+  const maxSpeakers = Number(source.maxSpeakers);
+  const forceNSpeakers = Number(source.forceNSpeakers);
+  const analysisPauseMin = Number(source.analysisPauseMin);
+  const analysisPauseIgnoreBelow = Number(source.analysisPauseIgnoreBelow);
+  const analysisPauseMax = Number(source.analysisPauseMax);
+  const analysisNonspeechMinDuration = Number(source.analysisNonspeechMinDuration);
+  const analysisIpuMinWords = Number(source.analysisIpuMinWords);
+  const analysisIpuMinDuration = Number(source.analysisIpuMinDuration);
+  const analysisIpuBridgeShortGapsUnder = Number(source.analysisIpuBridgeShortGapsUnder);
   return {
     model: source.model.trim() || undefined,
     language: source.language.trim() || undefined,
     device: source.device === "auto" ? undefined : source.device,
     computeType: source.computeType,
     batchSize: Number.isFinite(batchSize) && batchSize > 0 ? Math.floor(batchSize) : undefined,
+    pipelineChunkSeconds:
+      Number.isFinite(pipelineChunkSeconds) && pipelineChunkSeconds > 0
+        ? pipelineChunkSeconds
+        : undefined,
+    pipelineChunkOverlapSeconds:
+      Number.isFinite(pipelineChunkOverlapSeconds) && pipelineChunkOverlapSeconds >= 0
+        ? pipelineChunkOverlapSeconds
+        : undefined,
     diarize: source.diarize,
+    minSpeakers:
+      Number.isFinite(minSpeakers) && minSpeakers > 0 ? Math.floor(minSpeakers) : undefined,
+    maxSpeakers:
+      Number.isFinite(maxSpeakers) && maxSpeakers > 0 ? Math.floor(maxSpeakers) : undefined,
+    forceNSpeakers:
+      Number.isFinite(forceNSpeakers) && forceNSpeakers > 0
+        ? Math.floor(forceNSpeakers)
+        : undefined,
+    analysisPauseMin:
+      Number.isFinite(analysisPauseMin) && analysisPauseMin >= 0 ? analysisPauseMin : undefined,
+    analysisPauseIgnoreBelow:
+      Number.isFinite(analysisPauseIgnoreBelow) && analysisPauseIgnoreBelow >= 0
+        ? analysisPauseIgnoreBelow
+        : undefined,
+    analysisPauseMax:
+      Number.isFinite(analysisPauseMax) && analysisPauseMax > 0 ? analysisPauseMax : undefined,
+    analysisIncludeNonspeech: source.analysisIncludeNonspeech,
+    analysisNonspeechMinDuration:
+      Number.isFinite(analysisNonspeechMinDuration) && analysisNonspeechMinDuration >= 0
+        ? analysisNonspeechMinDuration
+        : undefined,
+    analysisIpuMinWords:
+      Number.isFinite(analysisIpuMinWords) && analysisIpuMinWords >= 1
+        ? Math.floor(analysisIpuMinWords)
+        : undefined,
+    analysisIpuMinDuration:
+      Number.isFinite(analysisIpuMinDuration) && analysisIpuMinDuration >= 0
+        ? analysisIpuMinDuration
+        : undefined,
+    analysisIpuBridgeShortGapsUnder:
+      Number.isFinite(analysisIpuBridgeShortGapsUnder) && analysisIpuBridgeShortGapsUnder >= 0
+        ? analysisIpuBridgeShortGapsUnder
+        : undefined,
     hfToken: source.hfToken.trim() || undefined,
     outputFormat: source.outputFormat,
     noAlign: source.noAlign,
@@ -625,7 +717,7 @@ function runtimeMissingComponents(status: RuntimeStatus | null): string[] {
 function App() {
   const [inputPath, setInputPath] = useState("");
   const [outputDir, setOutputDir] = useState("");
-  const [mode, setMode] = useState<"mock" | "whisperx">("mock");
+  const [mode, setMode] = useState<"mock" | "whisperx" | "analyze_only">("mock");
   const [whisperxOptions, setWhisperxOptions] = useState<UiWhisperxOptions>(defaultWhisperxOptions);
   const [selectedProfileId, setSelectedProfileId] = useState("balanced");
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -696,6 +788,7 @@ function App() {
   const [isEditorLoading, setIsEditorLoading] = useState(false);
   const [isEditorSaving, setIsEditorSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [jobFormStep, setJobFormStep] = useState<JobFormStep>("import");
   const [error, setError] = useState("");
   const editorSegmentsRef = useRef<EditableSegment[]>([]);
   const editorLanguageRef = useRef("");
@@ -710,6 +803,7 @@ function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const runDetailsRef = useRef<HTMLElement | null>(null);
 
   const selectedProfile = useMemo(
     () => profilePresets.find((preset) => preset.id === selectedProfileId),
@@ -727,6 +821,13 @@ function App() {
     }
     return jobLogs[selectedJob.id] ?? [];
   }, [selectedJob, jobLogs]);
+
+  const selectedJobHasJsonOutput = useMemo(() => {
+    if (!selectedJob) {
+      return false;
+    }
+    return selectedJob.outputFiles.some((path) => path.toLowerCase().endsWith(".json"));
+  }, [selectedJob]);
 
   const selectedMediaSrc = useMemo(
     () => (selectedJob ? convertFileSrc(selectedJob.inputPath) : ""),
@@ -751,6 +852,10 @@ function App() {
   );
 
   const runtimeReady = useMemo(() => isRuntimeReady(runtimeStatus), [runtimeStatus]);
+  const runtimeCoreReady = useMemo(
+    () => Boolean(runtimeStatus?.pythonOk && runtimeStatus?.whisperxOk),
+    [runtimeStatus],
+  );
   const runtimeMissing = useMemo(() => runtimeMissingComponents(runtimeStatus), [runtimeStatus]);
   const editorHistoryLimit = useMemo(() => {
     const parsed = Number(editorHistoryLimitInput);
@@ -1298,7 +1403,7 @@ function App() {
 
   function buildRuntimeDiagnosticText(status: RuntimeStatus | null): string {
     const lines: string[] = [];
-    lines.push("WhisperX Studio - Diagnostic runtime");
+    lines.push("LingWhistX - Diagnostic runtime");
     lines.push(`Generated at: ${new Date().toISOString()}`);
     lines.push(`Runtime ready: ${isRuntimeReady(status) ? "yes" : "no"}`);
     const missing = runtimeMissingComponents(status);
@@ -1687,6 +1792,8 @@ function App() {
     });
     if (typeof selected === "string") {
       setInputPath(selected);
+      setError("");
+      setJobFormStep("configure");
     }
   }
 
@@ -1703,10 +1810,26 @@ function App() {
 
   async function openLocalPath(path: string) {
     try {
-      await openPath(path);
+      await invoke("open_local_path", { path });
     } catch (e) {
       setError(String(e));
     }
+  }
+
+  function focusJobDetails(jobId: string) {
+    setSelectedJobId(jobId);
+    window.setTimeout(() => {
+      runDetailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }
+
+  function continueToConfigurationPanel() {
+    if (!inputPath.trim()) {
+      setError("Le chemin du media est requis.");
+      return;
+    }
+    setError("");
+    setJobFormStep("configure");
   }
 
   async function previewOutput(path: string) {
@@ -2544,18 +2667,166 @@ function App() {
     event.preventDefault();
     setError("");
 
+    if (jobFormStep === "import") {
+      continueToConfigurationPanel();
+      return;
+    }
+
     if (!inputPath.trim()) {
       setError("Le chemin du media est requis.");
       return;
     }
 
-    if (mode === "whisperx" && whisperxOptions.diarize && !whisperxOptions.hfToken.trim()) {
-      setError("Le HF Token est requis pour activer la diarization pyannote.");
+    if (mode === "analyze_only" && !inputPath.trim().toLowerCase().endsWith(".json")) {
+      setError("En mode analyze-only, selectionne un fichier JSON de run existant.");
       return;
+    }
+
+    if (mode === "whisperx") {
+      const chunkSecondsRaw = whisperxOptions.pipelineChunkSeconds.trim();
+      const overlapRaw = whisperxOptions.pipelineChunkOverlapSeconds.trim();
+      const chunkSeconds = chunkSecondsRaw ? Number(chunkSecondsRaw) : Number.NaN;
+      const overlapSeconds = overlapRaw ? Number(overlapRaw) : 0;
+      if (chunkSecondsRaw && (!Number.isFinite(chunkSeconds) || chunkSeconds <= 0)) {
+        setError("Chunk media (s) doit etre un nombre > 0.");
+        return;
+      }
+      if (!Number.isFinite(overlapSeconds) || overlapSeconds < 0) {
+        setError("Overlap chunk (s) doit etre un nombre >= 0.");
+        return;
+      }
+      if (chunkSecondsRaw && overlapSeconds >= chunkSeconds) {
+        setError("Overlap chunk (s) doit etre strictement inferieur a Chunk media (s).");
+        return;
+      }
+
+      if (whisperxOptions.diarize && !whisperxOptions.hfToken.trim()) {
+        setError("Le HF Token est requis pour activer la diarization pyannote.");
+        return;
+      }
+
+      if (whisperxOptions.diarize) {
+        const minRaw = whisperxOptions.minSpeakers.trim();
+        const maxRaw = whisperxOptions.maxSpeakers.trim();
+        const forceRaw = whisperxOptions.forceNSpeakers.trim();
+        const parsePositiveInt = (raw: string, label: string): number | null => {
+          if (!raw) {
+            return null;
+          }
+          const parsed = Number(raw);
+          if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+            setError(`${label} doit etre un entier strictement positif.`);
+            return Number.NaN;
+          }
+          return parsed;
+        };
+        const minSpeakers = parsePositiveInt(minRaw, "Min speakers");
+        if (Number.isNaN(minSpeakers)) {
+          return;
+        }
+        const maxSpeakers = parsePositiveInt(maxRaw, "Max speakers");
+        if (Number.isNaN(maxSpeakers)) {
+          return;
+        }
+        const forceNSpeakers = parsePositiveInt(forceRaw, "Force N speakers");
+        if (Number.isNaN(forceNSpeakers)) {
+          return;
+        }
+        if (forceNSpeakers !== null && (minSpeakers !== null || maxSpeakers !== null)) {
+          setError("Force N speakers est exclusif avec Min/Max speakers.");
+          return;
+        }
+        if (
+          minSpeakers !== null &&
+          maxSpeakers !== null &&
+          minSpeakers > maxSpeakers
+        ) {
+          setError("Min speakers doit etre inferieur ou egal a Max speakers.");
+          return;
+        }
+      }
+    }
+
+    if (mode === "whisperx" || mode === "analyze_only") {
+      const parseNonNegative = (raw: string, label: string): number | null => {
+        if (!raw.trim()) {
+          return null;
+        }
+        const parsed = Number(raw);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          setError(`${label} doit etre un nombre >= 0.`);
+          return Number.NaN;
+        }
+        return parsed;
+      };
+      const parsePositiveInt = (raw: string, label: string): number | null => {
+        if (!raw.trim()) {
+          return null;
+        }
+        const parsed = Number(raw);
+        if (!Number.isFinite(parsed) || parsed < 1 || !Number.isInteger(parsed)) {
+          setError(`${label} doit etre un entier >= 1.`);
+          return Number.NaN;
+        }
+        return parsed;
+      };
+
+      const pauseMin = parseNonNegative(whisperxOptions.analysisPauseMin, "Pause min");
+      if (Number.isNaN(pauseMin)) {
+        return;
+      }
+      const pauseIgnoreBelow = parseNonNegative(
+        whisperxOptions.analysisPauseIgnoreBelow,
+        "Pause ignore below",
+      );
+      if (Number.isNaN(pauseIgnoreBelow)) {
+        return;
+      }
+      const pauseMaxRaw = whisperxOptions.analysisPauseMax.trim();
+      const pauseMaxValue = pauseMaxRaw ? Number(pauseMaxRaw) : Number.NaN;
+      if (
+        pauseMaxRaw &&
+        (!Number.isFinite(pauseMaxValue) || pauseMaxValue <= 0)
+      ) {
+        setError("Pause max doit etre un nombre > 0.");
+        return;
+      }
+      const pauseMax = pauseMaxRaw ? pauseMaxValue : null;
+      if (
+        pauseMax !== null &&
+        pauseMin !== null &&
+        pauseIgnoreBelow !== null &&
+        pauseMax < Math.max(pauseMin, pauseIgnoreBelow)
+      ) {
+        setError("Pause max doit etre >= max(Pause min, Pause ignore below).");
+        return;
+      }
+      const ipuMinWords = parsePositiveInt(whisperxOptions.analysisIpuMinWords, "IPU min words");
+      if (Number.isNaN(ipuMinWords)) {
+        return;
+      }
+      const ipuMinDuration = parseNonNegative(
+        whisperxOptions.analysisIpuMinDuration,
+        "IPU min duration",
+      );
+      if (Number.isNaN(ipuMinDuration)) {
+        return;
+      }
+      const ipuBridge = parseNonNegative(
+        whisperxOptions.analysisIpuBridgeShortGapsUnder,
+        "IPU bridge short gaps",
+      );
+      if (Number.isNaN(ipuBridge)) {
+        return;
+      }
     }
 
     if (mode === "whisperx" && !runtimeReady) {
       setError("Runtime WhisperX incomplet. Clique sur 'Verifier runtime' puis corrige Python/WhisperX/ffmpeg.");
+      return;
+    }
+    if (mode === "analyze_only" && !runtimeCoreReady) {
+      setError("Runtime analyze-only incomplet. Python + WhisperX doivent etre disponibles.");
       return;
     }
 
@@ -2565,12 +2836,13 @@ function App() {
         inputPath: inputPath.trim(),
         outputDir: outputDir.trim() || null,
         mode,
-        whisperxOptions: mode === "whisperx" ? normalizeWhisperxOptions(whisperxOptions) : undefined,
+        whisperxOptions: mode !== "mock" ? normalizeWhisperxOptions(whisperxOptions) : undefined,
       };
       const created = await invoke<Job>("create_job", { request });
       setSelectedJobId(created.id);
       await refreshJobs();
       setInputPath("");
+      setJobFormStep("import");
     } catch (e) {
       setError(String(e));
     } finally {
@@ -2589,7 +2861,7 @@ function App() {
   return (
     <main className="studio-shell">
       <section className="hero-card">
-        <p className="tagline">WhisperX Studio</p>
+        <p className="tagline">LingWhistX</p>
         <h1>Pipeline local Tauri + Worker Python</h1>
         <p className="subtitle">
           Lance des jobs locaux pour calibration, transcription, alignement et diarization.
@@ -2726,233 +2998,507 @@ function App() {
         </div>
 
         <form className="job-form" onSubmit={submitJob}>
-          <label>
-            Chemin media local
-            <div className="path-input-row">
-              <input
-                value={inputPath}
-                onChange={(e) => setInputPath(e.currentTarget.value)}
-                placeholder="C:\\media\\audio.wav"
-                autoComplete="off"
-              />
-              <button className="ghost inline" type="button" onClick={pickInputPath}>
-                Parcourir
-              </button>
-            </div>
-            <p className="field-help">Audio ou video local (wav, mp3, m4a, flac, mp4, mkv).</p>
-          </label>
-
-          <label>
-            Dossier de sortie (optionnel)
-            <div className="path-input-row">
-              <input
-                value={outputDir}
-                onChange={(e) => setOutputDir(e.currentTarget.value)}
-                placeholder="Laisser vide pour dossier app local"
-                autoComplete="off"
-              />
-              <button className="ghost inline" type="button" onClick={pickOutputDir}>
-                Dossier
-              </button>
-            </div>
-            <p className="field-help">Si vide, l'app cree un dossier de run automatiquement.</p>
-          </label>
-
-          <label>
-            Mode d'execution
-            <select value={mode} onChange={(e) => setMode(e.currentTarget.value as "mock" | "whisperx")}>
-              <option value="mock">mock (test rapide sans ASR)</option>
-              <option value="whisperx">whisperx (transcription reelle)</option>
-            </select>
-          </label>
-
-          {mode === "whisperx" ? (
-            <>
-              <label>
-                Profil rapide
-                <select value={selectedProfileId} onChange={(e) => applyProfile(e.currentTarget.value)}>
-                  {profilePresets.map((preset) => (
-                    <option key={preset.id} value={preset.id}>
-                      {preset.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="field-help">{selectedProfile?.description}</p>
-              </label>
-
-              <div className="option-grid">
-                <label>
-                  Modele Whisper
-                  <input
-                    value={whisperxOptions.model}
-                    onChange={(e) =>
-                      setWhisperxOptions((prev) => ({ ...prev, model: e.currentTarget.value }))
-                    }
-                    placeholder="small / medium / large-v3"
-                  />
-                  <p className="field-help">Plus le modele est grand, plus la precision augmente.</p>
-                </label>
-
-                <label>
-                  Langue
-                  <input
-                    value={whisperxOptions.language}
-                    onChange={(e) =>
-                      setWhisperxOptions((prev) => ({ ...prev, language: e.currentTarget.value }))
-                    }
-                    placeholder="fr, en... (vide = autodetection)"
-                  />
-                  <p className="field-help">Laisser vide pour autodetection (plus lent).</p>
-                </label>
-
-                <label>
-                  Device
-                  <select
-                    value={whisperxOptions.device}
-                    onChange={(e) =>
-                      setWhisperxOptions((prev) => ({
-                        ...prev,
-                        device: e.currentTarget.value as UiWhisperxOptions["device"],
-                      }))
-                    }
-                  >
-                    <option value="auto">auto</option>
-                    <option value="cuda">cuda (GPU)</option>
-                    <option value="cpu">cpu</option>
-                  </select>
-                  <p className="field-help">`cuda` si carte NVIDIA disponible, sinon `cpu`.</p>
-                </label>
-
-                <label>
-                  Compute Type
-                  <select
-                    value={whisperxOptions.computeType}
-                    onChange={(e) =>
-                      setWhisperxOptions((prev) => ({
-                        ...prev,
-                        computeType: e.currentTarget.value as UiWhisperxOptions["computeType"],
-                      }))
-                    }
-                  >
-                    <option value="default">default</option>
-                    <option value="float16">float16 (GPU rapide)</option>
-                    <option value="float32">float32 (precision)</option>
-                    <option value="int8">int8 (memoire reduite)</option>
-                  </select>
-                </label>
-
-                <label>
-                  Batch Size
-                  <input
-                    value={whisperxOptions.batchSize}
-                    onChange={(e) =>
-                      setWhisperxOptions((prev) => ({ ...prev, batchSize: e.currentTarget.value }))
-                    }
-                    placeholder="8"
-                  />
-                  <p className="field-help">Plus haut = plus rapide, mais plus de VRAM/RAM.</p>
-                </label>
-
-                <label>
-                  Output Format
-                  <select
-                    value={whisperxOptions.outputFormat}
-                    onChange={(e) =>
-                      setWhisperxOptions((prev) => ({
-                        ...prev,
-                        outputFormat: e.currentTarget.value as UiWhisperxOptions["outputFormat"],
-                      }))
-                    }
-                  >
-                    <option value="all">all</option>
-                    <option value="json">json</option>
-                    <option value="srt">srt</option>
-                    <option value="vtt">vtt</option>
-                    <option value="txt">txt</option>
-                    <option value="tsv">tsv</option>
-                    <option value="aud">aud</option>
-                  </select>
-                  <p className="field-help">`all` exporte tous les formats utiles.</p>
-                </label>
-
-                <label>
-                  VAD Method
-                  <select
-                    value={whisperxOptions.vadMethod}
-                    onChange={(e) =>
-                      setWhisperxOptions((prev) => ({
-                        ...prev,
-                        vadMethod: e.currentTarget.value as UiWhisperxOptions["vadMethod"],
-                      }))
-                    }
-                  >
-                    <option value="pyannote">pyannote (precision)</option>
-                    <option value="silero">silero (leger/rapide)</option>
-                  </select>
-                  <p className="field-help">Decoupe les zones de parole avant transcription.</p>
-                </label>
-
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={whisperxOptions.diarize}
-                    onChange={(e) =>
-                      setWhisperxOptions((prev) => ({ ...prev, diarize: e.currentTarget.checked }))
-                    }
-                  />
-                  Diarization (qui parle ?)
-                </label>
-
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={whisperxOptions.noAlign}
-                    onChange={(e) =>
-                      setWhisperxOptions((prev) => ({ ...prev, noAlign: e.currentTarget.checked }))
-                    }
-                  />
-                  No Align (plus rapide, horodatage moins fin)
-                </label>
-
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={whisperxOptions.printProgress}
-                    onChange={(e) =>
-                      setWhisperxOptions((prev) => ({
-                        ...prev,
-                        printProgress: e.currentTarget.checked,
-                      }))
-                    }
-                  />
-                  Print Progress (logs plus verbeux)
-                </label>
-
-                <label className="full-width">
-                  HF Token (optionnel, requis si diarization)
-                  <input
-                    value={whisperxOptions.hfToken}
-                    onChange={(e) =>
-                      setWhisperxOptions((prev) => ({ ...prev, hfToken: e.currentTarget.value }))
-                    }
-                    placeholder="hf_xxx"
-                  />
-                  <p className="field-help">
-                    Token Hugging Face lecture pour modeles pyannote.
-                  </p>
-                </label>
-              </div>
-            </>
-          ) : null}
-
-          <div className="actions">
-            <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Lancement..." : "Lancer le job"}
+          <div className="job-stepper">
+            <button
+              type="button"
+              className={`step-tab ${jobFormStep === "import" ? "active" : ""}`}
+              onClick={() => setJobFormStep("import")}
+            >
+              1. Import
             </button>
-            <button type="button" className="ghost" onClick={refreshJobs}>
-              Rafraichir
+            <button
+              type="button"
+              className={`step-tab ${jobFormStep === "configure" ? "active" : ""}`}
+              onClick={continueToConfigurationPanel}
+              disabled={!inputPath.trim()}
+            >
+              2. Parametres
             </button>
           </div>
+
+          {jobFormStep === "import" ? (
+            <>
+              <label>
+                Chemin media local
+                <div className="path-input-row">
+                  <input
+                    value={inputPath}
+                    onChange={(e) => setInputPath(e.currentTarget.value)}
+                    placeholder="C:\\media\\audio.wav"
+                    autoComplete="off"
+                  />
+                  <button className="ghost inline" type="button" onClick={pickInputPath}>
+                    Parcourir
+                  </button>
+                </div>
+                <p className="field-help">Audio ou video local (wav, mp3, m4a, flac, mp4, mkv).</p>
+              </label>
+
+              <label>
+                Dossier de sortie (optionnel)
+                <div className="path-input-row">
+                  <input
+                    value={outputDir}
+                    onChange={(e) => setOutputDir(e.currentTarget.value)}
+                    placeholder="Laisser vide pour dossier app local"
+                    autoComplete="off"
+                  />
+                  <button className="ghost inline" type="button" onClick={pickOutputDir}>
+                    Dossier
+                  </button>
+                </div>
+                <p className="field-help">Si vide, l'app cree un dossier de run automatiquement.</p>
+              </label>
+
+              <div className="actions">
+                <button type="button" onClick={continueToConfigurationPanel}>
+                  Continuer vers parametres
+                </button>
+                <button type="button" className="ghost" onClick={refreshJobs}>
+                  Rafraichir
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="import-summary">
+                <p className="small">
+                  <strong>Media:</strong>
+                </p>
+                <p className="mono">{inputPath}</p>
+                <p className="small">
+                  <strong>Sortie:</strong>{" "}
+                  {outputDir.trim() ? outputDir : "auto (dossier de run local)"}
+                </p>
+                <button
+                  type="button"
+                  className="ghost inline"
+                  onClick={() => setJobFormStep("import")}
+                >
+                  Modifier import
+                </button>
+              </div>
+
+              <label>
+                Mode d'execution
+                <select
+                  value={mode}
+                  onChange={(e) =>
+                    setMode(e.currentTarget.value as "mock" | "whisperx" | "analyze_only")
+                  }
+                >
+                  <option value="mock">mock (test rapide sans ASR)</option>
+                  <option value="whisperx">whisperx (transcription reelle)</option>
+                  <option value="analyze_only">analyze-only (recalcul metriques)</option>
+                </select>
+              </label>
+
+              {mode === "whisperx" ? (
+                <>
+                  <label>
+                    Profil rapide
+                    <select value={selectedProfileId} onChange={(e) => applyProfile(e.currentTarget.value)}>
+                      {profilePresets.map((preset) => (
+                        <option key={preset.id} value={preset.id}>
+                          {preset.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="field-help">{selectedProfile?.description}</p>
+                  </label>
+
+                  <div className="option-grid">
+                    <label>
+                      Modele Whisper
+                      <input
+                        value={whisperxOptions.model}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({ ...prev, model: e.currentTarget.value }))
+                        }
+                        placeholder="small / medium / large-v3"
+                      />
+                      <p className="field-help">Plus le modele est grand, plus la precision augmente.</p>
+                    </label>
+
+                    <label>
+                      Langue
+                      <input
+                        value={whisperxOptions.language}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({ ...prev, language: e.currentTarget.value }))
+                        }
+                        placeholder="fr, en... (vide = autodetection)"
+                      />
+                      <p className="field-help">Laisser vide pour autodetection (plus lent).</p>
+                    </label>
+
+                    <label>
+                      Device
+                      <select
+                        value={whisperxOptions.device}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({
+                            ...prev,
+                            device: e.currentTarget.value as UiWhisperxOptions["device"],
+                          }))
+                        }
+                      >
+                        <option value="auto">auto</option>
+                        <option value="cuda">cuda (GPU)</option>
+                        <option value="cpu">cpu</option>
+                      </select>
+                      <p className="field-help">`cuda` si carte NVIDIA disponible, sinon `cpu`.</p>
+                    </label>
+
+                    <label>
+                      Compute Type
+                      <select
+                        value={whisperxOptions.computeType}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({
+                            ...prev,
+                            computeType: e.currentTarget.value as UiWhisperxOptions["computeType"],
+                          }))
+                        }
+                      >
+                        <option value="default">default</option>
+                        <option value="float16">float16 (GPU rapide)</option>
+                        <option value="float32">float32 (precision)</option>
+                        <option value="int8">int8 (memoire reduite)</option>
+                      </select>
+                    </label>
+
+                    <label>
+                      Batch Size
+                      <input
+                        value={whisperxOptions.batchSize}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({ ...prev, batchSize: e.currentTarget.value }))
+                        }
+                        placeholder="8"
+                      />
+                      <p className="field-help">Plus haut = plus rapide, mais plus de VRAM/RAM.</p>
+                    </label>
+
+                    <label>
+                      Chunk media (s)
+                      <input
+                        value={whisperxOptions.pipelineChunkSeconds}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({
+                            ...prev,
+                            pipelineChunkSeconds: e.currentTarget.value,
+                          }))
+                        }
+                        placeholder="vide = desactive"
+                      />
+                      <p className="field-help">
+                        Decoupe les medias longs en fenetres globales (ex: 600 pour 10 min).
+                      </p>
+                    </label>
+
+                    <label>
+                      Overlap chunk (s)
+                      <input
+                        value={whisperxOptions.pipelineChunkOverlapSeconds}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({
+                            ...prev,
+                            pipelineChunkOverlapSeconds: e.currentTarget.value,
+                          }))
+                        }
+                        placeholder="0"
+                      />
+                      <p className="field-help">
+                        Recouvrement entre chunks (doit rester inferieur a Chunk media).
+                      </p>
+                    </label>
+
+                    <label>
+                      Output Format
+                      <select
+                        value={whisperxOptions.outputFormat}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({
+                            ...prev,
+                            outputFormat: e.currentTarget.value as UiWhisperxOptions["outputFormat"],
+                          }))
+                        }
+                      >
+                        <option value="all">all</option>
+                        <option value="json">json</option>
+                        <option value="srt">srt</option>
+                        <option value="vtt">vtt</option>
+                        <option value="txt">txt</option>
+                        <option value="tsv">tsv</option>
+                        <option value="aud">aud</option>
+                      </select>
+                      <p className="field-help">
+                        `all` exporte tous les formats utiles. Pour garder l'editeur transcript actif,
+                        Studio conserve toujours un JSON (meme si tu choisis `srt`/`vtt`/`txt`).
+                      </p>
+                    </label>
+
+                    <label>
+                      VAD Method
+                      <select
+                        value={whisperxOptions.vadMethod}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({
+                            ...prev,
+                            vadMethod: e.currentTarget.value as UiWhisperxOptions["vadMethod"],
+                          }))
+                        }
+                      >
+                        <option value="pyannote">pyannote (precision)</option>
+                        <option value="silero">silero (leger/rapide)</option>
+                      </select>
+                      <p className="field-help">Decoupe les zones de parole avant transcription.</p>
+                    </label>
+
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={whisperxOptions.diarize}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({ ...prev, diarize: e.currentTarget.checked }))
+                        }
+                      />
+                      Diarization (qui parle ?)
+                    </label>
+
+                    <label>
+                      Min speakers
+                      <input
+                        value={whisperxOptions.minSpeakers}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({
+                            ...prev,
+                            minSpeakers: e.currentTarget.value,
+                          }))
+                        }
+                        placeholder="vide = auto"
+                        disabled={!whisperxOptions.diarize}
+                      />
+                      <p className="field-help">Optionnel: borne basse pour diarization.</p>
+                    </label>
+
+                    <label>
+                      Max speakers
+                      <input
+                        value={whisperxOptions.maxSpeakers}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({
+                            ...prev,
+                            maxSpeakers: e.currentTarget.value,
+                          }))
+                        }
+                        placeholder="vide = auto"
+                        disabled={!whisperxOptions.diarize}
+                      />
+                      <p className="field-help">Optionnel: borne haute pour diarization.</p>
+                    </label>
+
+                    <label>
+                      Force N speakers
+                      <input
+                        value={whisperxOptions.forceNSpeakers}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({
+                            ...prev,
+                            forceNSpeakers: e.currentTarget.value,
+                          }))
+                        }
+                        placeholder="vide = desactive"
+                        disabled={!whisperxOptions.diarize}
+                      />
+                      <p className="field-help">
+                        Exact speaker count. Exclusif avec Min/Max speakers.
+                      </p>
+                    </label>
+
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={whisperxOptions.noAlign}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({ ...prev, noAlign: e.currentTarget.checked }))
+                        }
+                      />
+                      No Align (plus rapide, horodatage moins fin)
+                    </label>
+
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={whisperxOptions.printProgress}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({
+                            ...prev,
+                            printProgress: e.currentTarget.checked,
+                          }))
+                        }
+                      />
+                      Print Progress (logs plus verbeux)
+                    </label>
+
+                    <label className="full-width">
+                      HF Token (optionnel, requis si diarization)
+                      <input
+                        value={whisperxOptions.hfToken}
+                        onChange={(e) =>
+                          setWhisperxOptions((prev) => ({ ...prev, hfToken: e.currentTarget.value }))
+                        }
+                        placeholder="hf_xxx"
+                      />
+                      <p className="field-help">
+                        Token Hugging Face lecture pour modeles pyannote.
+                      </p>
+                    </label>
+                  </div>
+                </>
+              ) : null}
+
+              {mode === "analyze_only" ? (
+                <p className="field-help">
+                  Analyze-only relit un JSON existant et recalcule pauses/IPU/transitions sans relancer ASR.
+                </p>
+              ) : null}
+
+              {mode === "whisperx" || mode === "analyze_only" ? (
+                <div className="option-grid">
+                  <label>
+                    Pause min (s)
+                    <input
+                      value={whisperxOptions.analysisPauseMin}
+                      onChange={(e) =>
+                        setWhisperxOptions((prev) => ({
+                          ...prev,
+                          analysisPauseMin: e.currentTarget.value,
+                        }))
+                      }
+                      placeholder="0.15"
+                    />
+                  </label>
+
+                  <label>
+                    Pause ignore below (s)
+                    <input
+                      value={whisperxOptions.analysisPauseIgnoreBelow}
+                      onChange={(e) =>
+                        setWhisperxOptions((prev) => ({
+                          ...prev,
+                          analysisPauseIgnoreBelow: e.currentTarget.value,
+                        }))
+                      }
+                      placeholder="0.1"
+                    />
+                  </label>
+
+                  <label>
+                    Pause max (s)
+                    <input
+                      value={whisperxOptions.analysisPauseMax}
+                      onChange={(e) =>
+                        setWhisperxOptions((prev) => ({
+                          ...prev,
+                          analysisPauseMax: e.currentTarget.value,
+                        }))
+                      }
+                      placeholder="vide = aucune limite"
+                    />
+                  </label>
+
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={whisperxOptions.analysisIncludeNonspeech}
+                      onChange={(e) =>
+                        setWhisperxOptions((prev) => ({
+                          ...prev,
+                          analysisIncludeNonspeech: e.currentTarget.checked,
+                        }))
+                      }
+                    />
+                    Inclure non-speech
+                  </label>
+
+                  <label>
+                    Non-speech min duration (s)
+                    <input
+                      value={whisperxOptions.analysisNonspeechMinDuration}
+                      onChange={(e) =>
+                        setWhisperxOptions((prev) => ({
+                          ...prev,
+                          analysisNonspeechMinDuration: e.currentTarget.value,
+                        }))
+                      }
+                      placeholder="0.15"
+                    />
+                  </label>
+
+                  <label>
+                    IPU min words
+                    <input
+                      value={whisperxOptions.analysisIpuMinWords}
+                      onChange={(e) =>
+                        setWhisperxOptions((prev) => ({
+                          ...prev,
+                          analysisIpuMinWords: e.currentTarget.value,
+                        }))
+                      }
+                      placeholder="1"
+                    />
+                  </label>
+
+                  <label>
+                    IPU min duration (s)
+                    <input
+                      value={whisperxOptions.analysisIpuMinDuration}
+                      onChange={(e) =>
+                        setWhisperxOptions((prev) => ({
+                          ...prev,
+                          analysisIpuMinDuration: e.currentTarget.value,
+                        }))
+                      }
+                      placeholder="0"
+                    />
+                  </label>
+
+                  <label>
+                    IPU bridge short gaps under (s)
+                    <input
+                      value={whisperxOptions.analysisIpuBridgeShortGapsUnder}
+                      onChange={(e) =>
+                        setWhisperxOptions((prev) => ({
+                          ...prev,
+                          analysisIpuBridgeShortGapsUnder: e.currentTarget.value,
+                        }))
+                      }
+                      placeholder="0"
+                    />
+                  </label>
+                </div>
+              ) : null}
+
+              <div className="actions">
+                <button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Lancement..." : "Lancer le job"}
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => setJobFormStep("import")}
+                  disabled={isSubmitting}
+                >
+                  Retour import
+                </button>
+                <button type="button" className="ghost" onClick={refreshJobs}>
+                  Rafraichir
+                </button>
+              </div>
+            </>
+          )}
         </form>
 
         {error ? <p className="error-box">{error}</p> : null}
@@ -2992,7 +3538,7 @@ function App() {
                   <p className="small">{job.progress}%</p>
 
                   <div className="job-actions">
-                    <button type="button" className="ghost" onClick={() => setSelectedJobId(job.id)}>
+                    <button type="button" className="ghost" onClick={() => focusJobDetails(job.id)}>
                       Voir details
                     </button>
                     <button type="button" className="ghost" onClick={() => openLocalPath(job.outputDir)}>
@@ -3014,7 +3560,7 @@ function App() {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel" ref={runDetailsRef}>
         <header className="panel-header">
           <h2>Run Details</h2>
           <span>{selectedJob ? selectedJob.id : "Aucun job selectionne"}</span>
@@ -3262,26 +3808,33 @@ function App() {
               {selectedJob.outputFiles.length === 0 ? (
                 <p className="small">Pas de fichier genere pour ce job.</p>
               ) : (
-                <ul className="file-list">
-                  {selectedJob.outputFiles.map((path) => (
-                    <li key={path}>
-                      <span className="mono">{path}</span>
-                      <div className="file-actions">
-                        <button type="button" className="ghost" onClick={() => openLocalPath(path)}>
-                          Ouvrir
-                        </button>
-                        <button type="button" className="ghost" onClick={() => previewOutput(path)}>
-                          Preview
-                        </button>
-                        {path.toLowerCase().endsWith(".json") ? (
-                          <button type="button" className="ghost" onClick={() => loadTranscriptEditor(path)}>
-                            Editer transcript
+                <>
+                  {!selectedJobHasJsonOutput ? (
+                    <p className="small">
+                      Aucun JSON detecte: l'editeur transcript ne peut pas s'afficher pour ce job.
+                    </p>
+                  ) : null}
+                  <ul className="file-list">
+                    {selectedJob.outputFiles.map((path) => (
+                      <li key={path}>
+                        <span className="mono">{path}</span>
+                        <div className="file-actions">
+                          <button type="button" className="ghost" onClick={() => openLocalPath(path)}>
+                            Ouvrir
                           </button>
-                        ) : null}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                          <button type="button" className="ghost" onClick={() => previewOutput(path)}>
+                            Preview
+                          </button>
+                          {path.toLowerCase().endsWith(".json") ? (
+                            <button type="button" className="ghost" onClick={() => loadTranscriptEditor(path)}>
+                              Editer transcript
+                            </button>
+                          ) : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
 
               <h3>Apercu</h3>

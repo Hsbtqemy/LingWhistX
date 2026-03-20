@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::ffi::OsString;
 use std::hash::{Hash, Hasher};
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -28,7 +29,20 @@ struct WhisperxOptions {
     device: Option<String>,
     compute_type: Option<String>,
     batch_size: Option<u32>,
+    pipeline_chunk_seconds: Option<f64>,
+    pipeline_chunk_overlap_seconds: Option<f64>,
     diarize: Option<bool>,
+    min_speakers: Option<u32>,
+    max_speakers: Option<u32>,
+    force_n_speakers: Option<u32>,
+    analysis_pause_min: Option<f64>,
+    analysis_pause_ignore_below: Option<f64>,
+    analysis_pause_max: Option<f64>,
+    analysis_include_nonspeech: Option<bool>,
+    analysis_nonspeech_min_duration: Option<f64>,
+    analysis_ipu_min_words: Option<u32>,
+    analysis_ipu_min_duration: Option<f64>,
+    analysis_ipu_bridge_short_gaps_under: Option<f64>,
     hf_token: Option<String>,
     output_format: Option<String>,
     no_align: Option<bool>,
@@ -218,6 +232,13 @@ struct RuntimeStatus {
     details: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+struct ResolvedFfmpegTools {
+    ffmpeg_command: String,
+    ffprobe_command: String,
+    ffmpeg_dir: Option<PathBuf>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct WaveformPeaks {
@@ -298,7 +319,9 @@ fn now_ms() -> u64 {
     }
 }
 
-fn redact_whisperx_options_for_storage(options: Option<WhisperxOptions>) -> Option<WhisperxOptions> {
+fn redact_whisperx_options_for_storage(
+    options: Option<WhisperxOptions>,
+) -> Option<WhisperxOptions> {
     options.map(|mut options| {
         options.hf_token = None;
         options
@@ -418,8 +441,8 @@ fn load_jobs(db_path: &Path) -> Result<Vec<Job>, String> {
                 serde_json::from_str::<Vec<String>>(&output_files_json).unwrap_or_default();
 
             let whisperx_options_json: Option<String> = row.get(11)?;
-            let whisperx_options =
-                whisperx_options_json.and_then(|json| serde_json::from_str::<WhisperxOptions>(&json).ok());
+            let whisperx_options = whisperx_options_json
+                .and_then(|json| serde_json::from_str::<WhisperxOptions>(&json).ok());
 
             Ok(Job {
                 id: row.get(0)?,
@@ -446,11 +469,16 @@ fn load_jobs(db_path: &Path) -> Result<Vec<Job>, String> {
 }
 
 fn parse_f64(value: &serde_json::Value) -> Option<f64> {
-    value.as_f64().or_else(|| value.as_str().and_then(|raw| raw.parse::<f64>().ok()))
+    value
+        .as_f64()
+        .or_else(|| value.as_str().and_then(|raw| raw.parse::<f64>().ok()))
 }
 
 fn load_segments_from_json(value: &serde_json::Value) -> Vec<EditableSegment> {
-    let Some(segments) = value.get("segments").and_then(|segments| segments.as_array()) else {
+    let Some(segments) = value
+        .get("segments")
+        .and_then(|segments| segments.as_array())
+    else {
         return vec![];
     };
 
@@ -515,9 +543,7 @@ fn normalized_export_rules(rules: Option<&ExportTimingRules>) -> (f64, f64, bool
         .filter(|value| value.is_finite() && *value >= 0.0)
         .map(|value| value.clamp(0.0, 10.0))
         .unwrap_or(0.0);
-    let fix_overlaps = rules
-        .and_then(|r| r.fix_overlaps)
-        .unwrap_or(true);
+    let fix_overlaps = rules.and_then(|r| r.fix_overlaps).unwrap_or(true);
     (min_duration_sec, min_gap_sec, fix_overlaps)
 }
 
@@ -620,7 +646,10 @@ fn apply_export_timing_rules(
     (adjusted, report)
 }
 
-fn build_transcript_json(language: Option<String>, segments: &[EditableSegment]) -> serde_json::Value {
+fn build_transcript_json(
+    language: Option<String>,
+    segments: &[EditableSegment],
+) -> serde_json::Value {
     let normalized_segments = normalize_segments(segments);
     let segment_values = normalized_segments
         .iter()
@@ -709,9 +738,7 @@ fn format_timestamp(seconds: f64, decimal_marker: char) -> String {
     total_ms -= minutes * 60_000;
     let secs = total_ms / 1_000;
     total_ms -= secs * 1_000;
-    format!(
-        "{hours:02}:{minutes:02}:{secs:02}{decimal_marker}{total_ms:03}"
-    )
+    format!("{hours:02}:{minutes:02}:{secs:02}{decimal_marker}{total_ms:03}")
 }
 
 fn to_srt_text(segments: &[EditableSegment]) -> String {
@@ -894,7 +921,8 @@ fn ensure_embedded_resource_file(
 
 fn resolve_worker_path(app: &AppHandle) -> Result<PathBuf, String> {
     let try_paths = [
-        app.path().resolve("python/worker.py", BaseDirectory::Resource),
+        app.path()
+            .resolve("python/worker.py", BaseDirectory::Resource),
         app.path().resolve("worker.py", BaseDirectory::Resource),
         Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
@@ -910,14 +938,14 @@ fn resolve_worker_path(app: &AppHandle) -> Result<PathBuf, String> {
         }
     }
 
-    ensure_embedded_resource_file(app, "python/worker.py", EMBEDDED_WORKER_SCRIPT).map_err(
-        |err| format!("Python worker script not found. Embedded fallback failed: {err}"),
-    )
+    ensure_embedded_resource_file(app, "python/worker.py", EMBEDDED_WORKER_SCRIPT)
+        .map_err(|err| format!("Python worker script not found. Embedded fallback failed: {err}"))
 }
 
 fn resolve_runtime_setup_script_path(app: &AppHandle) -> Result<PathBuf, String> {
     let try_paths = [
-        app.path().resolve("setup-local-runtime.ps1", BaseDirectory::Resource),
+        app.path()
+            .resolve("setup-local-runtime.ps1", BaseDirectory::Resource),
         app.path()
             .resolve("scripts/setup-local-runtime.ps1", BaseDirectory::Resource),
         Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -1005,7 +1033,10 @@ fn run_runtime_setup_process(app: &AppHandle) -> Result<(), String> {
     emit_runtime_setup_log(
         app,
         "system",
-        &format!("Starting runtime setup script: {}", script_path.to_string_lossy()),
+        &format!(
+            "Starting runtime setup script: {}",
+            script_path.to_string_lossy()
+        ),
     );
 
     let mut child = command.spawn().map_err(|err| {
@@ -1090,7 +1121,12 @@ fn resolve_python_command(app: &AppHandle) -> String {
 
     if let Ok(data_dir) = app.path().app_local_data_dir() {
         #[cfg(target_os = "windows")]
-        candidates.push(data_dir.join("python-runtime").join("Scripts").join("python.exe"));
+        candidates.push(
+            data_dir
+                .join("python-runtime")
+                .join("Scripts")
+                .join("python.exe"),
+        );
         #[cfg(not(target_os = "windows"))]
         {
             candidates.push(data_dir.join("python-runtime").join("bin").join("python3"));
@@ -1100,7 +1136,10 @@ fn resolve_python_command(app: &AppHandle) -> String {
 
     #[cfg(target_os = "windows")]
     {
-        if let Ok(path) = app.path().resolve("python-runtime/python.exe", BaseDirectory::Resource) {
+        if let Ok(path) = app
+            .path()
+            .resolve("python-runtime/python.exe", BaseDirectory::Resource)
+        {
             candidates.push(path);
         }
     }
@@ -1125,7 +1164,12 @@ fn resolve_python_command(app: &AppHandle) -> String {
         .map(|path| path.to_path_buf())
     {
         #[cfg(target_os = "windows")]
-        candidates.push(project_root.join(".venv").join("Scripts").join("python.exe"));
+        candidates.push(
+            project_root
+                .join(".venv")
+                .join("Scripts")
+                .join("python.exe"),
+        );
         #[cfg(not(target_os = "windows"))]
         {
             candidates.push(project_root.join(".venv").join("bin").join("python3"));
@@ -1142,11 +1186,159 @@ fn resolve_python_command(app: &AppHandle) -> String {
     "python".into()
 }
 
-fn run_probe(command: &str, args: &[&str]) -> Result<String, String> {
-    let output = Command::new(command)
-        .args(args)
-        .output()
-        .map_err(|err| err.to_string())?;
+fn env_non_empty(var_name: &str) -> Option<String> {
+    std::env::var(var_name).ok().and_then(|raw| {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    })
+}
+
+fn ffmpeg_candidate_dirs(app: &AppHandle) -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = Vec::new();
+
+    let mut push_dir = |dir: PathBuf| {
+        if dir.exists() && !dirs.iter().any(|existing| *existing == dir) {
+            dirs.push(dir);
+        }
+    };
+
+    if let Some(path_var) = std::env::var_os("PATH") {
+        for dir in std::env::split_paths(&path_var) {
+            push_dir(dir);
+        }
+    }
+
+    if let Ok(data_dir) = app.path().app_local_data_dir() {
+        push_dir(data_dir.join("ffmpeg").join("bin"));
+        push_dir(data_dir.join("python-runtime").join("ffmpeg").join("bin"));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(local_app_data) = env_non_empty("LOCALAPPDATA") {
+            let root = PathBuf::from(local_app_data);
+            push_dir(root.join("Microsoft").join("WinGet").join("Links"));
+            push_dir(root.join("Programs").join("ffmpeg").join("bin"));
+        }
+        if let Some(program_data) =
+            env_non_empty("ProgramData").or_else(|| env_non_empty("PROGRAMDATA"))
+        {
+            push_dir(PathBuf::from(program_data).join("chocolatey").join("bin"));
+        }
+        if let Some(user_profile) = env_non_empty("USERPROFILE") {
+            push_dir(PathBuf::from(user_profile).join("scoop").join("shims"));
+        }
+        push_dir(PathBuf::from("C:\\ffmpeg\\bin"));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        push_dir(PathBuf::from("/usr/local/bin"));
+        push_dir(PathBuf::from("/usr/bin"));
+        push_dir(PathBuf::from("/opt/homebrew/bin"));
+    }
+
+    dirs
+}
+
+fn find_executable_in_dirs(executable_name: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
+    for dir in dirs {
+        let candidate = dir.join(executable_name);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+fn command_parent_if_file(command: &str) -> Option<PathBuf> {
+    let as_path = PathBuf::from(command);
+    if as_path.is_file() {
+        as_path.parent().map(|parent| parent.to_path_buf())
+    } else {
+        None
+    }
+}
+
+fn resolve_ffmpeg_tools(app: &AppHandle) -> ResolvedFfmpegTools {
+    #[cfg(target_os = "windows")]
+    let ffmpeg_exe = "ffmpeg.exe";
+    #[cfg(not(target_os = "windows"))]
+    let ffmpeg_exe = "ffmpeg";
+
+    #[cfg(target_os = "windows")]
+    let ffprobe_exe = "ffprobe.exe";
+    #[cfg(not(target_os = "windows"))]
+    let ffprobe_exe = "ffprobe";
+
+    let dirs = ffmpeg_candidate_dirs(app);
+
+    let ffmpeg_command = env_non_empty("WHISPERX_STUDIO_FFMPEG")
+        .or_else(|| env_non_empty("FFMPEG_BINARY"))
+        .or_else(|| env_non_empty("IMAGEIO_FFMPEG_EXE"))
+        .or_else(|| {
+            find_executable_in_dirs(ffmpeg_exe, &dirs)
+                .map(|path| path.to_string_lossy().to_string())
+        })
+        .unwrap_or_else(|| "ffmpeg".to_string());
+
+    let mut ffmpeg_dir = command_parent_if_file(&ffmpeg_command);
+
+    let ffprobe_command = env_non_empty("WHISPERX_STUDIO_FFPROBE")
+        .or_else(|| env_non_empty("FFPROBE_BINARY"))
+        .or_else(|| {
+            ffmpeg_dir.as_ref().and_then(|dir| {
+                let sibling = dir.join(ffprobe_exe);
+                if sibling.is_file() {
+                    Some(sibling.to_string_lossy().to_string())
+                } else {
+                    None
+                }
+            })
+        })
+        .or_else(|| {
+            find_executable_in_dirs(ffprobe_exe, &dirs)
+                .map(|path| path.to_string_lossy().to_string())
+        })
+        .unwrap_or_else(|| "ffprobe".to_string());
+
+    if ffmpeg_dir.is_none() {
+        ffmpeg_dir = command_parent_if_file(&ffprobe_command);
+    }
+
+    ResolvedFfmpegTools {
+        ffmpeg_command,
+        ffprobe_command,
+        ffmpeg_dir,
+    }
+}
+
+fn prepend_path_env(command: &mut Command, prefix: &Path) {
+    if !prefix.exists() {
+        return;
+    }
+    let mut path_value = OsString::from(prefix.as_os_str());
+    if let Some(existing) = std::env::var_os("PATH") {
+        #[cfg(target_os = "windows")]
+        path_value.push(";");
+        #[cfg(not(target_os = "windows"))]
+        path_value.push(":");
+        path_value.push(existing);
+    }
+    command.env("PATH", path_value);
+}
+
+fn run_probe(command: &str, args: &[&str], path_prefix: Option<&Path>) -> Result<String, String> {
+    let mut process = Command::new(command);
+    process.args(args);
+    if let Some(prefix) = path_prefix {
+        prepend_path_env(&mut process, prefix);
+    }
+    let output = process.output().map_err(|err| err.to_string())?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -1157,10 +1349,7 @@ fn run_probe(command: &str, args: &[&str]) -> Result<String, String> {
         if !stdout.is_empty() {
             return Err(stdout);
         }
-        return Err(format!(
-            "Command failed with status {}",
-            output.status
-        ));
+        return Err(format!("Command failed with status {}", output.status));
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -1171,24 +1360,28 @@ fn run_probe(command: &str, args: &[&str]) -> Result<String, String> {
     }
 }
 
-fn probe_duration_seconds(path: &str) -> Option<f64> {
-    let output = Command::new("ffprobe")
-        .args([
-            "-v",
-            "error",
-            "-show_entries",
-            "format=duration",
-            "-of",
-            "default=noprint_wrappers=1:nokey=1",
-            path,
-        ])
-        .output()
-        .ok()?;
+fn probe_duration_seconds(path: &str, ffmpeg_tools: &ResolvedFfmpegTools) -> Option<f64> {
+    let mut command = Command::new(&ffmpeg_tools.ffprobe_command);
+    command.args([
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        path,
+    ]);
+    if let Some(prefix) = ffmpeg_tools.ffmpeg_dir.as_deref() {
+        prepend_path_env(&mut command, prefix);
+    }
+    let output = command.output().ok()?;
     if !output.status.success() {
         return None;
     }
     let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    text.parse::<f64>().ok().filter(|value| value.is_finite() && *value > 0.0)
+    text.parse::<f64>()
+        .ok()
+        .filter(|value| value.is_finite() && *value > 0.0)
 }
 
 fn waveform_cache_file(
@@ -1299,12 +1492,13 @@ fn build_waveform_peaks_internal(
 
     emit_progress_for_task(1, "Generation waveform: decodage audio...");
 
-    let duration_hint = probe_duration_seconds(&source_path_string);
+    let ffmpeg_tools = resolve_ffmpeg_tools(app);
+    let duration_hint = probe_duration_seconds(&source_path_string, &ffmpeg_tools);
     let estimated_total_samples = duration_hint
         .map(|duration| (duration * sample_rate as f64).max(1.0) as u64)
         .filter(|value| *value > 0);
 
-    let mut ffmpeg = Command::new("ffmpeg");
+    let mut ffmpeg = Command::new(&ffmpeg_tools.ffmpeg_command);
     ffmpeg
         .args([
             "-v",
@@ -1322,10 +1516,13 @@ fn build_waveform_peaks_internal(
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    if let Some(prefix) = ffmpeg_tools.ffmpeg_dir.as_deref() {
+        prepend_path_env(&mut ffmpeg, prefix);
+    }
 
     let mut child = ffmpeg.spawn().map_err(|err| {
         if err.kind() == std::io::ErrorKind::NotFound {
-            "ffmpeg not found in PATH. Install ffmpeg to enable waveform generation.".to_string()
+            "ffmpeg not found. Install ffmpeg to enable waveform generation.".to_string()
         } else {
             format!("Unable to launch ffmpeg: {err}")
         }
@@ -1412,9 +1609,8 @@ fn build_waveform_peaks_internal(
                 current_peak = 0.0;
                 current_count = 0;
                 if peaks.len() > 2_500_000 {
-                    generation_error = Some(
-                        "Waveform too large to render safely. Reduce bins-per-second.".into(),
-                    );
+                    generation_error =
+                        Some("Waveform too large to render safely. Reduce bins-per-second.".into());
                     break;
                 }
             }
@@ -1518,15 +1714,7 @@ fn build_waveform_peaks(
     bins_per_second: Option<u32>,
     sample_rate: Option<u32>,
 ) -> Result<WaveformPeaks, String> {
-    build_waveform_peaks_internal(
-        &app,
-        &path,
-        bins_per_second,
-        sample_rate,
-        None,
-        None,
-        None,
-    )
+    build_waveform_peaks_internal(&app, &path, bins_per_second, sample_rate, None, None, None)
 }
 
 #[tauri::command]
@@ -1719,6 +1907,7 @@ fn run_worker(
     mode: &str,
     whisperx_options: Option<&WhisperxOptions>,
 ) -> Result<WorkerResult, String> {
+    let ffmpeg_tools = resolve_ffmpeg_tools(app);
     let mut command = Command::new(python_command);
     command
         .arg(worker_path)
@@ -1732,6 +1921,13 @@ fn run_worker(
         .arg(mode)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    if let Some(prefix) = ffmpeg_tools.ffmpeg_dir.as_deref() {
+        prepend_path_env(&mut command, prefix);
+    }
+    command
+        .env("FFMPEG_BINARY", &ffmpeg_tools.ffmpeg_command)
+        .env("IMAGEIO_FFMPEG_EXE", &ffmpeg_tools.ffmpeg_command)
+        .env("FFPROBE_BINARY", &ffmpeg_tools.ffprobe_command);
 
     if let Some(options) = whisperx_options {
         let mut worker_options = options.clone();
@@ -1923,6 +2119,8 @@ fn run_job_thread(
                 .and_then(|options| options.model.clone())
                 .unwrap_or_else(|| "small".into());
             job.message = format!("Running whisperx ({model})");
+        } else if mode == "analyze_only" {
+            job.message = "Running analyze-only pipeline".into();
         } else {
             job.message = "Running mock pipeline".into();
         }
@@ -1965,7 +2163,14 @@ fn run_job_thread(
                 emit_job_log(&app, &event);
                 return;
             }
-            set_job_error(&app, &db_path, &jobs, &job_id, "Worker execution error", &err);
+            set_job_error(
+                &app,
+                &db_path,
+                &jobs,
+                &job_id,
+                "Worker execution error",
+                &err,
+            );
         }
     }
 }
@@ -1973,13 +2178,18 @@ fn run_job_thread(
 #[tauri::command]
 fn get_runtime_status(app: AppHandle) -> RuntimeStatus {
     let python_command = resolve_python_command(&app);
+    let ffmpeg_tools = resolve_ffmpeg_tools(&app);
     let mut python_ok = false;
     let mut whisperx_ok = false;
     let mut ffmpeg_ok = false;
     let mut whisperx_version: Option<String> = None;
     let mut details: Vec<String> = Vec::new();
 
-    match run_probe(&python_command, &["-c", "import sys; print(sys.executable)"]) {
+    match run_probe(
+        &python_command,
+        &["-c", "import sys; print(sys.executable)"],
+        None,
+    ) {
         Ok(executable) => {
             python_ok = true;
             details.push(format!("python ok: {executable}"));
@@ -1996,6 +2206,7 @@ fn get_runtime_status(app: AppHandle) -> RuntimeStatus {
                 "-c",
                 "import importlib.metadata as md; import whisperx; print(getattr(whisperx, '__version__', md.version('whisperx')))",
             ],
+            None,
         ) {
             Ok(version) => {
                 whisperx_ok = true;
@@ -2008,7 +2219,14 @@ fn get_runtime_status(app: AppHandle) -> RuntimeStatus {
         }
     }
 
-    match run_probe("ffmpeg", &["-version"]) {
+    if let Some(dir) = ffmpeg_tools.ffmpeg_dir.as_deref() {
+        details.push(format!("ffmpeg dir: {}", dir.to_string_lossy()));
+    }
+    match run_probe(
+        &ffmpeg_tools.ffmpeg_command,
+        &["-version"],
+        ffmpeg_tools.ffmpeg_dir.as_deref(),
+    ) {
         Ok(output) => {
             ffmpeg_ok = true;
             let first_line = output.lines().next().unwrap_or("ffmpeg available");
@@ -2039,10 +2257,7 @@ fn get_runtime_setup_status(state: State<RuntimeSetupState>) -> Result<RuntimeSe
 }
 
 #[tauri::command]
-fn start_runtime_setup(
-    app: AppHandle,
-    state: State<RuntimeSetupState>,
-) -> Result<(), String> {
+fn start_runtime_setup(app: AppHandle, state: State<RuntimeSetupState>) -> Result<(), String> {
     {
         let mut lock = state
             .running
@@ -2067,11 +2282,7 @@ fn start_runtime_setup(
                 true,
                 "Runtime setup completed.".into(),
             ),
-            Err(err) => emit_runtime_setup_finished(
-                &app_for_thread,
-                false,
-                err,
-            ),
+            Err(err) => emit_runtime_setup_finished(&app_for_thread, false, err),
         }
     });
 
@@ -2085,7 +2296,8 @@ fn default_output_dir(app: &AppHandle, job_id: &str) -> Result<String, String> {
         .map_err(|err| format!("Unable to resolve app local data dir: {err}"))?
         .join("runs")
         .join(job_id);
-    std::fs::create_dir_all(&dir).map_err(|err| format!("Unable to create output directory: {err}"))?;
+    std::fs::create_dir_all(&dir)
+        .map_err(|err| format!("Unable to create output directory: {err}"))?;
     Ok(dir.to_string_lossy().to_string())
 }
 
@@ -2106,6 +2318,9 @@ fn create_job(
     }
 
     let mode = request.mode.unwrap_or_else(|| "mock".into());
+    if mode != "mock" && mode != "whisperx" && mode != "analyze_only" {
+        return Err("mode must be one of: mock, whisperx, analyze_only".into());
+    }
     let job_id = format!("job-{}", uuid::Uuid::new_v4());
     let output_dir = if let Some(dir) = request.output_dir {
         if dir.trim().is_empty() {
@@ -2205,8 +2420,8 @@ fn load_transcript_document(path: String) -> Result<TranscriptDocument, String> 
     if !target.is_file() {
         return Err("Transcript path is not a file".into());
     }
-    let text =
-        std::fs::read_to_string(&target).map_err(|err| format!("Unable to read transcript: {err}"))?;
+    let text = std::fs::read_to_string(&target)
+        .map_err(|err| format!("Unable to read transcript: {err}"))?;
     let value: serde_json::Value = serde_json::from_str(&text)
         .map_err(|err| format!("Invalid transcript JSON content: {err}"))?;
     let language = value
@@ -2236,8 +2451,8 @@ fn load_transcript_draft(path: String) -> Result<Option<TranscriptDraftDocument>
         return Err("Draft path exists but is not a file".into());
     }
 
-    let text =
-        std::fs::read_to_string(&draft_path).map_err(|err| format!("Unable to read draft: {err}"))?;
+    let text = std::fs::read_to_string(&draft_path)
+        .map_err(|err| format!("Unable to read draft: {err}"))?;
     let value: serde_json::Value =
         serde_json::from_str(&text).map_err(|err| format!("Invalid draft JSON content: {err}"))?;
     let language = value
@@ -2272,8 +2487,8 @@ fn save_transcript_draft(
     let source = PathBuf::from(&request.path);
     let draft_path = draft_path_for_source(&source);
     let payload = build_transcript_draft_json(&source, request.language, &request.segments);
-    let serialized =
-        serde_json::to_string_pretty(&payload).map_err(|err| format!("Unable to serialize draft JSON: {err}"))?;
+    let serialized = serde_json::to_string_pretty(&payload)
+        .map_err(|err| format!("Unable to serialize draft JSON: {err}"))?;
 
     if let Some(parent) = draft_path.parent() {
         std::fs::create_dir_all(parent)
@@ -2306,7 +2521,8 @@ fn delete_transcript_draft(path: String) -> Result<bool, String> {
     if !draft_path.is_file() {
         return Err("Draft path exists but is not a file".into());
     }
-    std::fs::remove_file(&draft_path).map_err(|err| format!("Unable to delete draft file: {err}"))?;
+    std::fs::remove_file(&draft_path)
+        .map_err(|err| format!("Unable to delete draft file: {err}"))?;
     Ok(true)
 }
 
@@ -2343,7 +2559,8 @@ fn save_transcript_json(request: SaveTranscriptRequest) -> Result<String, String
 fn export_transcript(request: ExportTranscriptRequest) -> Result<ExportTranscriptResponse, String> {
     let format = request.format.trim().to_lowercase();
     let source = PathBuf::from(&request.path);
-    let (segments_for_export, report) = apply_export_timing_rules(&request.segments, request.rules.as_ref());
+    let (segments_for_export, report) =
+        apply_export_timing_rules(&request.segments, request.rules.as_ref());
     let output = match format.as_str() {
         "json" => {
             let target_path = edited_path_with_ext(&source, "json");
@@ -2401,6 +2618,45 @@ fn export_transcript(request: ExportTranscriptRequest) -> Result<ExportTranscrip
 }
 
 #[tauri::command]
+fn open_local_path(path: String) -> Result<(), String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("path is required".into());
+    }
+
+    let target = PathBuf::from(trimmed);
+    if !target.exists() {
+        return Err(format!("Path does not exist on disk: {trimmed}"));
+    }
+
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut cmd = Command::new("explorer");
+        cmd.arg(trimmed);
+        cmd
+    };
+
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut cmd = Command::new("open");
+        cmd.arg(trimmed);
+        cmd
+    };
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let mut command = {
+        let mut cmd = Command::new("xdg-open");
+        cmd.arg(trimmed);
+        cmd
+    };
+
+    command
+        .spawn()
+        .map_err(|err| format!("Unable to open path: {err}"))?;
+    Ok(())
+}
+
+#[tauri::command]
 fn read_text_preview(path: String, max_bytes: Option<usize>) -> Result<String, String> {
     let target = PathBuf::from(&path);
     if !target.exists() {
@@ -2432,8 +2688,8 @@ fn cancel_job(
     runtime_state: State<RuntimeState>,
     job_id: String,
 ) -> Result<(), String> {
-    let status = current_job_status(&state.jobs, &job_id)
-        .ok_or_else(|| "Unknown job id".to_string())?;
+    let status =
+        current_job_status(&state.jobs, &job_id).ok_or_else(|| "Unknown job id".to_string())?;
 
     if status == "done" || status == "error" || status == "cancelled" {
         return Err(format!("Cannot cancel job in status '{status}'"));
@@ -2578,12 +2834,8 @@ mod tests {
         fs::write(&input_path, b"smoke")
             .map_err(|err| format!("Unable to create smoke input media file: {err}"))?;
 
-        let worker_result = run_mock_worker_for_smoke(
-            &worker_path,
-            &input_path,
-            &worker_output_dir,
-            "smoke-job",
-        )?;
+        let worker_result =
+            run_mock_worker_for_smoke(&worker_path, &input_path, &worker_output_dir, "smoke-job")?;
         if worker_result.output_files.len() < 2 {
             return Err(format!(
                 "Mock worker should emit at least 2 files, got {}",
@@ -2653,7 +2905,10 @@ mod tests {
                 rules: Some(rules.clone()),
             })?;
             if !Path::new(&response.output_path).exists() {
-                return Err(format!("Missing exported {format} file: {}", response.output_path));
+                return Err(format!(
+                    "Missing exported {format} file: {}",
+                    response.output_path
+                ));
             }
             if response.report.total_adjustments == 0 {
                 return Err(format!(
@@ -2737,6 +2992,7 @@ pub fn run() {
             delete_transcript_draft,
             save_transcript_json,
             export_transcript,
+            open_local_path,
             read_text_preview,
             cancel_job
         ])

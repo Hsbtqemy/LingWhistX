@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import re
@@ -467,6 +468,206 @@ def get_writer(
     if output_format in optional_writers:
         return optional_writers[output_format](output_dir)
     return writers[output_format](output_dir)
+
+
+def _safe_float(value, ndigits: int = 3):
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        numeric = float(value)
+    elif isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        try:
+            numeric = float(stripped)
+        except ValueError:
+            return None
+    else:
+        return None
+    return round(numeric, ndigits)
+
+
+def _safe_int(value):
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        try:
+            return int(float(stripped))
+        except ValueError:
+            return None
+    return None
+
+
+def _safe_text(value):
+    if value is None:
+        return ""
+    return str(value)
+
+
+def _write_csv_rows(csv_path: str, fieldnames: list[str], rows: list[dict]) -> None:
+    with open(csv_path, "w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+
+def write_data_science_exports(
+    output_dir: str,
+    audio_path: str,
+    result: dict,
+    run_metadata: Optional[dict] = None,
+) -> dict[str, str]:
+    """
+    Export normalized data-science artifacts derived from canonical timeline.
+
+    Returns a mapping of artifact keys to generated absolute file paths.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    audio_basename = os.path.splitext(os.path.basename(audio_path))[0]
+
+    timeline_payload = result.get("timeline")
+    if not isinstance(timeline_payload, dict):
+        timeline_payload = {
+            "version": 1,
+            "words": [],
+            "segments": [],
+            "speaker_turns": [],
+            "events": [],
+            "analysis": {
+                "config": {},
+                "pauses": [],
+                "nonspeech_intervals": [],
+                "ipus": [],
+                "transitions": [],
+                "overlaps": [],
+            },
+        }
+
+    analysis_payload = timeline_payload.get("analysis")
+    if not isinstance(analysis_payload, dict):
+        analysis_payload = {}
+
+    words_payload = timeline_payload.get("words")
+    words = words_payload if isinstance(words_payload, list) else []
+    pauses_payload = analysis_payload.get("pauses")
+    pauses = pauses_payload if isinstance(pauses_payload, list) else []
+    ipus_payload = analysis_payload.get("ipus")
+    ipus = ipus_payload if isinstance(ipus_payload, list) else []
+
+    timeline_path = os.path.join(output_dir, f"{audio_basename}.timeline.json")
+    words_csv_path = os.path.join(output_dir, f"{audio_basename}.words.csv")
+    pauses_csv_path = os.path.join(output_dir, f"{audio_basename}.pauses.csv")
+    ipu_csv_path = os.path.join(output_dir, f"{audio_basename}.ipu.csv")
+    run_json_path = os.path.join(output_dir, f"{audio_basename}.run.json")
+
+    with open(timeline_path, "w", encoding="utf-8") as handle:
+        json.dump(timeline_payload, handle, ensure_ascii=False, indent=2)
+
+    word_rows: list[dict] = []
+    for raw_word in words:
+        if not isinstance(raw_word, dict):
+            continue
+        flags = raw_word.get("flags")
+        if isinstance(flags, list):
+            flag_text = "|".join(_safe_text(flag) for flag in flags if _safe_text(flag))
+        else:
+            flag_text = ""
+        word_rows.append(
+            {
+                "speaker": _safe_text(raw_word.get("speaker")),
+                "word": _safe_text(raw_word.get("token")),
+                "start": _safe_float(raw_word.get("start")),
+                "end": _safe_float(raw_word.get("end")),
+                "confidence": _safe_float(raw_word.get("confidence")),
+                "flags": flag_text,
+            }
+        )
+    _write_csv_rows(
+        words_csv_path,
+        ["speaker", "word", "start", "end", "confidence", "flags"],
+        word_rows,
+    )
+
+    pause_rows: list[dict] = []
+    for raw_pause in pauses:
+        if not isinstance(raw_pause, dict):
+            continue
+        pause_rows.append(
+            {
+                "speaker": _safe_text(raw_pause.get("speaker")),
+                "start": _safe_float(raw_pause.get("start")),
+                "end": _safe_float(raw_pause.get("end")),
+                "dur": _safe_float(raw_pause.get("dur")),
+                "type": _safe_text(raw_pause.get("type")),
+            }
+        )
+    _write_csv_rows(
+        pauses_csv_path,
+        ["speaker", "start", "end", "dur", "type"],
+        pause_rows,
+    )
+
+    ipu_rows: list[dict] = []
+    for raw_ipu in ipus:
+        if not isinstance(raw_ipu, dict):
+            continue
+        ipu_rows.append(
+            {
+                "speaker": _safe_text(raw_ipu.get("speaker")),
+                "start": _safe_float(raw_ipu.get("start")),
+                "end": _safe_float(raw_ipu.get("end")),
+                "text": _safe_text(raw_ipu.get("text")),
+                "n_words": _safe_int(raw_ipu.get("n_words")),
+                "dur": _safe_float(raw_ipu.get("dur")),
+            }
+        )
+    _write_csv_rows(
+        ipu_csv_path,
+        ["speaker", "start", "end", "text", "n_words", "dur"],
+        ipu_rows,
+    )
+
+    metadata = dict(run_metadata or {})
+    metadata.setdefault("schemaVersion", 1)
+    metadata.setdefault(
+        "input",
+        {"audioPath": os.path.abspath(audio_path)},
+    )
+    metadata["artifacts"] = {
+        "runJson": os.path.basename(run_json_path),
+        "timelineJson": os.path.basename(timeline_path),
+        "wordsCsv": os.path.basename(words_csv_path),
+        "pausesCsv": os.path.basename(pauses_csv_path),
+        "ipuCsv": os.path.basename(ipu_csv_path),
+    }
+    metadata["counts"] = {
+        "segments": len(timeline_payload.get("segments", [])) if isinstance(timeline_payload.get("segments"), list) else 0,
+        "words": len(words),
+        "speakerTurns": len(timeline_payload.get("speaker_turns", [])) if isinstance(timeline_payload.get("speaker_turns"), list) else 0,
+        "events": len(timeline_payload.get("events", [])) if isinstance(timeline_payload.get("events"), list) else 0,
+        "pauses": len(pauses),
+        "ipus": len(ipus),
+    }
+
+    with open(run_json_path, "w", encoding="utf-8") as handle:
+        json.dump(metadata, handle, ensure_ascii=False, indent=2)
+
+    return {
+        "run_json": run_json_path,
+        "timeline_json": timeline_path,
+        "words_csv": words_csv_path,
+        "pauses_csv": pauses_csv_path,
+        "ipu_csv": ipu_csv_path,
+    }
 
 def interpolate_nans(x, method='nearest'):
     if x.notnull().sum() > 1:

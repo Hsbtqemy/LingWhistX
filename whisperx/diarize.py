@@ -182,6 +182,64 @@ class DiarizationPipeline:
             return diarize_df
 
 
+def _build_speaker_turns(diarize_df: pd.DataFrame) -> List[dict]:
+    if diarize_df is None or len(diarize_df) == 0:
+        return []
+
+    rows = (
+        diarize_df[["speaker", "start", "end"]]
+        .dropna(subset=["speaker", "start", "end"])
+        .sort_values(["start", "end"])
+    )
+
+    turns: List[dict] = []
+    for _, row in rows.iterrows():
+        speaker = str(row["speaker"]).strip()
+        if not speaker:
+            continue
+        start = float(row["start"])
+        end = float(row["end"])
+        if not np.isfinite(start) or not np.isfinite(end):
+            continue
+        if end < start:
+            start, end = end, start
+        if turns and turns[-1]["speaker"] == speaker and start <= turns[-1]["end"] + 1e-6:
+            turns[-1]["end"] = max(turns[-1]["end"], end)
+        else:
+            turns.append({"speaker": speaker, "start": start, "end": end})
+
+    for turn in turns:
+        turn["start"] = round(float(turn["start"]), 3)
+        turn["end"] = round(float(turn["end"]), 3)
+    return turns
+
+
+def _build_overlap_events(turns: List[dict]) -> List[dict]:
+    if len(turns) < 2:
+        return []
+
+    events: List[dict] = []
+    for i, left in enumerate(turns):
+        for right in turns[i + 1 :]:
+            if right["start"] >= left["end"]:
+                break
+            if right["speaker"] == left["speaker"]:
+                continue
+            overlap_start = max(left["start"], right["start"])
+            overlap_end = min(left["end"], right["end"])
+            if overlap_end <= overlap_start + 1e-6:
+                continue
+            events.append(
+                {
+                    "type": "overlap",
+                    "start": round(float(overlap_start), 3),
+                    "end": round(float(overlap_end), 3),
+                    "speakers": sorted([left["speaker"], right["speaker"]]),
+                }
+            )
+    return events
+
+
 def assign_word_speakers(
     diarize_df: pd.DataFrame,
     transcript_result: Union[AlignedTranscriptionResult, TranscriptionResult],
@@ -259,6 +317,13 @@ def assign_word_speakers(
     # Add speaker embeddings to the result if provided
     if speaker_embeddings is not None:
         transcript_result["speaker_embeddings"] = speaker_embeddings
+
+    speaker_turns = _build_speaker_turns(diarize_df)
+    if speaker_turns:
+        transcript_result["speaker_turns"] = speaker_turns
+        overlap_events = _build_overlap_events(speaker_turns)
+        if overlap_events:
+            transcript_result["events"] = overlap_events
 
     return transcript_result
 

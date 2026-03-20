@@ -220,6 +220,34 @@ h3 {
   gap: 12px;
 }
 
+.job-stepper {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+button.step-tab {
+  background: #e4f2ef;
+  color: #0f5963;
+  border: 1px solid rgba(15, 89, 99, 0.18);
+  font-weight: 600;
+}
+
+button.step-tab.active {
+  background: linear-gradient(135deg, #0f8a94, #0aa07a);
+  color: #ffffff;
+  border-color: rgba(8, 72, 80, 0.3);
+}
+
+.import-summary {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(11, 76, 84, 0.22);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(222, 243, 241, 0.28);
+}
+
 .path-input-row {
   display: grid;
   grid-template-columns: 1fr auto;

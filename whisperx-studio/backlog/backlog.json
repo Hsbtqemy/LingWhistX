@@ -1,6 +1,6 @@
 ﻿{
     "schemaVersion":  1,
-    "updatedAt":  "2026-03-20T11:25:34+01:00",
+    "updatedAt":  "2026-03-20T16:12:35+01:00",
     "statuses":  [
                      "todo",
                      "in_progress",
@@ -283,6 +283,354 @@
                       "acceptance":  [
                                          "Pipeline smoke passe sur machine propre.",
                                          "Checklist permet release reproductible."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-301",
+                      "title":  "Timeline canonique unifiee (segments, words, speaker_turns, events)",
+                      "status":  "done",
+                      "priority":  "P0",
+                      "estimate":  "2d",
+                      "dependsOn":  [
+
+                                    ],
+                      "scope":  [
+                                    "whisperx/schema.py",
+                                    "whisperx/transcribe.py",
+                                    "whisperx/diarize.py",
+                                    "whisperx-studio/src-tauri/src/lib.rs"
+                                ],
+                      "execute":  [
+                                      "uv run --with pytest pytest -q tests",
+                                      "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Un schema timeline versionne est defini et documente.",
+                                               "La sortie pipeline produit un objet canonique unique utilisable par toutes les analyses.",
+                                               "Le mapping depuis resultats WhisperX existants vers la timeline est deterministic et teste."
+                                           ],
+                      "acceptance":  [
+                                         "Sur un fichier test, segments+words+speakers sont presents dans la meme timeline.",
+                                         "Aucune metrique ne depend directement des writers ad hoc pour etre calculee."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-302",
+                      "title":  "Pipeline chunked gros fichiers + merge offsets globaux",
+                      "status":  "done",
+                      "priority":  "P0",
+                      "estimate":  "3d",
+                      "dependsOn":  [
+                                        "WX-301"
+                                    ],
+                      "scope":  [
+                                    "whisperx/audio.py",
+                                    "whisperx/transcribe.py",
+                                    "whisperx-studio/python/worker.py",
+                                    "whisperx-studio/src-tauri/src/lib.rs"
+                                ],
+                      "execute":  [
+                                      "uv run --with pytest pytest -q tests",
+                                      "npm run build",
+                                      "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Traitement par chunks configurable (duree, overlap) ajoute au wrapper.",
+                                               "Les timelines chunk sont mergees avec offsets absolus sans trou ni chevauchement invalide.",
+                                               "Un run de longue duree produit un artefact final coherent."
+                                           ],
+                      "acceptance":  [
+                                         "Fichier \u003e1h traite sans explosion memoire.",
+                                         "Tous les timecodes merge sont monotones et alignes sur la timeline globale."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-303",
+                      "title":  "Diarization avancee: controls min/max/force_n + speaker_turns + overlaps",
+                      "status":  "done",
+                      "priority":  "P0",
+                      "estimate":  "2d",
+                      "dependsOn":  [
+                                        "WX-301"
+                                    ],
+                      "scope":  [
+                                    "whisperx/diarize.py",
+                                    "whisperx/transcribe.py",
+                                    "whisperx-studio/python/worker.py",
+                                    "whisperx-studio/src/App.tsx",
+                                    "whisperx-studio/src-tauri/src/lib.rs"
+                                ],
+                      "execute":  [
+                                      "uv run --with pytest pytest -q tests",
+                                      "npm run build",
+                                      "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
+                                  ],
+                      "definitionOfDone":  [
+                                               "min_speakers/max_speakers exposes dans Studio et passes au moteur.",
+                                               "mode force_n_speakers disponible dans wrapper/CLI.",
+                                               "speaker_turns et overlaps derives et exposes dans la timeline canonique."
+                                           ],
+                      "acceptance":  [
+                                         "Cas duo/trio: le nombre de speakers est contraignable depuis UI/CLI.",
+                                         "Les overlaps sont identifies et exploitables par les etapes d analyse."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-304",
+                      "title":  "Analyse pauses lexicalisees et acoustiques",
+                      "status":  "done",
+                      "priority":  "P0",
+                      "estimate":  "2d",
+                      "dependsOn":  [
+                                        "WX-301",
+                                        "WX-303"
+                                    ],
+                      "scope":  [
+                                    "whisperx/transcribe.py",
+                                    "whisperx/vads",
+                                    "whisperx-studio/src-tauri/src/lib.rs"
+                                ],
+                      "execute":  [
+                                      "uv run --with pytest pytest -q tests"
+                                  ],
+                      "definitionOfDone":  [
+                                               "pauses intra-speaker calculees depuis words[] avec min_pause/ignore_below/max_pause.",
+                                               "nonspeech_intervals acoustiques exposes en option.",
+                                               "Parametres d analyse documentes et serialises dans les artefacts run."
+                                           ],
+                      "acceptance":  [
+                                         "Le recalcul des pauses varie correctement quand min_pause change.",
+                                         "Les pauses en overlap sont marquees non fiables ou exclues selon configuration."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-305",
+                      "title":  "Analyse IPU + transitions locuteurs",
+                      "status":  "done",
+                      "priority":  "P0",
+                      "estimate":  "2d",
+                      "dependsOn":  [
+                                        "WX-304"
+                                    ],
+                      "scope":  [
+                                    "whisperx/transcribe.py",
+                                    "whisperx-studio/src-tauri/src/lib.rs"
+                                ],
+                      "execute":  [
+                                      "uv run --with pytest pytest -q tests"
+                                  ],
+                      "definitionOfDone":  [
+                                               "ipus[] calcules entre pauses avec regles ipu_min_words/ipu_min_duration.",
+                                               "transitions[] calculees (from,to,gap,start,end).",
+                                               "overlaps[] exposes en sortie analytique dediee."
+                                           ],
+                      "acceptance":  [
+                                         "Les IPU et transitions sont stables sur golden files de reference.",
+                                         "Chaque transition a des bornes temporelles coherentes et tracables."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-306",
+                      "title":  "Metriques qualite, flags et zones a corriger",
+                      "status":  "done",
+                      "priority":  "P1",
+                      "estimate":  "2d",
+                      "dependsOn":  [
+                                        "WX-304",
+                                        "WX-305"
+                                    ],
+                      "scope":  [
+                                    "whisperx/alignment.py",
+                                    "whisperx/transcribe.py",
+                                    "whisperx-studio/src-tauri/src/lib.rs",
+                                    "whisperx-studio/src/App.tsx"
+                                ],
+                      "execute":  [
+                                      "uv run --with pytest pytest -q tests",
+                                      "npm run build"
+                                  ],
+                      "definitionOfDone":  [
+                                               "KPIs stockes: ratio mots interpoles/non aligns, ratio overlap, stats par speaker.",
+                                               "Flags zones suspectes: overlap long, faible confiance, instabilite VAD.",
+                                               "Un resume qualite est present dans les artefacts et affichable dans Studio."
+                                           ],
+                      "acceptance":  [
+                                         "Les runs exposent un quality summary exploitable sans post-traitement manuel.",
+                                         "Les zones marquees sont navigables ou filtrables dans Studio."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-307",
+                      "title":  "Exports data-science: run.json, timeline, words.csv, pauses.csv, ipu.csv",
+                      "status":  "done",
+                      "priority":  "P0",
+                      "estimate":  "2d",
+                      "dependsOn":  [
+                                        "WX-301",
+                                        "WX-304",
+                                        "WX-305"
+                                    ],
+                      "scope":  [
+                                    "whisperx/utils.py",
+                                    "whisperx/transcribe.py",
+                                    "whisperx-studio/src-tauri/src/lib.rs"
+                                ],
+                      "execute":  [
+                                      "uv run --with pytest pytest -q tests"
+                                  ],
+                      "definitionOfDone":  [
+                                               "run.json inclut config, versions, media source, parametres et infos chunk offsets.",
+                                               "timeline.json/jsonl exporte segments+words+speaker_turns+events.",
+                                               "CSV analytiques words/pauses/ipu disponibles et verifies sur jeux de test."
+                                           ],
+                      "acceptance":  [
+                                         "Les exports couvrent un run complet sans information temporelle manquante.",
+                                         "Les CSV sont lisibles directement dans pandas sans nettoyage supplementaire."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-308",
+                      "title":  "CLI orchestrateur + config YAML/TOML + dossier runs immuable",
+                      "status":  "todo",
+                      "priority":  "P1",
+                      "estimate":  "2d",
+                      "dependsOn":  [
+                                        "WX-301",
+                                        "WX-302",
+                                        "WX-307"
+                                    ],
+                      "scope":  [
+                                    "whisperx/__main__.py",
+                                    "whisperx/transcribe.py",
+                                    "README.md"
+                                ],
+                      "execute":  [
+                                      "uv run --with pytest pytest -q tests"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Commandes run/transcribe/align/diarize/analyze/export disponibles.",
+                                               "Fichier config YAML ou TOML chargeable pour runs reproductibles.",
+                                               "Chaque run ecrit un dossier immutable runs/\u003ctimestamp\u003e_\u003cid\u003e/ avec manifest."
+                                           ],
+                      "acceptance":  [
+                                         "Un meme config file relance un run identique a options egales.",
+                                         "Les artefacts d un run ne sont pas ecrases par un run suivant."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-309",
+                      "title":  "Studio: options diarization avancees et messages actionnables",
+                      "status":  "todo",
+                      "priority":  "P1",
+                      "estimate":  "1.5d",
+                      "dependsOn":  [
+                                        "WX-303"
+                                    ],
+                      "scope":  [
+                                    "whisperx-studio/src/App.tsx",
+                                    "whisperx-studio/src-tauri/src/lib.rs",
+                                    "whisperx-studio/python/worker.py"
+                                ],
+                      "execute":  [
+                                      "npm run build",
+                                      "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
+                                  ],
+                      "definitionOfDone":  [
+                                               "UI expose min/max speakers et force_n_speakers.",
+                                               "Validation des combinaisons invalides cote UI/backend.",
+                                               "Messages runtime/diarization orientent clairement la correction."
+                                           ],
+                      "acceptance":  [
+                                         "Un utilisateur non technique peut contraindre speakers sans passer par CLI.",
+                                         "Les erreurs HF token ou diarization sont explicites et actionnables."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-310",
+                      "title":  "Mode analyze-only (recalcul pauses/IPU sans relancer ASR)",
+                      "status":  "done",
+                      "priority":  "P0",
+                      "estimate":  "1.5d",
+                      "dependsOn":  [
+                                        "WX-304",
+                                        "WX-305",
+                                        "WX-307"
+                                    ],
+                      "scope":  [
+                                    "whisperx/transcribe.py",
+                                    "whisperx-studio/src-tauri/src/lib.rs",
+                                    "whisperx-studio/src/App.tsx"
+                                ],
+                      "execute":  [
+                                      "uv run --with pytest pytest -q tests",
+                                      "npm run build"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Un run analytique relit timeline existante et recalcule metriques avec nouveaux seuils.",
+                                               "Aucun appel ASR/alignment/diarization n est relance en analyze-only.",
+                                               "Les nouveaux resultats sont versionnes dans un sous-dossier de run."
+                                           ],
+                      "acceptance":  [
+                                         "Changer min_pause modifie pauses/IPU en quelques secondes.",
+                                         "Le co?t de recalcul est tres inferieur a un run complet."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-311",
+                      "title":  "Exports annotation optionnels: RTTM, TextGrid, EAF",
+                      "status":  "todo",
+                      "priority":  "P2",
+                      "estimate":  "2d",
+                      "dependsOn":  [
+                                        "WX-301",
+                                        "WX-303",
+                                        "WX-307"
+                                    ],
+                      "scope":  [
+                                    "whisperx/utils.py",
+                                    "whisperx/transcribe.py",
+                                    "README.md"
+                                ],
+                      "execute":  [
+                                      "uv run --with pytest pytest -q tests"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Export RTTM genere depuis speaker_turns.",
+                                               "Export TextGrid et EAF disponibles en mode optionnel.",
+                                               "Documentation mapping champs timeline -\u003e formats annotation fournie."
+                                           ],
+                      "acceptance":  [
+                                         "Import reussi dans Praat/ELAN sur jeu de test reference.",
+                                         "Horodatages exportes concordent avec timeline canonique."
+                                     ]
+                  },
+                  {
+                      "id":  "WX-312",
+                      "title":  "Tests de charge et non-regression longues durees (\u003e1 Go)",
+                      "status":  "todo",
+                      "priority":  "P1",
+                      "estimate":  "2d",
+                      "dependsOn":  [
+                                        "WX-302",
+                                        "WX-307"
+                                    ],
+                      "scope":  [
+                                    "tests",
+                                    ".github/workflows/audio-e2e-nightly.yml",
+                                    "README.md"
+                                ],
+                      "execute":  [
+                                      "uv run --with pytest pytest -q tests",
+                                      "uv run --with pytest pytest -q tests/test_pipeline_e2e_real_audio.py -r a"
+                                  ],
+                      "definitionOfDone":  [
+                                               "Jeux de test longue duree/chunking ajoutes avec assertions memoire/temps.",
+                                               "CI nightly conserve un scenario audio e2e long.",
+                                               "Regression timing detectee automatiquement sur pipeline long format."
+                                           ],
+                      "acceptance":  [
+                                         "Un scenario long passe sans crash ni fuite memoire majeure.",
+                                         "Les offsets timeline restent coherents apres merge multi-chunks."
                                      ]
                   }
               ]
