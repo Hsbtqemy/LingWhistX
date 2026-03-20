@@ -1,4 +1,4 @@
-import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, MouseEvent, WheelEvent, useEffect, useMemo, useRef, useState } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -213,12 +213,19 @@ const profilePresets: ProfilePreset[] = [
 ];
 
 const MIN_SEGMENT_DURATION_SEC = 0.02;
+const MIN_WAVEFORM_ZOOM = 1;
+const MAX_WAVEFORM_ZOOM = 20;
+const DEFAULT_KEYBOARD_SEEK_SEC = 1;
 
 const defaultExportRules: ExportTimingRules = {
   minDurationSec: 0.02,
   minGapSec: 0,
   fixOverlaps: true,
 };
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
 function formatTimestamp(ms: number): string {
   if (!ms) {
@@ -379,6 +386,10 @@ function App() {
   const [isWaveformLoading, setIsWaveformLoading] = useState(false);
   const [waveformError, setWaveformError] = useState("");
   const [waveformBinsPerSecond, setWaveformBinsPerSecond] = useState("50");
+  const [waveformZoom, setWaveformZoom] = useState(1);
+  const [waveformViewStartSec, setWaveformViewStartSec] = useState(0);
+  const [snapEnabled, setSnapEnabled] = useState(false);
+  const [snapStepMs, setSnapStepMs] = useState<"10" | "20" | "40">("20");
   const [waveformCursorSec, setWaveformCursorSec] = useState<number | null>(null);
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
   const [hoveredSegmentEdge, setHoveredSegmentEdge] = useState<SegmentEdge | null>(null);
@@ -450,6 +461,23 @@ function App() {
   const runtimeReady = useMemo(() => isRuntimeReady(runtimeStatus), [runtimeStatus]);
 
   const cursorTimeSec = waveformCursorSec ?? mediaCurrentSec;
+  const waveformDurationSec = waveform?.durationSec ?? 0;
+  const waveformVisibleDurationSec = useMemo(() => {
+    if (waveformDurationSec <= 0) {
+      return 0;
+    }
+    return waveformDurationSec / clampNumber(waveformZoom, MIN_WAVEFORM_ZOOM, MAX_WAVEFORM_ZOOM);
+  }, [waveformDurationSec, waveformZoom]);
+  const waveformViewEndSec = useMemo(
+    () => waveformViewStartSec + waveformVisibleDurationSec,
+    [waveformViewStartSec, waveformVisibleDurationSec],
+  );
+  const waveformMaxViewStartSec = useMemo(() => {
+    if (waveformDurationSec <= 0 || waveformVisibleDurationSec <= 0) {
+      return 0;
+    }
+    return Math.max(0, waveformDurationSec - waveformVisibleDurationSec);
+  }, [waveformDurationSec, waveformVisibleDurationSec]);
 
   function getActiveMediaElement(): HTMLMediaElement | null {
     return selectedIsVideo ? videoRef.current : audioRef.current;
@@ -558,10 +586,59 @@ function App() {
     }
   }
 
+  function applySnap(seconds: number): number {
+    if (!snapEnabled) {
+      return seconds;
+    }
+    const step = Number(snapStepMs) / 1000;
+    if (!Number.isFinite(step) || step <= 0) {
+      return seconds;
+    }
+    return Math.round(seconds / step) * step;
+  }
+
+  function clampWaveformViewStart(rawStart: number, totalDuration: number, visibleDuration: number): number {
+    const maxStart = Math.max(0, totalDuration - visibleDuration);
+    return clampNumber(rawStart, 0, maxStart);
+  }
+
+  function setWaveformZoomAround(nextZoomRaw: number, anchorSec: number, anchorRatio = 0.5) {
+    if (!waveform || waveform.durationSec <= 0) {
+      return;
+    }
+    const total = waveform.durationSec;
+    const nextZoom = clampNumber(nextZoomRaw, MIN_WAVEFORM_ZOOM, MAX_WAVEFORM_ZOOM);
+    const nextVisibleDuration = total / nextZoom;
+    const clampedAnchor = clampNumber(anchorSec, 0, total);
+    const ratio = clampNumber(anchorRatio, 0, 1);
+    const rawStart = clampedAnchor - ratio * nextVisibleDuration;
+    const nextStart = clampWaveformViewStart(rawStart, total, nextVisibleDuration);
+    setWaveformZoom(nextZoom);
+    setWaveformViewStartSec(nextStart);
+  }
+
+  function ensureTimeVisible(seconds: number) {
+    if (!waveform || waveform.durationSec <= 0 || waveformVisibleDurationSec <= 0) {
+      return;
+    }
+    const total = waveform.durationSec;
+    const clampedTime = clampNumber(seconds, 0, total);
+    if (clampedTime >= waveformViewStartSec && clampedTime <= waveformViewEndSec) {
+      return;
+    }
+    const targetStart = clampedTime - waveformVisibleDurationSec / 2;
+    const nextStart = clampWaveformViewStart(targetStart, total, waveformVisibleDurationSec);
+    setWaveformViewStartSec(nextStart);
+  }
+
   function seekMedia(seconds: number) {
-    const clamped = Math.max(0, seconds);
+    const durationMax = waveform?.durationSec && waveform.durationSec > 0
+      ? waveform.durationSec
+      : Number.POSITIVE_INFINITY;
+    const clamped = clampNumber(applySnap(seconds), 0, durationMax);
     setWaveformCursorSec(clamped);
     setMediaCurrentSec(clamped);
+    ensureTimeVisible(clamped);
     const media = getActiveMediaElement();
     if (media) {
       media.currentTime = clamped;
@@ -582,7 +659,8 @@ function App() {
 
       let start = segment.start;
       let end = segment.end;
-      const clampedInput = Math.max(0, Number.isFinite(rawSeconds) ? rawSeconds : 0);
+      const snappedInput = applySnap(Number.isFinite(rawSeconds) ? rawSeconds : 0);
+      const clampedInput = Math.max(0, snappedInput);
 
       if (edge === "start") {
         start = Math.min(clampedInput, end - MIN_SEGMENT_DURATION_SEC);
@@ -616,7 +694,7 @@ function App() {
   }
 
   function secondsFromWaveformPointer(event: MouseEvent<HTMLCanvasElement>): number | null {
-    if (!waveform || waveform.durationSec <= 0) {
+    if (!waveform || waveform.durationSec <= 0 || waveformVisibleDurationSec <= 0) {
       return null;
     }
     const rect = event.currentTarget.getBoundingClientRect();
@@ -624,11 +702,18 @@ function App() {
       return null;
     }
     const ratio = (event.clientX - rect.left) / rect.width;
-    return waveform.durationSec * Math.min(1, Math.max(0, ratio));
+    const clampedRatio = Math.min(1, Math.max(0, ratio));
+    const seconds = waveformViewStartSec + clampedRatio * waveformVisibleDurationSec;
+    return clampNumber(applySnap(seconds), 0, waveform.durationSec);
   }
 
   function hitTestFocusedSegmentEdge(event: MouseEvent<HTMLCanvasElement>): SegmentEdge | null {
-    if (!waveform || waveform.durationSec <= 0 || focusedSegmentIndex === null) {
+    if (
+      !waveform
+      || waveform.durationSec <= 0
+      || waveformVisibleDurationSec <= 0
+      || focusedSegmentIndex === null
+    ) {
       return null;
     }
     const segment = editorSegments[focusedSegmentIndex];
@@ -642,8 +727,8 @@ function App() {
     }
 
     const x = event.clientX - rect.left;
-    const startX = (segment.start / waveform.durationSec) * rect.width;
-    const endX = (segment.end / waveform.durationSec) * rect.width;
+    const startX = ((segment.start - waveformViewStartSec) / waveformVisibleDurationSec) * rect.width;
+    const endX = ((segment.end - waveformViewStartSec) / waveformVisibleDurationSec) * rect.width;
     const thresholdPx = 7;
     if (Math.abs(x - startX) <= thresholdPx) {
       return "start";
@@ -708,6 +793,48 @@ function App() {
     setHoveredSegmentEdge(null);
   }
 
+  function onWaveformWheel(event: WheelEvent<HTMLCanvasElement>) {
+    if (!waveform || waveform.durationSec <= 0 || !event.ctrlKey) {
+      return;
+    }
+    event.preventDefault();
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = rect.width > 0 ? (event.clientX - rect.left) / rect.width : 0.5;
+    const clampedRatio = Math.min(1, Math.max(0, ratio));
+    const anchorSec = waveformViewStartSec + clampedRatio * waveformVisibleDurationSec;
+
+    const zoomIn = event.deltaY < 0;
+    const factor = zoomIn ? 1.18 : 1 / 1.18;
+    const nextZoom = waveformZoom * factor;
+    setWaveformZoomAround(nextZoom, anchorSec, clampedRatio);
+  }
+
+  function setWaveformViewStart(nextStartRaw: number) {
+    if (!waveform || waveform.durationSec <= 0 || waveformVisibleDurationSec <= 0) {
+      return;
+    }
+    const nextStart = clampWaveformViewStart(
+      nextStartRaw,
+      waveform.durationSec,
+      waveformVisibleDurationSec,
+    );
+    setWaveformViewStartSec(nextStart);
+  }
+
+  function zoomWaveform(factor: number) {
+    if (!waveform || waveform.durationSec <= 0) {
+      return;
+    }
+    const anchor = waveformCursorSec ?? mediaCurrentSec;
+    setWaveformZoomAround(waveformZoom * factor, anchor, 0.5);
+  }
+
+  function resetWaveformZoom() {
+    setWaveformZoom(1);
+    setWaveformViewStartSec(0);
+  }
+
   async function loadWaveformForSelectedJob() {
     if (!selectedJob) {
       setWaveformError("Aucun job selectionne.");
@@ -727,6 +854,8 @@ function App() {
         sampleRate: 16000,
       });
       setWaveform(result);
+      setWaveformZoom(1);
+      setWaveformViewStartSec(0);
       const playerTime = getActiveMediaElement()?.currentTime ?? 0;
       setMediaCurrentSec(playerTime);
       setWaveformCursorSec(playerTime);
@@ -840,6 +969,16 @@ function App() {
     seekMedia(segment.start);
   }
 
+  function focusRelativeSegment(delta: -1 | 1) {
+    if (editorSegments.length === 0) {
+      return;
+    }
+    const baseIndex =
+      actionSegmentIndex ?? closestSegmentIndex(editorSegments, cursorTimeSec) ?? 0;
+    const nextIndex = clampNumber(baseIndex + delta, 0, editorSegments.length - 1);
+    focusSegment(nextIndex);
+  }
+
   function editableTargetSegmentIndex(): number | null {
     return actionSegmentIndex;
   }
@@ -866,7 +1005,8 @@ function App() {
     const rawCursor = Number.isFinite(cursorTimeSec)
       ? cursorTimeSec
       : segment.start + (segment.end - segment.start) / 2;
-    let splitAt = Math.min(upperBound, Math.max(lowerBound, rawCursor));
+    let splitAt = Math.min(upperBound, Math.max(lowerBound, applySnap(rawCursor)));
+    splitAt = Math.min(upperBound, Math.max(lowerBound, splitAt));
     splitAt = roundSecondsMs(splitAt);
     if (splitAt <= segment.start || splitAt >= segment.end) {
       setEditorError("Position de split invalide.");
@@ -1096,6 +1236,8 @@ function App() {
   useEffect(() => {
     setWaveform(null);
     setWaveformError("");
+    setWaveformZoom(1);
+    setWaveformViewStartSec(0);
     setWaveformCursorSec(null);
     setMediaCurrentSec(0);
     setActiveSegmentIndex(null);
@@ -1111,6 +1253,67 @@ function App() {
       setActiveSegmentIndex(editorSegments.length > 0 ? editorSegments.length - 1 : null);
     }
   }, [activeSegmentIndex, editorSegments]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || !event.altKey) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+
+      if (event.shiftKey && key === "j") {
+        event.preventDefault();
+        focusRelativeSegment(-1);
+        return;
+      }
+      if (event.shiftKey && key === "l") {
+        event.preventDefault();
+        focusRelativeSegment(1);
+        return;
+      }
+
+      if (!selectedJobId) {
+        return;
+      }
+
+      if (key === "j") {
+        event.preventDefault();
+        seekMedia(mediaCurrentSec - DEFAULT_KEYBOARD_SEEK_SEC);
+        return;
+      }
+      if (key === "l") {
+        event.preventDefault();
+        seekMedia(mediaCurrentSec + DEFAULT_KEYBOARD_SEEK_SEC);
+        return;
+      }
+      if (key === "k") {
+        const media = getActiveMediaElement();
+        if (!media) {
+          return;
+        }
+        event.preventDefault();
+        if (media.paused) {
+          void media.play().catch(() => undefined);
+        } else {
+          media.pause();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mediaCurrentSec, selectedJobId, editorSegments, actionSegmentIndex, cursorTimeSec]);
+
+  useEffect(() => {
+    if (!waveform || waveform.durationSec <= 0) {
+      return;
+    }
+    const visible = waveform.durationSec / clampNumber(waveformZoom, MIN_WAVEFORM_ZOOM, MAX_WAVEFORM_ZOOM);
+    const nextStart = clampWaveformViewStart(waveformViewStartSec, waveform.durationSec, visible);
+    if (Math.abs(nextStart - waveformViewStartSec) > 0.0001) {
+      setWaveformViewStartSec(nextStart);
+    }
+  }, [waveform, waveformZoom, waveformViewStartSec]);
 
   useEffect(() => {
     const canvas = waveformCanvasRef.current;
@@ -1134,15 +1337,32 @@ function App() {
     ctx.fillStyle = "#f5fcfc";
     ctx.fillRect(0, 0, widthCss, heightCss);
 
-    const duration = Math.max(0.001, waveform.durationSec);
+    const totalDuration = Math.max(0.001, waveform.durationSec);
+    const visibleDuration = Math.max(
+      0.001,
+      totalDuration / clampNumber(waveformZoom, MIN_WAVEFORM_ZOOM, MAX_WAVEFORM_ZOOM),
+    );
+    const viewStart = clampWaveformViewStart(
+      waveformViewStartSec,
+      totalDuration,
+      visibleDuration,
+    );
+    const viewEnd = viewStart + visibleDuration;
+    const toX = (seconds: number): number =>
+      ((seconds - viewStart) / visibleDuration) * widthCss;
 
     if (editorSegments.length > 0) {
       ctx.fillStyle = "rgba(19, 111, 126, 0.14)";
       const maxOverlays = Math.min(editorSegments.length, 6000);
       for (let i = 0; i < maxOverlays; i += 1) {
         const segment = editorSegments[i];
-        const xStart = Math.floor((segment.start / duration) * widthCss);
-        const xEnd = Math.ceil((segment.end / duration) * widthCss);
+        if (segment.end < viewStart || segment.start > viewEnd) {
+          continue;
+        }
+        const visibleStart = Math.max(segment.start, viewStart);
+        const visibleEnd = Math.min(segment.end, viewEnd);
+        const xStart = Math.floor(toX(visibleStart));
+        const xEnd = Math.ceil(toX(visibleEnd));
         if (xEnd <= 0 || xStart >= widthCss) {
           continue;
         }
@@ -1153,8 +1373,8 @@ function App() {
       if (focusedSegmentIndex !== null) {
         const focused = editorSegments[focusedSegmentIndex];
         if (focused) {
-          const startX = Math.floor((focused.start / duration) * widthCss);
-          const endX = Math.ceil((focused.end / duration) * widthCss);
+          const startX = Math.floor(toX(focused.start));
+          const endX = Math.ceil(toX(focused.end));
           const segW = Math.max(2, endX - startX);
 
           ctx.fillStyle = "rgba(36, 123, 176, 0.24)";
@@ -1203,14 +1423,24 @@ function App() {
 
     const peaks = waveform.peaks;
     const pixelColumns = Math.max(1, widthCss);
-    const binsPerPixel = peaks.length / pixelColumns;
+    const binsPerSecond = waveform.binsPerSecond > 0 ? waveform.binsPerSecond : 1;
+    const firstVisibleBin = Math.max(0, Math.floor(viewStart * binsPerSecond));
+    const lastVisibleBin = Math.min(
+      peaks.length,
+      Math.max(firstVisibleBin + 1, Math.ceil(viewEnd * binsPerSecond)),
+    );
+    const visibleBinCount = Math.max(1, lastVisibleBin - firstVisibleBin);
+    const binsPerPixel = visibleBinCount / pixelColumns;
 
     ctx.strokeStyle = "#0f7e8a";
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let x = 0; x < pixelColumns; x += 1) {
-      const start = Math.floor(x * binsPerPixel);
-      const end = Math.max(start + 1, Math.floor((x + 1) * binsPerPixel));
+      const start = firstVisibleBin + Math.floor(x * binsPerPixel);
+      const end = Math.min(
+        peaks.length,
+        Math.max(start + 1, firstVisibleBin + Math.floor((x + 1) * binsPerPixel)),
+      );
       let amp = 0;
       for (let i = start; i < end && i < peaks.length; i += 1) {
         const value = peaks[i] ?? 0;
@@ -1224,25 +1454,31 @@ function App() {
     }
     ctx.stroke();
 
-    const playheadX = Math.floor((Math.max(0, mediaCurrentSec) / duration) * widthCss);
-    ctx.strokeStyle = "#d35d2f";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(playheadX + 0.5, 0);
-    ctx.lineTo(playheadX + 0.5, heightCss);
-    ctx.stroke();
-
-    if (waveformCursorSec !== null) {
-      const cursorX = Math.floor((Math.max(0, waveformCursorSec) / duration) * widthCss);
-      ctx.strokeStyle = "#1964b6";
+    const playheadX = Math.floor(toX(Math.max(0, mediaCurrentSec)));
+    if (playheadX >= -2 && playheadX <= widthCss + 2) {
+      ctx.strokeStyle = "#d35d2f";
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(cursorX + 0.5, 0);
-      ctx.lineTo(cursorX + 0.5, heightCss);
+      ctx.moveTo(playheadX + 0.5, 0);
+      ctx.lineTo(playheadX + 0.5, heightCss);
       ctx.stroke();
+    }
+
+    if (waveformCursorSec !== null) {
+      const cursorX = Math.floor(toX(Math.max(0, waveformCursorSec)));
+      if (cursorX >= -2 && cursorX <= widthCss + 2) {
+        ctx.strokeStyle = "#1964b6";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(cursorX + 0.5, 0);
+        ctx.lineTo(cursorX + 0.5, heightCss);
+        ctx.stroke();
+      }
     }
   }, [
     waveform,
+    waveformZoom,
+    waveformViewStartSec,
     mediaCurrentSec,
     waveformCursorSec,
     editorSegments,
@@ -1738,7 +1974,88 @@ function App() {
                   <button type="button" className="ghost" onClick={loadWaveformForSelectedJob} disabled={isWaveformLoading}>
                     {isWaveformLoading ? "Generation waveform..." : "Charger waveform"}
                   </button>
+                  <label>
+                    Zoom timeline
+                    <div className="waveform-inline-controls">
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() => zoomWaveform(1 / 1.25)}
+                        disabled={!waveform}
+                      >
+                        -
+                      </button>
+                      <input
+                        className="waveform-zoom-range"
+                        type="range"
+                        min={MIN_WAVEFORM_ZOOM}
+                        max={MAX_WAVEFORM_ZOOM}
+                        step="0.1"
+                        value={waveformZoom}
+                        onChange={(e) =>
+                          setWaveformZoomAround(
+                            Number(e.currentTarget.value),
+                            waveformCursorSec ?? mediaCurrentSec,
+                            0.5,
+                          )
+                        }
+                        disabled={!waveform}
+                      />
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() => zoomWaveform(1.25)}
+                        disabled={!waveform}
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={resetWaveformZoom}
+                        disabled={!waveform}
+                      >
+                        x1
+                      </button>
+                    </div>
+                  </label>
+                  <label>
+                    Position fenetre
+                    <input
+                      type="range"
+                      min={0}
+                      max={waveformMaxViewStartSec}
+                      step="0.02"
+                      value={Math.min(waveformViewStartSec, waveformMaxViewStartSec)}
+                      onChange={(e) => setWaveformViewStart(Number(e.currentTarget.value))}
+                      disabled={!waveform || waveformMaxViewStartSec <= 0}
+                    />
+                  </label>
+                  <label className="checkbox-row waveform-snap-toggle">
+                    <input
+                      type="checkbox"
+                      checked={snapEnabled}
+                      onChange={(e) => setSnapEnabled(e.currentTarget.checked)}
+                    />
+                    Snap
+                  </label>
+                  <label>
+                    Pas snap
+                    <select
+                      value={snapStepMs}
+                      onChange={(e) => setSnapStepMs(e.currentTarget.value as "10" | "20" | "40")}
+                      disabled={!snapEnabled}
+                    >
+                      <option value="10">10 ms</option>
+                      <option value="20">20 ms</option>
+                      <option value="40">40 ms</option>
+                    </select>
+                  </label>
                 </div>
+                <p className="small">
+                  Raccourcis: <code>Alt+J</code>/<code>Alt+L</code> seek +/-1s, <code>Alt+K</code>{" "}
+                  play/pause, <code>Alt+Shift+J</code>/<code>Alt+Shift+L</code> segment precedent/suivant.
+                </p>
 
                 <p className="small mono">{selectedJob.inputPath}</p>
                 {selectedIsVideo ? (
@@ -1776,12 +2093,15 @@ function App() {
                       onMouseMove={onWaveformMouseMove}
                       onMouseUp={onWaveformMouseUp}
                       onMouseLeave={onWaveformMouseLeave}
+                      onWheel={onWaveformWheel}
                     />
                     <p className="small">
                       Duree: {formatClockSeconds(waveform.durationSec)} | Lecture:{" "}
                       {formatClockSeconds(mediaCurrentSec)} | Curseur:{" "}
-                      {formatClockSeconds(waveformCursorSec ?? mediaCurrentSec)} | Cache:{" "}
-                      {waveform.cached ? "oui" : "non"}
+                      {formatClockSeconds(waveformCursorSec ?? mediaCurrentSec)} | Zoom: x
+                      {waveformZoom.toFixed(2)} | Fenetre: {formatClockSeconds(waveformViewStartSec)}-
+                      {formatClockSeconds(Math.min(waveformViewEndSec, waveform.durationSec))} | Snap:{" "}
+                      {snapEnabled ? `${snapStepMs}ms` : "off"} | Cache: {waveform.cached ? "oui" : "non"}
                     </p>
                   </>
                 )}

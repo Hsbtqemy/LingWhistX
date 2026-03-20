@@ -482,6 +482,26 @@ button.danger {
   min-width: 180px;
 }
 
+.waveform-inline-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.waveform-inline-controls button {
+  min-width: 0;
+  padding: 6px 8px;
+}
+
+.waveform-zoom-range {
+  min-width: 150px;
+}
+
+.waveform-snap-toggle {
+  min-width: 110px;
+  margin: 0;
+}
+
 .media-player {
   width: 100%;
   max-height: 260px;
@@ -778,6 +798,14 @@ button.danger {
 
   .alignment-toolbar button {
     width: 100%;
+  }
+
+  .waveform-inline-controls {
+    flex-wrap: wrap;
+  }
+
+  .waveform-inline-controls button {
+    width: auto;
   }
 
   .waveform-canvas {
