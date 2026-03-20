@@ -28,16 +28,17 @@ New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
 
 Push-Location $projectRoot
 try {
-    Write-Host "==> Build frontend dist"
-    npm run build
-    if ($LASTEXITCODE -ne 0) {
-        throw "npm run build failed with code $LASTEXITCODE"
+    $runningProcesses = Get-Process -Name $productName -ErrorAction SilentlyContinue
+    if ($null -ne $runningProcesses) {
+        Write-Host "==> Stop running process: $productName"
+        $runningProcesses | Stop-Process -Force
+        Start-Sleep -Milliseconds 500
     }
 
-    Write-Host "==> Build Rust release binary"
-    cargo build --manifest-path .\src-tauri\Cargo.toml --release
+    Write-Host "==> Build Tauri release binary (no installer bundle)"
+    npm run tauri -- build --no-bundle
     if ($LASTEXITCODE -ne 0) {
-        throw "cargo build --release failed with code $LASTEXITCODE"
+        throw "tauri build --no-bundle failed with code $LASTEXITCODE"
     }
 
     $exeSource = Join-Path $projectRoot "src-tauri\target\release\$productName.exe"
