@@ -605,6 +605,23 @@ function isRuntimeReady(status: RuntimeStatus | null): boolean {
   return status.pythonOk && status.whisperxOk && status.ffmpegOk;
 }
 
+function runtimeMissingComponents(status: RuntimeStatus | null): string[] {
+  if (!status) {
+    return ["Python", "WhisperX", "ffmpeg"];
+  }
+  const missing: string[] = [];
+  if (!status.pythonOk) {
+    missing.push("Python");
+  }
+  if (!status.whisperxOk) {
+    missing.push("WhisperX");
+  }
+  if (!status.ffmpegOk) {
+    missing.push("ffmpeg");
+  }
+  return missing;
+}
+
 function App() {
   const [inputPath, setInputPath] = useState("");
   const [outputDir, setOutputDir] = useState("");
@@ -620,6 +637,9 @@ function App() {
   const [runtimeSetupMessage, setRuntimeSetupMessage] = useState("");
   const [runtimeSetupSuccess, setRuntimeSetupSuccess] = useState<boolean | null>(null);
   const [runtimeLastCheckedAtMs, setRuntimeLastCheckedAtMs] = useState<number | null>(null);
+  const [isRuntimeTesting, setIsRuntimeTesting] = useState(false);
+  const [runtimeActionMessage, setRuntimeActionMessage] = useState("");
+  const [runtimeActionSuccess, setRuntimeActionSuccess] = useState<boolean | null>(null);
   const [waveform, setWaveform] = useState<WaveformPeaks | null>(null);
   const [isWaveformLoading, setIsWaveformLoading] = useState(false);
   const [waveformTaskId, setWaveformTaskId] = useState("");
@@ -731,22 +751,7 @@ function App() {
   );
 
   const runtimeReady = useMemo(() => isRuntimeReady(runtimeStatus), [runtimeStatus]);
-  const runtimeMissingComponents = useMemo(() => {
-    if (!runtimeStatus) {
-      return [] as string[];
-    }
-    const missing: string[] = [];
-    if (!runtimeStatus.pythonOk) {
-      missing.push("Python");
-    }
-    if (!runtimeStatus.whisperxOk) {
-      missing.push("WhisperX");
-    }
-    if (!runtimeStatus.ffmpegOk) {
-      missing.push("ffmpeg");
-    }
-    return missing;
-  }, [runtimeStatus]);
+  const runtimeMissing = useMemo(() => runtimeMissingComponents(runtimeStatus), [runtimeStatus]);
   const editorHistoryLimit = useMemo(() => {
     const parsed = Number(editorHistoryLimitInput);
     if (!Number.isFinite(parsed)) {
@@ -1214,17 +1219,36 @@ function App() {
     }
   }
 
-  async function refreshRuntimeStatus() {
+  async function refreshRuntimeStatus(): Promise<RuntimeStatus | null> {
     setIsRuntimeLoading(true);
     try {
       const status = await invoke<RuntimeStatus>("get_runtime_status");
       setRuntimeStatus(status);
       setRuntimeLastCheckedAtMs(Date.now());
+      return status;
     } catch (e) {
       setError(String(e));
+      return null;
     } finally {
       setIsRuntimeLoading(false);
     }
+  }
+
+  async function refreshRuntimeStatusWithRetry(
+    attempts = 1,
+    delayMs = 1200,
+  ): Promise<RuntimeStatus | null> {
+    let latest: RuntimeStatus | null = null;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      latest = await refreshRuntimeStatus();
+      if (isRuntimeReady(latest)) {
+        return latest;
+      }
+      if (attempt < attempts) {
+        await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+      }
+    }
+    return latest;
   }
 
   async function refreshRuntimeSetupStatus() {
@@ -1241,11 +1265,86 @@ function App() {
     setRuntimeSetupMessage("");
     setRuntimeSetupSuccess(null);
     setRuntimeSetupLogs([]);
+    setRuntimeActionMessage("");
+    setRuntimeActionSuccess(null);
     try {
       await invoke("start_runtime_setup");
       setRuntimeSetupRunning(true);
     } catch (e) {
       setError(String(e));
+    }
+  }
+
+  async function runRuntimeSmokeTest() {
+    setRuntimeActionMessage("");
+    setRuntimeActionSuccess(null);
+    setIsRuntimeTesting(true);
+    try {
+      const status = await refreshRuntimeStatusWithRetry(1);
+      if (isRuntimeReady(status)) {
+        setRuntimeActionSuccess(true);
+        setRuntimeActionMessage("Test runtime OK: Python + WhisperX + ffmpeg operationnels.");
+        return;
+      }
+      const missing = runtimeMissingComponents(status);
+      setRuntimeActionSuccess(false);
+      setRuntimeActionMessage(
+        `Test runtime KO: composant(s) manquant(s): ${missing.join(", ")}.`,
+      );
+    } finally {
+      setIsRuntimeTesting(false);
+    }
+  }
+
+  function buildRuntimeDiagnosticText(status: RuntimeStatus | null): string {
+    const lines: string[] = [];
+    lines.push("WhisperX Studio - Diagnostic runtime");
+    lines.push(`Generated at: ${new Date().toISOString()}`);
+    lines.push(`Runtime ready: ${isRuntimeReady(status) ? "yes" : "no"}`);
+    const missing = runtimeMissingComponents(status);
+    if (missing.length > 0) {
+      lines.push(`Missing: ${missing.join(", ")}`);
+    }
+    if (status) {
+      lines.push(`Python command: ${status.pythonCommand}`);
+      if (status.whisperxVersion) {
+        lines.push(`WhisperX version: ${status.whisperxVersion}`);
+      }
+      lines.push("Details:");
+      for (const detail of status.details) {
+        lines.push(`- ${detail}`);
+      }
+    } else {
+      lines.push("No runtime status available.");
+    }
+    if (runtimeSetupMessage) {
+      lines.push(`Setup message: ${runtimeSetupMessage}`);
+      lines.push(`Setup success: ${runtimeSetupSuccess === true ? "yes" : runtimeSetupSuccess === false ? "no" : "unknown"}`);
+    }
+    return lines.join("\n");
+  }
+
+  async function copyRuntimeDiagnostic() {
+    const text = buildRuntimeDiagnosticText(runtimeStatus);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const input = document.createElement("textarea");
+        input.value = text;
+        input.setAttribute("readonly", "true");
+        input.style.position = "fixed";
+        input.style.opacity = "0";
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        document.body.removeChild(input);
+      }
+      setRuntimeActionSuccess(true);
+      setRuntimeActionMessage("Diagnostic runtime copie dans le presse-papiers.");
+    } catch {
+      setRuntimeActionSuccess(false);
+      setRuntimeActionMessage("Impossible de copier le diagnostic runtime.");
     }
   }
 
@@ -1991,7 +2090,25 @@ function App() {
         setRuntimeSetupRunning(false);
         setRuntimeSetupMessage(event.payload.message);
         setRuntimeSetupSuccess(event.payload.success);
-        void refreshRuntimeStatus();
+        setRuntimeActionMessage("");
+        setRuntimeActionSuccess(null);
+        if (event.payload.success) {
+          void (async () => {
+            const status = await refreshRuntimeStatusWithRetry(6, 1500);
+            if (isRuntimeReady(status)) {
+              setRuntimeSetupSuccess(true);
+              setRuntimeSetupMessage("Installation terminee. Runtime local pret.");
+            } else {
+              setRuntimeSetupSuccess(false);
+              const missing = runtimeMissingComponents(status);
+              setRuntimeSetupMessage(
+                `Installation terminee, mais runtime incomplet (${missing.join(", ")} manquant${missing.length > 1 ? "s" : ""}). Clique sur 'Tester runtime'.`,
+              );
+            }
+          })();
+        } else {
+          void refreshRuntimeStatus();
+        }
         void refreshRuntimeSetupStatus();
       },
     );
@@ -2488,9 +2605,32 @@ function App() {
         <div className={`runtime-box ${runtimeReady ? "ok" : "warn"}`}>
           <div className="runtime-header-row">
             <h3>Runtime local</h3>
-            <button type="button" className="ghost" onClick={refreshRuntimeStatus} disabled={isRuntimeLoading}>
-              {isRuntimeLoading ? "Verification..." : "Verifier runtime"}
-            </button>
+            <div className="runtime-header-actions">
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => void refreshRuntimeStatus()}
+                disabled={isRuntimeLoading || runtimeSetupRunning || isRuntimeTesting}
+              >
+                {isRuntimeLoading ? "Verification..." : "Verifier runtime"}
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => void runRuntimeSmokeTest()}
+                disabled={isRuntimeLoading || runtimeSetupRunning || isRuntimeTesting}
+              >
+                {isRuntimeTesting ? "Test en cours..." : "Tester runtime"}
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => void copyRuntimeDiagnostic()}
+                disabled={!runtimeStatus}
+              >
+                Copier diagnostic
+              </button>
+            </div>
           </div>
           {!runtimeStatus ? (
             <p className="small">Aucun diagnostic runtime disponible pour l'instant.</p>
@@ -2504,8 +2644,8 @@ function App() {
                 ) : (
                   <p className="runtime-readiness-title">
                     Runtime local incomplet
-                    {runtimeMissingComponents.length > 0
-                      ? ` (${runtimeMissingComponents.join(", ")} manquant${runtimeMissingComponents.length > 1 ? "s" : ""})`
+                    {runtimeMissing.length > 0
+                      ? ` (${runtimeMissing.join(", ")} manquant${runtimeMissing.length > 1 ? "s" : ""})`
                       : ""}
                     .
                   </p>
@@ -2523,6 +2663,11 @@ function App() {
               {runtimeSetupMessage ? (
                 <p className={`runtime-setup-feedback ${runtimeSetupSuccess === false ? "error" : "ok"}`}>
                   {runtimeSetupMessage}
+                </p>
+              ) : null}
+              {runtimeActionMessage ? (
+                <p className={`runtime-setup-feedback ${runtimeActionSuccess === false ? "error" : "ok"}`}>
+                  {runtimeActionMessage}
                 </p>
               ) : null}
               <p className="small mono">Commande Python: {runtimeStatus.pythonCommand}</p>
