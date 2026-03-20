@@ -95,6 +95,24 @@ Main Windows outputs:
 - `src-tauri/target/release/bundle/msi/whisperx-studio_0.1.0_x64_en-US.msi`
 - `src-tauri/target/release/bundle/nsis/whisperx-studio_0.1.0_x64-setup.exe`
 
+## Build Portable EXE (Standalone)
+
+Generate a portable executable without MSI/NSIS installer:
+
+```bash
+npm run build:portable-exe
+```
+
+Output:
+
+- `src-tauri/target/release/portable/whisperx-studio_0.1.0_portable.exe`
+- `src-tauri/target/release/portable/whisperx-studio_0.1.0_portable.exe.sha256`
+
+Notes:
+
+- The app now embeds fallbacks for `worker.py` and `setup-local-runtime.ps1` so the portable `.exe` can run without shipping these files alongside it.
+- Windows WebView2 runtime is still required on the target machine.
+
 ## Smoke E2E + Release Trace
 
 Run the end-to-end smoke flow (`mock job -> transcript edit/save -> export -> installer build -> artifact hashes`):
@@ -117,6 +135,7 @@ Release checklist versioned in repo:
 - `src-tauri/src/lib.rs`: Rust commands (`create_job`, `list_jobs`, `get_job`, runtime checks, waveform peaks, transcript export/edit helpers)
 - `python/worker.py`: worker entrypoint used by Rust (`mock` + `whisperx`)
 - `scripts/setup-local-runtime.ps1`: local runtime bootstrap (venv + whisperx install)
+- `scripts/build-portable-exe.ps1`: portable `.exe` builder (no installer)
 - `scripts/smoke-e2e.ps1`: smoke orchestration + MSI/EXE verification report
 - `src-tauri/tauri.conf.json`: Tauri config + resource bundling
 - `src-tauri/capabilities/default.json`: desktop permissions

@@ -13,6 +13,12 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 const LOG_PREFIX: &str = "__WXLOG__";
 const RESULT_PREFIX: &str = "__WXRESULT__";
+const EMBEDDED_WORKER_SCRIPT: &str =
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../python/worker.py"));
+const EMBEDDED_RUNTIME_SETUP_SCRIPT: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../scripts/setup-local-runtime.ps1"
+));
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -849,6 +855,36 @@ fn set_job_error(
     });
 }
 
+fn ensure_embedded_resource_file(
+    app: &AppHandle,
+    relative_path: &str,
+    content: &str,
+) -> Result<PathBuf, String> {
+    let base_dir = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|err| format!("Unable to resolve app local data dir: {err}"))?
+        .join("embedded-resources");
+    let target = base_dir.join(relative_path);
+
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|err| format!("Unable to create embedded resource dir: {err}"))?;
+    }
+
+    let should_write = match std::fs::read_to_string(&target) {
+        Ok(existing) => existing != content,
+        Err(_) => true,
+    };
+
+    if should_write {
+        std::fs::write(&target, content)
+            .map_err(|err| format!("Unable to write embedded resource file: {err}"))?;
+    }
+
+    Ok(target)
+}
+
 fn resolve_worker_path(app: &AppHandle) -> Result<PathBuf, String> {
     let try_paths = [
         app.path().resolve("python/worker.py", BaseDirectory::Resource),
@@ -867,7 +903,9 @@ fn resolve_worker_path(app: &AppHandle) -> Result<PathBuf, String> {
         }
     }
 
-    Err("Python worker script not found. Expected python/worker.py.".into())
+    ensure_embedded_resource_file(app, "python/worker.py", EMBEDDED_WORKER_SCRIPT).map_err(
+        |err| format!("Python worker script not found. Embedded fallback failed: {err}"),
+    )
 }
 
 fn resolve_runtime_setup_script_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -889,7 +927,12 @@ fn resolve_runtime_setup_script_path(app: &AppHandle) -> Result<PathBuf, String>
         }
     }
 
-    Err("Runtime setup script not found (setup-local-runtime.ps1).".into())
+    ensure_embedded_resource_file(
+        app,
+        "scripts/setup-local-runtime.ps1",
+        EMBEDDED_RUNTIME_SETUP_SCRIPT,
+    )
+    .map_err(|err| format!("Runtime setup script not found. Embedded fallback failed: {err}"))
 }
 
 fn runtime_setup_dir(app: &AppHandle) -> Result<PathBuf, String> {
