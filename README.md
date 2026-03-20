@@ -117,6 +117,30 @@ To **enable Speaker Diarization**, include your Hugging Face access token (read)
 
 <h2 align="left" id="example">Usage 💬 (command line)</h2>
 
+### LingWhistX additions
+
+This repository includes additional CLI capabilities used by LingWhistX Studio:
+
+- `--pipeline_chunk_seconds` and `--pipeline_chunk_overlap_seconds` for media-level chunked transcription with global offset merge.
+- `--force_n_speakers` (exclusive with `--min_speakers/--max_speakers`) for explicit diarization cardinality control.
+- Timeline analytics tuning flags:
+  - `--analysis_pause_min`
+  - `--analysis_pause_ignore_below`
+  - `--analysis_pause_max`
+  - `--analysis_include_nonspeech`
+  - `--analysis_nonspeech_min_duration`
+  - `--analysis_ipu_min_words`
+  - `--analysis_ipu_min_duration`
+  - `--analysis_ipu_bridge_short_gaps_under`
+- Data-science exports enabled by default (`--export_data_science True`):
+  - `<basename>.run.json`
+  - `<basename>.timeline.json`
+  - `<basename>.words.csv`
+  - `<basename>.pauses.csv`
+  - `<basename>.ipu.csv`
+- Analyze-only mode:
+  - `--analyze_only_from <existing-json>` recomputes analysis metrics from an existing JSON/timeline without rerunning ASR/alignment/diarization.
+
 ### English
 
 Run whisper on example segment (using default params, whisper small) add `--highlight_words True` to visualise word timings in the .srt file.
