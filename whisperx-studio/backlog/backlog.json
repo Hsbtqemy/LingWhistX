@@ -1,6 +1,6 @@
 ﻿{
     "schemaVersion":  1,
-    "updatedAt":  "2026-03-19T18:14:09+01:00",
+    "updatedAt":  "2026-03-20T09:01:08+01:00",
     "statuses":  [
                      "todo",
                      "in_progress",
@@ -11,7 +11,7 @@
                   {
                       "id":  "WX-201",
                       "title":  "Edition temporelle start/end sur waveform",
-                      "status":  "todo",
+                      "status":  "done",
                       "priority":  "P0",
                       "estimate":  "2d",
                       "dependsOn":  [

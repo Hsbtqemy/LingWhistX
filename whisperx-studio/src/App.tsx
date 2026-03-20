@@ -78,6 +78,13 @@ type WaveformPeaks = {
   cached: boolean;
 };
 
+type SegmentEdge = "start" | "end";
+
+type SegmentDragState = {
+  segmentIndex: number;
+  edge: SegmentEdge;
+};
+
 type EditableSegment = {
   start: number;
   end: number;
@@ -232,6 +239,31 @@ function formatClockSeconds(seconds: number): string {
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
 }
 
+function closestSegmentIndex(segments: EditableSegment[], timeSec: number): number | null {
+  if (segments.length === 0) {
+    return null;
+  }
+  let bestIndex = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < segments.length; i += 1) {
+    const segment = segments[i];
+    let distance = 0;
+    if (timeSec < segment.start) {
+      distance = segment.start - timeSec;
+    } else if (timeSec > segment.end) {
+      distance = timeSec - segment.end;
+    }
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = i;
+      if (distance === 0) {
+        break;
+      }
+    }
+  }
+  return bestIndex;
+}
+
 function isRuntimeReady(status: RuntimeStatus | null): boolean {
   if (!status) {
     return false;
@@ -254,6 +286,9 @@ function App() {
   const [waveformError, setWaveformError] = useState("");
   const [waveformBinsPerSecond, setWaveformBinsPerSecond] = useState("50");
   const [waveformCursorSec, setWaveformCursorSec] = useState<number | null>(null);
+  const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
+  const [hoveredSegmentEdge, setHoveredSegmentEdge] = useState<SegmentEdge | null>(null);
+  const [dragSegmentState, setDragSegmentState] = useState<SegmentDragState | null>(null);
   const [mediaCurrentSec, setMediaCurrentSec] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
@@ -324,34 +359,44 @@ function App() {
     return selectedIsVideo ? videoRef.current : audioRef.current;
   }
 
+  const nearestSegmentIndex = useMemo(
+    () => closestSegmentIndex(editorSegments, cursorTimeSec),
+    [cursorTimeSec, editorSegments],
+  );
+
+  const focusedSegmentIndex = useMemo(() => {
+    if (activeSegmentIndex !== null && editorSegments[activeSegmentIndex]) {
+      return activeSegmentIndex;
+    }
+    return nearestSegmentIndex;
+  }, [activeSegmentIndex, editorSegments, nearestSegmentIndex]);
+
   const focusedSegment = useMemo(() => {
-    if (editorSegments.length === 0) {
+    if (focusedSegmentIndex === null) {
       return null;
     }
-    let bestIndex = 0;
-    let bestDistance = Number.POSITIVE_INFINITY;
-    for (let i = 0; i < editorSegments.length; i += 1) {
-      const segment = editorSegments[i];
-      let distance = 0;
-      if (cursorTimeSec < segment.start) {
-        distance = segment.start - cursorTimeSec;
-      } else if (cursorTimeSec > segment.end) {
-        distance = cursorTimeSec - segment.end;
-      }
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestIndex = i;
-        if (distance === 0) {
-          break;
-        }
-      }
+    const segment = editorSegments[focusedSegmentIndex];
+    if (!segment) {
+      return null;
+    }
+    let distance = 0;
+    if (cursorTimeSec < segment.start) {
+      distance = segment.start - cursorTimeSec;
+    } else if (cursorTimeSec > segment.end) {
+      distance = cursorTimeSec - segment.end;
     }
     return {
-      index: bestIndex,
-      segment: editorSegments[bestIndex],
-      distanceSec: bestDistance,
+      index: focusedSegmentIndex,
+      segment,
+      distanceSec: distance,
     };
-  }, [cursorTimeSec, editorSegments]);
+  }, [cursorTimeSec, editorSegments, focusedSegmentIndex]);
+
+  const waveformCursorStyle = dragSegmentState
+    ? "grabbing"
+    : hoveredSegmentEdge
+      ? "ew-resize"
+      : "crosshair";
 
   async function refreshJobs() {
     try {
@@ -384,17 +429,145 @@ function App() {
     }
   }
 
-  function onWaveformCanvasClick(event: MouseEvent<HTMLCanvasElement>) {
+  function updateEditorSegmentBoundary(index: number, edge: SegmentEdge, rawSeconds: number) {
+    setEditorSegments((current) => {
+      const next = [...current];
+      const segment = next[index];
+      if (!segment) {
+        return current;
+      }
+
+      const minDuration = 0.02;
+      const maxDuration = waveform?.durationSec && waveform.durationSec > 0
+        ? waveform.durationSec
+        : Number.POSITIVE_INFINITY;
+
+      let start = segment.start;
+      let end = segment.end;
+      const clampedInput = Math.max(0, Number.isFinite(rawSeconds) ? rawSeconds : 0);
+
+      if (edge === "start") {
+        start = Math.min(clampedInput, end - minDuration);
+        if (start < 0) {
+          start = 0;
+        }
+        if (start > maxDuration - minDuration) {
+          start = Math.max(0, maxDuration - minDuration);
+        }
+      } else {
+        end = Math.max(clampedInput, start + minDuration);
+        if (end > maxDuration) {
+          end = maxDuration;
+        }
+      }
+
+      if (end < start + minDuration) {
+        end = start + minDuration;
+      }
+      start = Math.max(0, start);
+      end = Math.max(start + minDuration, end);
+
+      next[index] = {
+        ...segment,
+        start: Math.round(start * 1000) / 1000,
+        end: Math.round(end * 1000) / 1000,
+      };
+      return next;
+    });
+    setEditorDirty(true);
+  }
+
+  function secondsFromWaveformPointer(event: MouseEvent<HTMLCanvasElement>): number | null {
     if (!waveform || waveform.durationSec <= 0) {
-      return;
+      return null;
     }
     const rect = event.currentTarget.getBoundingClientRect();
     if (rect.width <= 0) {
-      return;
+      return null;
     }
     const ratio = (event.clientX - rect.left) / rect.width;
-    const seconds = waveform.durationSec * Math.min(1, Math.max(0, ratio));
+    return waveform.durationSec * Math.min(1, Math.max(0, ratio));
+  }
+
+  function hitTestFocusedSegmentEdge(event: MouseEvent<HTMLCanvasElement>): SegmentEdge | null {
+    if (!waveform || waveform.durationSec <= 0 || focusedSegmentIndex === null) {
+      return null;
+    }
+    const segment = editorSegments[focusedSegmentIndex];
+    if (!segment) {
+      return null;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) {
+      return null;
+    }
+
+    const x = event.clientX - rect.left;
+    const startX = (segment.start / waveform.durationSec) * rect.width;
+    const endX = (segment.end / waveform.durationSec) * rect.width;
+    const thresholdPx = 7;
+    if (Math.abs(x - startX) <= thresholdPx) {
+      return "start";
+    }
+    if (Math.abs(x - endX) <= thresholdPx) {
+      return "end";
+    }
+    return null;
+  }
+
+  function onWaveformMouseDown(event: MouseEvent<HTMLCanvasElement>) {
+    const edge = hitTestFocusedSegmentEdge(event);
+    if (edge && focusedSegmentIndex !== null) {
+      setDragSegmentState({ segmentIndex: focusedSegmentIndex, edge });
+      setHoveredSegmentEdge(edge);
+      setActiveSegmentIndex(focusedSegmentIndex);
+      return;
+    }
+
+    const seconds = secondsFromWaveformPointer(event);
+    if (seconds === null) {
+      return;
+    }
     seekMedia(seconds);
+    const nearest = closestSegmentIndex(editorSegments, seconds);
+    if (nearest !== null) {
+      setActiveSegmentIndex(nearest);
+    }
+  }
+
+  function onWaveformMouseMove(event: MouseEvent<HTMLCanvasElement>) {
+    if (dragSegmentState) {
+      const seconds = secondsFromWaveformPointer(event);
+      if (seconds === null) {
+        return;
+      }
+      updateEditorSegmentBoundary(dragSegmentState.segmentIndex, dragSegmentState.edge, seconds);
+      setWaveformCursorSec(seconds);
+      return;
+    }
+
+    const edge = hitTestFocusedSegmentEdge(event);
+    setHoveredSegmentEdge(edge);
+  }
+
+  function stopWaveformDrag() {
+    setDragSegmentState(null);
+    setHoveredSegmentEdge(null);
+  }
+
+  function onWaveformMouseUp() {
+    if (dragSegmentState) {
+      stopWaveformDrag();
+    }
+  }
+
+  function onWaveformMouseLeave() {
+    if (dragSegmentState) {
+      stopWaveformDrag();
+      return;
+    }
+    setHoveredSegmentEdge(null);
   }
 
   async function loadWaveformForSelectedJob() {
@@ -492,12 +665,14 @@ function App() {
       setEditorLanguage(doc.language ?? "");
       setEditorSegments(doc.segments);
       setEditorVisibleCount(120);
+      setActiveSegmentIndex(doc.segments.length > 0 ? 0 : null);
       setEditorDirty(false);
       setEditorStatus(`Transcript charge: ${doc.segments.length} segment(s).`);
     } catch (e) {
       setEditorSourcePath("");
       setEditorLanguage("");
       setEditorSegments([]);
+      setActiveSegmentIndex(null);
       setEditorError(String(e));
     } finally {
       setIsEditorLoading(false);
@@ -514,6 +689,15 @@ function App() {
       return next;
     });
     setEditorDirty(true);
+  }
+
+  function focusSegment(index: number) {
+    const segment = editorSegments[index];
+    if (!segment) {
+      return;
+    }
+    setActiveSegmentIndex(index);
+    seekMedia(segment.start);
   }
 
   async function saveEditedJson(overwrite: boolean) {
@@ -641,7 +825,19 @@ function App() {
     setWaveformError("");
     setWaveformCursorSec(null);
     setMediaCurrentSec(0);
+    setActiveSegmentIndex(null);
+    setDragSegmentState(null);
+    setHoveredSegmentEdge(null);
   }, [selectedJobId]);
+
+  useEffect(() => {
+    if (activeSegmentIndex === null) {
+      return;
+    }
+    if (!editorSegments[activeSegmentIndex]) {
+      setActiveSegmentIndex(editorSegments.length > 0 ? editorSegments.length - 1 : null);
+    }
+  }, [activeSegmentIndex, editorSegments]);
 
   useEffect(() => {
     const canvas = waveformCanvasRef.current;
@@ -668,7 +864,7 @@ function App() {
     const duration = Math.max(0.001, waveform.durationSec);
 
     if (editorSegments.length > 0) {
-      ctx.fillStyle = "rgba(19, 111, 126, 0.15)";
+      ctx.fillStyle = "rgba(19, 111, 126, 0.14)";
       const maxOverlays = Math.min(editorSegments.length, 6000);
       for (let i = 0; i < maxOverlays; i += 1) {
         const segment = editorSegments[i];
@@ -679,6 +875,48 @@ function App() {
         }
         const w = Math.max(1, xEnd - xStart);
         ctx.fillRect(Math.max(0, xStart), 0, w, heightCss);
+      }
+
+      if (focusedSegmentIndex !== null) {
+        const focused = editorSegments[focusedSegmentIndex];
+        if (focused) {
+          const startX = Math.floor((focused.start / duration) * widthCss);
+          const endX = Math.ceil((focused.end / duration) * widthCss);
+          const segW = Math.max(2, endX - startX);
+
+          ctx.fillStyle = "rgba(36, 123, 176, 0.24)";
+          ctx.fillRect(Math.max(0, startX), 0, segW, heightCss);
+
+          const handleSize = 9;
+          const drawHandle = (x: number, active: boolean) => {
+            ctx.strokeStyle = active ? "#e06b2f" : "#1a6fb0";
+            ctx.lineWidth = active ? 2.2 : 2;
+            ctx.beginPath();
+            ctx.moveTo(x + 0.5, 0);
+            ctx.lineTo(x + 0.5, heightCss);
+            ctx.stroke();
+
+            ctx.fillStyle = active ? "#e06b2f" : "#1a6fb0";
+            ctx.fillRect(
+              x - Math.floor(handleSize / 2),
+              Math.floor(heightCss / 2 - handleSize),
+              handleSize,
+              handleSize * 2,
+            );
+          };
+
+          const startActive =
+            dragSegmentState?.segmentIndex === focusedSegmentIndex &&
+            dragSegmentState?.edge === "start";
+          const endActive =
+            dragSegmentState?.segmentIndex === focusedSegmentIndex &&
+            dragSegmentState?.edge === "end";
+          const startHover = hoveredSegmentEdge === "start";
+          const endHover = hoveredSegmentEdge === "end";
+
+          drawHandle(startX, startActive || startHover);
+          drawHandle(endX, endActive || endHover);
+        }
       }
     }
 
@@ -730,7 +968,28 @@ function App() {
       ctx.lineTo(cursorX + 0.5, heightCss);
       ctx.stroke();
     }
-  }, [waveform, mediaCurrentSec, waveformCursorSec, editorSegments, viewportWidth]);
+  }, [
+    waveform,
+    mediaCurrentSec,
+    waveformCursorSec,
+    editorSegments,
+    focusedSegmentIndex,
+    hoveredSegmentEdge,
+    dragSegmentState,
+    viewportWidth,
+  ]);
+
+  useEffect(() => {
+    if (!dragSegmentState) {
+      return;
+    }
+    const stopDrag = () => {
+      setDragSegmentState(null);
+      setHoveredSegmentEdge(null);
+    };
+    window.addEventListener("mouseup", stopDrag);
+    return () => window.removeEventListener("mouseup", stopDrag);
+  }, [dragSegmentState]);
 
   async function submitJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1202,7 +1461,11 @@ function App() {
                     <canvas
                       ref={waveformCanvasRef}
                       className="waveform-canvas"
-                      onClick={onWaveformCanvasClick}
+                      style={{ cursor: waveformCursorStyle }}
+                      onMouseDown={onWaveformMouseDown}
+                      onMouseMove={onWaveformMouseMove}
+                      onMouseUp={onWaveformMouseUp}
+                      onMouseLeave={onWaveformMouseLeave}
                     />
                     <p className="small">
                       Duree: {formatClockSeconds(waveform.durationSec)} | Lecture:{" "}
@@ -1216,12 +1479,16 @@ function App() {
                 {focusedSegment ? (
                   <div className="focus-segment">
                     <p className="small">
-                      Segment proche #{focusedSegment.index + 1} ({formatClockSeconds(focusedSegment.segment.start)} -{" "}
+                      Segment {activeSegmentIndex === focusedSegment.index ? "actif" : "proche"} #
+                      {focusedSegment.index + 1} ({formatClockSeconds(focusedSegment.segment.start)} -{" "}
                       {formatClockSeconds(focusedSegment.segment.end)}) | distance:{" "}
                       {focusedSegment.distanceSec.toFixed(3)}s
                     </p>
                     <p className="mono">{focusedSegment.segment.text}</p>
                     <div className="file-actions">
+                      <button type="button" className="ghost" onClick={() => setActiveSegmentIndex(focusedSegment.index)}>
+                        Definir segment actif
+                      </button>
                       <button type="button" className="ghost" onClick={() => seekMedia(focusedSegment.segment.start)}>
                         Aller debut segment
                       </button>
@@ -1341,11 +1608,47 @@ function App() {
 
                   <div className="editor-segments">
                     {displayedEditorSegments.map((segment, index) => (
-                      <div className="editor-segment" key={`${segment.start}-${segment.end}-${index}`}>
+                      <div
+                        className={`editor-segment ${activeSegmentIndex === index ? "selected" : ""}`}
+                        key={`${segment.start}-${segment.end}-${index}`}
+                      >
                         <p className="small">
                           #{index + 1} | {segment.start.toFixed(3)}s - {segment.end.toFixed(3)}s
                           {segment.speaker ? ` | ${segment.speaker}` : ""}
                         </p>
+                        <div className="segment-controls">
+                          <label>
+                            Start (s)
+                            <input
+                              type="number"
+                              step="0.001"
+                              value={segment.start}
+                              onChange={(e) => {
+                                const value = Number(e.currentTarget.value);
+                                if (Number.isFinite(value)) {
+                                  updateEditorSegmentBoundary(index, "start", value);
+                                }
+                              }}
+                            />
+                          </label>
+                          <label>
+                            End (s)
+                            <input
+                              type="number"
+                              step="0.001"
+                              value={segment.end}
+                              onChange={(e) => {
+                                const value = Number(e.currentTarget.value);
+                                if (Number.isFinite(value)) {
+                                  updateEditorSegmentBoundary(index, "end", value);
+                                }
+                              }}
+                            />
+                          </label>
+                          <button type="button" className="ghost" onClick={() => focusSegment(index)}>
+                            Focus waveform
+                          </button>
+                        </div>
                         <textarea
                           value={segment.text}
                           onChange={(e) => updateEditorSegmentText(index, e.currentTarget.value)}

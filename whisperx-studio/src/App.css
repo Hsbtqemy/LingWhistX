@@ -550,6 +550,31 @@ button.danger {
   background: #fcffff;
 }
 
+.editor-segment.selected {
+  border-color: rgba(24, 107, 172, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(24, 107, 172, 0.18);
+}
+
+.segment-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: 6px;
+  align-items: end;
+}
+
+.segment-controls label {
+  font-size: 0.75rem;
+}
+
+.segment-controls input {
+  padding: 6px 8px;
+  font-size: 0.78rem;
+}
+
+.segment-controls button {
+  align-self: stretch;
+}
+
 .editor-segment textarea {
   width: 100%;
   resize: vertical;
@@ -675,6 +700,10 @@ button.danger {
 
   .waveform-canvas {
     height: 160px;
+  }
+
+  .segment-controls {
+    grid-template-columns: 1fr;
   }
 
   .timeline-list li {

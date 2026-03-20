@@ -11,7 +11,7 @@ Desktop local-first wrapper skeleton for WhisperX:
 - Run Details panel (timeline logs + output preview + open/export actions)
 - Transcript editor (segment text edits + save/export SRT/VTT/TXT/JSON)
 - Runtime diagnostics panel (Python + WhisperX + ffmpeg readiness)
-- Alignment workspace (audio/video player + interactive waveform seek + nearest transcript segment)
+- Alignment workspace (audio/video player + interactive waveform seek + segment start/end drag handles)
 
 ## Prerequisites
 
