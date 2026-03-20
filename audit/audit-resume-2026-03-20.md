@@ -79,17 +79,19 @@ Preuves:
 - tests ajoutes:
   - `tests/test_transcribe_cli_contract.py:89`
   - `tests/test_worker_hf_token_transport.py:33`
+  - `tests/test_writer_golden_outputs.py:80`
+  - `tests/golden/writers/english_sentence.srt:1`
 
 ## 3) Points restant ouverts
 
 ### 1. Couverture de tests encore faible sur coeur metier timing
 
 Constat:
-- seulement 2 fichiers de tests cibles (contrat CLI + token transport).
-- pas de golden tests audio end-to-end (SRT/VTT/JSON/timestamps sur echantillon fixe).
+- une base golden est en place pour les writers (`JSON/SRT/VTT`) et `segment_resolution`.
+- pas encore de tests end-to-end sur vrai audio (ASR + align + diarization) avec artefacts attendus.
 
 Risque:
-- regressions silencieuses possibles sur alignement fin et writers sur cas reels.
+- regressions silencieuses possibles sur pipeline complet (pas seulement format d'export).
 
 Priorite: **P1**
 
