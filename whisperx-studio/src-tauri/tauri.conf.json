@@ -27,7 +27,8 @@
     "active": true,
     "targets": "all",
     "resources": [
-      "../python/worker.py"
+      "../python/worker.py",
+      "../scripts/setup-local-runtime.ps1"
     ],
     "icon": [
       "icons/32x32.png",

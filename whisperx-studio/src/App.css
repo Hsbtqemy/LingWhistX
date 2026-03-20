@@ -110,6 +110,44 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.runtime-setup-box {
+  border: 1px dashed rgba(10, 92, 101, 0.24);
+  border-radius: 8px;
+  padding: 8px;
+  background: #f6fefc;
+  display: grid;
+  gap: 8px;
+}
+
+.runtime-setup-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.runtime-setup-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid rgba(11, 90, 99, 0.15);
+  border-radius: 8px;
+  background: #fbffff;
+  display: grid;
+}
+
+.runtime-setup-log-list li {
+  font-size: 0.74rem;
+  color: #2d5964;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(11, 90, 99, 0.08);
+}
+
+.runtime-setup-log-list li:last-child {
+  border-bottom: none;
+}
+
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -724,6 +762,10 @@ button.danger {
 
   .path-input-row {
     grid-template-columns: 1fr;
+  }
+
+  .runtime-setup-actions button {
+    width: 100%;
   }
 
   .option-grid {

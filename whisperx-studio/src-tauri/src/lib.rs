@@ -164,6 +164,11 @@ struct RuntimeState {
     running_pids: Arc<Mutex<HashMap<String, u32>>>,
 }
 
+#[derive(Default)]
+struct RuntimeSetupState {
+    running: Arc<Mutex<bool>>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct RuntimeStatus {
@@ -185,6 +190,27 @@ struct WaveformPeaks {
     peaks: Vec<f32>,
     generated_at_ms: u64,
     cached: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RuntimeSetupLogEvent {
+    ts_ms: u64,
+    stream: String,
+    message: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RuntimeSetupFinishedEvent {
+    success: bool,
+    message: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RuntimeSetupStatus {
+    running: bool,
 }
 
 fn now_ms() -> u64 {
@@ -716,6 +742,164 @@ fn resolve_worker_path(app: &AppHandle) -> Result<PathBuf, String> {
     }
 
     Err("Python worker script not found. Expected python/worker.py.".into())
+}
+
+fn resolve_runtime_setup_script_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let try_paths = [
+        app.path().resolve("setup-local-runtime.ps1", BaseDirectory::Resource),
+        app.path()
+            .resolve("scripts/setup-local-runtime.ps1", BaseDirectory::Resource),
+        Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .ok_or_else(|| "Unable to resolve project root".to_string())?
+            .join("scripts")
+            .join("setup-local-runtime.ps1")),
+    ];
+
+    for candidate in try_paths {
+        match candidate {
+            Ok(path) if path.exists() => return Ok(path),
+            _ => continue,
+        }
+    }
+
+    Err("Runtime setup script not found (setup-local-runtime.ps1).".into())
+}
+
+fn runtime_setup_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let path = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|err| format!("Unable to resolve app local data dir: {err}"))?
+        .join("python-runtime");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|err| format!("Unable to create runtime parent directory: {err}"))?;
+    }
+    Ok(path)
+}
+
+fn emit_runtime_setup_log(app: &AppHandle, stream: &str, message: &str) {
+    let event = RuntimeSetupLogEvent {
+        ts_ms: now_ms(),
+        stream: stream.into(),
+        message: message.into(),
+    };
+    let _ = app.emit("runtime-setup-log", event);
+}
+
+fn emit_runtime_setup_finished(app: &AppHandle, success: bool, message: String) {
+    let event = RuntimeSetupFinishedEvent { success, message };
+    let _ = app.emit("runtime-setup-finished", event);
+}
+
+fn run_runtime_setup_process(app: &AppHandle) -> Result<(), String> {
+    let script_path = resolve_runtime_setup_script_path(app)?;
+    let runtime_dir = runtime_setup_dir(app)?;
+    let runtime_dir_raw = runtime_dir.to_string_lossy().to_string();
+
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut cmd = Command::new("powershell");
+        cmd.arg("-ExecutionPolicy")
+            .arg("Bypass")
+            .arg("-File")
+            .arg(&script_path)
+            .arg("-RuntimeDir")
+            .arg(&runtime_dir_raw)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        cmd
+    };
+
+    #[cfg(not(target_os = "windows"))]
+    let mut command = {
+        let mut cmd = Command::new("pwsh");
+        cmd.arg("-ExecutionPolicy")
+            .arg("Bypass")
+            .arg("-File")
+            .arg(&script_path)
+            .arg("-RuntimeDir")
+            .arg(&runtime_dir_raw)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        cmd
+    };
+
+    emit_runtime_setup_log(
+        app,
+        "system",
+        &format!("Starting runtime setup script: {}", script_path.to_string_lossy()),
+    );
+
+    let mut child = command.spawn().map_err(|err| {
+        if err.kind() == std::io::ErrorKind::NotFound {
+            #[cfg(target_os = "windows")]
+            {
+                return "powershell not found to execute runtime setup script.".to_string();
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                return "pwsh not found to execute runtime setup script.".to_string();
+            }
+        }
+        format!("Unable to start runtime setup process: {err}")
+    })?;
+
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Unable to capture setup stdout".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "Unable to capture setup stderr".to_string())?;
+
+    let stderr_acc = Arc::new(Mutex::new(Vec::<String>::new()));
+
+    let stdout_app = app.clone();
+    let stdout_handle = std::thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines().flatten() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                emit_runtime_setup_log(&stdout_app, "stdout", trimmed);
+            }
+        }
+    });
+
+    let stderr_app = app.clone();
+    let stderr_acc_clone = stderr_acc.clone();
+    let stderr_handle = std::thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for line in reader.lines().flatten() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            emit_runtime_setup_log(&stderr_app, "stderr", trimmed);
+            if let Ok(mut lock) = stderr_acc_clone.lock() {
+                lock.push(trimmed.to_string());
+            }
+        }
+    });
+
+    let status = child
+        .wait()
+        .map_err(|err| format!("Unable to wait runtime setup process: {err}"))?;
+    let _ = stdout_handle.join();
+    let _ = stderr_handle.join();
+
+    if !status.success() {
+        let details = stderr_acc
+            .lock()
+            .ok()
+            .and_then(|lock| lock.last().cloned())
+            .unwrap_or_else(|| "Runtime setup failed without stderr details.".into());
+        return Err(format!("Runtime setup failed: {details}"));
+    }
+
+    Ok(())
 }
 
 fn resolve_python_command(app: &AppHandle) -> String {
@@ -1422,6 +1606,55 @@ fn get_runtime_status(app: AppHandle) -> RuntimeStatus {
     }
 }
 
+#[tauri::command]
+fn get_runtime_setup_status(state: State<RuntimeSetupState>) -> Result<RuntimeSetupStatus, String> {
+    let running = *state
+        .running
+        .lock()
+        .map_err(|_| "Failed to lock runtime setup state".to_string())?;
+    Ok(RuntimeSetupStatus { running })
+}
+
+#[tauri::command]
+fn start_runtime_setup(
+    app: AppHandle,
+    state: State<RuntimeSetupState>,
+) -> Result<(), String> {
+    {
+        let mut lock = state
+            .running
+            .lock()
+            .map_err(|_| "Failed to lock runtime setup state".to_string())?;
+        if *lock {
+            return Err("Runtime setup is already running.".into());
+        }
+        *lock = true;
+    }
+
+    let app_for_thread = app.clone();
+    let running_state = state.running.clone();
+    std::thread::spawn(move || {
+        let result = run_runtime_setup_process(&app_for_thread);
+        if let Ok(mut lock) = running_state.lock() {
+            *lock = false;
+        }
+        match result {
+            Ok(()) => emit_runtime_setup_finished(
+                &app_for_thread,
+                true,
+                "Runtime setup completed.".into(),
+            ),
+            Err(err) => emit_runtime_setup_finished(
+                &app_for_thread,
+                false,
+                err,
+            ),
+        }
+    });
+
+    Ok(())
+}
+
 fn default_output_dir(app: &AppHandle, job_id: &str) -> Result<String, String> {
     let dir = app
         .path()
@@ -1726,6 +1959,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(JobsState::default())
         .manage(RuntimeState::default())
+        .manage(RuntimeSetupState::default())
         .setup(|app| {
             let app_handle = app.handle();
             let db_path = database_path(&app_handle).map_err(std::io::Error::other)?;
@@ -1753,6 +1987,8 @@ pub fn run() {
             list_jobs,
             get_job,
             get_runtime_status,
+            get_runtime_setup_status,
+            start_runtime_setup,
             build_waveform_peaks,
             load_transcript_document,
             save_transcript_json,

@@ -68,6 +68,21 @@ type RuntimeStatus = {
   details: string[];
 };
 
+type RuntimeSetupStatus = {
+  running: boolean;
+};
+
+type RuntimeSetupLogEvent = {
+  tsMs: number;
+  stream: string;
+  message: string;
+};
+
+type RuntimeSetupFinishedEvent = {
+  success: boolean;
+  message: string;
+};
+
 type WaveformPeaks = {
   sourcePath: string;
   durationSec: number;
@@ -357,6 +372,9 @@ function App() {
   const [jobLogs, setJobLogs] = useState<Record<string, JobLogEvent[]>>({});
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatus | null>(null);
   const [isRuntimeLoading, setIsRuntimeLoading] = useState(false);
+  const [runtimeSetupRunning, setRuntimeSetupRunning] = useState(false);
+  const [runtimeSetupLogs, setRuntimeSetupLogs] = useState<RuntimeSetupLogEvent[]>([]);
+  const [runtimeSetupMessage, setRuntimeSetupMessage] = useState("");
   const [waveform, setWaveform] = useState<WaveformPeaks | null>(null);
   const [isWaveformLoading, setIsWaveformLoading] = useState(false);
   const [waveformError, setWaveformError] = useState("");
@@ -516,6 +534,27 @@ function App() {
       setError(String(e));
     } finally {
       setIsRuntimeLoading(false);
+    }
+  }
+
+  async function refreshRuntimeSetupStatus() {
+    try {
+      const status = await invoke<RuntimeSetupStatus>("get_runtime_setup_status");
+      setRuntimeSetupRunning(status.running);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function startRuntimeSetup() {
+    setError("");
+    setRuntimeSetupMessage("");
+    setRuntimeSetupLogs([]);
+    try {
+      await invoke("start_runtime_setup");
+      setRuntimeSetupRunning(true);
+    } catch (e) {
+      setError(String(e));
     }
   }
 
@@ -992,6 +1031,7 @@ function App() {
   useEffect(() => {
     refreshJobs();
     void refreshRuntimeStatus();
+    void refreshRuntimeSetupStatus();
     const timer = window.setInterval(refreshJobs, 1500);
     return () => window.clearInterval(timer);
   }, []);
@@ -1009,9 +1049,28 @@ function App() {
       });
     });
 
+    const unlistenRuntimeSetupLogPromise = listen<RuntimeSetupLogEvent>(
+      "runtime-setup-log",
+      (event) => {
+        setRuntimeSetupLogs((current) => [...current, event.payload].slice(-1200));
+      },
+    );
+
+    const unlistenRuntimeSetupFinishedPromise = listen<RuntimeSetupFinishedEvent>(
+      "runtime-setup-finished",
+      (event) => {
+        setRuntimeSetupRunning(false);
+        setRuntimeSetupMessage(event.payload.message);
+        void refreshRuntimeStatus();
+        void refreshRuntimeSetupStatus();
+      },
+    );
+
     return () => {
       void unlistenJobPromise.then((unlisten) => unlisten());
       void unlistenLogPromise.then((unlisten) => unlisten());
+      void unlistenRuntimeSetupLogPromise.then((unlisten) => unlisten());
+      void unlistenRuntimeSetupFinishedPromise.then((unlisten) => unlisten());
     };
   }, []);
 
@@ -1287,9 +1346,46 @@ function App() {
                 <p className="small">WhisperX version: {runtimeStatus.whisperxVersion}</p>
               ) : null}
               {!runtimeReady ? (
-                <p className="small">
-                  Setup rapide (source): `powershell -ExecutionPolicy Bypass -File .\\scripts\\setup-local-runtime.ps1`
-                </p>
+                <div className="runtime-setup-box">
+                  <p className="small">
+                    Assistant first-run: installe un runtime local Python + WhisperX sans Docker.
+                  </p>
+                  <div className="runtime-setup-actions">
+                    <button type="button" onClick={startRuntimeSetup} disabled={runtimeSetupRunning}>
+                      {runtimeSetupRunning ? "Installation en cours..." : "Installer runtime local"}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={refreshRuntimeSetupStatus}
+                      disabled={runtimeSetupRunning}
+                    >
+                      Verifier setup
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => {
+                        setRuntimeSetupLogs([]);
+                        setRuntimeSetupMessage("");
+                      }}
+                      disabled={runtimeSetupRunning || runtimeSetupLogs.length === 0}
+                    >
+                      Effacer logs setup
+                    </button>
+                  </div>
+                  {runtimeSetupMessage ? <p className="small">{runtimeSetupMessage}</p> : null}
+                  {runtimeSetupLogs.length > 0 ? (
+                    <ul className="runtime-setup-log-list">
+                      {runtimeSetupLogs.map((entry, idx) => (
+                        <li key={`${entry.tsMs}-${idx}`}>
+                          <span className="mono">[{new Date(entry.tsMs).toLocaleTimeString()}]</span>{" "}
+                          <strong>{entry.stream}</strong> {entry.message}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               ) : null}
               <ul className="runtime-details">
                 {runtimeStatus.details.map((line) => (

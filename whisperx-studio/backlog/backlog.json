@@ -1,6 +1,6 @@
 ﻿{
     "schemaVersion":  1,
-    "updatedAt":  "2026-03-20T09:18:00+01:00",
+    "updatedAt":  "2026-03-20T09:27:47+01:00",
     "statuses":  [
                      "todo",
                      "in_progress",
@@ -229,7 +229,7 @@
                   {
                       "id":  "WX-209",
                       "title":  "Assistant first-run pour runtime local (sans Docker)",
-                      "status":  "todo",
+                      "status":  "done",
                       "priority":  "P0",
                       "estimate":  "1.5d",
                       "dependsOn":  [
