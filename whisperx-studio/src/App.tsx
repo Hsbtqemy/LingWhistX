@@ -93,6 +93,36 @@ type WaveformPeaks = {
   cached: boolean;
 };
 
+type WaveformTaskStarted = {
+  taskId: string;
+  path: string;
+};
+
+type WaveformProgressEvent = {
+  taskId: string;
+  path: string;
+  progress: number;
+  message: string;
+};
+
+type WaveformReadyEvent = {
+  taskId: string;
+  path: string;
+  peaks: WaveformPeaks;
+};
+
+type WaveformErrorEvent = {
+  taskId: string;
+  path: string;
+  error: string;
+};
+
+type WaveformCancelledEvent = {
+  taskId: string;
+  path: string;
+  message: string;
+};
+
 type ExportTimingRules = {
   minDurationSec: number;
   minGapSec: number;
@@ -582,6 +612,9 @@ function App() {
   const [runtimeSetupMessage, setRuntimeSetupMessage] = useState("");
   const [waveform, setWaveform] = useState<WaveformPeaks | null>(null);
   const [isWaveformLoading, setIsWaveformLoading] = useState(false);
+  const [waveformTaskId, setWaveformTaskId] = useState("");
+  const [waveformProgress, setWaveformProgress] = useState(0);
+  const [waveformProgressMessage, setWaveformProgressMessage] = useState("");
   const [waveformError, setWaveformError] = useState("");
   const [waveformBinsPerSecond, setWaveformBinsPerSecond] = useState("50");
   const [waveformZoom, setWaveformZoom] = useState(1);
@@ -643,6 +676,7 @@ function App() {
   const autosaveInFlightRef = useRef(false);
   const dragStartSnapshotRef = useRef<EditorSnapshot | null>(null);
   const dragHasHistoryChangeRef = useRef(false);
+  const waveformTaskIdRef = useRef("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1469,6 +1503,18 @@ function App() {
     setWaveformViewStartSec(0);
   }
 
+  async function requestCancelWaveformGeneration(taskIdOverride?: string) {
+    const taskId = taskIdOverride ?? waveformTaskIdRef.current;
+    if (!taskId) {
+      return;
+    }
+    try {
+      await invoke<boolean>("cancel_waveform_generation", { taskId });
+    } catch (e) {
+      setWaveformError(String(e));
+    }
+  }
+
   async function loadWaveformForSelectedJob() {
     if (!selectedJob) {
       setWaveformError("Aucun job selectionne.");
@@ -1479,24 +1525,29 @@ function App() {
     const binsPerSecond =
       Number.isFinite(parsedBins) && parsedBins > 0 ? Math.floor(parsedBins) : 50;
 
+    if (waveformTaskIdRef.current) {
+      await requestCancelWaveformGeneration(waveformTaskIdRef.current);
+    }
+
     setWaveformError("");
+    setWaveformProgressMessage("Initialisation generation waveform...");
+    setWaveformProgress(1);
+    setWaveform(null);
     setIsWaveformLoading(true);
     try {
-      const result = await invoke<WaveformPeaks>("build_waveform_peaks", {
+      const started = await invoke<WaveformTaskStarted>("start_waveform_generation", {
         path: selectedJob.inputPath,
         binsPerSecond,
         sampleRate: 16000,
       });
-      setWaveform(result);
-      setWaveformZoom(1);
-      setWaveformViewStartSec(0);
-      const playerTime = getActiveMediaElement()?.currentTime ?? 0;
-      setMediaCurrentSec(playerTime);
-      setWaveformCursorSec(playerTime);
+      setWaveformTaskId(started.taskId);
+      waveformTaskIdRef.current = started.taskId;
     } catch (e) {
-      setWaveform(null);
+      setWaveformTaskId("");
+      waveformTaskIdRef.current = "";
       setWaveformError(String(e));
-    } finally {
+      setWaveformProgressMessage("");
+      setWaveformProgress(0);
       setIsWaveformLoading(false);
     }
   }
@@ -1916,11 +1967,84 @@ function App() {
       },
     );
 
+    const unlistenWaveformProgressPromise = listen<WaveformProgressEvent>(
+      "waveform-progress",
+      (event) => {
+        if (event.payload.taskId !== waveformTaskIdRef.current) {
+          return;
+        }
+        setWaveformProgress(event.payload.progress);
+        setWaveformProgressMessage(event.payload.message);
+        setIsWaveformLoading(true);
+      },
+    );
+
+    const unlistenWaveformReadyPromise = listen<WaveformReadyEvent>("waveform-ready", (event) => {
+      if (event.payload.taskId !== waveformTaskIdRef.current) {
+        return;
+      }
+      setWaveform(event.payload.peaks);
+      setWaveformTaskId("");
+      waveformTaskIdRef.current = "";
+      setWaveformError("");
+      setWaveformProgress(100);
+      setWaveformProgressMessage(event.payload.peaks.cached ? "Waveform chargee (cache)." : "Waveform generee.");
+      setWaveformZoom(1);
+      setWaveformViewStartSec(0);
+      const playerTime = videoRef.current?.currentTime ?? audioRef.current?.currentTime ?? 0;
+      setMediaCurrentSec(playerTime);
+      setWaveformCursorSec(playerTime);
+      setIsWaveformLoading(false);
+    });
+
+    const unlistenWaveformErrorPromise = listen<WaveformErrorEvent>("waveform-error", (event) => {
+      if (event.payload.taskId !== waveformTaskIdRef.current) {
+        return;
+      }
+      setWaveformTaskId("");
+      waveformTaskIdRef.current = "";
+      setWaveformError(event.payload.error);
+      setWaveformProgressMessage("Generation waveform en erreur.");
+      setIsWaveformLoading(false);
+    });
+
+    const unlistenWaveformCancelledPromise = listen<WaveformCancelledEvent>(
+      "waveform-cancelled",
+      (event) => {
+        if (event.payload.taskId !== waveformTaskIdRef.current) {
+          return;
+        }
+        setWaveformTaskId("");
+        waveformTaskIdRef.current = "";
+        setWaveformProgressMessage(event.payload.message);
+        setWaveformProgress(0);
+        setIsWaveformLoading(false);
+      },
+    );
+
     return () => {
       void unlistenJobPromise.then((unlisten) => unlisten());
       void unlistenLogPromise.then((unlisten) => unlisten());
       void unlistenRuntimeSetupLogPromise.then((unlisten) => unlisten());
       void unlistenRuntimeSetupFinishedPromise.then((unlisten) => unlisten());
+      void unlistenWaveformProgressPromise.then((unlisten) => unlisten());
+      void unlistenWaveformReadyPromise.then((unlisten) => unlisten());
+      void unlistenWaveformErrorPromise.then((unlisten) => unlisten());
+      void unlistenWaveformCancelledPromise.then((unlisten) => unlisten());
+    };
+  }, []);
+
+  useEffect(() => {
+    waveformTaskIdRef.current = waveformTaskId;
+  }, [waveformTaskId]);
+
+  useEffect(() => {
+    return () => {
+      const taskId = waveformTaskIdRef.current;
+      if (!taskId) {
+        return;
+      }
+      void invoke<boolean>("cancel_waveform_generation", { taskId });
     };
   }, []);
 
@@ -1944,12 +2068,20 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (waveformTaskIdRef.current) {
+      void requestCancelWaveformGeneration(waveformTaskIdRef.current);
+    }
+    setWaveformTaskId("");
+    waveformTaskIdRef.current = "";
     setWaveform(null);
     setWaveformError("");
+    setWaveformProgress(0);
+    setWaveformProgressMessage("");
     setWaveformZoom(1);
     setWaveformViewStartSec(0);
     setWaveformCursorSec(null);
     setMediaCurrentSec(0);
+    setIsWaveformLoading(false);
     setActiveSegmentIndex(null);
     setDragSegmentState(null);
     setHoveredSegmentEdge(null);
@@ -2736,6 +2868,14 @@ function App() {
                   <button type="button" className="ghost" onClick={loadWaveformForSelectedJob} disabled={isWaveformLoading}>
                     {isWaveformLoading ? "Generation waveform..." : "Charger waveform"}
                   </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => void requestCancelWaveformGeneration()}
+                    disabled={!isWaveformLoading || !waveformTaskId}
+                  >
+                    Annuler waveform
+                  </button>
                   <label>
                     Zoom timeline
                     <div className="waveform-inline-controls">
@@ -2814,6 +2954,16 @@ function App() {
                     </select>
                   </label>
                 </div>
+                {isWaveformLoading ? (
+                  <div>
+                    <div className="progress-track">
+                      <div className="progress-value" style={{ width: `${Math.max(2, waveformProgress)}%` }} />
+                    </div>
+                    <p className="small">
+                      Waveform: {waveformProgress}% {waveformProgressMessage}
+                    </p>
+                  </div>
+                ) : null}
                 <p className="small">
                   Raccourcis: <code>Alt+J</code>/<code>Alt+L</code> seek +/-1s, <code>Alt+K</code>{" "}
                   play/pause, <code>Alt+Shift+J</code>/<code>Alt+Shift+L</code> segment precedent/suivant.
