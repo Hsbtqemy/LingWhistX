@@ -580,10 +580,23 @@ button.danger {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  align-items: end;
 }
 
 .editor-toolbar button {
   padding: 7px 10px;
+  font-size: 0.78rem;
+}
+
+.editor-history-limit {
+  min-width: 170px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+
+.editor-history-limit input {
+  padding: 6px 8px;
   font-size: 0.78rem;
 }
 

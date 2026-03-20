@@ -1,6 +1,6 @@
 ﻿{
     "schemaVersion":  1,
-    "updatedAt":  "2026-03-20T09:45:00+01:00",
+    "updatedAt":  "2026-03-20T09:56:55+01:00",
     "statuses":  [
                      "todo",
                      "in_progress",
@@ -95,7 +95,7 @@
                   {
                       "id":  "WX-204",
                       "title":  "Pile undo/redo unifiee texte + timings",
-                      "status":  "todo",
+                      "status":  "done",
                       "priority":  "P1",
                       "estimate":  "2d",
                       "dependsOn":  [

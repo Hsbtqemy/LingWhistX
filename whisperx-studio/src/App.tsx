@@ -138,6 +138,11 @@ type TranscriptDocument = {
   segments: EditableSegment[];
 };
 
+type EditorSnapshot = {
+  language: string;
+  segments: EditableSegment[];
+};
+
 type CreateJobRequest = {
   inputPath: string;
   outputDir?: string | null;
@@ -216,6 +221,9 @@ const MIN_SEGMENT_DURATION_SEC = 0.02;
 const MIN_WAVEFORM_ZOOM = 1;
 const MAX_WAVEFORM_ZOOM = 20;
 const DEFAULT_KEYBOARD_SEEK_SEC = 1;
+const DEFAULT_EDITOR_HISTORY_LIMIT = 200;
+const MIN_EDITOR_HISTORY_LIMIT = 50;
+const MAX_EDITOR_HISTORY_LIMIT = 2000;
 
 const defaultExportRules: ExportTimingRules = {
   minDurationSec: 0.02,
@@ -362,6 +370,52 @@ function joinSegmentTexts(left: string, right: string): string {
   return `${a} ${b}`;
 }
 
+function cloneEditableSegments(segments: EditableSegment[]): EditableSegment[] {
+  return segments.map((segment) => ({
+    start: segment.start,
+    end: segment.end,
+    text: segment.text,
+    speaker: segment.speaker ?? undefined,
+  }));
+}
+
+function buildEditorSnapshot(language: string, segments: EditableSegment[]): EditorSnapshot {
+  return {
+    language,
+    segments: cloneEditableSegments(segments),
+  };
+}
+
+function cloneEditorSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
+  return buildEditorSnapshot(snapshot.language, snapshot.segments);
+}
+
+function areSegmentsEqual(left: EditableSegment[], right: EditableSegment[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let i = 0; i < left.length; i += 1) {
+    const a = left[i];
+    const b = right[i];
+    if (!a || !b) {
+      return false;
+    }
+    if (a.start !== b.start || a.end !== b.end || a.text !== b.text) {
+      return false;
+    }
+    const aSpeaker = a.speaker ?? "";
+    const bSpeaker = b.speaker ?? "";
+    if (aSpeaker !== bSpeaker) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function areEditorSnapshotsEqual(left: EditorSnapshot, right: EditorSnapshot): boolean {
+  return left.language === right.language && areSegmentsEqual(left.segments, right.segments);
+}
+
 function isRuntimeReady(status: RuntimeStatus | null): boolean {
   if (!status) {
     return false;
@@ -406,6 +460,11 @@ function App() {
   const [editorSegments, setEditorSegments] = useState<EditableSegment[]>([]);
   const [editorVisibleCount, setEditorVisibleCount] = useState<number>(120);
   const [editorDirty, setEditorDirty] = useState(false);
+  const [editorUndoStack, setEditorUndoStack] = useState<EditorSnapshot[]>([]);
+  const [editorRedoStack, setEditorRedoStack] = useState<EditorSnapshot[]>([]);
+  const [editorHistoryLimitInput, setEditorHistoryLimitInput] = useState(
+    String(DEFAULT_EDITOR_HISTORY_LIMIT),
+  );
   const [editorStatus, setEditorStatus] = useState<string>("");
   const [editorError, setEditorError] = useState<string>("");
   const [editorLastOutputPath, setEditorLastOutputPath] = useState<string>("");
@@ -415,6 +474,13 @@ function App() {
   const [isEditorSaving, setIsEditorSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const editorSegmentsRef = useRef<EditableSegment[]>([]);
+  const editorLanguageRef = useRef("");
+  const editorUndoStackRef = useRef<EditorSnapshot[]>([]);
+  const editorRedoStackRef = useRef<EditorSnapshot[]>([]);
+  const editorBaselineRef = useRef<EditorSnapshot | null>(null);
+  const dragStartSnapshotRef = useRef<EditorSnapshot | null>(null);
+  const dragHasHistoryChangeRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -459,6 +525,19 @@ function App() {
   );
 
   const runtimeReady = useMemo(() => isRuntimeReady(runtimeStatus), [runtimeStatus]);
+  const editorHistoryLimit = useMemo(() => {
+    const parsed = Number(editorHistoryLimitInput);
+    if (!Number.isFinite(parsed)) {
+      return DEFAULT_EDITOR_HISTORY_LIMIT;
+    }
+    return clampNumber(
+      Math.floor(parsed),
+      MIN_EDITOR_HISTORY_LIMIT,
+      MAX_EDITOR_HISTORY_LIMIT,
+    );
+  }, [editorHistoryLimitInput]);
+  const canUndoEditor = editorUndoStack.length > 0;
+  const canRedoEditor = editorRedoStack.length > 0;
 
   const cursorTimeSec = waveformCursorSec ?? mediaCurrentSec;
   const waveformDurationSec = waveform?.durationSec ?? 0;
@@ -481,6 +560,110 @@ function App() {
 
   function getActiveMediaElement(): HTMLMediaElement | null {
     return selectedIsVideo ? videoRef.current : audioRef.current;
+  }
+
+  function getCurrentEditorSnapshot(): EditorSnapshot {
+    return buildEditorSnapshot(editorLanguageRef.current, editorSegmentsRef.current);
+  }
+
+  function trimHistoryStack(stack: EditorSnapshot[]): EditorSnapshot[] {
+    if (stack.length <= editorHistoryLimit) {
+      return stack;
+    }
+    return stack.slice(stack.length - editorHistoryLimit);
+  }
+
+  function setEditorHistoryStacks(nextUndo: EditorSnapshot[], nextRedo: EditorSnapshot[]) {
+    editorUndoStackRef.current = nextUndo;
+    editorRedoStackRef.current = nextRedo;
+    setEditorUndoStack(nextUndo);
+    setEditorRedoStack(nextRedo);
+  }
+
+  function updateEditorDirtyFromSnapshot(snapshot: EditorSnapshot) {
+    const baseline = editorBaselineRef.current;
+    if (!baseline) {
+      setEditorDirty(snapshot.segments.length > 0 || snapshot.language.trim().length > 0);
+      return;
+    }
+    setEditorDirty(!areEditorSnapshotsEqual(snapshot, baseline));
+  }
+
+  function setEditorSnapshotState(snapshot: EditorSnapshot) {
+    const next = cloneEditorSnapshot(snapshot);
+    editorLanguageRef.current = next.language;
+    editorSegmentsRef.current = next.segments;
+    setEditorLanguage(next.language);
+    setEditorSegments(next.segments);
+    updateEditorDirtyFromSnapshot(next);
+  }
+
+  function pushUndoSnapshot(snapshot: EditorSnapshot) {
+    const nextUndo = trimHistoryStack([
+      ...editorUndoStackRef.current,
+      cloneEditorSnapshot(snapshot),
+    ]);
+    setEditorHistoryStacks(nextUndo, []);
+  }
+
+  function applyEditorSnapshotMutation(
+    mutator: (current: EditorSnapshot) => EditorSnapshot,
+    options?: { recordHistory?: boolean; clearRedo?: boolean },
+  ): boolean {
+    const recordHistory = options?.recordHistory ?? true;
+    const clearRedo = options?.clearRedo ?? true;
+    const currentSnapshot = getCurrentEditorSnapshot();
+    const candidateSnapshot = cloneEditorSnapshot(mutator(currentSnapshot));
+    if (areEditorSnapshotsEqual(currentSnapshot, candidateSnapshot)) {
+      return false;
+    }
+
+    if (recordHistory) {
+      const nextUndo = trimHistoryStack([
+        ...editorUndoStackRef.current,
+        cloneEditorSnapshot(currentSnapshot),
+      ]);
+      setEditorHistoryStacks(nextUndo, []);
+    } else if (clearRedo) {
+      setEditorHistoryStacks(editorUndoStackRef.current, []);
+    }
+
+    setEditorSnapshotState(candidateSnapshot);
+    return true;
+  }
+
+  function undoEditorChange() {
+    if (editorUndoStackRef.current.length === 0) {
+      return;
+    }
+    const undoStack = [...editorUndoStackRef.current];
+    const previous = undoStack.pop();
+    if (!previous) {
+      return;
+    }
+    const current = getCurrentEditorSnapshot();
+    const nextRedo = trimHistoryStack([...editorRedoStackRef.current, current]);
+    setEditorHistoryStacks(undoStack, nextRedo);
+    setEditorSnapshotState(previous);
+    setEditorError("");
+    setEditorStatus("Undo applique.");
+  }
+
+  function redoEditorChange() {
+    if (editorRedoStackRef.current.length === 0) {
+      return;
+    }
+    const redoStack = [...editorRedoStackRef.current];
+    const next = redoStack.pop();
+    if (!next) {
+      return;
+    }
+    const current = getCurrentEditorSnapshot();
+    const nextUndo = trimHistoryStack([...editorUndoStackRef.current, current]);
+    setEditorHistoryStacks(nextUndo, redoStack);
+    setEditorSnapshotState(next);
+    setEditorError("");
+    setEditorStatus("Redo applique.");
   }
 
   const nearestSegmentIndex = useMemo(
@@ -645,52 +828,59 @@ function App() {
     }
   }
 
-  function updateEditorSegmentBoundary(index: number, edge: SegmentEdge, rawSeconds: number) {
-    setEditorSegments((current) => {
-      const next = [...current];
-      const segment = next[index];
-      if (!segment) {
-        return current;
-      }
-
-      const maxDuration = waveform?.durationSec && waveform.durationSec > 0
-        ? waveform.durationSec
-        : Number.POSITIVE_INFINITY;
-
-      let start = segment.start;
-      let end = segment.end;
-      const snappedInput = applySnap(Number.isFinite(rawSeconds) ? rawSeconds : 0);
-      const clampedInput = Math.max(0, snappedInput);
-
-      if (edge === "start") {
-        start = Math.min(clampedInput, end - MIN_SEGMENT_DURATION_SEC);
-        if (start < 0) {
-          start = 0;
+  function updateEditorSegmentBoundary(
+    index: number,
+    edge: SegmentEdge,
+    rawSeconds: number,
+    options?: { recordHistory?: boolean; clearRedo?: boolean },
+  ): boolean {
+    return applyEditorSnapshotMutation(
+      (current) => {
+        const nextSegments = cloneEditableSegments(current.segments);
+        const segment = nextSegments[index];
+        if (!segment) {
+          return current;
         }
-        if (start > maxDuration - MIN_SEGMENT_DURATION_SEC) {
-          start = Math.max(0, maxDuration - MIN_SEGMENT_DURATION_SEC);
-        }
-      } else {
-        end = Math.max(clampedInput, start + MIN_SEGMENT_DURATION_SEC);
-        if (end > maxDuration) {
-          end = maxDuration;
-        }
-      }
 
-      if (end < start + MIN_SEGMENT_DURATION_SEC) {
-        end = start + MIN_SEGMENT_DURATION_SEC;
-      }
-      start = Math.max(0, start);
-      end = Math.max(start + MIN_SEGMENT_DURATION_SEC, end);
+        const maxDuration = waveform?.durationSec && waveform.durationSec > 0
+          ? waveform.durationSec
+          : Number.POSITIVE_INFINITY;
 
-      next[index] = {
-        ...segment,
-        start: roundSecondsMs(start),
-        end: roundSecondsMs(end),
-      };
-      return next;
-    });
-    setEditorDirty(true);
+        let start = segment.start;
+        let end = segment.end;
+        const snappedInput = applySnap(Number.isFinite(rawSeconds) ? rawSeconds : 0);
+        const clampedInput = Math.max(0, snappedInput);
+
+        if (edge === "start") {
+          start = Math.min(clampedInput, end - MIN_SEGMENT_DURATION_SEC);
+          if (start < 0) {
+            start = 0;
+          }
+          if (start > maxDuration - MIN_SEGMENT_DURATION_SEC) {
+            start = Math.max(0, maxDuration - MIN_SEGMENT_DURATION_SEC);
+          }
+        } else {
+          end = Math.max(clampedInput, start + MIN_SEGMENT_DURATION_SEC);
+          if (end > maxDuration) {
+            end = maxDuration;
+          }
+        }
+
+        if (end < start + MIN_SEGMENT_DURATION_SEC) {
+          end = start + MIN_SEGMENT_DURATION_SEC;
+        }
+        start = Math.max(0, start);
+        end = Math.max(start + MIN_SEGMENT_DURATION_SEC, end);
+
+        nextSegments[index] = {
+          ...segment,
+          start: roundSecondsMs(start),
+          end: roundSecondsMs(end),
+        };
+        return buildEditorSnapshot(current.language, nextSegments);
+      },
+      options,
+    );
   }
 
   function secondsFromWaveformPointer(event: MouseEvent<HTMLCanvasElement>): number | null {
@@ -742,6 +932,8 @@ function App() {
   function onWaveformMouseDown(event: MouseEvent<HTMLCanvasElement>) {
     const edge = hitTestFocusedSegmentEdge(event);
     if (edge && focusedSegmentIndex !== null) {
+      dragStartSnapshotRef.current = getCurrentEditorSnapshot();
+      dragHasHistoryChangeRef.current = false;
       setDragSegmentState({ segmentIndex: focusedSegmentIndex, edge });
       setHoveredSegmentEdge(edge);
       setActiveSegmentIndex(focusedSegmentIndex);
@@ -765,7 +957,15 @@ function App() {
       if (seconds === null) {
         return;
       }
-      updateEditorSegmentBoundary(dragSegmentState.segmentIndex, dragSegmentState.edge, seconds);
+      const changed = updateEditorSegmentBoundary(
+        dragSegmentState.segmentIndex,
+        dragSegmentState.edge,
+        seconds,
+        { recordHistory: false, clearRedo: false },
+      );
+      if (changed) {
+        dragHasHistoryChangeRef.current = true;
+      }
       setWaveformCursorSec(seconds);
       return;
     }
@@ -774,7 +974,23 @@ function App() {
     setHoveredSegmentEdge(edge);
   }
 
+  function finalizeDragHistory() {
+    const startSnapshot = dragStartSnapshotRef.current;
+    if (!startSnapshot || !dragHasHistoryChangeRef.current) {
+      dragStartSnapshotRef.current = null;
+      dragHasHistoryChangeRef.current = false;
+      return;
+    }
+    const currentSnapshot = getCurrentEditorSnapshot();
+    if (!areEditorSnapshotsEqual(startSnapshot, currentSnapshot)) {
+      pushUndoSnapshot(startSnapshot);
+    }
+    dragStartSnapshotRef.current = null;
+    dragHasHistoryChangeRef.current = false;
+  }
+
   function stopWaveformDrag() {
+    finalizeDragHistory();
     setDragSegmentState(null);
     setHoveredSegmentEdge(null);
   }
@@ -929,17 +1145,19 @@ function App() {
     setIsEditorLoading(true);
     try {
       const doc = await invoke<TranscriptDocument>("load_transcript_document", { path });
+      const loadedSnapshot = buildEditorSnapshot(doc.language ?? "", doc.segments);
       setEditorSourcePath(doc.path);
-      setEditorLanguage(doc.language ?? "");
-      setEditorSegments(doc.segments);
+      editorBaselineRef.current = cloneEditorSnapshot(loadedSnapshot);
+      setEditorHistoryStacks([], []);
+      setEditorSnapshotState(loadedSnapshot);
       setEditorVisibleCount(120);
-      setActiveSegmentIndex(doc.segments.length > 0 ? 0 : null);
-      setEditorDirty(false);
-      setEditorStatus(`Transcript charge: ${doc.segments.length} segment(s).`);
+      setActiveSegmentIndex(loadedSnapshot.segments.length > 0 ? 0 : null);
+      setEditorStatus(`Transcript charge: ${loadedSnapshot.segments.length} segment(s).`);
     } catch (e) {
+      editorBaselineRef.current = null;
+      setEditorHistoryStacks([], []);
+      setEditorSnapshotState(buildEditorSnapshot("", []));
       setEditorSourcePath("");
-      setEditorLanguage("");
-      setEditorSegments([]);
       setActiveSegmentIndex(null);
       setLastExportReport(null);
       setEditorError(String(e));
@@ -949,19 +1167,28 @@ function App() {
   }
 
   function updateEditorSegmentText(index: number, text: string) {
-    setEditorSegments((current) => {
-      const next = [...current];
-      if (!next[index]) {
+    applyEditorSnapshotMutation((current) => {
+      const nextSegments = cloneEditableSegments(current.segments);
+      const segment = nextSegments[index];
+      if (!segment) {
         return current;
       }
-      next[index] = { ...next[index], text };
-      return next;
+      nextSegments[index] = { ...segment, text };
+      return buildEditorSnapshot(current.language, nextSegments);
     });
-    setEditorDirty(true);
+  }
+
+  function updateEditorLanguage(nextLanguage: string) {
+    applyEditorSnapshotMutation((current) => {
+      if (current.language === nextLanguage) {
+        return current;
+      }
+      return buildEditorSnapshot(nextLanguage, current.segments);
+    });
   }
 
   function focusSegment(index: number) {
-    const segment = editorSegments[index];
+    const segment = editorSegmentsRef.current[index];
     if (!segment) {
       return;
     }
@@ -970,12 +1197,13 @@ function App() {
   }
 
   function focusRelativeSegment(delta: -1 | 1) {
-    if (editorSegments.length === 0) {
+    const segments = editorSegmentsRef.current;
+    if (segments.length === 0) {
       return;
     }
     const baseIndex =
-      actionSegmentIndex ?? closestSegmentIndex(editorSegments, cursorTimeSec) ?? 0;
-    const nextIndex = clampNumber(baseIndex + delta, 0, editorSegments.length - 1);
+      actionSegmentIndex ?? closestSegmentIndex(segments, cursorTimeSec) ?? 0;
+    const nextIndex = clampNumber(baseIndex + delta, 0, segments.length - 1);
     focusSegment(nextIndex);
   }
 
@@ -989,7 +1217,8 @@ function App() {
       setEditorError("Aucun segment actif a split.");
       return;
     }
-    const segment = editorSegments[targetIndex];
+    const currentSegments = editorSegmentsRef.current;
+    const segment = currentSegments[targetIndex];
     if (!segment) {
       setEditorError("Segment actif introuvable.");
       return;
@@ -1025,19 +1254,18 @@ function App() {
       text: rightText,
     };
 
-    setEditorSegments((current) => {
-      const next = [...current];
-      if (!next[targetIndex]) {
+    applyEditorSnapshotMutation((current) => {
+      const nextSegments = cloneEditableSegments(current.segments);
+      if (!nextSegments[targetIndex]) {
         return current;
       }
-      next.splice(targetIndex, 1, leftSegment, rightSegment);
-      return next;
+      nextSegments.splice(targetIndex, 1, leftSegment, rightSegment);
+      return buildEditorSnapshot(current.language, nextSegments);
     });
     setActiveSegmentIndex(targetIndex + 1);
     setWaveformCursorSec(splitAt);
     setEditorError("");
     setEditorStatus(`Segment #${targetIndex + 1} split a ${splitAt.toFixed(3)}s.`);
-    setEditorDirty(true);
   }
 
   function mergeActiveSegment(direction: "prev" | "next") {
@@ -1047,16 +1275,17 @@ function App() {
       return;
     }
 
+    const currentSegments = editorSegmentsRef.current;
     const neighborIndex = direction === "prev" ? targetIndex - 1 : targetIndex + 1;
-    if (neighborIndex < 0 || neighborIndex >= editorSegments.length) {
+    if (neighborIndex < 0 || neighborIndex >= currentSegments.length) {
       setEditorError("Fusion impossible: segment voisin manquant.");
       return;
     }
 
     const firstIndex = Math.min(targetIndex, neighborIndex);
     const secondIndex = Math.max(targetIndex, neighborIndex);
-    const first = editorSegments[firstIndex];
-    const second = editorSegments[secondIndex];
+    const first = currentSegments[firstIndex];
+    const second = currentSegments[secondIndex];
     if (!first || !second) {
       setEditorError("Fusion impossible: segment introuvable.");
       return;
@@ -1072,13 +1301,13 @@ function App() {
       speaker: mergedSpeaker,
     };
 
-    setEditorSegments((current) => {
-      const next = [...current];
-      if (!next[firstIndex] || !next[secondIndex]) {
+    applyEditorSnapshotMutation((current) => {
+      const nextSegments = cloneEditableSegments(current.segments);
+      if (!nextSegments[firstIndex] || !nextSegments[secondIndex]) {
         return current;
       }
-      next.splice(firstIndex, 2, mergedSegment);
-      return next;
+      nextSegments.splice(firstIndex, 2, mergedSegment);
+      return buildEditorSnapshot(current.language, nextSegments);
     });
     setActiveSegmentIndex(firstIndex);
     setWaveformCursorSec(mergedSegment.start);
@@ -1086,11 +1315,10 @@ function App() {
     setEditorStatus(
       `Segments #${firstIndex + 1} et #${secondIndex + 1} fusionnes.`,
     );
-    setEditorDirty(true);
   }
 
   async function saveEditedJson(overwrite: boolean) {
-    if (!editorSourcePath || editorSegments.length === 0) {
+    if (!editorSourcePath || editorSegmentsRef.current.length === 0) {
       setEditorError("Aucun transcript charge dans l'editeur.");
       return;
     }
@@ -1108,12 +1336,14 @@ function App() {
       const outPath = await invoke<string>("save_transcript_json", {
         request: {
           path: editorSourcePath,
-          language: editorLanguage.trim() || null,
-          segments: editorSegments,
+          language: editorLanguageRef.current.trim() || null,
+          segments: editorSegmentsRef.current,
           overwrite,
         },
       });
-      setEditorDirty(false);
+      const savedSnapshot = getCurrentEditorSnapshot();
+      editorBaselineRef.current = savedSnapshot;
+      updateEditorDirtyFromSnapshot(savedSnapshot);
       setEditorLastOutputPath(outPath);
       setEditorStatus(`JSON sauvegarde: ${outPath}`);
       await refreshJobs();
@@ -1125,7 +1355,7 @@ function App() {
   }
 
   async function exportEditedTranscript(format: "json" | "srt" | "vtt" | "txt") {
-    if (!editorSourcePath || editorSegments.length === 0) {
+    if (!editorSourcePath || editorSegmentsRef.current.length === 0) {
       setEditorError("Aucun transcript charge dans l'editeur.");
       return;
     }
@@ -1138,8 +1368,8 @@ function App() {
       const result = await invoke<ExportTranscriptResponse>("export_transcript", {
         request: {
           path: editorSourcePath,
-          language: editorLanguage.trim() || null,
-          segments: editorSegments,
+          language: editorLanguageRef.current.trim() || null,
+          segments: editorSegmentsRef.current,
           format,
           rules: normalizedRules,
         },
@@ -1243,6 +1473,8 @@ function App() {
     setActiveSegmentIndex(null);
     setDragSegmentState(null);
     setHoveredSegmentEdge(null);
+    dragStartSnapshotRef.current = null;
+    dragHasHistoryChangeRef.current = false;
   }, [selectedJobId]);
 
   useEffect(() => {
@@ -1255,11 +1487,41 @@ function App() {
   }, [activeSegmentIndex, editorSegments]);
 
   useEffect(() => {
+    const trimmedUndo = trimHistoryStack(editorUndoStackRef.current);
+    const trimmedRedo = trimHistoryStack(editorRedoStackRef.current);
+    if (
+      trimmedUndo.length !== editorUndoStackRef.current.length
+      || trimmedRedo.length !== editorRedoStackRef.current.length
+    ) {
+      setEditorHistoryStacks(trimmedUndo, trimmedRedo);
+    }
+  }, [editorHistoryLimit]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.ctrlKey || event.metaKey || !event.altKey) {
+      if (event.defaultPrevented) {
         return;
       }
       const key = event.key.toLowerCase();
+
+      if (editorSourcePath && (event.ctrlKey || event.metaKey)) {
+        const target = event.target instanceof Element ? event.target : null;
+        const insideEditor = Boolean(target?.closest(".editor-panel"));
+        if (insideEditor && key === "z" && !event.shiftKey) {
+          event.preventDefault();
+          undoEditorChange();
+          return;
+        }
+        if (insideEditor && (key === "y" || (key === "z" && event.shiftKey))) {
+          event.preventDefault();
+          redoEditorChange();
+          return;
+        }
+      }
+
+      if (event.ctrlKey || event.metaKey || !event.altKey) {
+        return;
+      }
 
       if (event.shiftKey && key === "j") {
         event.preventDefault();
@@ -1302,7 +1564,7 @@ function App() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mediaCurrentSec, selectedJobId, editorSegments, actionSegmentIndex, cursorTimeSec]);
+  }, [mediaCurrentSec, selectedJobId, actionSegmentIndex, cursorTimeSec, editorSourcePath]);
 
   useEffect(() => {
     if (!waveform || waveform.durationSec <= 0) {
@@ -2193,15 +2455,40 @@ function App() {
                     Langue
                     <input
                       value={editorLanguage}
-                      onChange={(e) => {
-                        setEditorLanguage(e.currentTarget.value);
-                        setEditorDirty(true);
-                      }}
+                      onChange={(e) => updateEditorLanguage(e.currentTarget.value)}
                       placeholder="fr, en..."
                     />
                   </label>
 
                   <div className="editor-toolbar">
+                    <button
+                      type="button"
+                      className="ghost"
+                      disabled={isEditorSaving || isEditorLoading || !canUndoEditor}
+                      onClick={undoEditorChange}
+                    >
+                      Undo (Ctrl+Z)
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost"
+                      disabled={isEditorSaving || isEditorLoading || !canRedoEditor}
+                      onClick={redoEditorChange}
+                    >
+                      Redo (Ctrl+Y)
+                    </button>
+                    <label className="editor-history-limit">
+                      Historique max
+                      <input
+                        type="number"
+                        min={MIN_EDITOR_HISTORY_LIMIT}
+                        max={MAX_EDITOR_HISTORY_LIMIT}
+                        step="10"
+                        value={editorHistoryLimitInput}
+                        onChange={(e) => setEditorHistoryLimitInput(e.currentTarget.value)}
+                        onBlur={() => setEditorHistoryLimitInput(String(editorHistoryLimit))}
+                      />
+                    </label>
                     <button type="button" disabled={isEditorSaving || isEditorLoading} onClick={() => saveEditedJson(false)}>
                       Sauver JSON
                     </button>
@@ -2286,7 +2573,8 @@ function App() {
 
                   <p className="small">
                     Segments: {editorSegments.length} | Affiches: {displayedEditorSegments.length}
-                    {editorDirty ? " | Modifications non sauvegardees" : ""}
+                    {editorDirty ? " | Modifications non sauvegardees" : ""} | Undo/Redo:{" "}
+                    {editorUndoStack.length}/{editorRedoStack.length} (max {editorHistoryLimit})
                   </p>
                   {isEditorLoading ? <p className="small">Chargement editeur...</p> : null}
                   {editorStatus ? <p className="small">{editorStatus}</p> : null}
