@@ -1,6 +1,9 @@
 """
 Forced Alignment with Whisper
 C. Max Bain
+
+Post-réglage des timestamps au niveau mot (détection / lissage) est appliqué dans
+`whisperx.timeline.build_canonical_timeline` (WX-606), pas dans ce module.
 """
 from dataclasses import dataclass
 from typing import Iterable, Optional, Union, List
@@ -100,8 +103,10 @@ def load_align_model(language_code: str, device: str, model_name: Optional[str] 
             processor = Wav2Vec2Processor.from_pretrained(model_name, cache_dir=model_dir, local_files_only=model_cache_only)
             align_model = Wav2Vec2ForCTC.from_pretrained(model_name, cache_dir=model_dir, local_files_only=model_cache_only)
         except Exception as e:
-            print(e)
-            print("Error loading model from huggingface, check https://huggingface.co/models for finetuned wav2vec2.0 models")
+            logger.error("Error loading align model from Hugging Face: %s", e)
+            logger.error(
+                "See https://huggingface.co/models for wav2vec2 models usable with --align_model."
+            )
             raise ValueError(f'The chosen align_model "{model_name}" could not be found in huggingface (https://huggingface.co/models) or torchaudio (https://pytorch.org/audio/stable/pipelines.html#id14)')
         pipeline_type = "huggingface"
         align_model = align_model.to(device)
@@ -141,6 +146,13 @@ def align(
     model_dictionary = align_model_metadata["dictionary"]
     model_lang = align_model_metadata["language"]
     model_type = align_model_metadata["type"]
+
+    punkt_lang = PUNKT_LANGUAGES.get(model_lang, "english")
+    try:
+        punkt_sentence_splitter = nltk_load(f"tokenizers/punkt_tab/{punkt_lang}.pickle")
+    except LookupError:
+        nltk.download("punkt_tab", quiet=True)
+        punkt_sentence_splitter = nltk_load(f"tokenizers/punkt_tab/{punkt_lang}.pickle")
 
     # 1. Preprocess to keep only characters in dictionary
     total_segments = len(transcript)
@@ -184,14 +196,7 @@ def align(
             if any([c in model_dictionary.keys() for c in wrd.lower()]):
                 clean_wdx.append(wdx)
 
-        # Use language-specific Punkt model if available otherwise we fallback to English.
-        punkt_lang = PUNKT_LANGUAGES.get(model_lang, 'english')
-        try:
-            sentence_splitter = nltk_load(f'tokenizers/punkt_tab/{punkt_lang}.pickle')
-        except LookupError:
-            nltk.download('punkt_tab', quiet=True)
-            sentence_splitter = nltk_load(f'tokenizers/punkt_tab/{punkt_lang}.pickle')
-        sentence_spans = list(sentence_splitter.span_tokenize(text))
+        sentence_spans = list(punkt_sentence_splitter.span_tokenize(text))
 
         segment_data[sdx] = {
             "clean_char": clean_char,
@@ -495,19 +500,3 @@ def merge_repeats(path, transcript):
         )
         i1 = i2
     return segments
-
-def merge_words(segments, separator="|"):
-    words = []
-    i1, i2 = 0, 0
-    while i1 < len(segments):
-        if i2 >= len(segments) or segments[i2].label == separator:
-            if i1 != i2:
-                segs = segments[i1:i2]
-                word = "".join([seg.label for seg in segs])
-                score = sum(seg.score * seg.length for seg in segs) / sum(seg.length for seg in segs)
-                words.append(Segment(word, segments[i1].start, segments[i2 - 1].end, score))
-            i1 = i2 + 1
-            i2 = i1
-        else:
-            i2 += 1
-    return words

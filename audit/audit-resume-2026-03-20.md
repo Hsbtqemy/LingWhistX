@@ -110,8 +110,12 @@ Priorite: **P2**
 
 ### 3. Pas de security/dependency scanning automatise
 
+Statut: **PARTIELLEMENT RESOLU**
+
 Constat:
-- aucun workflow dedie aux CVE/dependances (`pip-audit`, `safety`, Dependabot).
+- workflow `security-python.yml` execute `pip-audit` (rapport artefact) et `uv lock --check` sur les changements de dependances.
+- le job est en `continue-on-error: true` (avertissement, pas gate bloquante).
+- Dependabot / Safety restent optionnels.
 
 Risque:
 - detection tardive de vuln vulnerabilites supply-chain.

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "name": "LingWhistX — lancement WhisperX Studio",
+  "description": "Ouvre ce fichier pour voir la commande à lancer. Le répertoire npm est toujours whisperx-studio/ (pas la racine du dépôt).",
+  "projectDir": "whisperx-studio",
+  "defaultProfile": "tauriDev",
+  "profiles": {
+    "tauriDev": {
+      "label": "Application Tauri (recommandé)",
+      "cwd": "whisperx-studio",
+      "command": "npm run tauri dev",
+      "url": "http://localhost:1420/",
+      "notes": [
+        "Lance Vite puis le binaire Rust ; fenêtre native + hot reload.",
+        "Depuis la racine du repo : cd whisperx-studio && npm run tauri dev"
+      ]
+    },
+    "viteOnly": {
+      "label": "Interface web seule (Vite)",
+      "cwd": "whisperx-studio",
+      "command": "npm run dev",
+      "url": "http://localhost:1420/",
+      "notes": [
+        "Ouvre l’UI dans le navigateur ; les commandes Tauri (invoke) ne fonctionnent pas.",
+        "Utile pour du front pur sans runtime desktop."
+      ]
+    },
+    "build": {
+      "label": "Build production (Vite)",
+      "cwd": "whisperx-studio",
+      "command": "npm run build",
+      "notes": ["Vérifie TypeScript + bundle Vite."]
+    },
+    "checkRust": {
+      "label": "Vérification crate Tauri",
+      "cwd": "whisperx-studio",
+      "command": "cargo check --manifest-path src-tauri/Cargo.toml",
+      "notes": ["Sans lancer l’app ; rapide pour valider Rust."]
+    }
+  }
+}

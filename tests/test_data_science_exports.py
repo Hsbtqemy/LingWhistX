@@ -27,7 +27,7 @@ def test_write_data_science_exports_creates_expected_files(tmp_path: Path):
             "analysis": {
                 "config": {"pause_min": 0.15},
                 "pauses": [
-                    {"speaker": "SPEAKER_00", "start": 0.5, "end": 0.8, "dur": 0.3, "type": "intra_word_gap"}
+                    {"speaker": "SPEAKER_00", "start": 0.5, "end": 0.8, "dur": 0.3, "type": "intra_speaker_word_gap"}
                 ],
                 "nonspeech_intervals": [{"start": 0.8, "end": 1.0, "dur": 0.2, "method": "vad_gap"}],
                 "ipus": [
@@ -50,6 +50,12 @@ def test_write_data_science_exports_creates_expected_files(tmp_path: Path):
     for path in outputs.values():
         assert Path(path).is_file()
 
+    assert Path(outputs["timeline_jsonl"]).read_text(encoding="utf-8").strip()
+    assert "WEBVTT" in Path(outputs["segments_vtt"]).read_text(encoding="utf-8")
+    srt_text = Path(outputs["segments_srt"]).read_text(encoding="utf-8")
+    assert "-->" in srt_text
+    assert "hello" in srt_text
+
     words_rows = list(
         csv.DictReader(
             Path(outputs["words_csv"]).read_text(encoding="utf-8").splitlines()
@@ -65,7 +71,7 @@ def test_write_data_science_exports_creates_expected_files(tmp_path: Path):
         )
     )
     assert len(pauses_rows) == 1
-    assert pauses_rows[0]["type"] == "intra_word_gap"
+    assert pauses_rows[0]["type"] == "intra_speaker_word_gap"
 
     ipu_rows = list(
         csv.DictReader(
@@ -79,5 +85,10 @@ def test_write_data_science_exports_creates_expected_files(tmp_path: Path):
     run_payload = json.loads(Path(outputs["run_json"]).read_text(encoding="utf-8"))
     assert run_payload["config"]["model"] == "small"
     assert run_payload["artifacts"]["timelineJson"].endswith(".timeline.json")
+    assert run_payload["artifacts"]["timelineJsonl"].endswith(".timeline.jsonl")
     assert run_payload["counts"]["words"] == 1
     assert run_payload["counts"]["ipus"] == 1
+
+    manifest = json.loads(Path(outputs["run_manifest_json"]).read_text(encoding="utf-8"))
+    for rel in manifest["artifacts"].values():
+        assert (tmp_path / rel).is_file()

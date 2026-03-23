@@ -5,6 +5,10 @@ Local worker entrypoint used by Tauri.
 Modes:
 - mock: no ASR execution, writes deterministic sample artifacts.
 - whisperx: invokes local whisperx CLI and writes resulting files.
+
+Progress protocol (stdout, one JSON object per line):
+- Lines prefixed with LOG_PREFIX (__WXLOG__) are parsed by the Rust sidecar and relayed to the UI.
+- Final success line uses RESULT_PREFIX (__WXRESULT__) with output file paths.
 """
 
 from __future__ import annotations
@@ -16,6 +20,21 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+
+try:
+    from studio_audio_modules import maybe_prepare_audio_input
+except ImportError:
+
+    def maybe_prepare_audio_input(
+        input_path: str,
+        out_dir: Path,
+        options: dict[str, object],
+        *,
+        emit_log=None,
+    ) -> str:
+        _ = (out_dir, options, emit_log)
+        return input_path
+
 
 LOG_PREFIX = "__WXLOG__"
 RESULT_PREFIX = "__WXRESULT__"
@@ -255,8 +274,60 @@ def append_analysis_options(command: list[str], options: dict[str, object]) -> N
     if ipu_bridge is not None:
         command.extend(["--analysis_ipu_bridge_short_gaps_under", f"{ipu_bridge:g}"])
 
+    preset = options.get("analysisPreset")
+    if isinstance(preset, str):
+        p = preset.strip().lower()
+        if p in ("sport_tv", "interview"):
+            command.extend(["--analysis_preset", p])
+
+    cal_win = parse_optional_float_option(options, "analysisCalibrateWindowSec")
+    if cal_win is not None and cal_win > 0:
+        command.extend(["--analysis_calibrate_window_sec", f"{cal_win:g}"])
+        cal_start = parse_non_negative_float_option(options, "analysisCalibrateStartSec")
+        if cal_start is not None:
+            command.extend(["--analysis_calibrate_start_sec", f"{cal_start:g}"])
+
+    csd = options.get("chunkStateDir")
+    if isinstance(csd, str) and csd.strip():
+        command.extend(["--chunk_state_dir", csd.strip()])
+    if parse_bool_option(options, "chunkResume") is True:
+        command.extend(["--chunk_resume", "true"])
+    if parse_bool_option(options, "chunkJsonlPerChunk") is True:
+        command.extend(["--chunk_jsonl_per_chunk", "true"])
+
+    st_preset = options.get("analysisSpeakerTurnPostprocessPreset")
+    if isinstance(st_preset, str) and st_preset.strip():
+        command.extend(["--analysis_speaker_turn_postprocess_preset", st_preset.strip()])
+    st_merge = parse_optional_float_option(options, "analysisSpeakerTurnMergeGapSecMax")
+    if st_merge is not None:
+        command.extend(["--analysis_speaker_turn_merge_gap_sec_max", f"{st_merge:g}"])
+    st_split = parse_optional_float_option(options, "analysisSpeakerTurnSplitWordGapSec")
+    if st_split is not None:
+        command.extend(["--analysis_speaker_turn_split_word_gap_sec", f"{st_split:g}"])
+
+    wts = options.get("analysisWordTimestampStabilizeMode")
+    if isinstance(wts, str) and wts.strip() and wts.strip().lower() != "off":
+        command.extend(["--analysis_word_timestamp_stabilize_mode", wts.strip().lower()])
+    wrl = parse_optional_float_option(options, "analysisWordTsNeighborRatioLow")
+    if wrl is not None:
+        command.extend(["--analysis_word_ts_neighbor_ratio_low", f"{wrl:g}"])
+    wrh = parse_optional_float_option(options, "analysisWordTsNeighborRatioHigh")
+    if wrh is not None:
+        command.extend(["--analysis_word_ts_neighbor_ratio_high", f"{wrh:g}"])
+    wsm = parse_optional_float_option(options, "analysisWordTsSmoothMaxSec")
+    if wsm is not None:
+        command.extend(["--analysis_word_ts_smooth_max_sec", f"{wsm:g}"])
+
+    ext_json = options.get("externalWordTimingsJson")
+    if isinstance(ext_json, str) and ext_json.strip():
+        command.extend(["--external_word_timings_json", ext_json.strip()])
+    if parse_bool_option(options, "externalWordTimingsStrict") is True:
+        command.extend(["--external_word_timings_strict", "true"])
+
 
 def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> list[str]:
+    input_path = maybe_prepare_audio_input(input_path, out_dir, options, emit_log=emit_log)
+
     requested_output_format = str(options.get("outputFormat", "all")).strip().lower() or "all"
     if requested_output_format not in SUPPORTED_OUTPUT_FORMATS:
         requested_output_format = "all"
@@ -379,7 +450,8 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         env=command_env,
     )
 
-    assert process.stdout is not None
+    if process.stdout is None:
+        raise RuntimeError("whisperx subprocess stdout is unavailable")
     for line in process.stdout:
         clean = line.strip()
         if clean:
@@ -390,7 +462,7 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         raise RuntimeError(f"whisperx command failed with exit code {return_code}")
 
     emit_log("info", "whisperx", "WhisperX termine, collecte des fichiers...", 96)
-    return [str(path) for path in sorted(out_dir.glob("*")) if path.is_file()]
+    return [str(path) for path in sorted(out_dir.rglob("*")) if path.is_file()]
 
 
 def run_analyze_only(input_path: str, out_dir: Path, options: dict[str, object]) -> list[str]:
@@ -420,7 +492,8 @@ def run_analyze_only(input_path: str, out_dir: Path, options: dict[str, object])
         bufsize=1,
     )
 
-    assert process.stdout is not None
+    if process.stdout is None:
+        raise RuntimeError("analyze_only subprocess stdout is unavailable")
     for line in process.stdout:
         clean = line.strip()
         if clean:

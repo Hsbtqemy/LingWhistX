@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -12,6 +15,16 @@
     "backlog:next": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backlog.ps1 -Action next",
     "backlog:show": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backlog.ps1 -Action show",
     "backlog:set": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backlog.ps1 -Action set",
+    "backlog:list:unix": "node ./scripts/backlog.mjs -Action list",
+    "backlog:ready:unix": "node ./scripts/backlog.mjs -Action ready",
+    "backlog:next:unix": "node ./scripts/backlog.mjs -Action next",
+    "backlog:show:unix": "node ./scripts/backlog.mjs -Action show",
+    "backlog:set:unix": "node ./scripts/backlog.mjs -Action set",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "runtime:setup": "powershell -ExecutionPolicy Bypass -File .\\scripts\\setup-local-runtime.ps1",
     "build:portable-exe": "powershell -ExecutionPolicy Bypass -File .\\scripts\\build-portable-exe.ps1",
     "smoke:e2e": "powershell -ExecutionPolicy Bypass -File .\\scripts\\smoke-e2e.ps1",
@@ -19,18 +32,30 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-opener": "^2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "@tauri-apps/cli": "^2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "eslint": "^9.22.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.0.0",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.5.3",
     "typescript": "~5.8.3",
+    "typescript-eslint": "^8.26.1",
     "vite": "^7.0.4",
-    "@tauri-apps/cli": "^2"
+    "vitest": "^3.0.9"
   }
 }

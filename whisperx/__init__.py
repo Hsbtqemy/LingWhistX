@@ -55,3 +55,15 @@ def get_logger(*args, **kwargs):
     """
     logging_module = _lazy_import("log_utils")
     return logging_module.get_logger(*args, **kwargs)
+
+
+def build_canonical_timeline(*args, **kwargs):
+    """Construit la timeline canonique LingWhistX (WX-600+) à partir d’un résultat aligné."""
+    timeline = _lazy_import("timeline")
+    return timeline.build_canonical_timeline(*args, **kwargs)
+
+
+def as_float(*args, **kwargs):
+    """Parse un scalaire JSON en float (voir ``whisperx.utils.as_float``)."""
+    utils = _lazy_import("utils")
+    return utils.as_float(*args, **kwargs)

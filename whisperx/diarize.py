@@ -266,10 +266,9 @@ def assign_word_speakers(
         return transcript_result
 
     # Build interval tree from diarization segments for O(log n) queries
-    intervals = [
-        (row['start'], row['end'], row['speaker'])
-        for _, row in diarize_df.iterrows()
-    ]
+    intervals = list(
+        zip(diarize_df["start"], diarize_df["end"], diarize_df["speaker"], strict=True)
+    )
     tree = IntervalTree(intervals)
 
     for seg in transcript_segments:
@@ -326,10 +325,3 @@ def assign_word_speakers(
             transcript_result["events"] = overlap_events
 
     return transcript_result
-
-
-class Segment:
-    def __init__(self, start:int, end:int, speaker:Optional[str]=None):
-        self.start = start
-        self.end = end
-        self.speaker = speaker

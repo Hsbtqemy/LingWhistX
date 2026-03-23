@@ -1,0 +1,195 @@
+import type { Job, JobLogEvent } from "../../types";
+import type { AlignmentWorkspacePanelProps } from "./AlignmentWorkspacePanel";
+import type { RunDetailsPanelProps } from "./RunDetailsPanel";
+import type { TranscriptEditorPanelProps } from "./TranscriptEditorPanel";
+import type { WaveformWorkspace } from "../../hooks/useWaveformWorkspace";
+
+type TranscriptEditorApi = ReturnType<
+  typeof import("../../hooks/useTranscriptEditor").useTranscriptEditor
+>;
+
+export function buildAlignmentWorkspaceProps(
+  selectedJob: Job,
+  selectedMediaSrc: string,
+  selectedIsVideo: boolean,
+  wf: WaveformWorkspace,
+  te: TranscriptEditorApi,
+): AlignmentWorkspacePanelProps {
+  return {
+    selectedJob,
+    selectedIsVideo,
+    selectedMediaSrc,
+    audioRef: wf.audioRef,
+    videoRef: wf.videoRef,
+    waveformCanvasRef: wf.waveformCanvasRef,
+    waveformBinsPerSecond: wf.waveformBinsPerSecond,
+    setWaveformBinsPerSecond: wf.setWaveformBinsPerSecond,
+    loadWaveformForSelectedJob: wf.loadWaveformForSelectedJob,
+    isWaveformLoading: wf.isWaveformLoading,
+    requestCancelWaveformGeneration: wf.requestCancelWaveformGeneration,
+    waveformTaskId: wf.waveformTaskId,
+    zoomWaveform: wf.zoomWaveform,
+    resetWaveformZoom: wf.resetWaveformZoom,
+    waveform: wf.waveform,
+    waveformZoom: wf.waveformZoom,
+    waveformCursorSec: wf.waveformCursorSec,
+    mediaCurrentSec: wf.mediaCurrentSec,
+    setMediaCurrentSec: wf.setMediaCurrentSec,
+    waveformViewStartSec: wf.waveformViewStartSec,
+    waveformViewEndSec: wf.waveformViewEndSec,
+    waveformMaxViewStartSec: wf.waveformMaxViewStartSec,
+    setWaveformZoomAround: wf.setWaveformZoomAround,
+    setWaveformViewStart: wf.setWaveformViewStart,
+    snapEnabled: wf.snapEnabled,
+    setSnapEnabled: wf.setSnapEnabled,
+    snapStepMs: wf.snapStepMs,
+    setSnapStepMs: wf.setSnapStepMs,
+    waveformProgress: wf.waveformProgress,
+    waveformProgressMessage: wf.waveformProgressMessage,
+    waveformError: wf.waveformError,
+    waveformCursorStyle: te.waveformCursorStyle,
+    onWaveformMouseDown: te.onWaveformMouseDown,
+    onWaveformMouseMove: te.onWaveformMouseMove,
+    onWaveformMouseUp: te.onWaveformMouseUp,
+    onWaveformMouseLeave: te.onWaveformMouseLeave,
+    onWaveformWheel: wf.onWaveformWheel,
+    focusedSegment: te.focusedSegment,
+    activeSegmentIndex: te.activeSegmentIndex,
+    setActiveSegmentIndex: te.setActiveSegmentIndex,
+    splitActiveSegmentAtCursor: te.splitActiveSegmentAtCursor,
+    canSplitActiveSegment: te.canSplitActiveSegment,
+    mergeActiveSegment: te.mergeActiveSegment,
+    canMergePrev: te.canMergePrev,
+    canMergeNext: te.canMergeNext,
+    seekMedia: wf.seekMedia,
+    buildWaveformPyramid: wf.buildWaveformPyramid,
+    isPyramidBuilding: wf.isPyramidBuilding,
+    pyramidError: wf.pyramidError,
+    overviewEnvelope: wf.overviewEnvelope,
+    isOverviewLoading: wf.isOverviewLoading,
+    visibleDurationSec: wf.waveformVisibleDurationSec,
+    webAudioMode: wf.webAudioMode,
+    setWebAudioMode: wf.setWebAudioMode,
+    webAudioError: wf.webAudioError,
+    toggleMediaPlayback: wf.toggleMediaPlayback,
+  };
+}
+
+export function buildTranscriptEditorPanelProps(
+  te: TranscriptEditorApi,
+  openLocalPath: TranscriptEditorPanelProps["openLocalPath"],
+  previewOutput: TranscriptEditorPanelProps["previewOutput"],
+): TranscriptEditorPanelProps {
+  return {
+    editorSourcePath: te.editorSourcePath,
+    editorLanguage: te.editorLanguage,
+    updateEditorLanguage: te.updateEditorLanguage,
+    isEditorSaving: te.isEditorSaving,
+    isEditorLoading: te.isEditorLoading,
+    canUndoEditor: te.canUndoEditor,
+    canRedoEditor: te.canRedoEditor,
+    undoEditorChange: te.undoEditorChange,
+    redoEditorChange: te.redoEditorChange,
+    editorHistoryLimitInput: te.editorHistoryLimitInput,
+    setEditorHistoryLimitInput: te.setEditorHistoryLimitInput,
+    editorHistoryLimit: te.editorHistoryLimit,
+    draftAutosaveSecInput: te.draftAutosaveSecInput,
+    setDraftAutosaveSecInput: te.setDraftAutosaveSecInput,
+    draftAutosaveSec: te.draftAutosaveSec,
+    purgeTranscriptDraft: te.purgeTranscriptDraft,
+    saveEditedJson: te.saveEditedJson,
+    exportEditedTranscript: te.exportEditedTranscript,
+    exportRules: te.exportRules,
+    setExportRules: te.setExportRules,
+    lastExportReport: te.lastExportReport,
+    qaGapThresholdSecInput: te.qaGapThresholdSecInput,
+    setQaGapThresholdSecInput: te.setQaGapThresholdSecInput,
+    qaGapThresholdSec: te.qaGapThresholdSec,
+    qaMinWpsInput: te.qaMinWpsInput,
+    setQaMinWpsInput: te.setQaMinWpsInput,
+    qaMinWps: te.qaMinWps,
+    qaMaxWpsInput: te.qaMaxWpsInput,
+    setQaMaxWpsInput: te.setQaMaxWpsInput,
+    qaMaxWps: te.qaMaxWps,
+    runTranscriptQaScan: te.runTranscriptQaScan,
+    qaScannedAtMs: te.qaScannedAtMs,
+    qaIssues: te.qaIssues,
+    qaStatus: te.qaStatus,
+    jumpToQaIssue: te.jumpToQaIssue,
+    autoFixQaIssue: te.autoFixQaIssue,
+    editorSegments: te.editorSegments,
+    displayedEditorSegments: te.displayedEditorSegments,
+    editorDirty: te.editorDirty,
+    editorUndoStack: te.editorUndoStack,
+    editorRedoStack: te.editorRedoStack,
+    activeSegmentIndex: te.activeSegmentIndex,
+    setActiveSegmentIndex: te.setActiveSegmentIndex,
+    updateEditorSegmentBoundary: te.updateEditorSegmentBoundary,
+    updateEditorSegmentText: te.updateEditorSegmentText,
+    focusSegment: te.focusSegment,
+    hasMoreEditorSegments: te.hasMoreEditorSegments,
+    setEditorVisibleCount: te.setEditorVisibleCount,
+    isAutosavingDraft: te.isAutosavingDraft,
+    editorDraftUpdatedAtMs: te.editorDraftUpdatedAtMs,
+    editorDraftPath: te.editorDraftPath,
+    editorAutosaveMessage: te.editorAutosaveMessage,
+    editorAutosaveError: te.editorAutosaveError,
+    editorStatus: te.editorStatus,
+    editorError: te.editorError,
+    editorLastOutputPath: te.editorLastOutputPath,
+    openLocalPath,
+    previewOutput,
+  };
+}
+
+export type BuildRunDetailsPanelPropsInput = {
+  selectedJob: Job | null;
+  selectedJobLogs: JobLogEvent[];
+  selectedJobHasJsonOutput: boolean;
+  openLocalPath: RunDetailsPanelProps["openLocalPath"];
+  selectedMediaSrc: string;
+  selectedIsVideo: boolean;
+  wf: WaveformWorkspace;
+  te: TranscriptEditorApi;
+  preview: RunDetailsPanelProps["preview"];
+  onPreviewOutput: RunDetailsPanelProps["onPreviewOutput"];
+  editorFocusMode: boolean;
+  onToggleEditorFocusMode: () => void;
+};
+
+export function buildRunDetailsPanelProps(
+  input: BuildRunDetailsPanelPropsInput,
+): RunDetailsPanelProps {
+  const {
+    selectedJob,
+    selectedJobLogs,
+    selectedJobHasJsonOutput,
+    openLocalPath,
+    selectedMediaSrc,
+    selectedIsVideo,
+    wf,
+    te,
+    preview,
+    onPreviewOutput,
+    editorFocusMode,
+    onToggleEditorFocusMode,
+  } = input;
+
+  return {
+    selectedJob,
+    selectedJobLogs,
+    selectedJobHasJsonOutput,
+    openLocalPath,
+    alignment: selectedJob
+      ? buildAlignmentWorkspaceProps(selectedJob, selectedMediaSrc, selectedIsVideo, wf, te)
+      : undefined,
+    preview,
+    onPreviewOutput,
+    onLoadTranscriptEditor: te.loadTranscriptEditor,
+    transcriptEditor: te.editorSourcePath
+      ? buildTranscriptEditorPanelProps(te, openLocalPath, onPreviewOutput)
+      : null,
+    editorFocusMode,
+    onToggleEditorFocusMode,
+  };
+}

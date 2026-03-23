@@ -122,6 +122,7 @@ To **enable Speaker Diarization**, include your Hugging Face access token (read)
 This repository includes additional CLI capabilities used by LingWhistX Studio:
 
 - `--pipeline_chunk_seconds` and `--pipeline_chunk_overlap_seconds` for media-level chunked transcription with global offset merge.
+- Long media (WX-604): `--chunk_state_dir <base>` writes `chunk_manifest.json` plus one `chunk_NNNN.raw.json` per window under `<base>/<audio_stem>/` for **resume** after failure (`--chunk_resume True` skips chunks already marked `done`). Optional `--chunk_jsonl_per_chunk True` emits `<stem>.chunk_NNNN.jsonl` (one JSON object per word) after each window. Each window still loads the corresponding audio slice into RAM; very long files need enough disk for raw chunk JSON and exports.
 - `--force_n_speakers` (exclusive with `--min_speakers/--max_speakers`) for explicit diarization cardinality control.
 - Timeline analytics tuning flags:
   - `--analysis_pause_min`
@@ -138,8 +139,29 @@ This repository includes additional CLI capabilities used by LingWhistX Studio:
   - `<basename>.words.csv`
   - `<basename>.pauses.csv`
   - `<basename>.ipu.csv`
+  - `<basename>.words.ctm` — NIST-style **word timings** (CTM) for ASR/scoring interop (`--export_word_ctm True`, default on; WX-608).
+  - Optional **`dataset/`** folder: `README.md` plus `words.parquet` / `pauses.parquet` / `ipus.parquet` when `--export_parquet_dataset True` (requires `pandas` + `pyarrow`; see `docs/dataset_open_science.md`).
 - Analyze-only mode:
   - `--analyze_only_from <existing-json>` recomputes analysis metrics from an existing JSON/timeline without rerunning ASR/alignment/diarization.
+- Orchestrator CLI: subcommands `run`, `transcribe`, `align`, `diarize`, `analyze`, `export` (bare `whisperx audio.wav` is normalized to `whisperx run audio.wav`). Options `--config` (YAML/TOML, merged then overridden by CLI flags), `--immutable-run` and `--runs-root` to write outputs under `runs/<UTC-timestamp>_<id>/` with a `manifest.json` snapshot.
+- Optional annotation exports (from `timeline.speaker_turns` or per-segment `speaker`), written next to other outputs when enabled:
+  - `--export_annotation_rttm True` → `<stem>.rttm` (NIST-style `SPEAKER` lines; file id = media stem).
+  - `--export_annotation_textgrid True` → `<stem>.TextGrid` (Praat long format, tier `Speaker`).
+  - `--export_annotation_eaf True` → `<stem>.eaf` (ELAN 3.0 XML, tier `speaker`, times in ms).
+- External alignment import (WX-607, optional): `--external_word_timings_json <path.json>` replaces word `start`/`end` in segment `words` from a **v1 JSON** file (same word count and order as the WhisperX transcript). Requires **exactly one** audio input, **no** `--no_align`, and alignment enabled. Metadata is stored in `external_alignment` on the result; each updated word gets flag `external_alignment`. MFA (or any tool) is **not** bundled: produce the JSON offline. Example:
+  ```json
+  {"schema_version": 1, "alignment_source": "mfa", "words": [{"token": "hello", "start": 0.1, "end": 0.35}]}
+  ```
+  Use `--external_word_timings_strict True` to require matching token text between transcript and file.
+
+**Audio E2E / long-format regression (optional, slow):**
+
+- `WHISPERX_RUN_AUDIO_E2E=1` — runs `tests/test_pipeline_e2e_real_audio.py::test_pipeline_e2e_real_audio` (real WAV, tiny model, full ASR+align).
+- `WHISPERX_RUN_CHUNK_MERGE_E2E=1` plus `WHISPERX_E2E_PIPELINE_CHUNK_SECONDS` / `WHISPERX_E2E_PIPELINE_CHUNK_OVERLAP` — runs `test_pipeline_e2e_media_chunking` to exercise media-level chunking and global offset merge (skips if the sample is shorter than the chunk window).
+- Optional caps: `WHISPERX_E2E_MAX_WALL_SECONDS`, `WHISPERX_E2E_CHUNK_MAX_WALL_SECONDS` (fail if wall time exceeds).
+- Fast regression without models: `tests/test_chunk_merge_regression.py` (pure merge helpers, no torch).
+- **WX-610** — scénario synthétique « plateau sportif » (deux locuteurs, overlap, métriques `stats` / `stats_clean`) : `tests/test_wx610_integration_sport.py` ; la suite `pytest -m integration` inclut le test marqué. Fixtures audio optionnelles et comparaison sport vs interview : `docs/fixtures.md`.
+- **WX-609** — lanceur graphique **Tkinter** (sans Studio Tauri) : `python -m whisperx.gui_tk` — choix du média, préréglage modèle (small / base / large-v2), dossier de sortie, journal stdout, ouverture du dossier de sortie. Si `tkinter` est absent, message d’aide d’installation sur stderr (code 2). `python -m whisperx.gui_tk --help`.
 
 ### English
 

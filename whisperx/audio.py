@@ -9,6 +9,14 @@ import torch.nn.functional as F
 
 from whisperx.utils import exact_div
 
+# Aligné sur whisperx-studio/src-tauri/src/jobs.rs (FFMPEG_BINARY / FFPROBE_BINARY / IMAGEIO_FFMPEG_EXE).
+_FFMPEG_CMD = (
+    os.environ.get("FFMPEG_BINARY")
+    or os.environ.get("IMAGEIO_FFMPEG_EXE")
+    or "ffmpeg"
+)
+_FFPROBE_CMD = os.environ.get("FFPROBE_BINARY") or "ffprobe"
+
 # hard-coded audio hyperparameters
 SAMPLE_RATE = 16000
 N_FFT = 400
@@ -80,7 +88,7 @@ def load_audio(
         # Launches a subprocess to decode audio while down-mixing and resampling as necessary.
         # Requires the ffmpeg CLI to be installed.
         cmd = [
-            "ffmpeg",
+            _FFMPEG_CMD,
             "-nostdin",
             "-threads",
             "0",
@@ -105,6 +113,10 @@ def load_audio(
             "-",
         ])
         out = subprocess.run(cmd, capture_output=True, check=True).stdout
+    except FileNotFoundError as e:
+        raise RuntimeError(
+            "ffmpeg executable not found; install ffmpeg and ensure it is on PATH."
+        ) from e
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to load audio: {e.stderr.decode()}") from e
 

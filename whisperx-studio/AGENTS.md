@@ -11,6 +11,7 @@ Guide de passation rapide pour les futurs agents sur `whisperx-studio`.
 ## 2) Etat actuel
 
 - Backlog executable: `backlog/backlog.json`
+- IPC / tailles de payloads : section **Architecture IPC (Tauri)** dans `README.md` (WX-620).
 - Tickets historiques `WX-201` a `WX-210`: `done`
 - Tickets audit/reprise deja livres:
   - `WX-301` timeline canonique (segments/words/speaker_turns/events)
@@ -18,22 +19,38 @@ Guide de passation rapide pour les futurs agents sur `whisperx-studio`.
   - `WX-303` diarization avancee min/max/force_n
   - `WX-304` analyses pauses lexicalisees + non-speech
   - `WX-305` IPU + transitions + overlaps analytiques
+  - `WX-306` metriques qualite + zones suspectes + resume dans artefacts
   - `WX-307` exports data-science (`run.json`, `timeline.json`, `words.csv`, `pauses.csv`, `ipu.csv`)
   - `WX-310` mode `analyze_only` (recalcul metriques sans relancer ASR)
+- `WX-308` CLI orchestrateur: sous-commandes `run`/`transcribe`/`align`/`diarize`/`analyze`/`export`, `--config` YAML/TOML, `--immutable-run` + `manifest.json` sous `runs/`.
+- `WX-309` Studio: diarization min/max/force + erreurs worker enrichies (Rust) + affichage multiligne / aides HF dans l UI.
+- `WX-311` exports annotation: `--export_annotation_rttm` / `--export_annotation_textgrid` / `--export_annotation_eaf` (voir README LingWhistX additions).
+- `WX-312` non-regression chunk: `whisperx/chunk_merge.py`, `tests/test_chunk_merge_regression.py`, E2E optionnel `test_pipeline_e2e_media_chunking` + workflow nightly (voir README).
 
 ## 3) Commandes utiles
 
+- Premier clone: `cd whisperx-studio && npm ci` (recommande) ou `npm install`
 - Dev:
   - `npm run tauri dev`
 - Build app:
   - `npm run build`
   - `cargo check --manifest-path .\src-tauri\Cargo.toml`
   - `npm run tauri build`
+- Qualite (ESLint + Prettier + Vitest):
+  - `npm run lint`
+  - `npm run format` (ou `npm run format:check` en CI)
+  - `npm run test`
+- Rust (crate Tauri, depuis la racine du repo ou `whisperx-studio/src-tauri`):
+  - `cargo fmt --manifest-path whisperx-studio/src-tauri/Cargo.toml` (formater)
+  - `cargo fmt --manifest-path whisperx-studio/src-tauri/Cargo.toml --check` (verifier en CI)
+  - `cargo clippy --manifest-path whisperx-studio/src-tauri/Cargo.toml -- -D warnings`
+  - `cargo test --manifest-path whisperx-studio/src-tauri/Cargo.toml`
 - Backlog:
   - `npm run backlog:list`
   - `npm run backlog:ready`
   - `npm run backlog:next`
   - `npm run backlog:set -- -Id WX-XXX -Status done`
+  - macOS/Linux (sans PowerShell): `npm run backlog:list:unix` (idem `ready:unix`, `next:unix`, `show:unix`, `set:unix`) ou `./scripts/backlog.sh -Action list`
 - Runtime local:
   - `npm run runtime:setup`
 - Smoke release:
@@ -90,6 +107,7 @@ Guide de passation rapide pour les futurs agents sur `whisperx-studio`.
 - Frontend:
   - `src/App.tsx`
   - `src/App.css`
+  - Erreurs utilisateur: composant `src/components/ErrorBanner.tsx` (`role="alert"`), prop `multiline` pour logs ou `<WorkerErrorMessage />` ; styles dans `App.css` (`.error-banner*`). Eviter les boites d erreur ad hoc.
 - Backend Rust:
   - `src-tauri/src/lib.rs`
 - Worker:

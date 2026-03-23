@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "reference_note": "Métriques dérivées de build_canonical_timeline (pas du modèle ASR) ; drift ASR couvert par tests E2E séparés.",
+  "fixture_id": "synthetic_two_words_pause",
+  "analysis_config": {
+    "pause_min": 0.15,
+    "pause_ignore_below": 0.12
+  },
+  "metrics": {
+    "n_words": 2,
+    "n_aligned": 2,
+    "n_interpolated": 0,
+    "n_pauses_intra_speaker_word_gap": 1,
+    "mean_pause_dur_intra": 0.5,
+    "p95_pause_dur_intra": 0.5
+  },
+  "tolerance_pct": 0.05
+}

@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - "whisperx-studio/**"
+      - "whisperx/**"
       - ".github/workflows/studio-ci.yml"
   pull_request:
     branches: [main]
     paths:
       - "whisperx-studio/**"
+      - "whisperx/**"
       - ".github/workflows/studio-ci.yml"
   workflow_dispatch:
 
@@ -47,12 +49,38 @@ jobs:
         working-directory: whisperx-studio
         run: npm ci
 
+      - name: Prettier (check)
+        working-directory: whisperx-studio
+        run: npm run format:check
+
+      - name: Python syntax (Studio worker)
+        run: python -m py_compile whisperx-studio/python/worker.py
+
       - name: Build frontend
         working-directory: whisperx-studio
         run: npm run build
 
+      - name: ESLint
+        working-directory: whisperx-studio
+        run: npm run lint
+
+      - name: Vitest
+        working-directory: whisperx-studio
+        run: npm run test
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
 
       - name: Cargo check (Tauri backend)
         run: cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml
+
+      - name: Cargo fmt --check (Tauri backend)
+        run: cargo fmt --manifest-path whisperx-studio/src-tauri/Cargo.toml --check
+
+      - name: Cargo clippy (Tauri backend)
+        run: cargo clippy --manifest-path whisperx-studio/src-tauri/Cargo.toml -- -D warnings
+
+      - name: Cargo test (Tauri backend)
+        run: cargo test --manifest-path whisperx-studio/src-tauri/Cargo.toml

@@ -1,10 +1,50 @@
 import csv
 import json
+import math
 import os
 import re
 import sys
 import zlib
-from typing import Callable, Optional, TextIO
+from typing import Any, Callable, Optional, TextIO
+
+_AS_FLOAT_MISSING = object()
+
+
+def _parse_float_optional(value: Any) -> float | None:
+    """Même sémantique que l’ancien ``timeline._as_float`` / ``external_alignment._as_float``."""
+    if isinstance(value, (int, float)):
+        numeric = float(value)
+    elif isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            numeric = float(text)
+        except ValueError:
+            return None
+    else:
+        return None
+    if not math.isfinite(numeric):
+        return None
+    return numeric
+
+
+def as_float(value: Any, default: Any = _AS_FLOAT_MISSING) -> float | None:
+    """
+    Parse un scalaire JSON en ``float``.
+
+    - Un seul argument : retourne ``float`` ou ``None`` si absent/invalide.
+    - Avec ``default`` : retourne toujours un ``float`` (sémantique chunk_merge : ``default`` si invalide).
+    """
+    if default is _AS_FLOAT_MISSING:
+        return _parse_float_optional(value)
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return default
+    if not math.isfinite(numeric):
+        return default
+    return numeric
 
 LANGUAGES = {
     "en": "english",
@@ -172,11 +212,13 @@ def exact_div(x, y):
 
 
 def str2bool(string):
-    str2val = {"True": True, "False": False}
-    if string in str2val:
-        return str2val[string]
-    else:
-        raise ValueError(f"Expected one of {set(str2val.keys())}, got {string}")
+    if isinstance(string, bool):
+        return string
+    normalized = str(string).strip().lower()
+    str2val = {"true": True, "false": False}
+    if normalized in str2val:
+        return str2val[normalized]
+    raise ValueError(f"Expected one of {set(str2val.keys())}, got {string!r}")
 
 
 def optional_int(string):
@@ -427,7 +469,7 @@ class WriteAudacity(ResultWriter):
     extension: str = "aud"    
 
     def write_result(self, result: dict, file: TextIO, options: dict):
-        ARROW = "	"
+        ARROW = "\t"
         for segment in result["segments"]:
             print(segment["start"], file=file, end=ARROW)
             print(segment["end"], file=file, end=ARROW)
@@ -520,11 +562,210 @@ def _write_csv_rows(csv_path: str, fieldnames: list[str], rows: list[dict]) -> N
             writer.writerow(row)
 
 
+def _write_segments_srt_vtt(
+    output_dir: str,
+    audio_basename: str,
+    raw_segments: list | None,
+) -> tuple[str, str]:
+    """
+    Sous-titres segment-level (spec WX-504) : un bloc par segment avec texte non vide.
+    """
+    from whisperx.SubtitlesProcessor import format_timestamp as subtitle_format_ts
+
+    srt_path = os.path.join(output_dir, f"{audio_basename}.segments.srt")
+    vtt_path = os.path.join(output_dir, f"{audio_basename}.segments.vtt")
+    segments = raw_segments if isinstance(raw_segments, list) else []
+
+    def _segment_text_for_srt(seg: dict) -> str:
+        t = seg.get("text")
+        if t is None:
+            return ""
+        return str(t).strip().replace("\r\n", " ").replace("\n", " ")
+
+    srt_blocks: list[str] = []
+    vtt_blocks: list[str] = []
+    cue_idx = 1
+    for seg in segments:
+        if not isinstance(seg, dict):
+            continue
+        text = _segment_text_for_srt(seg)
+        if not text:
+            continue
+        try:
+            start = max(0.0, float(seg.get("start", 0.0)))
+            end = max(0.0, float(seg.get("end", 0.0)))
+        except (TypeError, ValueError):
+            continue
+        if end <= start:
+            continue
+        srt_blocks.append(
+            f"{cue_idx}\n"
+            f"{subtitle_format_ts(start)} --> {subtitle_format_ts(end)}\n"
+            f"{text}\n"
+        )
+        vtt_blocks.append(
+            f"{cue_idx}\n"
+            f"{subtitle_format_ts(start, True)} --> {subtitle_format_ts(end, True)}\n"
+            f"{text}\n"
+        )
+        cue_idx += 1
+
+    with open(srt_path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(srt_blocks))
+        if srt_blocks:
+            handle.write("\n")
+
+    with open(vtt_path, "w", encoding="utf-8") as handle:
+        handle.write("WEBVTT\n\n")
+        handle.write("\n".join(vtt_blocks))
+        if vtt_blocks:
+            handle.write("\n")
+
+    return srt_path, vtt_path
+
+
+def _ctm_safe_utterance_id(name: str) -> str:
+    s = re.sub(r"\s+", "_", (name or "utt").strip())
+    return s or "utt"
+
+
+def _ctm_sanitize_token(text: str) -> str:
+    t = text.replace("\t", " ").replace("\n", " ").replace("\r", " ").strip()
+    return t if t else "<unk>"
+
+
+def write_word_ctm(path: str, utterance_id: str, word_rows: list[dict]) -> None:
+    """
+    NIST-style CTM (one word per line) for ASR / scoring interop.
+
+    Columns: utterance_id channel start_sec duration_sec word confidence
+    (channel is fixed to 1; confidence from CSV row or 1.0).
+    """
+    uid = _ctm_safe_utterance_id(utterance_id)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(";; CTM word timings (NIST-style). LingWhistX WX-608.\n")
+        handle.write(";; Columns: utterance channel start_sec duration_sec word confidence\n")
+        for row in word_rows:
+            w = _ctm_sanitize_token(str(row.get("word", "")))
+            start_v = row.get("start")
+            end_v = row.get("end")
+            try:
+                start = float(start_v) if start_v is not None else 0.0
+            except (TypeError, ValueError):
+                start = 0.0
+            try:
+                end = float(end_v) if end_v is not None else start
+            except (TypeError, ValueError):
+                end = start
+            dur = max(0.0, end - start)
+            conf_v = row.get("confidence")
+            try:
+                conf = float(conf_v) if conf_v is not None else 1.0
+            except (TypeError, ValueError):
+                conf = 1.0
+            handle.write(f"{uid} 1 {start:.4f} {dur:.4f} {w} {conf:.4f}\n")
+
+
+def try_write_parquet_dataset_tables(
+    dataset_dir: str,
+    word_rows: list[dict],
+    pause_rows: list[dict],
+    ipu_rows: list[dict],
+) -> dict[str, str]:
+    """
+    Optional Parquet mirrors of CSV tables. Requires pandas + pyarrow (pip install pandas pyarrow).
+    Returns mapping artifact_key -> absolute path for files actually written.
+    """
+    out: dict[str, str] = {}
+    try:
+        import pandas as pd
+    except ImportError:
+        return out
+    try:
+        import pyarrow  # noqa: F401
+    except ImportError:
+        return out
+
+    os.makedirs(dataset_dir, exist_ok=True)
+    if word_rows:
+        p = os.path.join(dataset_dir, "words.parquet")
+        pd.DataFrame(word_rows).to_parquet(p, index=False)
+        out["words_parquet"] = p
+    if pause_rows:
+        p = os.path.join(dataset_dir, "pauses.parquet")
+        pd.DataFrame(pause_rows).to_parquet(p, index=False)
+        out["pauses_parquet"] = p
+    if ipu_rows:
+        p = os.path.join(dataset_dir, "ipus.parquet")
+        pd.DataFrame(ipu_rows).to_parquet(p, index=False)
+        out["ipus_parquet"] = p
+    return out
+
+
+def write_open_science_dataset_readme(
+    path: str,
+    audio_basename: str,
+    parquet_written: dict[str, str],
+) -> None:
+    """README under output_dir/dataset/ describing the Open Science layout (WX-608)."""
+    lines = [
+        f"# Dataset bundle — `{audio_basename}`",
+        "",
+        "This folder is produced when `--export_parquet_dataset True` is used with data-science exports.",
+        "Tabular content mirrors the parent directory CSVs (`*.words.csv`, `*.pauses.csv`, `*.ipu.csv`).",
+        "",
+        "## Layout",
+        "",
+        "- `README.md` — this file",
+        "- `words.parquet` — word-level alignment (if pandas+pyarrow available)",
+        "- `pauses.parquet` — pause intervals",
+        "- `ipus.parquet` — inter-pausal units",
+        "",
+        "Sibling files (run root) include `*.words.ctm` (NIST-style word timings) when `--export_word_ctm True`.",
+        "Speaker-level RTTM remains optional via `--export_annotation_rttm` (WX-311), not duplicated here.",
+        "",
+        "## Parquet dependencies",
+        "",
+        "```bash",
+        "pip install pandas pyarrow",
+        "```",
+        "",
+        "## One-liner (pandas)",
+        "",
+        "```python",
+        "import pandas as pd",
+        'words = pd.read_parquet("words.parquet")',
+        "print(words.head())",
+        "```",
+        "",
+    ]
+    if not parquet_written:
+        lines.extend(
+            [
+                "## Note",
+                "",
+                "Parquet files were not written (missing pandas/pyarrow or empty tables).",
+                "",
+            ]
+        )
+    else:
+        lines.extend(["## Written in this run", ""])
+        for k, abs_p in sorted(parquet_written.items()):
+            lines.append(f"- `{os.path.basename(abs_p)}` (`{k}`)")
+        lines.append("")
+
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines))
+
+
 def write_data_science_exports(
     output_dir: str,
     audio_path: str,
     result: dict,
     run_metadata: Optional[dict] = None,
+    *,
+    export_word_ctm: bool = True,
+    export_parquet_dataset: bool = False,
 ) -> dict[str, str]:
     """
     Export normalized data-science artifacts derived from canonical timeline.
@@ -568,9 +809,50 @@ def write_data_science_exports(
     pauses_csv_path = os.path.join(output_dir, f"{audio_basename}.pauses.csv")
     ipu_csv_path = os.path.join(output_dir, f"{audio_basename}.ipu.csv")
     run_json_path = os.path.join(output_dir, f"{audio_basename}.run.json")
+    timeline_jsonl_path = os.path.join(output_dir, f"{audio_basename}.timeline.jsonl")
+    raw_segs = timeline_payload.get("segments")
+    segments_srt_path, segments_vtt_path = _write_segments_srt_vtt(
+        output_dir,
+        audio_basename,
+        raw_segs if isinstance(raw_segs, list) else [],
+    )
 
     with open(timeline_path, "w", encoding="utf-8") as handle:
         json.dump(timeline_payload, handle, ensure_ascii=False, indent=2)
+
+    def _timeline_jsonl_lines() -> list[dict]:
+        lines: list[dict] = []
+        for w in words:
+            if isinstance(w, dict):
+                lines.append({"object": "word", "data": w})
+        segs = timeline_payload.get("segments")
+        if isinstance(segs, list):
+            for s in segs:
+                if isinstance(s, dict):
+                    lines.append({"object": "segment", "data": s})
+        st = timeline_payload.get("speaker_turns")
+        if isinstance(st, list):
+            for t in st:
+                if isinstance(t, dict):
+                    lines.append({"object": "speaker_turn", "data": t})
+        if isinstance(analysis_payload, dict):
+            for p in pauses:
+                if isinstance(p, dict):
+                    lines.append({"object": "pause", "data": p})
+            for ipu in ipus:
+                if isinstance(ipu, dict):
+                    lines.append({"object": "ipu", "data": ipu})
+            for tr in analysis_payload.get("transitions") or []:
+                if isinstance(tr, dict):
+                    lines.append({"object": "transition", "data": tr})
+            for ov in analysis_payload.get("overlaps") or []:
+                if isinstance(ov, dict):
+                    lines.append({"object": "overlap", "data": ov})
+        return lines
+
+    with open(timeline_jsonl_path, "w", encoding="utf-8") as handle:
+        for row in _timeline_jsonl_lines():
+            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     word_rows: list[dict] = []
     for raw_word in words:
@@ -636,6 +918,20 @@ def write_data_science_exports(
         ipu_rows,
     )
 
+    word_ctm_path = os.path.join(output_dir, f"{audio_basename}.words.ctm")
+    if export_word_ctm and word_rows:
+        write_word_ctm(word_ctm_path, audio_basename, word_rows)
+
+    dataset_dir = os.path.join(output_dir, "dataset")
+    dataset_readme_path = os.path.join(dataset_dir, "README.md")
+    parquet_written: dict[str, str] = {}
+    if export_parquet_dataset:
+        os.makedirs(dataset_dir, exist_ok=True)
+        parquet_written = try_write_parquet_dataset_tables(
+            dataset_dir, word_rows, pause_rows, ipu_rows
+        )
+        write_open_science_dataset_readme(dataset_readme_path, audio_basename, parquet_written)
+
     metadata = dict(run_metadata or {})
     metadata.setdefault("schemaVersion", 1)
     metadata.setdefault(
@@ -645,10 +941,25 @@ def write_data_science_exports(
     metadata["artifacts"] = {
         "runJson": os.path.basename(run_json_path),
         "timelineJson": os.path.basename(timeline_path),
+        "timelineJsonl": os.path.basename(timeline_jsonl_path),
+        "segmentsSrt": os.path.basename(segments_srt_path),
+        "segmentsVtt": os.path.basename(segments_vtt_path),
         "wordsCsv": os.path.basename(words_csv_path),
         "pausesCsv": os.path.basename(pauses_csv_path),
         "ipuCsv": os.path.basename(ipu_csv_path),
     }
+    if export_word_ctm and word_rows:
+        metadata["artifacts"]["wordCtm"] = os.path.basename(word_ctm_path)
+    if export_parquet_dataset:
+        metadata["artifacts"]["datasetReadme"] = "dataset/README.md"
+        for rel_key, basename in (
+            ("wordsParquet", "words.parquet"),
+            ("pausesParquet", "pauses.parquet"),
+            ("ipusParquet", "ipus.parquet"),
+        ):
+            p = os.path.join(dataset_dir, basename)
+            if os.path.isfile(p):
+                metadata["artifacts"][rel_key] = f"dataset/{basename}"
     metadata["counts"] = {
         "segments": len(timeline_payload.get("segments", [])) if isinstance(timeline_payload.get("segments"), list) else 0,
         "words": len(words),
@@ -661,13 +972,56 @@ def write_data_science_exports(
     with open(run_json_path, "w", encoding="utf-8") as handle:
         json.dump(metadata, handle, ensure_ascii=False, indent=2)
 
-    return {
+    from whisperx.run_manifest import RunManifestBuildInput, build_run_manifest_v1, write_run_manifest_v1_file
+
+    artifact_rel = {
+        "run_json": os.path.basename(run_json_path),
+        "timeline_json": os.path.basename(timeline_path),
+        "timeline_jsonl": os.path.basename(timeline_jsonl_path),
+        "segments_srt": os.path.basename(segments_srt_path),
+        "segments_vtt": os.path.basename(segments_vtt_path),
+        "words_csv": os.path.basename(words_csv_path),
+        "pauses_csv": os.path.basename(pauses_csv_path),
+        "ipu_csv": os.path.basename(ipu_csv_path),
+    }
+    if export_word_ctm and word_rows:
+        artifact_rel["word_ctm"] = os.path.basename(word_ctm_path)
+    if export_parquet_dataset:
+        artifact_rel["dataset_readme"] = "dataset/README.md"
+        for basename in ("words.parquet", "pauses.parquet", "ipus.parquet"):
+            p = os.path.join(dataset_dir, basename)
+            if os.path.isfile(p):
+                key = basename.replace(".", "_")
+                artifact_rel[key] = f"dataset/{basename}"
+    manifest_inp = RunManifestBuildInput(
+        output_dir=output_dir,
+        audio_path=audio_path,
+        artifact_keys_to_rel_path=artifact_rel,
+        run_metadata=metadata,
+        run_id=metadata.get("runId") if isinstance(metadata.get("runId"), str) else None,
+        warnings=list(w) if isinstance((w := metadata.get("warnings")), list) else [],
+        pipeline_chunking=result.get("pipeline_chunking") if isinstance(result, dict) else None,
+    )
+    manifest_payload = build_run_manifest_v1(manifest_inp)
+    run_manifest_path = write_run_manifest_v1_file(output_dir, manifest_payload)
+
+    out_paths: dict[str, str] = {
         "run_json": run_json_path,
         "timeline_json": timeline_path,
+        "timeline_jsonl": timeline_jsonl_path,
+        "segments_srt": segments_srt_path,
+        "segments_vtt": segments_vtt_path,
         "words_csv": words_csv_path,
         "pauses_csv": pauses_csv_path,
         "ipu_csv": ipu_csv_path,
+        "run_manifest_json": run_manifest_path,
     }
+    if export_word_ctm and word_rows:
+        out_paths["word_ctm"] = word_ctm_path
+    if export_parquet_dataset:
+        out_paths["dataset_readme"] = dataset_readme_path
+        out_paths.update({k: v for k, v in parquet_written.items()})
+    return out_paths
 
 def interpolate_nans(x, method='nearest'):
     if x.notnull().sum() > 1:

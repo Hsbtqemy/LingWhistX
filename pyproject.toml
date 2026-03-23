@@ -9,6 +9,8 @@ requires-python = ">=3.10, <3.14"
 license = { text = "BSD-2-Clause" }
 
 dependencies = [
+    "pyyaml>=6.0.0",
+    "tomli>=2.0.1; python_version < '3.11'",
     "ctranslate2>=4.5.0",
     "faster-whisper>=1.1.1",
     "nltk>=3.9.1",
@@ -67,3 +69,9 @@ explicit = true
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: téléchargement réseau + ASR complet (exclure avec -m \"not integration\")",
+]
+addopts = ["-m", "not integration"]

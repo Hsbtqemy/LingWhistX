@@ -14,46 +14,46 @@ import torch
 from whisperx.alignment import align, load_align_model
 from whisperx.asr import load_model
 from whisperx.audio import load_audio, probe_audio_duration
+from whisperx.chunk_merge import (
+    _offset_and_filter_chunk_segments,
+    compute_media_chunk_specs,
+    load_chunk_raw_result,
+    manifest_compatible_with_run,
+    new_chunk_manifest,
+    read_chunk_manifest,
+    save_chunk_raw_result,
+    write_chunk_manifest,
+    write_words_jsonl_for_segments,
+)
 from whisperx.diarize import DiarizationPipeline, assign_word_speakers
+from whisperx.external_alignment import (
+    ExternalAlignmentError,
+    apply_external_word_timings_to_result,
+    load_external_word_timings_json,
+)
 from whisperx.schema import AlignedTranscriptionResult, TranscriptionResult
-from whisperx.timeline import build_canonical_timeline
-from whisperx.utils import LANGUAGES, TO_LANGUAGE_CODE, get_writer, write_data_science_exports
+from whisperx.timeline import (
+    DEFAULT_ANALYSIS_INCLUDE_NONSPEECH,
+    DEFAULT_IPU_BRIDGE_SHORT_GAPS_UNDER,
+    DEFAULT_IPU_MIN_DURATION,
+    DEFAULT_IPU_MIN_WORDS,
+    DEFAULT_NONSPEECH_MIN_DURATION,
+    DEFAULT_PAUSE_IGNORE_BELOW,
+    DEFAULT_PAUSE_MIN,
+    SPEAKER_TURN_POSTPROCESS_PRESETS,
+    build_canonical_timeline,
+)
+from whisperx.annotation_exports import write_annotation_exports
+from whisperx.utils import (
+    LANGUAGES,
+    TO_LANGUAGE_CODE,
+    as_float,
+    get_writer,
+    write_data_science_exports,
+)
 from whisperx.log_utils import get_logger
 
 logger = get_logger(__name__)
-
-
-def _as_float(value: Any, default: float = 0.0) -> float:
-    try:
-        numeric = float(value)
-    except (TypeError, ValueError):
-        return default
-    if not np.isfinite(numeric):
-        return default
-    return numeric
-
-
-def _offset_and_filter_chunk_segments(
-    chunk_result: dict[str, Any],
-    chunk_start_sec: float,
-    selection_end_sec: float | None,
-) -> list[dict[str, Any]]:
-    merged_segments: list[dict[str, Any]] = []
-    for segment in chunk_result.get("segments", []):
-        if not isinstance(segment, dict):
-            continue
-        next_segment = dict(segment)
-        start = _as_float(next_segment.get("start"), 0.0) + chunk_start_sec
-        end = _as_float(next_segment.get("end"), start) + chunk_start_sec
-        if end < start:
-            start, end = end, start
-        midpoint = (start + end) / 2.0
-        if selection_end_sec is not None and midpoint > selection_end_sec + 1e-6:
-            continue
-        next_segment["start"] = round(start, 3)
-        next_segment["end"] = round(end, 3)
-        merged_segments.append(next_segment)
-    return merged_segments
 
 
 def _transcribe_with_media_chunking(
@@ -65,6 +65,10 @@ def _transcribe_with_media_chunking(
     verbose: bool,
     pipeline_chunk_seconds: float | None,
     pipeline_chunk_overlap_seconds: float,
+    *,
+    chunk_state_dir: str | None = None,
+    chunk_resume: bool = False,
+    chunk_jsonl_per_chunk: bool = False,
 ) -> TranscriptionResult:
     def _single_pass(mode: str, duration_sec: float | None = None) -> TranscriptionResult:
         audio = load_audio(audio_path)
@@ -119,52 +123,156 @@ def _transcribe_with_media_chunking(
         step_sec,
     )
 
+    specs = compute_media_chunk_specs(
+        duration_sec,
+        pipeline_chunk_seconds,
+        pipeline_chunk_overlap_seconds,
+    )
+    manifest_path: str | None = None
+    manifest: dict[str, Any] | None = None
+    audio_stem = os.path.splitext(os.path.basename(audio_path))[0]
+    if chunk_state_dir:
+        os.makedirs(chunk_state_dir, exist_ok=True)
+        manifest_path = os.path.join(chunk_state_dir, "chunk_manifest.json")
+        existing = read_chunk_manifest(manifest_path) if chunk_resume else None
+        use_existing = (
+            existing
+            and manifest_compatible_with_run(
+                existing,
+                audio_path,
+                duration_sec,
+                pipeline_chunk_seconds,
+                pipeline_chunk_overlap_seconds,
+            )
+            and len(existing.get("chunks") or []) == len(specs)
+        )
+        if chunk_resume and existing and not use_existing:
+            logger.warning(
+                "Chunk manifest missing, incompatible, or chunk count mismatch; starting a fresh manifest.",
+            )
+        if use_existing and existing is not None:
+            manifest = existing
+        else:
+            manifest = new_chunk_manifest(
+                audio_path,
+                duration_sec,
+                pipeline_chunk_seconds,
+                pipeline_chunk_overlap_seconds,
+                step_sec,
+                specs,
+            )
+            write_chunk_manifest(manifest_path, manifest)
+
     merged_segments: list[dict[str, Any]] = []
     chunk_windows: list[dict[str, Any]] = []
     detected_language: str | None = None
-    chunk_index = 0
-    chunk_start = 0.0
 
-    while chunk_start < duration_sec - 1e-6:
-        remaining = duration_sec - chunk_start
-        chunk_duration = min(pipeline_chunk_seconds, remaining)
-        chunk_audio = load_audio(
-            audio_path,
-            start_time=chunk_start,
-            duration=chunk_duration,
-        )
-        if chunk_audio.size == 0:
-            break
+    for spec in specs:
+        chunk_index = int(spec["index"])
+        chunk_start = float(spec["start_sec"])
+        chunk_duration = float(spec["duration_sec"])
+        selection_end = spec["selection_end_sec"]
+        sel_end_f = float(selection_end) if selection_end is not None else None
 
-        chunk_result = model.transcribe(
-            chunk_audio,
-            batch_size=batch_size,
-            chunk_size=chunk_size,
-            print_progress=print_progress,
-            verbose=verbose,
-        )
+        chunk_result: dict[str, Any]
+        entry: dict[str, Any] | None = None
+        if manifest is not None:
+            entry = manifest["chunks"][chunk_index - 1]
+            art = entry.get("artifact")
+            artifact_path = (
+                os.path.join(chunk_state_dir, str(art))
+                if chunk_state_dir and isinstance(art, str)
+                else ""
+            )
+            if (
+                chunk_resume
+                and entry.get("status") == "done"
+                and artifact_path
+                and os.path.isfile(artifact_path)
+            ):
+                raw = load_chunk_raw_result(artifact_path)
+                chunk_result = {
+                    "segments": raw.get("segments") if isinstance(raw.get("segments"), list) else [],
+                    "language": raw.get("language"),
+                }
+                logger.info(
+                    "Resuming chunk #%d from artifact (offset %.2fs, window %.2fs).",
+                    chunk_index,
+                    chunk_start,
+                    chunk_duration,
+                )
+            else:
+                chunk_audio = load_audio(
+                    audio_path,
+                    start_time=chunk_start,
+                    duration=chunk_duration,
+                )
+                if chunk_audio.size == 0:
+                    logger.warning("Empty chunk audio at offset %.2fs; skipping chunk #%d.", chunk_start, chunk_index)
+                    if entry is not None:
+                        entry["status"] = "failed"
+                        if manifest_path:
+                            write_chunk_manifest(manifest_path, manifest)
+                    continue
+                try:
+                    chunk_result = model.transcribe(
+                        chunk_audio,
+                        batch_size=batch_size,
+                        chunk_size=chunk_size,
+                        print_progress=print_progress,
+                        verbose=verbose,
+                    )
+                except Exception:
+                    if entry is not None:
+                        entry["status"] = "failed"
+                        if manifest_path:
+                            write_chunk_manifest(manifest_path, manifest)
+                    raise
+                if chunk_state_dir:
+                    save_chunk_raw_result(chunk_state_dir, chunk_index, chunk_result)
+                    if entry is not None:
+                        entry["status"] = "done"
+                    if manifest_path:
+                        write_chunk_manifest(manifest_path, manifest)
+        else:
+            chunk_audio = load_audio(
+                audio_path,
+                start_time=chunk_start,
+                duration=chunk_duration,
+            )
+            if chunk_audio.size == 0:
+                logger.warning(
+                    "Empty chunk audio at offset %.2fs; skipping chunk #%d (no manifest).",
+                    chunk_start,
+                    chunk_index,
+                )
+                continue
+            chunk_result = model.transcribe(
+                chunk_audio,
+                batch_size=batch_size,
+                chunk_size=chunk_size,
+                print_progress=print_progress,
+                verbose=verbose,
+            )
+
         if detected_language is None:
             language = chunk_result.get("language")
             if isinstance(language, str) and language.strip():
                 detected_language = language.strip()
 
-        selection_end = None
-        if chunk_start + step_sec < duration_sec - 1e-6:
-            selection_end = chunk_start + step_sec
         chunk_segments = _offset_and_filter_chunk_segments(
             chunk_result,
             chunk_start,
-            selection_end,
+            sel_end_f,
         )
         merged_segments.extend(chunk_segments)
 
-        chunk_index += 1
         chunk_windows.append(
             {
                 "index": chunk_index,
                 "start": round(chunk_start, 3),
                 "duration": round(chunk_duration, 3),
-                "selection_end": round(selection_end, 3) if selection_end is not None else None,
+                "selection_end": round(sel_end_f, 3) if sel_end_f is not None else None,
                 "emitted_segments": len(chunk_segments),
             }
         )
@@ -174,29 +282,41 @@ def _transcribe_with_media_chunking(
             chunk_start,
             chunk_duration,
         )
-        if chunk_start + pipeline_chunk_seconds >= duration_sec - 1e-6:
-            break
-        chunk_start += step_sec
+
+        if chunk_state_dir and chunk_jsonl_per_chunk:
+            jsonl_path = os.path.join(
+                chunk_state_dir,
+                f"{audio_stem}.chunk_{chunk_index:04d}.jsonl",
+            )
+            write_words_jsonl_for_segments(jsonl_path, chunk_segments)
 
     merged_segments.sort(
         key=lambda segment: (
-            _as_float(segment.get("start"), 0.0),
-            _as_float(segment.get("end"), 0.0),
+            as_float(segment.get("start"), 0.0),
+            as_float(segment.get("end"), 0.0),
         )
     )
+
+    pc: dict[str, Any] = {
+        "enabled": True,
+        "mode": "chunked",
+        "chunk_seconds": round(pipeline_chunk_seconds, 3),
+        "overlap_seconds": round(pipeline_chunk_overlap_seconds, 3),
+        "step_seconds": round(step_sec, 3),
+        "source_duration": round(duration_sec, 3),
+        "windows": chunk_windows,
+    }
+    if chunk_state_dir:
+        pc["chunk_state_dir"] = os.path.abspath(chunk_state_dir)
+        if manifest_path:
+            pc["chunk_manifest_path"] = os.path.abspath(manifest_path)
+        pc["chunk_resume"] = bool(chunk_resume)
+        pc["chunk_jsonl_per_chunk"] = bool(chunk_jsonl_per_chunk)
 
     return {
         "segments": merged_segments,
         "language": detected_language,
-        "pipeline_chunking": {
-            "enabled": True,
-            "mode": "chunked",
-            "chunk_seconds": round(pipeline_chunk_seconds, 3),
-            "overlap_seconds": round(pipeline_chunk_overlap_seconds, 3),
-            "step_seconds": round(step_sec, 3),
-            "source_duration": round(duration_sec, 3),
-            "windows": chunk_windows,
-        },
+        "pipeline_chunking": pc,
     }
 
 
@@ -345,6 +465,14 @@ def _run_analyze_only(
         result=source_result,
         run_metadata=run_metadata,
     )
+    write_annotation_exports(
+        output_dir=analysis_output_dir,
+        audio_path=pseudo_audio_path,
+        result=source_result,
+        rttm=bool(run_config_snapshot.get("export_annotation_rttm")),
+        textgrid=bool(run_config_snapshot.get("export_annotation_textgrid")),
+        eaf=bool(run_config_snapshot.get("export_annotation_eaf")),
+    )
     logger.info("Analyze-only completed. Artifacts written to: %s", analysis_output_dir)
 
 
@@ -430,10 +558,35 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
     analysis_ipu_min_words: int = args.pop("analysis_ipu_min_words")
     analysis_ipu_min_duration: float = args.pop("analysis_ipu_min_duration")
     analysis_ipu_bridge_short_gaps_under: float = args.pop("analysis_ipu_bridge_short_gaps_under")
+    analysis_preset: str | None = args.pop("analysis_preset")
+    analysis_calibrate_window_sec: float | None = args.pop("analysis_calibrate_window_sec")
+    analysis_calibrate_start_sec: float = args.pop("analysis_calibrate_start_sec")
+    analysis_speaker_turn_postprocess_preset: str | None = args.pop("analysis_speaker_turn_postprocess_preset")
+    analysis_speaker_turn_merge_gap_sec_max: float | None = args.pop("analysis_speaker_turn_merge_gap_sec_max")
+    analysis_speaker_turn_split_word_gap_sec: float | None = args.pop("analysis_speaker_turn_split_word_gap_sec")
+    analysis_word_timestamp_stabilize_mode: str = args.pop("analysis_word_timestamp_stabilize_mode")
+    analysis_word_ts_neighbor_ratio_low: float | None = args.pop("analysis_word_ts_neighbor_ratio_low")
+    analysis_word_ts_neighbor_ratio_high: float | None = args.pop("analysis_word_ts_neighbor_ratio_high")
+    analysis_word_ts_smooth_max_sec: float | None = args.pop("analysis_word_ts_smooth_max_sec")
     export_data_science: bool = args.pop("export_data_science")
+    export_annotation_rttm: bool = args.pop("export_annotation_rttm")
+    export_annotation_textgrid: bool = args.pop("export_annotation_textgrid")
+    export_annotation_eaf: bool = args.pop("export_annotation_eaf")
+    export_word_ctm: bool = args.pop("export_word_ctm")
+    export_parquet_dataset: bool = args.pop("export_parquet_dataset")
     analyze_only_from: str | None = args.pop("analyze_only_from")
     if isinstance(analyze_only_from, str):
         analyze_only_from = analyze_only_from.strip() or None
+
+    chunk_state_dir_arg: str | None = args.pop("chunk_state_dir")
+    if isinstance(chunk_state_dir_arg, str):
+        chunk_state_dir_arg = chunk_state_dir_arg.strip() or None
+    chunk_resume: bool = args.pop("chunk_resume")
+    chunk_jsonl_per_chunk: bool = args.pop("chunk_jsonl_per_chunk")
+    external_word_timings_json: str | None = args.pop("external_word_timings_json")
+    external_word_timings_strict: bool = args.pop("external_word_timings_strict")
+    if isinstance(external_word_timings_json, str):
+        external_word_timings_json = external_word_timings_json.strip() or None
 
     if return_speaker_embeddings and not diarize:
         warnings.warn("--speaker_embeddings has no effect without --diarize")
@@ -468,6 +621,39 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
         parser.error("--analysis_ipu_min_duration must be >= 0")
     if analysis_ipu_bridge_short_gaps_under < 0:
         parser.error("--analysis_ipu_bridge_short_gaps_under must be >= 0")
+    if analysis_calibrate_start_sec < 0:
+        parser.error("--analysis_calibrate_start_sec must be >= 0")
+    if analysis_calibrate_window_sec is not None and analysis_calibrate_window_sec <= 0:
+        parser.error("--analysis_calibrate_window_sec must be > 0 when set")
+    if isinstance(analysis_speaker_turn_postprocess_preset, str):
+        analysis_speaker_turn_postprocess_preset = analysis_speaker_turn_postprocess_preset.strip() or None
+    else:
+        analysis_speaker_turn_postprocess_preset = None
+    if (
+        analysis_speaker_turn_postprocess_preset
+        and analysis_speaker_turn_postprocess_preset not in SPEAKER_TURN_POSTPROCESS_PRESETS
+    ):
+        parser.error(
+            "--analysis_speaker_turn_postprocess_preset must be one of: "
+            + ", ".join(sorted(SPEAKER_TURN_POSTPROCESS_PRESETS))
+        )
+    if analysis_speaker_turn_merge_gap_sec_max is not None and analysis_speaker_turn_merge_gap_sec_max < 0:
+        parser.error("--analysis_speaker_turn_merge_gap_sec_max must be >= 0")
+    if analysis_speaker_turn_split_word_gap_sec is not None and analysis_speaker_turn_split_word_gap_sec <= 0:
+        parser.error("--analysis_speaker_turn_split_word_gap_sec must be > 0 when set")
+    wts_mode = (
+        analysis_word_timestamp_stabilize_mode.strip().lower()
+        if isinstance(analysis_word_timestamp_stabilize_mode, str)
+        else "off"
+    )
+    if wts_mode not in ("off", "detect", "smooth"):
+        parser.error("--analysis_word_timestamp_stabilize_mode must be one of: off, detect, smooth")
+    if analysis_word_ts_neighbor_ratio_low is not None and analysis_word_ts_neighbor_ratio_low <= 0:
+        parser.error("--analysis_word_ts_neighbor_ratio_low must be > 0 when set")
+    if analysis_word_ts_neighbor_ratio_high is not None and analysis_word_ts_neighbor_ratio_high <= 1.0:
+        parser.error("--analysis_word_ts_neighbor_ratio_high must be > 1 when set")
+    if analysis_word_ts_smooth_max_sec is not None and analysis_word_ts_smooth_max_sec <= 0:
+        parser.error("--analysis_word_ts_smooth_max_sec must be > 0 when set")
 
     timeline_analysis_config = {
         "pause_min": analysis_pause_min,
@@ -479,6 +665,27 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
         "ipu_min_duration": analysis_ipu_min_duration,
         "ipu_bridge_short_gaps_under": analysis_ipu_bridge_short_gaps_under,
     }
+    if isinstance(analysis_preset, str) and analysis_preset.strip():
+        timeline_analysis_config["analysis_preset"] = analysis_preset.strip()
+    if analysis_calibrate_window_sec is not None and analysis_calibrate_window_sec > 0:
+        timeline_analysis_config["calibration"] = {
+            "window_sec": float(analysis_calibrate_window_sec),
+            "start_sec": float(analysis_calibrate_start_sec),
+        }
+    if analysis_speaker_turn_postprocess_preset:
+        timeline_analysis_config["speaker_turn_postprocess_preset"] = analysis_speaker_turn_postprocess_preset
+    if analysis_speaker_turn_merge_gap_sec_max is not None:
+        timeline_analysis_config["speaker_turn_merge_gap_sec_max"] = float(analysis_speaker_turn_merge_gap_sec_max)
+    if analysis_speaker_turn_split_word_gap_sec is not None:
+        timeline_analysis_config["speaker_turn_split_word_gap_sec"] = float(analysis_speaker_turn_split_word_gap_sec)
+    if wts_mode != "off":
+        timeline_analysis_config["word_timestamp_stabilize_mode"] = wts_mode
+    if analysis_word_ts_neighbor_ratio_low is not None:
+        timeline_analysis_config["word_ts_neighbor_ratio_low"] = float(analysis_word_ts_neighbor_ratio_low)
+    if analysis_word_ts_neighbor_ratio_high is not None:
+        timeline_analysis_config["word_ts_neighbor_ratio_high"] = float(analysis_word_ts_neighbor_ratio_high)
+    if analysis_word_ts_smooth_max_sec is not None:
+        timeline_analysis_config["word_ts_smooth_max_sec"] = float(analysis_word_ts_smooth_max_sec)
     if args["language"] is not None:
         args["language"] = args["language"].lower()
         if args["language"] not in LANGUAGES:
@@ -563,7 +770,30 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
         "vad_offset": vad_offset,
         "analysis": timeline_analysis_config,
         "export_data_science": export_data_science,
+        "export_annotation_rttm": export_annotation_rttm,
+        "export_annotation_textgrid": export_annotation_textgrid,
+        "export_annotation_eaf": export_annotation_eaf,
+        "export_word_ctm": export_word_ctm,
+        "export_parquet_dataset": export_parquet_dataset,
+        "chunk_state_dir": chunk_state_dir_arg,
+        "chunk_resume": chunk_resume,
+        "chunk_jsonl_per_chunk": chunk_jsonl_per_chunk,
+        "external_word_timings_json": external_word_timings_json,
+        "external_word_timings_strict": external_word_timings_strict,
     }
+
+    audio_list = args.get("audio")
+    if external_word_timings_json:
+        if not isinstance(audio_list, list) or len(audio_list) != 1:
+            parser.error("--external_word_timings_json requires exactly one audio file.")
+        if no_align:
+            parser.error("--external_word_timings_json requires word-level alignment (omit --no_align).")
+    external_timings_payload: dict[str, Any] | None = None
+    if external_word_timings_json:
+        try:
+            external_timings_payload = load_external_word_timings_json(external_word_timings_json)
+        except ExternalAlignmentError as exc:
+            parser.error(str(exc))
 
     if analyze_only_from is not None:
         _run_analyze_only(
@@ -598,9 +828,18 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
         use_auth_token=hf_token,
     )
 
+    if chunk_state_dir_arg and pipeline_chunk_seconds is None:
+        warnings.warn(
+            "--chunk_state_dir has no effect without --pipeline_chunk_seconds (single-pass transcription).",
+        )
+
     for audio_path in args.pop("audio"):
         # >> VAD & ASR
         logger.info("Performing transcription...")
+        chunk_state_full: str | None = None
+        if chunk_state_dir_arg:
+            stem = os.path.splitext(os.path.basename(audio_path))[0]
+            chunk_state_full = os.path.join(chunk_state_dir_arg, stem)
         result: TranscriptionResult = _transcribe_with_media_chunking(
             model,
             audio_path,
@@ -610,6 +849,9 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
             verbose=verbose,
             pipeline_chunk_seconds=pipeline_chunk_seconds,
             pipeline_chunk_overlap_seconds=pipeline_chunk_overlap_seconds,
+            chunk_state_dir=chunk_state_full,
+            chunk_resume=chunk_resume,
+            chunk_jsonl_per_chunk=chunk_jsonl_per_chunk,
         )
         results.append((result, audio_path))
 
@@ -697,6 +939,22 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
     for result, audio_path in results:
         if result.get("language") is None:
             result["language"] = args["language"] if args["language"] is not None else align_language
+        if external_timings_payload is not None and external_word_timings_json:
+            try:
+                meta = apply_external_word_timings_to_result(
+                    result,
+                    external_timings_payload,
+                    source_path=external_word_timings_json,
+                    strict_token_match=external_word_timings_strict,
+                )
+                result["external_alignment"] = meta
+                logger.info(
+                    "Applied external word timings (%d words) from %s.",
+                    meta["n_words_applied"],
+                    external_word_timings_json,
+                )
+            except ExternalAlignmentError as exc:
+                parser.error(str(exc))
         result["timeline"] = build_canonical_timeline(
             result,
             analysis_config=timeline_analysis_config,
@@ -724,4 +982,106 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
                 audio_path=audio_path,
                 result=result,
                 run_metadata=run_metadata,
+                export_word_ctm=export_word_ctm,
+                export_parquet_dataset=export_parquet_dataset,
             )
+        write_annotation_exports(
+            output_dir=output_dir,
+            audio_path=audio_path,
+            result=result,
+            rttm=export_annotation_rttm,
+            textgrid=export_annotation_textgrid,
+            eaf=export_annotation_eaf,
+        )
+
+
+def export_only_task(args: dict, parser: argparse.ArgumentParser) -> None:
+    """Re-export subtitle/data-science artifacts from an existing JSON without running ASR."""
+    for key in ("command", "config", "immutable_run", "runs_root", "verbose", "log_level"):
+        args.pop(key, None)
+    for key in ("chunk_state_dir", "chunk_resume", "chunk_jsonl_per_chunk"):
+        args.pop(key, None)
+    for key in (
+        "analysis_speaker_turn_postprocess_preset",
+        "analysis_speaker_turn_merge_gap_sec_max",
+        "analysis_speaker_turn_split_word_gap_sec",
+        "analysis_word_timestamp_stabilize_mode",
+        "analysis_word_ts_neighbor_ratio_low",
+        "analysis_word_ts_neighbor_ratio_high",
+        "analysis_word_ts_smooth_max_sec",
+    ):
+        args.pop(key, None)
+    for key in ("external_word_timings_json", "external_word_timings_strict"):
+        args.pop(key, None)
+    from_json = args.pop("export_from_json")
+    output_dir = args.pop("output_dir")
+    output_format = args.pop("output_format")
+    export_data_science = args.pop("export_data_science", True)
+    export_annotation_rttm = args.pop("export_annotation_rttm", False)
+    export_annotation_textgrid = args.pop("export_annotation_textgrid", False)
+    export_annotation_eaf = args.pop("export_annotation_eaf", False)
+    export_word_ctm = args.pop("export_word_ctm", True)
+    export_parquet_dataset = args.pop("export_parquet_dataset", False)
+    if args:
+        unknown = ", ".join(sorted(args.keys()))
+        parser.error(f"Unexpected arguments for export: {unknown}")
+
+    os.makedirs(output_dir, exist_ok=True)
+    with open(from_json, "r", encoding="utf-8") as handle:
+        result: dict[str, Any] = json.load(handle)
+
+    timeline_analysis_config = {
+        "pause_min": DEFAULT_PAUSE_MIN,
+        "pause_ignore_below": DEFAULT_PAUSE_IGNORE_BELOW,
+        "pause_max": None,
+        "include_nonspeech": DEFAULT_ANALYSIS_INCLUDE_NONSPEECH,
+        "nonspeech_min_duration": DEFAULT_NONSPEECH_MIN_DURATION,
+        "ipu_min_words": DEFAULT_IPU_MIN_WORDS,
+        "ipu_min_duration": DEFAULT_IPU_MIN_DURATION,
+        "ipu_bridge_short_gaps_under": DEFAULT_IPU_BRIDGE_SHORT_GAPS_UNDER,
+    }
+    result["timeline"] = build_canonical_timeline(
+        result,
+        analysis_config=timeline_analysis_config,
+    )
+
+    writer = get_writer(output_format, output_dir)
+    writer_args = {
+        "highlight_words": False,
+        "max_line_count": None,
+        "max_line_width": None,
+        "segment_resolution": "sentence",
+    }
+    writer(result, from_json, writer_args)
+
+    if export_data_science:
+        try:
+            whisperx_version = importlib.metadata.version("whisperx")
+        except importlib.metadata.PackageNotFoundError:
+            whisperx_version = "unknown"
+        run_metadata = {
+            "generatedAt": datetime.now(timezone.utc).isoformat(),
+            "mode": "export_only",
+            "input": {"sourceJsonPath": os.path.abspath(from_json)},
+            "versions": {
+                "whisperx": whisperx_version,
+                "python": platform.python_version(),
+                "torch": getattr(torch, "__version__", "unknown"),
+            },
+        }
+        write_data_science_exports(
+            output_dir=output_dir,
+            audio_path=from_json,
+            result=result,
+            run_metadata=run_metadata,
+            export_word_ctm=export_word_ctm,
+            export_parquet_dataset=export_parquet_dataset,
+        )
+    write_annotation_exports(
+        output_dir=output_dir,
+        audio_path=from_json,
+        result=result,
+        rttm=bool(export_annotation_rttm),
+        textgrid=bool(export_annotation_textgrid),
+        eaf=bool(export_annotation_eaf),
+    )

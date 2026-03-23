@@ -1,637 +1,1338 @@
-﻿{
-    "schemaVersion":  1,
-    "updatedAt":  "2026-03-20T16:12:35+01:00",
-    "statuses":  [
-                     "todo",
-                     "in_progress",
-                     "blocked",
-                     "done"
-                 ],
-    "tasks":  [
-                  {
-                      "id":  "WX-201",
-                      "title":  "Edition temporelle start/end sur waveform",
-                      "status":  "done",
-                      "priority":  "P0",
-                      "estimate":  "2d",
-                      "dependsOn":  [
-
-                                    ],
-                      "scope":  [
-                                    "src/App.tsx",
-                                    "src/App.css",
-                                    "src-tauri/src/lib.rs"
-                                ],
-                      "execute":  [
-                                      "npm run build",
-                                      "cargo check"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Chaque segment editable expose start/end dans l UI.",
-                                               "L utilisateur peut modifier start/end par drag handles sur la waveform.",
-                                               "Les valeurs restent bornees et coherent start \u003c= end."
-                                           ],
-                      "acceptance":  [
-                                         "Drag gauche/droite met a jour start/end en temps reel.",
-                                         "Le seek lecteur suit les changements sans freeze \u003e 200ms.",
-                                         "Export JSON conserve les nouvelles bornes."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-202",
-                      "title":  "Zoom timeline + snap temporel + raccourcis clavier",
-                      "status":  "done",
-                      "priority":  "P1",
-                      "estimate":  "1.5d",
-                      "dependsOn":  [
-                                        "WX-201"
-                                    ],
-                      "scope":  [
-                                    "src/App.tsx",
-                                    "src/App.css"
-                                ],
-                      "execute":  [
-                                      "npm run build"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Zoom horizontal de la waveform disponible (x1 a x20).",
-                                               "Snap optionnel au pas configurable (10/20/40 ms).",
-                                               "Raccourcis clavier pour seek fin et navigation segment."
-                                           ],
-                      "acceptance":  [
-                                         "Ctrl+molette zoome autour du curseur.",
-                                         "Le snap peut etre active/desactive sans rechargement.",
-                                         "Touches J/K/L ou equivalent fonctionnent avec focus editor."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-203",
-                      "title":  "Split et merge de segments sur curseur",
-                      "status":  "done",
-                      "priority":  "P0",
-                      "estimate":  "1.5d",
-                      "dependsOn":  [
-                                        "WX-201"
-                                    ],
-                      "scope":  [
-                                    "src/App.tsx",
-                                    "src-tauri/src/lib.rs"
-                                ],
-                      "execute":  [
-                                      "npm run build",
-                                      "cargo check"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Split segment a la position curseur.",
-                                               "Merge segment courant avec precedent/suivant.",
-                                               "UI garde textes et speakers coherents apres operation."
-                                           ],
-                      "acceptance":  [
-                                         "Split cree deux segments continus sans overlap.",
-                                         "Merge concatene texte avec normalisation d espaces.",
-                                         "Annulation operation impossible tant que save non fait est signalee."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-204",
-                      "title":  "Pile undo/redo unifiee texte + timings",
-                      "status":  "done",
-                      "priority":  "P1",
-                      "estimate":  "2d",
-                      "dependsOn":  [
-                                        "WX-201",
-                                        "WX-203"
-                                    ],
-                      "scope":  [
-                                    "src/App.tsx"
-                                ],
-                      "execute":  [
-                                      "npm run build"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Historique en memoire avec limite configurable.",
-                                               "Undo/redo couvrent edit texte, split/merge, drag timings.",
-                                               "Raccourcis Ctrl+Z / Ctrl+Y actifs."
-                                           ],
-                      "acceptance":  [
-                                         "50 operations consecutives sans corruption d etat.",
-                                         "Undo puis save exporte exactement l etat affiche."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-205",
-                      "title":  "Autosave de brouillon + recovery au redemarrage",
-                      "status":  "done",
-                      "priority":  "P1",
-                      "estimate":  "1d",
-                      "dependsOn":  [
-                                        "WX-201"
-                                    ],
-                      "scope":  [
-                                    "src/App.tsx",
-                                    "src-tauri/src/lib.rs"
-                                ],
-                      "execute":  [
-                                      "npm run build",
-                                      "cargo check"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Autosave toutes les N secondes sur fichier .draft.json.",
-                                               "Prompt recovery au chargement d un transcript source.",
-                                               "Purge manuelle des brouillons depuis UI."
-                                           ],
-                      "acceptance":  [
-                                         "Crash simulation puis relance propose recovery.",
-                                         "Aucune perte de donnees entre deux autosaves."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-206",
-                      "title":  "Export aligne avance (JSON/SRT/VTT/TXT) avec regles temporelles",
-                      "status":  "done",
-                      "priority":  "P0",
-                      "estimate":  "1.5d",
-                      "dependsOn":  [
-                                        "WX-201",
-                                        "WX-203"
-                                    ],
-                      "scope":  [
-                                    "src-tauri/src/lib.rs",
-                                    "src/App.tsx"
-                                ],
-                      "execute":  [
-                                      "cargo check",
-                                      "npm run build"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Regles min duration / min gap configurables.",
-                                               "Suppression overlaps automatiquement corrigeable.",
-                                               "Rapport d export affiche corrections appliquees."
-                                           ],
-                      "acceptance":  [
-                                         "Aucun timecode negatif ou inverse dans exports.",
-                                         "Validation sur un transcript \u003e 10k segments."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-207",
-                      "title":  "Panneau QA transcript (gaps, overlaps, debit parole)",
-                      "status":  "done",
-                      "priority":  "P1",
-                      "estimate":  "1.5d",
-                      "dependsOn":  [
-                                        "WX-206"
-                                    ],
-                      "scope":  [
-                                    "src/App.tsx",
-                                    "src/App.css"
-                                ],
-                      "execute":  [
-                                      "npm run build"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Liste anomalies temporelles et texte.",
-                                               "Jump direct vers segment en erreur.",
-                                               "Auto-fix unitaire par anomalie."
-                                           ],
-                      "acceptance":  [
-                                         "Sur un jeu de test, detection des overlaps \u003e 99%.",
-                                         "L utilisateur peut corriger puis re-scanner en une action."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-208",
-                      "title":  "Generation waveform en tache de fond avec progression",
-                      "status":  "done",
-                      "priority":  "P1",
-                      "estimate":  "2d",
-                      "dependsOn":  [
-
-                                    ],
-                      "scope":  [
-                                    "src-tauri/src/lib.rs",
-                                    "src/App.tsx"
-                                ],
-                      "execute":  [
-                                      "cargo check",
-                                      "npm run build"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Generation peaks non bloquante avec events de progression.",
-                                               "Annulation generation waveform possible.",
-                                               "Cache invalide automatiquement sur changement media."
-                                           ],
-                      "acceptance":  [
-                                         "Fichier 2h traite sans freeze UI.",
-                                         "Cancel stoppe ffmpeg proprement."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-209",
-                      "title":  "Assistant first-run pour runtime local (sans Docker)",
-                      "status":  "done",
-                      "priority":  "P0",
-                      "estimate":  "1.5d",
-                      "dependsOn":  [
-
-                                    ],
-                      "scope":  [
-                                    "src/App.tsx",
-                                    "scripts/setup-local-runtime.ps1",
-                                    "README.md"
-                                ],
-                      "execute":  [
-                                      "npm run build",
-                                      "npm run tauri build"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Wizard detecte absence Python/WhisperX/ffmpeg.",
-                                               "Bouton lance setup local et affiche logs.",
-                                               "Validation finale runtime avant premier job whisperx."
-                                           ],
-                      "acceptance":  [
-                                         "Installation from scratch reussie sans ligne de commande.",
-                                         "Messages d erreur actionnables en cas d echec."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-210",
-                      "title":  "Smoke tests end-to-end et checklist release",
-                      "status":  "done",
-                      "priority":  "P1",
-                      "estimate":  "1d",
-                      "dependsOn":  [
-                                        "WX-203",
-                                        "WX-206",
-                                        "WX-209"
-                                    ],
-                      "scope":  [
-                                    "scripts",
-                                    "README.md",
-                                    "package.json"
-                                ],
-                      "execute":  [
-                                      "npm run build",
-                                      "cargo check",
-                                      "npm run tauri build"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Script smoke test lance job mock + edition + export.",
-                                               "Checklist release versionnee.",
-                                               "Artefacts MSI/EXE verifies et traces."
-                                           ],
-                      "acceptance":  [
-                                         "Pipeline smoke passe sur machine propre.",
-                                         "Checklist permet release reproductible."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-301",
-                      "title":  "Timeline canonique unifiee (segments, words, speaker_turns, events)",
-                      "status":  "done",
-                      "priority":  "P0",
-                      "estimate":  "2d",
-                      "dependsOn":  [
-
-                                    ],
-                      "scope":  [
-                                    "whisperx/schema.py",
-                                    "whisperx/transcribe.py",
-                                    "whisperx/diarize.py",
-                                    "whisperx-studio/src-tauri/src/lib.rs"
-                                ],
-                      "execute":  [
-                                      "uv run --with pytest pytest -q tests",
-                                      "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Un schema timeline versionne est defini et documente.",
-                                               "La sortie pipeline produit un objet canonique unique utilisable par toutes les analyses.",
-                                               "Le mapping depuis resultats WhisperX existants vers la timeline est deterministic et teste."
-                                           ],
-                      "acceptance":  [
-                                         "Sur un fichier test, segments+words+speakers sont presents dans la meme timeline.",
-                                         "Aucune metrique ne depend directement des writers ad hoc pour etre calculee."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-302",
-                      "title":  "Pipeline chunked gros fichiers + merge offsets globaux",
-                      "status":  "done",
-                      "priority":  "P0",
-                      "estimate":  "3d",
-                      "dependsOn":  [
-                                        "WX-301"
-                                    ],
-                      "scope":  [
-                                    "whisperx/audio.py",
-                                    "whisperx/transcribe.py",
-                                    "whisperx-studio/python/worker.py",
-                                    "whisperx-studio/src-tauri/src/lib.rs"
-                                ],
-                      "execute":  [
-                                      "uv run --with pytest pytest -q tests",
-                                      "npm run build",
-                                      "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Traitement par chunks configurable (duree, overlap) ajoute au wrapper.",
-                                               "Les timelines chunk sont mergees avec offsets absolus sans trou ni chevauchement invalide.",
-                                               "Un run de longue duree produit un artefact final coherent."
-                                           ],
-                      "acceptance":  [
-                                         "Fichier \u003e1h traite sans explosion memoire.",
-                                         "Tous les timecodes merge sont monotones et alignes sur la timeline globale."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-303",
-                      "title":  "Diarization avancee: controls min/max/force_n + speaker_turns + overlaps",
-                      "status":  "done",
-                      "priority":  "P0",
-                      "estimate":  "2d",
-                      "dependsOn":  [
-                                        "WX-301"
-                                    ],
-                      "scope":  [
-                                    "whisperx/diarize.py",
-                                    "whisperx/transcribe.py",
-                                    "whisperx-studio/python/worker.py",
-                                    "whisperx-studio/src/App.tsx",
-                                    "whisperx-studio/src-tauri/src/lib.rs"
-                                ],
-                      "execute":  [
-                                      "uv run --with pytest pytest -q tests",
-                                      "npm run build",
-                                      "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
-                                  ],
-                      "definitionOfDone":  [
-                                               "min_speakers/max_speakers exposes dans Studio et passes au moteur.",
-                                               "mode force_n_speakers disponible dans wrapper/CLI.",
-                                               "speaker_turns et overlaps derives et exposes dans la timeline canonique."
-                                           ],
-                      "acceptance":  [
-                                         "Cas duo/trio: le nombre de speakers est contraignable depuis UI/CLI.",
-                                         "Les overlaps sont identifies et exploitables par les etapes d analyse."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-304",
-                      "title":  "Analyse pauses lexicalisees et acoustiques",
-                      "status":  "done",
-                      "priority":  "P0",
-                      "estimate":  "2d",
-                      "dependsOn":  [
-                                        "WX-301",
-                                        "WX-303"
-                                    ],
-                      "scope":  [
-                                    "whisperx/transcribe.py",
-                                    "whisperx/vads",
-                                    "whisperx-studio/src-tauri/src/lib.rs"
-                                ],
-                      "execute":  [
-                                      "uv run --with pytest pytest -q tests"
-                                  ],
-                      "definitionOfDone":  [
-                                               "pauses intra-speaker calculees depuis words[] avec min_pause/ignore_below/max_pause.",
-                                               "nonspeech_intervals acoustiques exposes en option.",
-                                               "Parametres d analyse documentes et serialises dans les artefacts run."
-                                           ],
-                      "acceptance":  [
-                                         "Le recalcul des pauses varie correctement quand min_pause change.",
-                                         "Les pauses en overlap sont marquees non fiables ou exclues selon configuration."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-305",
-                      "title":  "Analyse IPU + transitions locuteurs",
-                      "status":  "done",
-                      "priority":  "P0",
-                      "estimate":  "2d",
-                      "dependsOn":  [
-                                        "WX-304"
-                                    ],
-                      "scope":  [
-                                    "whisperx/transcribe.py",
-                                    "whisperx-studio/src-tauri/src/lib.rs"
-                                ],
-                      "execute":  [
-                                      "uv run --with pytest pytest -q tests"
-                                  ],
-                      "definitionOfDone":  [
-                                               "ipus[] calcules entre pauses avec regles ipu_min_words/ipu_min_duration.",
-                                               "transitions[] calculees (from,to,gap,start,end).",
-                                               "overlaps[] exposes en sortie analytique dediee."
-                                           ],
-                      "acceptance":  [
-                                         "Les IPU et transitions sont stables sur golden files de reference.",
-                                         "Chaque transition a des bornes temporelles coherentes et tracables."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-306",
-                      "title":  "Metriques qualite, flags et zones a corriger",
-                      "status":  "done",
-                      "priority":  "P1",
-                      "estimate":  "2d",
-                      "dependsOn":  [
-                                        "WX-304",
-                                        "WX-305"
-                                    ],
-                      "scope":  [
-                                    "whisperx/alignment.py",
-                                    "whisperx/transcribe.py",
-                                    "whisperx-studio/src-tauri/src/lib.rs",
-                                    "whisperx-studio/src/App.tsx"
-                                ],
-                      "execute":  [
-                                      "uv run --with pytest pytest -q tests",
-                                      "npm run build"
-                                  ],
-                      "definitionOfDone":  [
-                                               "KPIs stockes: ratio mots interpoles/non aligns, ratio overlap, stats par speaker.",
-                                               "Flags zones suspectes: overlap long, faible confiance, instabilite VAD.",
-                                               "Un resume qualite est present dans les artefacts et affichable dans Studio."
-                                           ],
-                      "acceptance":  [
-                                         "Les runs exposent un quality summary exploitable sans post-traitement manuel.",
-                                         "Les zones marquees sont navigables ou filtrables dans Studio."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-307",
-                      "title":  "Exports data-science: run.json, timeline, words.csv, pauses.csv, ipu.csv",
-                      "status":  "done",
-                      "priority":  "P0",
-                      "estimate":  "2d",
-                      "dependsOn":  [
-                                        "WX-301",
-                                        "WX-304",
-                                        "WX-305"
-                                    ],
-                      "scope":  [
-                                    "whisperx/utils.py",
-                                    "whisperx/transcribe.py",
-                                    "whisperx-studio/src-tauri/src/lib.rs"
-                                ],
-                      "execute":  [
-                                      "uv run --with pytest pytest -q tests"
-                                  ],
-                      "definitionOfDone":  [
-                                               "run.json inclut config, versions, media source, parametres et infos chunk offsets.",
-                                               "timeline.json/jsonl exporte segments+words+speaker_turns+events.",
-                                               "CSV analytiques words/pauses/ipu disponibles et verifies sur jeux de test."
-                                           ],
-                      "acceptance":  [
-                                         "Les exports couvrent un run complet sans information temporelle manquante.",
-                                         "Les CSV sont lisibles directement dans pandas sans nettoyage supplementaire."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-308",
-                      "title":  "CLI orchestrateur + config YAML/TOML + dossier runs immuable",
-                      "status":  "todo",
-                      "priority":  "P1",
-                      "estimate":  "2d",
-                      "dependsOn":  [
-                                        "WX-301",
-                                        "WX-302",
-                                        "WX-307"
-                                    ],
-                      "scope":  [
-                                    "whisperx/__main__.py",
-                                    "whisperx/transcribe.py",
-                                    "README.md"
-                                ],
-                      "execute":  [
-                                      "uv run --with pytest pytest -q tests"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Commandes run/transcribe/align/diarize/analyze/export disponibles.",
-                                               "Fichier config YAML ou TOML chargeable pour runs reproductibles.",
-                                               "Chaque run ecrit un dossier immutable runs/\u003ctimestamp\u003e_\u003cid\u003e/ avec manifest."
-                                           ],
-                      "acceptance":  [
-                                         "Un meme config file relance un run identique a options egales.",
-                                         "Les artefacts d un run ne sont pas ecrases par un run suivant."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-309",
-                      "title":  "Studio: options diarization avancees et messages actionnables",
-                      "status":  "todo",
-                      "priority":  "P1",
-                      "estimate":  "1.5d",
-                      "dependsOn":  [
-                                        "WX-303"
-                                    ],
-                      "scope":  [
-                                    "whisperx-studio/src/App.tsx",
-                                    "whisperx-studio/src-tauri/src/lib.rs",
-                                    "whisperx-studio/python/worker.py"
-                                ],
-                      "execute":  [
-                                      "npm run build",
-                                      "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
-                                  ],
-                      "definitionOfDone":  [
-                                               "UI expose min/max speakers et force_n_speakers.",
-                                               "Validation des combinaisons invalides cote UI/backend.",
-                                               "Messages runtime/diarization orientent clairement la correction."
-                                           ],
-                      "acceptance":  [
-                                         "Un utilisateur non technique peut contraindre speakers sans passer par CLI.",
-                                         "Les erreurs HF token ou diarization sont explicites et actionnables."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-310",
-                      "title":  "Mode analyze-only (recalcul pauses/IPU sans relancer ASR)",
-                      "status":  "done",
-                      "priority":  "P0",
-                      "estimate":  "1.5d",
-                      "dependsOn":  [
-                                        "WX-304",
-                                        "WX-305",
-                                        "WX-307"
-                                    ],
-                      "scope":  [
-                                    "whisperx/transcribe.py",
-                                    "whisperx-studio/src-tauri/src/lib.rs",
-                                    "whisperx-studio/src/App.tsx"
-                                ],
-                      "execute":  [
-                                      "uv run --with pytest pytest -q tests",
-                                      "npm run build"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Un run analytique relit timeline existante et recalcule metriques avec nouveaux seuils.",
-                                               "Aucun appel ASR/alignment/diarization n est relance en analyze-only.",
-                                               "Les nouveaux resultats sont versionnes dans un sous-dossier de run."
-                                           ],
-                      "acceptance":  [
-                                         "Changer min_pause modifie pauses/IPU en quelques secondes.",
-                                         "Le co?t de recalcul est tres inferieur a un run complet."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-311",
-                      "title":  "Exports annotation optionnels: RTTM, TextGrid, EAF",
-                      "status":  "todo",
-                      "priority":  "P2",
-                      "estimate":  "2d",
-                      "dependsOn":  [
-                                        "WX-301",
-                                        "WX-303",
-                                        "WX-307"
-                                    ],
-                      "scope":  [
-                                    "whisperx/utils.py",
-                                    "whisperx/transcribe.py",
-                                    "README.md"
-                                ],
-                      "execute":  [
-                                      "uv run --with pytest pytest -q tests"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Export RTTM genere depuis speaker_turns.",
-                                               "Export TextGrid et EAF disponibles en mode optionnel.",
-                                               "Documentation mapping champs timeline -\u003e formats annotation fournie."
-                                           ],
-                      "acceptance":  [
-                                         "Import reussi dans Praat/ELAN sur jeu de test reference.",
-                                         "Horodatages exportes concordent avec timeline canonique."
-                                     ]
-                  },
-                  {
-                      "id":  "WX-312",
-                      "title":  "Tests de charge et non-regression longues durees (\u003e1 Go)",
-                      "status":  "todo",
-                      "priority":  "P1",
-                      "estimate":  "2d",
-                      "dependsOn":  [
-                                        "WX-302",
-                                        "WX-307"
-                                    ],
-                      "scope":  [
-                                    "tests",
-                                    ".github/workflows/audio-e2e-nightly.yml",
-                                    "README.md"
-                                ],
-                      "execute":  [
-                                      "uv run --with pytest pytest -q tests",
-                                      "uv run --with pytest pytest -q tests/test_pipeline_e2e_real_audio.py -r a"
-                                  ],
-                      "definitionOfDone":  [
-                                               "Jeux de test longue duree/chunking ajoutes avec assertions memoire/temps.",
-                                               "CI nightly conserve un scenario audio e2e long.",
-                                               "Regression timing detectee automatiquement sur pipeline long format."
-                                           ],
-                      "acceptance":  [
-                                         "Un scenario long passe sans crash ni fuite memoire majeure.",
-                                         "Les offsets timeline restent coherents apres merge multi-chunks."
-                                     ]
-                  }
-              ]
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-03-23T22:45:00.000Z",
+  "statuses": ["todo", "in_progress", "blocked", "done"],
+  "tasks": [
+    {
+      "id": "WX-201",
+      "title": "Edition temporelle start/end sur waveform",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "2d",
+      "dependsOn": [],
+      "scope": ["src/App.tsx", "src/App.css", "src-tauri/src/lib.rs"],
+      "execute": ["npm run build", "cargo check"],
+      "definitionOfDone": [
+        "Chaque segment editable expose start/end dans l UI.",
+        "L utilisateur peut modifier start/end par drag handles sur la waveform.",
+        "Les valeurs restent bornees et coherent start <= end."
+      ],
+      "acceptance": [
+        "Drag gauche/droite met a jour start/end en temps reel.",
+        "Le seek lecteur suit les changements sans freeze > 200ms.",
+        "Export JSON conserve les nouvelles bornes."
+      ]
+    },
+    {
+      "id": "WX-202",
+      "title": "Zoom timeline + snap temporel + raccourcis clavier",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "1.5d",
+      "dependsOn": ["WX-201"],
+      "scope": ["src/App.tsx", "src/App.css"],
+      "execute": ["npm run build"],
+      "definitionOfDone": [
+        "Zoom horizontal de la waveform disponible (x1 a x20).",
+        "Snap optionnel au pas configurable (10/20/40 ms).",
+        "Raccourcis clavier pour seek fin et navigation segment."
+      ],
+      "acceptance": [
+        "Ctrl+molette zoome autour du curseur.",
+        "Le snap peut etre active/desactive sans rechargement.",
+        "Touches J/K/L ou equivalent fonctionnent avec focus editor."
+      ]
+    },
+    {
+      "id": "WX-203",
+      "title": "Split et merge de segments sur curseur",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "1.5d",
+      "dependsOn": ["WX-201"],
+      "scope": ["src/App.tsx", "src-tauri/src/lib.rs"],
+      "execute": ["npm run build", "cargo check"],
+      "definitionOfDone": [
+        "Split segment a la position curseur.",
+        "Merge segment courant avec precedent/suivant.",
+        "UI garde textes et speakers coherents apres operation."
+      ],
+      "acceptance": [
+        "Split cree deux segments continus sans overlap.",
+        "Merge concatene texte avec normalisation d espaces.",
+        "Annulation operation impossible tant que save non fait est signalee."
+      ]
+    },
+    {
+      "id": "WX-204",
+      "title": "Pile undo/redo unifiee texte + timings",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "2d",
+      "dependsOn": ["WX-201", "WX-203"],
+      "scope": ["src/App.tsx"],
+      "execute": ["npm run build"],
+      "definitionOfDone": [
+        "Historique en memoire avec limite configurable.",
+        "Undo/redo couvrent edit texte, split/merge, drag timings.",
+        "Raccourcis Ctrl+Z / Ctrl+Y actifs."
+      ],
+      "acceptance": [
+        "50 operations consecutives sans corruption d etat.",
+        "Undo puis save exporte exactement l etat affiche."
+      ]
+    },
+    {
+      "id": "WX-205",
+      "title": "Autosave de brouillon + recovery au redemarrage",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "1d",
+      "dependsOn": ["WX-201"],
+      "scope": ["src/App.tsx", "src-tauri/src/lib.rs"],
+      "execute": ["npm run build", "cargo check"],
+      "definitionOfDone": [
+        "Autosave toutes les N secondes sur fichier .draft.json.",
+        "Prompt recovery au chargement d un transcript source.",
+        "Purge manuelle des brouillons depuis UI."
+      ],
+      "acceptance": [
+        "Crash simulation puis relance propose recovery.",
+        "Aucune perte de donnees entre deux autosaves."
+      ]
+    },
+    {
+      "id": "WX-206",
+      "title": "Export aligne avance (JSON/SRT/VTT/TXT) avec regles temporelles",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "1.5d",
+      "dependsOn": ["WX-201", "WX-203"],
+      "scope": ["src-tauri/src/lib.rs", "src/App.tsx"],
+      "execute": ["cargo check", "npm run build"],
+      "definitionOfDone": [
+        "Regles min duration / min gap configurables.",
+        "Suppression overlaps automatiquement corrigeable.",
+        "Rapport d export affiche corrections appliquees."
+      ],
+      "acceptance": [
+        "Aucun timecode negatif ou inverse dans exports.",
+        "Validation sur un transcript > 10k segments."
+      ]
+    },
+    {
+      "id": "WX-207",
+      "title": "Panneau QA transcript (gaps, overlaps, debit parole)",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "1.5d",
+      "dependsOn": ["WX-206"],
+      "scope": ["src/App.tsx", "src/App.css"],
+      "execute": ["npm run build"],
+      "definitionOfDone": [
+        "Liste anomalies temporelles et texte.",
+        "Jump direct vers segment en erreur.",
+        "Auto-fix unitaire par anomalie."
+      ],
+      "acceptance": [
+        "Sur un jeu de test, detection des overlaps > 99%.",
+        "L utilisateur peut corriger puis re-scanner en une action."
+      ]
+    },
+    {
+      "id": "WX-208",
+      "title": "Generation waveform en tache de fond avec progression",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "2d",
+      "dependsOn": [],
+      "scope": ["src-tauri/src/lib.rs", "src/App.tsx"],
+      "execute": ["cargo check", "npm run build"],
+      "definitionOfDone": [
+        "Generation peaks non bloquante avec events de progression.",
+        "Annulation generation waveform possible.",
+        "Cache invalide automatiquement sur changement media."
+      ],
+      "acceptance": ["Fichier 2h traite sans freeze UI.", "Cancel stoppe ffmpeg proprement."]
+    },
+    {
+      "id": "WX-209",
+      "title": "Assistant first-run pour runtime local (sans Docker)",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "1.5d",
+      "dependsOn": [],
+      "scope": ["src/App.tsx", "scripts/setup-local-runtime.ps1", "README.md"],
+      "execute": ["npm run build", "npm run tauri build"],
+      "definitionOfDone": [
+        "Wizard detecte absence Python/WhisperX/ffmpeg.",
+        "Bouton lance setup local et affiche logs.",
+        "Validation finale runtime avant premier job whisperx."
+      ],
+      "acceptance": [
+        "Installation from scratch reussie sans ligne de commande.",
+        "Messages d erreur actionnables en cas d echec."
+      ]
+    },
+    {
+      "id": "WX-210",
+      "title": "Smoke tests end-to-end et checklist release",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "1d",
+      "dependsOn": ["WX-203", "WX-206", "WX-209"],
+      "scope": ["scripts", "README.md", "package.json"],
+      "execute": ["npm run build", "cargo check", "npm run tauri build"],
+      "definitionOfDone": [
+        "Script smoke test lance job mock + edition + export.",
+        "Checklist release versionnee.",
+        "Artefacts MSI/EXE verifies et traces."
+      ],
+      "acceptance": [
+        "Pipeline smoke passe sur machine propre.",
+        "Checklist permet release reproductible."
+      ]
+    },
+    {
+      "id": "WX-301",
+      "title": "Timeline canonique unifiee (segments, words, speaker_turns, events)",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "2d",
+      "dependsOn": [],
+      "scope": [
+        "whisperx/schema.py",
+        "whisperx/transcribe.py",
+        "whisperx/diarize.py",
+        "whisperx-studio/src-tauri/src/lib.rs"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests",
+        "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
+      ],
+      "definitionOfDone": [
+        "Un schema timeline versionne est defini et documente.",
+        "La sortie pipeline produit un objet canonique unique utilisable par toutes les analyses.",
+        "Le mapping depuis resultats WhisperX existants vers la timeline est deterministic et teste."
+      ],
+      "acceptance": [
+        "Sur un fichier test, segments+words+speakers sont presents dans la meme timeline.",
+        "Aucune metrique ne depend directement des writers ad hoc pour etre calculee."
+      ]
+    },
+    {
+      "id": "WX-302",
+      "title": "Pipeline chunked gros fichiers + merge offsets globaux",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "3d",
+      "dependsOn": ["WX-301"],
+      "scope": [
+        "whisperx/audio.py",
+        "whisperx/transcribe.py",
+        "whisperx-studio/python/worker.py",
+        "whisperx-studio/src-tauri/src/lib.rs"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests",
+        "npm run build",
+        "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
+      ],
+      "definitionOfDone": [
+        "Traitement par chunks configurable (duree, overlap) ajoute au wrapper.",
+        "Les timelines chunk sont mergees avec offsets absolus sans trou ni chevauchement invalide.",
+        "Un run de longue duree produit un artefact final coherent."
+      ],
+      "acceptance": [
+        "Fichier >1h traite sans explosion memoire.",
+        "Tous les timecodes merge sont monotones et alignes sur la timeline globale."
+      ]
+    },
+    {
+      "id": "WX-303",
+      "title": "Diarization avancee: controls min/max/force_n + speaker_turns + overlaps",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "2d",
+      "dependsOn": ["WX-301"],
+      "scope": [
+        "whisperx/diarize.py",
+        "whisperx/transcribe.py",
+        "whisperx-studio/python/worker.py",
+        "whisperx-studio/src/App.tsx",
+        "whisperx-studio/src-tauri/src/lib.rs"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests",
+        "npm run build",
+        "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
+      ],
+      "definitionOfDone": [
+        "min_speakers/max_speakers exposes dans Studio et passes au moteur.",
+        "mode force_n_speakers disponible dans wrapper/CLI.",
+        "speaker_turns et overlaps derives et exposes dans la timeline canonique."
+      ],
+      "acceptance": [
+        "Cas duo/trio: le nombre de speakers est contraignable depuis UI/CLI.",
+        "Les overlaps sont identifies et exploitables par les etapes d analyse."
+      ]
+    },
+    {
+      "id": "WX-304",
+      "title": "Analyse pauses lexicalisees et acoustiques",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "2d",
+      "dependsOn": ["WX-301", "WX-303"],
+      "scope": ["whisperx/transcribe.py", "whisperx/vads", "whisperx-studio/src-tauri/src/lib.rs"],
+      "execute": ["uv run --with pytest pytest -q tests"],
+      "definitionOfDone": [
+        "pauses intra-speaker calculees depuis words[] avec min_pause/ignore_below/max_pause.",
+        "nonspeech_intervals acoustiques exposes en option.",
+        "Parametres d analyse documentes et serialises dans les artefacts run."
+      ],
+      "acceptance": [
+        "Le recalcul des pauses varie correctement quand min_pause change.",
+        "Les pauses en overlap sont marquees non fiables ou exclues selon configuration."
+      ]
+    },
+    {
+      "id": "WX-305",
+      "title": "Analyse IPU + transitions locuteurs",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "2d",
+      "dependsOn": ["WX-304"],
+      "scope": ["whisperx/transcribe.py", "whisperx-studio/src-tauri/src/lib.rs"],
+      "execute": ["uv run --with pytest pytest -q tests"],
+      "definitionOfDone": [
+        "ipus[] calcules entre pauses avec regles ipu_min_words/ipu_min_duration.",
+        "transitions[] calculees (from,to,gap,start,end).",
+        "overlaps[] exposes en sortie analytique dediee."
+      ],
+      "acceptance": [
+        "Les IPU et transitions sont stables sur golden files de reference.",
+        "Chaque transition a des bornes temporelles coherentes et tracables."
+      ]
+    },
+    {
+      "id": "WX-306",
+      "title": "Metriques qualite, flags et zones a corriger",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "2d",
+      "dependsOn": ["WX-304", "WX-305"],
+      "scope": [
+        "whisperx/alignment.py",
+        "whisperx/transcribe.py",
+        "whisperx-studio/src-tauri/src/lib.rs",
+        "whisperx-studio/src/App.tsx"
+      ],
+      "execute": ["uv run --with pytest pytest -q tests", "npm run build"],
+      "definitionOfDone": [
+        "KPIs stockes: ratio mots interpoles/non aligns, ratio overlap, stats par speaker.",
+        "Flags zones suspectes: overlap long, faible confiance, instabilite VAD.",
+        "Un resume qualite est present dans les artefacts et affichable dans Studio."
+      ],
+      "acceptance": [
+        "Les runs exposent un quality summary exploitable sans post-traitement manuel.",
+        "Les zones marquees sont navigables ou filtrables dans Studio."
+      ]
+    },
+    {
+      "id": "WX-307",
+      "title": "Exports data-science: run.json, timeline, words.csv, pauses.csv, ipu.csv",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "2d",
+      "dependsOn": ["WX-301", "WX-304", "WX-305"],
+      "scope": [
+        "whisperx/utils.py",
+        "whisperx/transcribe.py",
+        "whisperx-studio/src-tauri/src/lib.rs"
+      ],
+      "execute": ["uv run --with pytest pytest -q tests"],
+      "definitionOfDone": [
+        "run.json inclut config, versions, media source, parametres et infos chunk offsets.",
+        "timeline.json/jsonl exporte segments+words+speaker_turns+events.",
+        "CSV analytiques words/pauses/ipu disponibles et verifies sur jeux de test."
+      ],
+      "acceptance": [
+        "Les exports couvrent un run complet sans information temporelle manquante.",
+        "Les CSV sont lisibles directement dans pandas sans nettoyage supplementaire."
+      ]
+    },
+    {
+      "id": "WX-308",
+      "title": "CLI orchestrateur + config YAML/TOML + dossier runs immuable",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "2d",
+      "dependsOn": ["WX-301", "WX-302", "WX-307"],
+      "scope": ["whisperx/__main__.py", "whisperx/transcribe.py", "README.md"],
+      "execute": ["uv run --with pytest pytest -q tests"],
+      "definitionOfDone": [
+        "Commandes run/transcribe/align/diarize/analyze/export disponibles.",
+        "Fichier config YAML ou TOML chargeable pour runs reproductibles.",
+        "Chaque run ecrit un dossier immutable runs/<timestamp>_<id>/ avec manifest."
+      ],
+      "acceptance": [
+        "Un meme config file relance un run identique a options egales.",
+        "Les artefacts d un run ne sont pas ecrases par un run suivant."
+      ]
+    },
+    {
+      "id": "WX-309",
+      "title": "Studio: options diarization avancees et messages actionnables",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "1.5d",
+      "dependsOn": ["WX-303"],
+      "scope": [
+        "whisperx-studio/src/App.tsx",
+        "whisperx-studio/src-tauri/src/lib.rs",
+        "whisperx-studio/python/worker.py"
+      ],
+      "execute": [
+        "npm run build",
+        "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
+      ],
+      "definitionOfDone": [
+        "UI expose min/max speakers et force_n_speakers (deja dans App; verifier lors des evolutions).",
+        "Validation des combinaisons invalides cote UI/backend.",
+        "Echec worker: message enrichi avec extrait stderr et indices HF/diarization ou memoire GPU quand applicable (backend Rust)."
+      ],
+      "acceptance": [
+        "Un utilisateur non technique peut contraindre speakers sans passer par CLI.",
+        "Les erreurs HF token ou diarization incluent un extrait utile et des pistes de correction."
+      ]
+    },
+    {
+      "id": "WX-310",
+      "title": "Mode analyze-only (recalcul pauses/IPU sans relancer ASR)",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "1.5d",
+      "dependsOn": ["WX-304", "WX-305", "WX-307"],
+      "scope": [
+        "whisperx/transcribe.py",
+        "whisperx-studio/src-tauri/src/lib.rs",
+        "whisperx-studio/src/App.tsx"
+      ],
+      "execute": ["uv run --with pytest pytest -q tests", "npm run build"],
+      "definitionOfDone": [
+        "Un run analytique relit timeline existante et recalcule metriques avec nouveaux seuils.",
+        "Aucun appel ASR/alignment/diarization n est relance en analyze-only.",
+        "Les nouveaux resultats sont versionnes dans un sous-dossier de run."
+      ],
+      "acceptance": [
+        "Changer min_pause modifie pauses/IPU en quelques secondes.",
+        "Le co?t de recalcul est tres inferieur a un run complet."
+      ]
+    },
+    {
+      "id": "WX-311",
+      "title": "Exports annotation optionnels: RTTM, TextGrid, EAF",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "2d",
+      "dependsOn": ["WX-301", "WX-303", "WX-307"],
+      "scope": ["whisperx/utils.py", "whisperx/transcribe.py", "README.md"],
+      "execute": ["uv run --with pytest pytest -q tests"],
+      "definitionOfDone": [
+        "Export RTTM genere depuis speaker_turns.",
+        "Export TextGrid et EAF disponibles en mode optionnel.",
+        "Documentation mapping champs timeline -> formats annotation fournie."
+      ],
+      "acceptance": [
+        "Import reussi dans Praat/ELAN sur jeu de test reference.",
+        "Horodatages exportes concordent avec timeline canonique."
+      ]
+    },
+    {
+      "id": "WX-312",
+      "title": "Tests de charge et non-regression longues durees (>1 Go)",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "2d",
+      "dependsOn": ["WX-302", "WX-307"],
+      "scope": ["tests", ".github/workflows/audio-e2e-nightly.yml", "README.md"],
+      "execute": [
+        "uv run --with pytest pytest -q tests",
+        "uv run --with pytest pytest -q tests/test_pipeline_e2e_real_audio.py -r a"
+      ],
+      "definitionOfDone": [
+        "Jeux de test longue duree/chunking ajoutes avec assertions memoire/temps.",
+        "CI nightly conserve un scenario audio e2e long.",
+        "Regression timing detectee automatiquement sur pipeline long format."
+      ],
+      "acceptance": [
+        "Un scenario long passe sans crash ni fuite memoire majeure.",
+        "Les offsets timeline restent coherents apres merge multi-chunks."
+      ]
+    },
+    {
+      "id": "WX-401",
+      "title": "Rust: modulariser src-tauri/src/lib.rs (domaines + tests unitaires)",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "3d",
+      "dependsOn": [],
+      "scope": [
+        "whisperx-studio/src-tauri/src/lib.rs",
+        "whisperx-studio/src-tauri/src/**/*.rs",
+        "whisperx-studio/src-tauri/Cargo.toml"
+      ],
+      "execute": [
+        "cargo test --manifest-path whisperx-studio/src-tauri/Cargo.toml",
+        "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml",
+        "cd whisperx-studio && npm run build"
+      ],
+      "definitionOfDone": [
+        "lib.rs reduit a bootstrap Tauri + enregistrement des commandes (ou equivalent minimal).",
+        "Logique extraite en modules par domaine (jobs, runtime, media, transcript, chemins, etc.) sans changement de comportement.",
+        "Au moins une batterie de tests unitaires Rust sur fonctions pures ou helpers critiques (validation chemins, parsing, etat).",
+        "cargo test et cargo check passent sur la CI locale."
+      ],
+      "acceptance": [
+        "Aucune regression sur smoke manuel: job mock, preview, ouverture fichier.",
+        "Les commandes Tauri exposees restent identiques pour le frontend."
+      ]
+    },
+    {
+      "id": "WX-402",
+      "title": "Frontend: decouper useTranscriptEditor en sous-hooks / modules testables",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "3d",
+      "dependsOn": [],
+      "scope": [
+        "whisperx-studio/src/hooks/useTranscriptEditor.ts",
+        "whisperx-studio/src/hooks/transcript/**/*.ts",
+        "whisperx-studio/src/components/runDetails/TranscriptEditorPanel.tsx"
+      ],
+      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npx tsc --noEmit"],
+      "definitionOfDone": [
+        "Le fichier useTranscriptEditor.ts ne concentre plus toute la logique (cible: domaines separes: segments, undo, QA, autosave, export, alignement waveform).",
+        "API exposee au reste de l app inchangee ou migration documentee en un commit.",
+        "Aucune regression sur edition segment, save, export, QA scan."
+      ],
+      "acceptance": [
+        "Build TypeScript strict sans erreurs.",
+        "Parcours utilisateur transcript editor valide sur un JSON de test (edit, undo, save)."
+      ]
+    },
+    {
+      "id": "WX-403",
+      "title": "Tooling: ESLint + Prettier (ou Biome) sur whisperx-studio",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "0.5d",
+      "dependsOn": [],
+      "scope": [
+        "whisperx-studio/package.json",
+        "whisperx-studio/eslint.config.*",
+        "whisperx-studio/.prettierrc",
+        "whisperx-studio/AGENTS.md"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm install",
+        "cd whisperx-studio && npx eslint .",
+        "cd whisperx-studio && npm run build"
+      ],
+      "definitionOfDone": [
+        "Configuration lint + format commitee (regles React et hooks raisonnables).",
+        "Scripts npm: lint (et format ou format:check si applicable).",
+        "AGENTS.md mis a jour avec les commandes lint/format."
+      ],
+      "acceptance": [
+        "eslint passe sur src/ sans erreurs bloquantes.",
+        "Le formattage ne casse pas tsc ni le build Vite."
+      ]
+    },
+    {
+      "id": "WX-404",
+      "title": "Tests: Vitest sur builders et utilitaires purs (Studio)",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "1d",
+      "dependsOn": ["WX-403"],
+      "scope": [
+        "whisperx-studio/package.json",
+        "whisperx-studio/src/**/*.test.ts",
+        "whisperx-studio/src/components/runDetails/buildRunDetailsPanelProps.ts",
+        "whisperx-studio/src/appUtils.ts"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm install",
+        "cd whisperx-studio && npx vitest run",
+        "cd whisperx-studio && npm run build"
+      ],
+      "definitionOfDone": [
+        "Vitest configure (jsdom ou node selon besoins).",
+        "Tests sur buildRunDetailsPanelProps et/ou fonctions extraites de appUtils (sans invoke Tauri).",
+        "Script npm test documente dans AGENTS.md."
+      ],
+      "acceptance": [
+        "Au moins 5 tests significatifs (assertions non triviales).",
+        "CI locale: vitest run vert avant merge."
+      ]
+    },
+    {
+      "id": "WX-405",
+      "title": "DX: scripts npm backlog/smoke/runtime utilisables hors Windows (sh + doc)",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "1d",
+      "dependsOn": [],
+      "scope": [
+        "whisperx-studio/package.json",
+        "whisperx-studio/scripts/*.sh",
+        "whisperx-studio/README.md",
+        "whisperx-studio/AGENTS.md"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "Verifier les scripts ajoutes (sh) depuis macOS/Linux"
+      ],
+      "definitionOfDone": [
+        "Equivalents shell documentes pour les workflows critiques (liste backlog, smoke minimal, ou note explicite Windows-only).",
+        "README precise OS supporte par script.",
+        "Aucune regression des scripts PowerShell existants sur Windows."
+      ],
+      "acceptance": [
+        "Sur macOS/Linux: au moins backlog:list-equivalent ou doc claire pour alternative manuelle.",
+        "Les chemins relatifs fonctionnent depuis whisperx-studio/."
+      ]
+    },
+    {
+      "id": "WX-406",
+      "title": "Types: extraire LocalRuntimePanelProps hors LocalRuntimePanel.tsx",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "0.25d",
+      "dependsOn": [],
+      "scope": [
+        "whisperx-studio/src/components/LocalRuntimePanel.tsx",
+        "whisperx-studio/src/types ou whisperx-studio/src/model/localRuntimePanel.ts",
+        "whisperx-studio/src/hooks/useRuntimeDiagnostics.ts"
+      ],
+      "execute": ["cd whisperx-studio && npm run build"],
+      "definitionOfDone": [
+        "Le type est importe depuis un module neutre (pas de cycle hooks -> UI inutile).",
+        "LocalRuntimePanel et useRuntimeDiagnostics compilent sans changement fonctionnel."
+      ],
+      "acceptance": ["tsc strict OK.", "Aucun changement visuel du panneau runtime."]
+    },
+    {
+      "id": "WX-407",
+      "title": "Securite: revue chemins utilisateur et commandes externes (post-modularisation)",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "1d",
+      "dependsOn": ["WX-401"],
+      "scope": ["whisperx-studio/src-tauri/src/**/*.rs", "audit interne (notes)"],
+      "execute": ["cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"],
+      "definitionOfDone": [
+        "Cartographie des invoke qui acceptent des chemins ou lancent des processus.",
+        "Optionnel: cargo clippy / cargo audit sur le crate et suivi des alertes.",
+        "Liste de garde-fous: canonicalize, interdiction traversal, limites taille preview, etc. implementes ou tickets derives.",
+        "Note de revue commise (dans backlog item ou doc technique courte) avec risques residuels."
+      ],
+      "acceptance": [
+        "Cas nominaux (chemins utilisateur normaux) inchanges.",
+        "Au moins un cas abusif documente comme rejete ou sandboxe."
+      ]
+    },
+    {
+      "id": "WX-408",
+      "title": "CI Studio: eslint, vitest, clippy -D warnings, cargo test",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "0.25d",
+      "dependsOn": [],
+      "scope": [".github/workflows/studio-ci.yml", "whisperx-studio/AGENTS.md"],
+      "execute": [
+        "cd whisperx-studio && npm run lint && npm run test",
+        "cargo clippy --manifest-path whisperx-studio/src-tauri/Cargo.toml -- -D warnings",
+        "cargo test --manifest-path whisperx-studio/src-tauri/Cargo.toml"
+      ],
+      "definitionOfDone": [
+        "Workflow studio-ci execute eslint, vitest, cargo clippy (-D warnings) et cargo test sur Windows et Ubuntu.",
+        "AGENTS.md mentionne clippy et cargo test pour le crate Tauri."
+      ],
+      "acceptance": [
+        "CI verte sur main avec les etapes ajoutees.",
+        "Pas de regression sur npm run build."
+      ]
+    },
+    {
+      "id": "WX-409",
+      "title": "Rustfmt: normaliser le crate Tauri + cargo fmt --check en CI",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "0.15d",
+      "dependsOn": ["WX-408"],
+      "scope": [
+        "whisperx-studio/src-tauri/src/**/*.rs",
+        ".github/workflows/studio-ci.yml",
+        "whisperx-studio/AGENTS.md"
+      ],
+      "execute": [
+        "cargo fmt --manifest-path whisperx-studio/src-tauri/Cargo.toml",
+        "cargo fmt --manifest-path whisperx-studio/src-tauri/Cargo.toml --check"
+      ],
+      "definitionOfDone": [
+        "Le crate Tauri est formate avec rustfmt (style projet).",
+        "studio-ci execute cargo fmt --check apres cargo check (composant rustfmt installe).",
+        "AGENTS.md documente fmt et fmt --check."
+      ],
+      "acceptance": [
+        "cargo test et cargo clippy inchanges apres formatage.",
+        "CI locale: fmt --check vert."
+      ]
+    },
+    {
+      "id": "WX-501",
+      "title": "Spec v1 donnees: RunManifest + MediaInfo + ChunkInfo + schema_version",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "2d",
+      "dependsOn": [],
+      "scope": [
+        "whisperx/schema.py ou module dedie",
+        "whisperx/timeline.py",
+        "docs ou README section modele"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests",
+        "uv run ruff check whisperx 2>/dev/null || true"
+      ],
+      "definitionOfDone": [
+        "Types/document JSON pour RunManifest (run_id, created_at ISO 8601, input_media, pipeline, env, artifacts paths relatifs, warnings, stats).",
+        "MediaInfo: path, sha256 ou size+mtime, duration, sample_rate, channels, format, normalized_audio_path optionnel.",
+        "ChunkInfo: chunk_id, start/end globaux, local_path, notes padding/overlap; invariant 0 <= start < end <= duration documente.",
+        "Champ schema_version dans le manifest; convention temps: secondes float quantifiees 1 ms (round 3 ou int ms) documentee."
+      ],
+      "acceptance": [
+        "Un exemple run_manifest.json valide est produit ou serialise depuis les types.",
+        "Les chemins artefacts sont relatifs au dossier de run."
+      ]
+    },
+    {
+      "id": "WX-502",
+      "title": "Spec v1: Segment + Word + SpeakerTurn + alignment_status + validateurs",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "2d",
+      "dependsOn": ["WX-501"],
+      "scope": ["whisperx/timeline.py", "tests/test_timeline_validators.py"],
+      "execute": ["uv run --with pytest pytest -q tests"],
+      "definitionOfDone": [
+        "Word: word_id, token, norm optionnel, segment_id, chunk_id, confidence, flags, alignment_status enum aligned|interpolated|missing.",
+        "Invariants: si status != missing alors start/end non nuls et start < end; token non vide; regle mot dans segment avec tolerance 20-50 ms + flag si chevauchement deux segments.",
+        "Segment: segment_id, start/end, texte, speaker, chunk_id, flags; tri (start,end) pour listes temporelles.",
+        "SpeakerTurn: turn_id, speaker, start/end, confidence, source, flags; overlap entre turns autorise documente."
+      ],
+      "acceptance": [
+        "validate_word / validate_segment echouent sur contre-exemples (NaN, start>=end, missing avec temps).",
+        "Suite pytest verte sur au moins 8 cas nominaux et 6 cas rejet."
+      ]
+    },
+    {
+      "id": "WX-503",
+      "title": "Spec v1: Pause + IPU + Transition + OverlapInterval (analytique)",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "2d",
+      "dependsOn": ["WX-502"],
+      "scope": ["whisperx/transcribe.py ou module analysis/", "tests/"],
+      "execute": ["uv run --with pytest pytest -q tests"],
+      "definitionOfDone": [
+        "Pause: types enum intra_speaker_word_gap, transition_gap, global_nonspeech; duration = round(end-start,3) > 0; context prev/next word ou segment ids.",
+        "IPU: n_words == len(word_ids); texte concat stable; flags contains_interpolated.",
+        "Transition: from/to speakers, end_prev, start_next, gap; OverlapInterval: speakers[], start/end, duration.",
+        "Fonctions build_pauses / build_ipus / build_transitions / build_overlaps depuis words[] + turns[] avec seuils min_pause / ignore_below alignes PipelineConfig."
+      ],
+      "acceptance": [
+        "Aucune pause negative ou duree nulle apres validation.",
+        "Cas 2 speakers alternes sans gap: 0 pause intra, transitions attendues."
+      ]
+    },
+    {
+      "id": "WX-504",
+      "title": "Spec v1: exports minimaux obligatoires + coherences CSV",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "1.5d",
+      "dependsOn": ["WX-501", "WX-503"],
+      "scope": ["whisperx/utils.py", "whisperx/transcribe.py", "tests/"],
+      "execute": ["uv run --with pytest pytest -q tests"],
+      "definitionOfDone": [
+        "Chaque run produit run_manifest.json (ou nom fige documente), timeline.jsonl OU transcript.json monolithique, words.csv, pauses.csv, ipus.csv, segments.srt + segments.vtt.",
+        "UTF-8; en-tetes CSV stables; memes quantificateurs temps que le manifest.",
+        "Ecriture manifest apres artefacts ou mise a jour atomique (write temp + rename)."
+      ],
+      "acceptance": [
+        "Import pandas des CSV sans preprocessing sur fixture de run.",
+        "run_manifest liste tous les chemins relatifs presents sur disque."
+      ]
+    },
+    {
+      "id": "WX-505",
+      "title": "Tests unitaires purs: quantize_time, intervalles, tri, speaker mot, seuils pause",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "1.5d",
+      "dependsOn": ["WX-503"],
+      "scope": ["tests/test_analysis_pure.py", "whisperx (helpers temps)"],
+      "execute": ["uv run --with pytest pytest -q tests/test_analysis_pure.py"],
+      "definitionOfDone": [
+        "quantize_time: pas de derive cumulative sur longues chaines.",
+        "validate_interval rejette start>=end, NaN, None.",
+        "Tri stable par (start,end).",
+        "Assignation mot->turn: max overlap; flag ambiguous; speaker None + unassigned si aucun turn.",
+        "Pauses: ignore_below < min_pause; interpolated_boundary sur bornes interpolees."
+      ],
+      "acceptance": [
+        "Couverture pytest sur chaque sous-liste du plan 2.1 (aucun fichier audio).",
+        "Temps execution < 5s pour la suite pure."
+      ]
+    },
+    {
+      "id": "WX-506",
+      "title": "Tests timeline synthétique (words[] artificiels)",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "1.5d",
+      "dependsOn": ["WX-505"],
+      "scope": ["tests/test_synthetic_timeline.py"],
+      "execute": ["uv run --with pytest pytest -q tests/test_synthetic_timeline.py"],
+      "definitionOfDone": [
+        "Cas: 1 speaker pauses 0.10 / 0.15 / 0.50 vs seuils.",
+        "2 speakers alternes sans gap: transitions, 0 pause intra.",
+        "Overlap A jusqu a 1.00, B a 0.90 -> overlap 0.10.",
+        "Mots interpolated/missing: stats et flags attendus."
+      ],
+      "acceptance": [
+        "Au moins 6 scenarios nommes en pytest parametrique ou fonctions dediees.",
+        "Aucune dependance WhisperX dans ce fichier."
+      ]
+    },
+    {
+      "id": "WX-507",
+      "title": "Tests integration audio court (30-60s): pipeline bout-en-bout",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "2d",
+      "dependsOn": ["WX-504", "WX-506"],
+      "scope": [
+        "tests/test_pipeline_e2e_real_audio.py",
+        "tests/fixtures (ou telechargement documente)"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests/test_pipeline_e2e_real_audio.py -m integration"
+      ],
+      "definitionOfDone": [
+        "Mono 1 locuteur: alignment majoritaire, peu d interpolations.",
+        "Dialogue 2 locuteurs calmes: diarisation stable avec min/max speakers.",
+        "Audio bruite: flags/stats refletent instabilite.",
+        "run_manifest complet; CSV non vides; pauses/IPU dans [0,duration]."
+      ],
+      "acceptance": [
+        "CI ou doc: comment obtenir les fixtures sans les commiter lourdes.",
+        "Marqueur pytest integration pour exclure par defaut si besoin."
+      ]
+    },
+    {
+      "id": "WX-508",
+      "title": "Tests gros fichiers / chunking: offsets, merge, memoire, reprise chunk",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "2d",
+      "dependsOn": ["WX-504"],
+      "scope": ["tests/test_chunking_merge.py", "whisperx/transcribe.py"],
+      "execute": ["uv run --with pytest pytest -q tests/test_chunking_merge.py"],
+      "definitionOfDone": [
+        "Offsets globaux corrects apres merge; pas de doublons mots aux frontieres.",
+        "Timeline monotone (pas de retour en arriere).",
+        "Assertion ou benchmark memoire: pas de chargement integral media en RAM dans la couche dediee (ou ticket derive si gap).",
+        "Echec chunk isole: strategie relance chunk-only documentee + test simule."
+      ],
+      "acceptance": [
+        "Au moins un test merge avec 2 chunks synthetiques et mots frontieres.",
+        "Document README sur limitation RAM si applicable."
+      ]
+    },
+    {
+      "id": "WX-509",
+      "title": "Tests robustesse: ffmpeg absent, HF token, fichier corrompu, aligner fallback",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "1.5d",
+      "dependsOn": ["WX-507"],
+      "scope": [
+        "tests/test_robustness_errors.py",
+        "whisperx-studio/src-tauri ou worker (messages)"
+      ],
+      "execute": ["uv run --with pytest pytest -q tests/test_robustness_errors.py"],
+      "definitionOfDone": [
+        "ffmpeg absent: message clair + code retour non zero.",
+        "Diarisation sans token: message + speaker None possible.",
+        "Fichier corrompu: echec controle sans panic.",
+        "Langue non supportee aligner: fallback segment-level + warning dans manifest ou logs."
+      ],
+      "acceptance": ["Chaque cas mockable sans GPU (chemins invalides, env, fichiers mini)."]
+    },
+    {
+      "id": "WX-510",
+      "title": "Non-regression chiffree: golden metrics sur fixture 30s (tolerance %)",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "1d",
+      "dependsOn": ["WX-505", "WX-506"],
+      "scope": ["tests/test_regression_golden.py", "tests/fixtures/golden_metrics.json"],
+      "execute": ["uv run --with pytest pytest -q tests/test_regression_golden.py"],
+      "definitionOfDone": [
+        "Figer n_words aligned/interpolated/missing, n_pauses_intra (min_pause=0.15, ignore_below=0.12), mean/p95 pauses.",
+        "Comparer avec tolerance ±X% documentee; echouer si explosion > seuil.",
+        "Manifest enregistre model_version pour expliquer drift."
+      ],
+      "acceptance": ["Une commande unique met a jour les golden avec review humaine (documentee)."]
+    },
+    {
+      "id": "WX-511",
+      "title": "Documentation: spec modele + checklist tests (lien backlog)",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "0.5d",
+      "dependsOn": ["WX-501", "WX-505"],
+      "scope": ["whisperx-studio/backlog/backlog.json", "README.md ou docs/data-model.md"],
+      "execute": [
+        "npm run backlog:list:unix --prefix whisperx-studio 2>/dev/null || node whisperx-studio/scripts/backlog.mjs -Action list"
+      ],
+      "definitionOfDone": [
+        "Document unique resume objets A-J, invariants, exports, ordre v1 implementation.",
+        "Table matiere tests 2.1-2.6 mappee aux IDs WX-505..510.",
+        "Note formats optionnels RTTM/TextGrid/EAF (deja WX-311) sans dupliquer code."
+      ],
+      "acceptance": [
+        "Nouveau contributeur peut executer backlog:next et trouver la prochaine tache prete."
+      ]
+    },
+    {
+      "id": "WX-601",
+      "title": "Overlap: flags pauses/IPU + stats_clean (hors zones overlap)",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "2d",
+      "dependsOn": ["WX-503", "WX-506"],
+      "scope": ["whisperx/timeline.py", "whisperx/analysis.py", "whisperx/schema.py", "tests/"],
+      "execute": [
+        "uv run --with pytest pytest -q tests/test_wx503_analysis.py tests/test_synthetic_timeline.py"
+      ],
+      "definitionOfDone": [
+        "Zones overlap robustes depuis speaker_turns (deja derives) ou overlap events.",
+        "Toute pause/IPU qui intersecte une zone overlap: flags incluent overlap_context (ou equivalent schema).",
+        "Bloc analysis.stats ou stats_clean: metriques pauses/IPU excluant overlap (documente).",
+        "Tests sur timeline synthetique avec overlap 2 locuteurs."
+      ],
+      "acceptance": [
+        "Documenter la regle d intersection (temps) et le nom exact du flag.",
+        "stats_clean comparable aux stats brutes sur corpus sans overlap."
+      ]
+    },
+    {
+      "id": "WX-602",
+      "title": "Metriques SHS: par speaker + interactionnelles (debit, interruptions, overlaps)",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "3d",
+      "dependsOn": ["WX-601", "WX-505"],
+      "scope": [
+        "whisperx/timeline.py ou whisperx/analytics_metrics.py",
+        "whisperx/utils.py",
+        "tests/"
+      ],
+      "execute": ["uv run --with pytest pytest -q tests"],
+      "definitionOfDone": [
+        "Par speaker: duree parole, mots/min, ratio silence/parole, distribution pauses (moy mediane p90 p95), longueur IPU.",
+        "Interaction: taux interruptions, latences transition_gap A vers B, proportion et duree overlap, sequences IPU courts (burstiness).",
+        "Serialisation dans run.json ou bloc timeline analysis (chemins documentes).",
+        "Tests sur fixture synthetique sans audio."
+      ],
+      "acceptance": [
+        "Definitions des indicateurs figees dans docs ou schema.",
+        "Option pour utiliser stats_clean (WX-601) dans les agregats."
+      ]
+    },
+    {
+      "id": "WX-603",
+      "title": "Calibration auto seuils pause (extrait) + presets sport_interview",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "2.5d",
+      "dependsOn": ["WX-503"],
+      "scope": [
+        "whisperx/timeline.py",
+        "whisperx/transcribe.py",
+        "whisperx-studio/python/worker.py",
+        "tests/"
+      ],
+      "execute": ["uv run --with pytest pytest -q tests/test_analysis_pure.py"],
+      "definitionOfDone": [
+        "Mode calibration sur fenetre (ex 60s): distribution des gaps par speaker, quantiles pour ignore_below et heuristique min_pause.",
+        "Presets nommes sport_tv et interview avec bornes documentees.",
+        "Parametres ecrits dans run_manifest / analysis config.",
+        "Tests unitaires sur gaps synthetiques."
+      ],
+      "acceptance": [
+        "Echec gracieux si fenetre trop courte ou pas de gaps.",
+        "Reproductibilite avec meme config fichier."
+      ]
+    },
+    {
+      "id": "WX-604",
+      "title": "Longs fichiers: reprise par chunk + exports incrementaux JSONL/streaming",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "4d",
+      "dependsOn": ["WX-302", "WX-504"],
+      "scope": [
+        "whisperx/transcribe.py",
+        "whisperx/chunk_merge.py",
+        "whisperx/utils.py",
+        "tests/test_chunking_merge.py"
+      ],
+      "execute": ["uv run --with pytest pytest -q tests/test_chunking_merge.py"],
+      "definitionOfDone": [
+        "chunk_manifest.json (ou equivalent) listant chunks et statut.",
+        "Reprise: relancer uniquement les chunks en echec sans doublons aux frontieres.",
+        "Option ecriture words/segments/pauses en jsonl incremental (append ou fichier par chunk).",
+        "Parquet optionnel pour gros corpus (ou ticket derive si trop lourd)."
+      ],
+      "acceptance": [
+        "Test merge 2+ chunks avec mots frontieres sans doublon.",
+        "README limitation RAM / disque."
+      ]
+    },
+    {
+      "id": "WX-605",
+      "title": "Post-traitement speaker_turns: fusion/split (preset sport duo)",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "2d",
+      "dependsOn": ["WX-601", "WX-303"],
+      "scope": ["whisperx/diarize.py ou whisperx/timeline.py", "tests/"],
+      "execute": ["uv run --with pytest pytest -q tests"],
+      "definitionOfDone": [
+        "Regles: fusion gap < X ms meme speaker, split si silence > Y entre mots du meme speaker (parametrable).",
+        "Preset sport duo (min/max speakers) documente.",
+        "Ne pas casser les tests overlap existants; flags si turn modifie.",
+        "Tests synthetiques sur turns artificiels."
+      ],
+      "acceptance": [
+        "Journal des modifications (optionnel) dans manifest ou logs.",
+        "Comparaison avant/apres sur golden court."
+      ]
+    },
+    {
+      "id": "WX-606",
+      "title": "Stabilisation timestamps mots + lissage leger dans IPU (flags)",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "2d",
+      "dependsOn": ["WX-502", "WX-503"],
+      "scope": ["whisperx/timeline.py", "whisperx/alignment.py", "tests/"],
+      "execute": ["uv run --with pytest pytest -q tests/test_timeline_validators.py"],
+      "definitionOfDone": [
+        "Detection mots aberrants (duree min/max vs voisins) -> flags.",
+        "Lissage optionnel ordre conserve, documente dans analysis config.",
+        "Pas de modification silencieuse sans flag ou sans mode explicite.",
+        "Tests unitaires sur sequences de mots."
+      ],
+      "acceptance": ["Desactive par defaut ou mode strict pour ne pas casser les runs existants."]
+    },
+    {
+      "id": "WX-607",
+      "title": "Alignement externe optionnel (ex MFA) si transcription de reference",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "3d",
+      "dependsOn": ["WX-301"],
+      "scope": ["whisperx/", "README.md", "whisperx-studio/python/worker.py"],
+      "execute": ["uv run --with pytest pytest -q tests"],
+      "definitionOfDone": [
+        "Interface CLI ou config pour lancer pipeline alignement externe (binaire ou script documente).",
+        "Import des timestamps dans timeline ou segment words (format documente).",
+        "Echec clair si dependances MFA absentes.",
+        "Marque source alignment dans metadata."
+      ],
+      "acceptance": ["Feature desactivee par defaut; pas de regression pipeline WhisperX standard."]
+    },
+    {
+      "id": "WX-608",
+      "title": "Interop: CTM + Parquet + gabarit dataset Open Science (structure dossiers)",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "2d",
+      "dependsOn": ["WX-307", "WX-311"],
+      "scope": ["whisperx/utils.py", "docs/ ou README", "tests/"],
+      "execute": [
+        "uv run --with pytest pytest -q tests/test_annotation_exports.py tests/test_interop_dataset_exports.py"
+      ],
+      "definitionOfDone": [
+        "Export CTM (timings mots) si pertinent pour interop ASR.",
+        "Export Parquet pour words/pauses/ipus (optionnel, deps pandas/pyarrow documentees).",
+        "Template README + arborescence type runs/<id>/dataset/ pour reproduction.",
+        "RTTM deja couvert par WX-311: pas dupliquer, seulement completer."
+      ],
+      "acceptance": [
+        "Import pandas one-liner sur fixture de run.",
+        "Pas de fichier lourd commite dans le repo."
+      ]
+    },
+    {
+      "id": "WX-609",
+      "title": "GUI minimale Tkinter (fichier, presets, run, log, ouverture output)",
+      "status": "done",
+      "priority": "P3",
+      "estimate": "2d",
+      "dependsOn": [],
+      "scope": ["scripts/ ou whisperx/gui_tk.py", "README.md"],
+      "execute": ["python -m whisperx.gui_tk --help"],
+      "definitionOfDone": [
+        "Fenetre: choix fichier, preset, lancement worker ou CLI, zone log.",
+        "Bouton ouvrir dossier sortie (os.startfile / xdg-open).",
+        "Sans remplacer Studio Tauri; cible postes sans stack desktop lourd.",
+        "Documentation installation minimale."
+      ],
+      "acceptance": [
+        "Fonctionne sur Windows et macOS (chemins).",
+        "Pas de dependance obligatoire si module tk absent (message clair)."
+      ]
+    },
+    {
+      "id": "WX-610",
+      "title": "Tests integration: corpus sportif multi-locuteurs + bruit (metriques WX-602)",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "2d",
+      "dependsOn": ["WX-602", "WX-507"],
+      "scope": ["tests/", "docs/fixtures.md"],
+      "execute": [
+        "uv run --with pytest pytest -q tests/test_wx610_integration_sport.py -m integration"
+      ],
+      "definitionOfDone": [
+        "Scenario E2E ou integration marque: audio court ou fixture, overlap + 2 speakers.",
+        "Verifier que stats_clean et metriques interactionnelles sont stables (seuils documentes).",
+        "URL ou script telechargement fixture sans commit lourd.",
+        "Document README cas sport vs interview."
+      ],
+      "acceptance": [
+        "WHISPERX_RUN_AUDIO_E2E=1 ou fixture locale documentee.",
+        "Pas de regression sur CI sans GPU par defaut."
+      ]
+    },
+    {
+      "id": "WX-611",
+      "title": "Studio: mode run (Variante 1) — dossier runs/<id>, manifest versionne, Open run",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "3d",
+      "dependsOn": [],
+      "scope": [
+        "whisperx-studio/src-tauri/",
+        "whisperx-studio/src/",
+        "docs/ ou README whisperx-studio"
+      ],
+      "execute": ["npm run build", "cargo check"],
+      "definitionOfDone": [
+        "Convention de chemins: media source reference, sorties WhisperX et artefacts dans le run.",
+        "run_manifest.json (ou equivalent) lu par Studio avec schema_version.",
+        "Commandes Tauri: resoudre run_id, lister runs recents, valider integrite minimale.",
+        "UI: flux Open run (et option Create run depuis fichier media)."
+      ],
+      "acceptance": [
+        "Reouverture d un run partage entre machines = meme arborescence relative.",
+        "Pas de recalcul implicite a l ouverture."
+      ]
+    },
+    {
+      "id": "WX-612",
+      "title": "Studio Rust: events.sqlite v1 — import words/turns depuis JSON run + index temporel",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "4d",
+      "dependsOn": ["WX-611"],
+      "scope": ["whisperx-studio/src-tauri/src/", "tests/ rust ou integration"],
+      "execute": ["cargo test -p whisperx-studio"],
+      "definitionOfDone": [
+        "Tables: words, turns, pauses, ipus (colonnes start_ms/end_ms minimum + flags).",
+        "CREATE INDEX sur start_ms (et requetes fenetre documentees).",
+        "Import incremental ou reimport depuis JSON pipeline existant (aligne run_manifest).",
+        "Migration schema versionnee si evolution."
+      ],
+      "acceptance": [
+        "Fixture courte: import < 2s; pas de chargement JSON entier dans le frontend pour navigation."
+      ]
+    },
+    {
+      "id": "WX-613",
+      "title": "Studio Rust: invoke query_window(t0,t1,layers,speakers) + limites pagination",
+      "status": "done",
+      "priority": "P0",
+      "estimate": "3d",
+      "dependsOn": ["WX-612"],
+      "scope": ["whisperx-studio/src-tauri/src/", "whisperx-studio/src/types.ts"],
+      "execute": ["npm run build", "cargo check"],
+      "definitionOfDone": [
+        "WHERE start_ms < t1 AND end_ms > t0 avec filtres layers et speaker.",
+        "Limites explicites (ex. words max 5000 par fenetre) documentees.",
+        "Petit JSON uniquement; pas de dump transcript complet via IPC."
+      ],
+      "acceptance": [
+        "Fenetre 30s sur run 2h: reponse invoke < 50ms en ordre de grandeur sur machine dev (hors cold start)."
+      ]
+    },
+    {
+      "id": "WX-614",
+      "title": "Studio Rust: pyramide waveform WXENV1 (L0-L4 min/max int16) + generation streaming",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "5d",
+      "dependsOn": ["WX-611"],
+      "scope": [
+        "whisperx-studio/src-tauri/src/waveform.rs",
+        "format binaire envelope_Lk.bin",
+        "whisperx-studio/src/"
+      ],
+      "execute": ["cargo check"],
+      "definitionOfDone": [
+        "Header magic WXENV1, sample_rate, block_size, n_blocks; payload int16 min/max.",
+        "Niveaux block_size alignes spec (256, 1024, 4096, 16384, 65536 a 16 kHz).",
+        "Generation sans charger tout le wav en RAM; L(n) derive de L(n-1).",
+        "Overview peut s afficher des L3/L4 pret pendant calcul L0 en arriere-plan."
+      ],
+      "acceptance": [
+        "Ordre de grandeur memoire/taille disque coherent 2h (quelques MB total pyramide).",
+        "Coexistence ou migration depuis cache peaks JSON actuel documentee."
+      ]
+    },
+    {
+      "id": "WX-615",
+      "title": "Frontend: canvas overview + detail — choix niveau envelope, virtualisation, seuils zoom words",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "5d",
+      "dependsOn": ["WX-613", "WX-614"],
+      "scope": ["whisperx-studio/src/", "lecture .bin via FS plugin ou API Rust slice"],
+      "execute": ["npm run build"],
+      "definitionOfDone": [
+        "Overview duree complete + fenetre detail draggable (rectangle).",
+        "Selection niveau Lk selon samples_per_pixel; overview L3/L4 seulement.",
+        "Regles: fenetre > 60s sans labels mots; <= 30s mots avec limite; option segments si zoom serre.",
+        "OffscreenCanvas + worker optionnel si jank mesure."
+      ],
+      "acceptance": [
+        "Objectifs redraw: detail turns/pauses/ipu < 50ms; avec mots fenetre <= 30s < 150ms (machine dev, instrumentation)."
+      ]
+    },
+    {
+      "id": "WX-616",
+      "title": "Explorer UI: TopBar + panneau Layers/Speakers + statuts + Export pack",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "4d",
+      "dependsOn": ["WX-611", "WX-613"],
+      "scope": ["whisperx-studio/src/", "whisperx-studio/src/App.css"],
+      "execute": ["npm run build"],
+      "definitionOfDone": [
+        "TopBar: Open file, Open run, resume fichier/duree, device CPU/CUDA, statuts Words/Speakers/Overlap/Missing timing.",
+        "Layers toggles: turns, pauses, IPU, overlap, words (auto zoom), segments.",
+        "Speakers: liste, alias editable, visibilite, solo.",
+        "Export pack JSON+CSV+SRT (ou delegation backend ecriture disque)."
+      ],
+      "acceptance": [
+        "Navigation: next pause, next overlap, go to time branches sur query_window / index."
+      ]
+    },
+    {
+      "id": "WX-617",
+      "title": "Controls droite: presets pause/IPU + Recalc FAST Rust (sans WhisperX) + stats live",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "4d",
+      "dependsOn": ["WX-613"],
+      "scope": ["whisperx-studio/src-tauri/src/", "whisperx-studio/src/"],
+      "execute": ["npm run build", "cargo check"],
+      "definitionOfDone": [
+        "Sliders min_pause, ignore_below: changement declenche recalcul local sur timeline (invoke dedie).",
+        "Commande recalc_pauses_ipu(run_id, cfg) reecrit tables pauses/ipus depuis words/turns.",
+        "Stats: #pauses, moyenne, p95, #IPU, overlap total renvoyees au front.",
+        "Aucun slider ne lance WhisperX; garde-fou UX et code."
+      ],
+      "acceptance": [
+        "Recalc typique 0.5-3s sur run court; refresh overlays sans relancer sidecar Python."
+      ]
+    },
+    {
+      "id": "WX-618",
+      "title": "Panneau Advanced: compute lourd isole — Transcribe/Align/Diarize, confirmation, cancel",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "4d",
+      "dependsOn": ["WX-611"],
+      "scope": [
+        "whisperx-studio/src/",
+        "whisperx-studio/src-tauri/src/jobs.rs",
+        "whisperx-studio/python/worker.py"
+      ],
+      "execute": ["npm run build", "cargo check"],
+      "definitionOfDone": [
+        "Actions lourdes uniquement via boutons explicites + dialogue confirmation.",
+        "Progression sidecar: stdout JSON lines parse par Rust, relais evenements UI.",
+        "Annulation propre (kill tree documente).",
+        "Sous-section debug overlays (interpole, nonspeech) si donnees presentes."
+      ],
+      "acceptance": ["Run WhisperX impossible par simple deplacement de slider d analyse."]
+    },
+    {
+      "id": "WX-619",
+      "title": "Playback: WebAudio + buffer autour playhead; seek precis depuis wav normalise",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "3d",
+      "dependsOn": ["WX-611"],
+      "scope": ["whisperx-studio/src/", "ffmpeg decode ou fichier wav cache par run"],
+      "execute": ["npm run build"],
+      "definitionOfDone": [
+        "Lecture depuis media/wav derive; cache ±10s autour position.",
+        "Play/pause percu < 100ms en conditions nominales.",
+        "Pas de decode waveform brut cote JS pour le rendu (seulement audio)."
+      ],
+      "acceptance": ["Seek sur fichier 2h: pas de freeze UI > 200ms."]
+    },
+    {
+      "id": "WX-620",
+      "title": "Durcissement IPC + criteres Done Explorer (perf checklist + instrumentation dev)",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "2d",
+      "dependsOn": ["WX-615", "WX-616"],
+      "scope": [
+        "whisperx-studio/src/",
+        "whisperx-studio/src-tauri/",
+        "docs internes backlog ou README"
+      ],
+      "execute": ["npm run build", "cargo check"],
+      "definitionOfDone": [
+        "Revue invoke: aucune commande ne renvoie transcript complet par defaut.",
+        "Checklist manuelle 2h: overview < 1s si cache pret; drag overview -> detail < 100ms (cible).",
+        "Hooks/timers dev optionnels pour mesurer redraw et taille payloads.",
+        "Documenter regles IPC dans README Studio (section architecture)."
+      ],
+      "acceptance": ["Scenario 2h documente avec resultats notes (meme si hors CI automatise)."]
+    }
+  ]
 }

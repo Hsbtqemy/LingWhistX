@@ -1,11 +1,14 @@
-from typing import Callable, TypedDict, Optional, List, Tuple
+from typing import Any, Callable, TypedDict, Optional, List, Tuple
 
 ProgressCallback = Optional[Callable[[float], None]]
 
 try:
-    from typing import NotRequired
+    from typing import Literal, NotRequired
 except ImportError:
-    from typing_extensions import NotRequired
+    from typing_extensions import Literal, NotRequired
+
+
+AlignmentStatus = Literal["aligned", "interpolated", "missing"]
 
 
 class SingleWordSegment(TypedDict):
@@ -69,6 +72,11 @@ class CanonicalTimelineWord(TypedDict):
     speaker: NotRequired[str]
     confidence: NotRequired[float]
     flags: NotRequired[List[str]]
+    word_id: NotRequired[str]
+    norm: NotRequired[str]
+    segment_id: NotRequired[str]
+    chunk_id: NotRequired[str]
+    alignment_status: NotRequired[AlignmentStatus]
 
 
 class CanonicalTimelineSegment(TypedDict):
@@ -77,12 +85,19 @@ class CanonicalTimelineSegment(TypedDict):
     end: float
     speaker: NotRequired[str]
     confidence: NotRequired[float]
+    segment_id: NotRequired[str]
+    chunk_id: NotRequired[str]
+    flags: NotRequired[List[str]]
 
 
 class CanonicalTimelineSpeakerTurn(TypedDict):
     speaker: str
     start: float
     end: float
+    turn_id: NotRequired[str]
+    confidence: NotRequired[float]
+    source: NotRequired[str]
+    flags: NotRequired[List[str]]
 
 
 class CanonicalTimelineEvent(TypedDict):
@@ -93,11 +108,16 @@ class CanonicalTimelineEvent(TypedDict):
 
 
 class CanonicalTimelinePause(TypedDict):
+    """type v1: intra_speaker_word_gap | transition_gap | global_nonspeech (legacy: intra_word_gap)."""
+
     start: float
     end: float
     dur: float
     type: str
     speaker: NotRequired[str]
+    pause_id: NotRequired[str]
+    context: NotRequired[dict[str, Any]]
+    flags: NotRequired[List[str]]
 
 
 class CanonicalTimelineNonSpeechInterval(TypedDict):
@@ -114,6 +134,8 @@ class CanonicalTimelineIpu(TypedDict):
     text: str
     n_words: int
     speaker: NotRequired[str]
+    word_ids: NotRequired[List[str]]
+    flags: NotRequired[List[str]]
 
 
 CanonicalTimelineTransition = TypedDict(
@@ -127,6 +149,7 @@ class CanonicalTimelineOverlap(TypedDict):
     start: float
     end: float
     dur: float
+    overlap_id: NotRequired[str]
 
 
 class CanonicalTimelineAnalysisConfig(TypedDict):
@@ -139,6 +162,15 @@ class CanonicalTimelineAnalysisConfig(TypedDict):
     ipu_min_words: int
     ipu_min_duration: float
     ipu_bridge_short_gaps_under: float
+    analysis_preset: NotRequired[str]
+    pause_calibration: NotRequired[dict[str, Any]]
+    speaker_turn_postprocess_preset: NotRequired[str]
+    speaker_turn_merge_gap_sec_max: NotRequired[float]
+    speaker_turn_split_word_gap_sec: NotRequired[float]
+    word_timestamp_stabilize_mode: NotRequired[str]
+    word_ts_neighbor_ratio_low: NotRequired[float]
+    word_ts_neighbor_ratio_high: NotRequired[float]
+    word_ts_smooth_max_sec: NotRequired[float]
 
 
 class CanonicalTimelineAnalysis(TypedDict):
@@ -148,6 +180,8 @@ class CanonicalTimelineAnalysis(TypedDict):
     ipus: List[CanonicalTimelineIpu]
     transitions: List[CanonicalTimelineTransition]
     overlaps: List[CanonicalTimelineOverlap]
+    stats: NotRequired[dict[str, Any]]
+    stats_clean: NotRequired[dict[str, Any]]
 
 
 class CanonicalTimeline(TypedDict):

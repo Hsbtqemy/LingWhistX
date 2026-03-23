@@ -28,6 +28,7 @@
     "targets": "all",
     "resources": [
       "../python/worker.py",
+      "../python/studio_audio_modules.py",
       "../scripts/setup-local-runtime.ps1"
     ],
     "icon": [
