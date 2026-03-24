@@ -14,10 +14,16 @@ export type LocalRuntimePanelProps = {
   runtimeActionMessage: string;
   runtimeActionSuccess: boolean | null;
   runtimeSetupLogs: RuntimeSetupLogEvent[];
+  ffmpegInstallRunning: boolean;
+  ffmpegInstallLogs: RuntimeSetupLogEvent[];
+  ffmpegInstallMessage: string;
+  ffmpegInstallSuccess: boolean | null;
   onRefreshRuntime: () => void;
   onRunSmokeTest: () => void;
   onCopyDiagnostic: () => void;
   onStartRuntimeSetup: () => void;
   onRefreshSetupStatus: () => void;
   onClearSetupLogs: () => void;
+  onStartFfmpegInstall: () => void;
+  onClearFfmpegInstallLogs: () => void;
 };

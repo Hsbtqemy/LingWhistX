@@ -26,13 +26,15 @@ Desktop local-first wrapper skeleton for WhisperX:
 - **Advanced / compute lourd (WX-618)** : préréglages (WhisperX ± diarization, analyze-only) + rappel explicite que les sliders d’analyse ne déclenchent pas le worker ; confirmation `window.confirm` avant lancement effectif des modes lourds ; progression via lignes JSON `__WXLOG__` sur stdout ; annulation documentée (`kill_process_tree` / `taskkill /T` sous Windows).
 - **Lecture Web Audio (WX-619)** : case « Lecture Web Audio » dans l’espace d’alignement ; commande `extract_audio_wav_window` (ffmpeg, WAV mono 16 kHz en cache app, fenêtre autour du playhead, plafond 60 s) ; `WebAudioWindowPlayer` charge les tranches au besoin ; la vidéo reste sur le lecteur natif.
 - **IPC Explorer (WX-620)** : documentation des commandes Tauri (pas de timeline complet côté front après import ; fenêtres bornées) ; checklist perf manuelle ; en dev, journalisation des appels IPC Explorer via `ipcInvokeDev` (`src/dev/ipcPerf.ts`).
+- **Vue média omniprésente (WX-621)** : dès qu’un chemin média est renseigné sur « Nouveau job », un panneau **Aperçu média** affiche le lecteur (vidéo ou audio) et l’ondeforme sur la même page ; pour la vidéo, lecteur et ondeforme sont dans des zones distinctes (empilées). Le temps de lecture et le seek sont partagés via `useWaveformWorkspace` (même hook que l’espace d’alignement sur un job). Dans l’historique / détail de run, l’**Alignment Workspace** utilise le même découpage visuel.
+- **Plage + preview Web Audio (WX-622)** : dans l’Alignment Workspace, sélection d’une plage `[t0, t1]` (glisser sur la waveform en mode dédié, ou saisie numérique, ou bouton « Plage = fenêtre visible »). En lecture « Web Audio », la lecture peut charger uniquement l’extrait plage (`loadRangeChunk`, ffmpeg jusqu’à 60 s). Chaîne preview gain / EQ shelf / balance avec bypass ; le fichier source n’est pas modifié. Bandes vertes / jaunes sur le canvas pour plage validée / drag.
 
 ## Prerequisites
 
 - Node.js + npm (after cloning, run `npm ci` or `npm install` inside `whisperx-studio/` so `tsc` and Vite are available)
 - Rust toolchain (`rustc`, `cargo`)
 - Python 3.10+ for `whisperx` mode
-- `ffmpeg` available in `PATH` for real WhisperX runs
+- **`ffmpeg` / `ffprobe`** : obligatoires pour les jobs réels ; **non** installés par `npm run runtime:setup` (seulement Python + WhisperX). Dans l’app : panneau **Runtime** → **Installer ffmpeg (automatique)** si Homebrew, **winget** ou **Chocolatey** est disponible ; sinon installe à la main (ex. `brew install ffmpeg`).
 
 ## Run in Dev
 
@@ -42,17 +44,16 @@ npm install
 npm run tauri dev
 ```
 
-If WhisperX runtime is not installed yet:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\setup-local-runtime.ps1
-```
-
-Or:
+If WhisperX runtime is not installed yet (installe un venv sous le dossier données de l’app + `pip install whisperx`) :
 
 ```bash
+cd whisperx-studio
 npm run runtime:setup
 ```
+
+(Sur Windows, `npm run runtime:setup:ps1` appelle encore le script PowerShell si tu préfères.)
+
+Variables utiles : `PYTHON_EXE` (défaut `python3` / `python`), `RUNTIME_DIR` (chemin du venv), `WHISPERX_STUDIO_BUNDLE_ID` (défaut `com.hsemil01.whisperx-studio`).
 
 In the app:
 

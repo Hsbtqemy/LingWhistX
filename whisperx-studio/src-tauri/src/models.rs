@@ -45,6 +45,9 @@ pub(crate) struct WhisperxOptions {
     /// Modules pipeline audio optionnels (prétraitement, VAD, QC, …) — JSON libre, voir `audit/pipeline-modules-multi-speaker.md`.
     #[serde(default)]
     pub(crate) audio_pipeline_modules: Option<serde_json::Value>,
+    /// WX-623 — plages temporelles `{ startSec, endSec, audioPipelineModules? }[]` ; extraction ffmpeg puis pipeline par plage puis concat.
+    #[serde(default)]
+    pub(crate) audio_pipeline_segments: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -193,6 +196,22 @@ pub(crate) struct ExportTranscriptResponse {
     pub(crate) report: ExportCorrectionReport,
 }
 
+/// Export JSON + SRT + CSV depuis un dossier de run (manifest → `timeline_json` ou `run_json`).
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ExportRunTimingPackRequest {
+    pub(crate) run_dir: String,
+    pub(crate) rules: Option<ExportTimingRules>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ExportRunTimingPackResponse {
+    pub(crate) source_path: String,
+    pub(crate) last_output_path: String,
+    pub(crate) report: ExportCorrectionReport,
+}
+
 #[derive(Default)]
 pub(crate) struct JobsState {
     pub(crate) jobs: Arc<Mutex<HashMap<String, Job>>>,
@@ -244,6 +263,11 @@ pub(crate) struct RuntimeState {
 
 #[derive(Default)]
 pub(crate) struct RuntimeSetupState {
+    pub(crate) running: Arc<Mutex<bool>>,
+}
+
+#[derive(Default)]
+pub(crate) struct FfmpegInstallState {
     pub(crate) running: Arc<Mutex<bool>>,
 }
 

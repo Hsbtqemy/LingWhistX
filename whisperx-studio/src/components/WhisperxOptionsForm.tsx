@@ -342,6 +342,30 @@ export function WhisperxOptionsForm({
         </label>
 
         <label className="full-width">
+          Plages pipeline (JSON, WX-623)
+          <textarea
+            rows={5}
+            value={whisperxOptions.audioPipelineSegmentsJson}
+            onChange={(e) =>
+              setWhisperxOptions((prev) => ({
+                ...prev,
+                audioPipelineSegmentsJson: e.currentTarget.value,
+              }))
+            }
+            placeholder={`[\n  { "startSec": 0, "endSec": 12.5, "audioPipelineModules": { "preNormalize": true } }\n]`}
+            spellCheck={false}
+            autoComplete="off"
+            style={{ width: "100%", fontFamily: "ui-monospace, monospace", fontSize: "0.9em" }}
+          />
+          <p className="field-help">
+            Tableau non vide de plages <code>startSec</code>/<code>endSec</code> (secondes), modules
+            optionnels par plage via <code>audioPipelineModules</code> (sinon repli sur le champ
+            « Modules pipeline » ci-dessus). Depuis l’Alignment, « Injecter plage » peut préremplir ce
+            champ. Laisser vide pour désactiver le mode par plages.
+          </p>
+        </label>
+
+        <label className="full-width">
           HF Token (optionnel, requis si diarization)
           <input
             value={whisperxOptions.hfToken}

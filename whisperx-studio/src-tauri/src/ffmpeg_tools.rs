@@ -1,4 +1,6 @@
 //! Detection ffmpeg/ffprobe et sondes duree media.
+//! WX-623 : l’extraction par plage et la concat pipeline côté worker utilisent les mêmes binaires
+//! résolus ici (`resolve_ffmpeg_tools`) — pas de duplication de logique de détection dans ce module.
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};

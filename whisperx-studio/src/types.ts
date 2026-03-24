@@ -2,7 +2,7 @@ export type JobStatus = "queued" | "running" | "done" | "error" | "cancelled";
 export type JobFormStep = "import" | "configure";
 
 /** Vues principales de l’application (navigation par onglets) */
-export type StudioView = "create" | "workspace" | "about";
+export type StudioView = "create" | "workspace" | "player" | "about";
 
 export type WhisperxOptions = {
   model?: string;
@@ -46,6 +46,10 @@ export type WhisperxOptions = {
    * Modules pipeline audio optionnels (combinables). Clés canoniques : voir `audit/pipeline-modules-multi-speaker.md`.
    */
   audioPipelineModules?: Record<string, unknown>;
+  /**
+   * WX-623 — plages `{ startSec, endSec, audioPipelineModules? }[]` ; concat ffmpeg après traitement par plage.
+   */
+  audioPipelineSegments?: unknown[];
 };
 
 export type UiWhisperxOptions = {
@@ -89,13 +93,17 @@ export type UiWhisperxOptions = {
    * Voir `audit/pipeline-modules-multi-speaker.md`.
    */
   audioPipelineModulesJson: string;
+  /**
+   * JSON tableau (prioritaire) : plages pipeline — voir audit/pipeline-modules-multi-speaker.md (WX-623).
+   */
+  audioPipelineSegmentsJson: string;
 };
 
 export type Job = {
   id: string;
   inputPath: string;
   outputDir: string;
-  mode: "mock" | "whisperx" | string;
+  mode: "mock" | "whisperx" | "analyze_only";
   status: JobStatus;
   progress: number;
   message: string;
@@ -214,6 +222,13 @@ export type ExportCorrectionReport = {
 
 export type ExportTranscriptResponse = {
   outputPath: string;
+  report: ExportCorrectionReport;
+};
+
+/** Réponse `export_run_timing_pack` (Player / run — JSON + SRT + CSV). */
+export type ExportRunTimingPackResponse = {
+  sourcePath: string;
+  lastOutputPath: string;
   report: ExportCorrectionReport;
 };
 

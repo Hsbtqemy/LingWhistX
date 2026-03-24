@@ -33,7 +33,7 @@ TOKENS_PER_SECOND = exact_div(SAMPLE_RATE, N_SAMPLES_PER_TOKEN)  # 20ms per audi
 def probe_audio_duration(file: str) -> Optional[float]:
     """Return media duration in seconds using ffprobe, or None if unavailable."""
     cmd = [
-        "ffprobe",
+        _FFPROBE_CMD,
         "-v",
         "error",
         "-show_entries",

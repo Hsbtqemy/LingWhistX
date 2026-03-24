@@ -14,6 +14,7 @@ export function buildAlignmentWorkspaceProps(
   selectedIsVideo: boolean,
   wf: WaveformWorkspace,
   te: TranscriptEditorApi,
+  injectAudioPipelineSegmentsJson?: (json: string) => void,
 ): AlignmentWorkspacePanelProps {
   return {
     selectedJob,
@@ -72,6 +73,22 @@ export function buildAlignmentWorkspaceProps(
     setWebAudioMode: wf.setWebAudioMode,
     webAudioError: wf.webAudioError,
     toggleMediaPlayback: wf.toggleMediaPlayback,
+    injectAudioPipelineSegmentsJson,
+    previewRangeSec: wf.previewRangeSec,
+    setPreviewRangeSec: wf.setPreviewRangeSec,
+    rangeSelectionMode: wf.rangeSelectionMode,
+    setRangeSelectionMode: wf.setRangeSelectionMode,
+    setPreviewRangeFromVisibleWindow: wf.setPreviewRangeFromVisibleWindow,
+    clearPreviewRange: wf.clearPreviewRange,
+    previewWaveGainDb: wf.previewWaveGainDb,
+    setPreviewWaveGainDb: wf.setPreviewWaveGainDb,
+    previewWaveEqLowDb: wf.previewWaveEqLowDb,
+    setPreviewWaveEqLowDb: wf.setPreviewWaveEqLowDb,
+    previewWaveBalance: wf.previewWaveBalance,
+    setPreviewWaveBalance: wf.setPreviewWaveBalance,
+    previewWaveBypassEffects: wf.previewWaveBypassEffects,
+    setPreviewWaveBypassEffects: wf.setPreviewWaveBypassEffects,
+    resetPreviewWaveEffects: wf.resetPreviewWaveEffects,
   };
 }
 
@@ -155,6 +172,7 @@ export type BuildRunDetailsPanelPropsInput = {
   onPreviewOutput: RunDetailsPanelProps["onPreviewOutput"];
   editorFocusMode: boolean;
   onToggleEditorFocusMode: () => void;
+  injectAudioPipelineSegmentsJson?: (json: string) => void;
 };
 
 export function buildRunDetailsPanelProps(
@@ -173,6 +191,7 @@ export function buildRunDetailsPanelProps(
     onPreviewOutput,
     editorFocusMode,
     onToggleEditorFocusMode,
+    injectAudioPipelineSegmentsJson,
   } = input;
 
   return {
@@ -181,7 +200,14 @@ export function buildRunDetailsPanelProps(
     selectedJobHasJsonOutput,
     openLocalPath,
     alignment: selectedJob
-      ? buildAlignmentWorkspaceProps(selectedJob, selectedMediaSrc, selectedIsVideo, wf, te)
+      ? buildAlignmentWorkspaceProps(
+          selectedJob,
+          selectedMediaSrc,
+          selectedIsVideo,
+          wf,
+          te,
+          injectAudioPipelineSegmentsJson,
+        )
       : undefined,
     preview,
     onPreviewOutput,

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-03-23T22:45:00.000Z",
+  "updatedAt": "2026-03-24T12:00:00.000Z",
   "statuses": ["todo", "in_progress", "blocked", "done"],
   "tasks": [
     {
@@ -1333,6 +1333,188 @@
         "Documenter regles IPC dans README Studio (section architecture)."
       ],
       "acceptance": ["Scenario 2h documente avec resultats notes (meme si hors CI automatise)."]
+    },
+    {
+      "id": "WX-621",
+      "title": "Vue media omnipresente + ondeforme separee (video) + temps unifie (seek)",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "4d",
+      "dependsOn": ["WX-615", "WX-619"],
+      "scope": [
+        "whisperx-studio/src/App.tsx",
+        "whisperx-studio/src/components/",
+        "whisperx-studio/src/hooks/",
+        "whisperx-studio/src/App.css"
+      ],
+      "execute": ["npm run build", "cargo check"],
+      "definitionOfDone": [
+        "Tant qu un media est connu (import job ou run selectionne), un panneau affiche le lecteur (video si extension video, sinon UI audio dediee).",
+        "Si video: lecteur video dans une zone; ondeforme (peaks ou WXENV) dans une zone distincte sous ou a cote, meme largeur utile.",
+        "Une seule source de verite playheadSec / duree partagee entre video, ondeforme et eventuellement transcript (pas de desync > 100ms perceptible).",
+        "Seek depuis ondeforme ou controles communs met a jour video et audio.",
+        "Layout responsive: panneaux empilables < 1024px sans casser min-width 0."
+      ],
+      "acceptance": [
+        "Fichier mp4 1080p + wav cache: seek rapide sans freeze UI > 200ms.",
+        "Fichier audio seul: pas de zone video vide genante (placeholder ou ondeforme principale).",
+        "Documenter dans README Studio la regle \"vue media toujours visible quand fichier attache\"."
+      ]
+    },
+    {
+      "id": "WX-622",
+      "title": "Selection de plage temporelle + preview audio (Web Audio) sur la zone zoomée",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "5d",
+      "dependsOn": ["WX-621"],
+      "scope": [
+        "whisperx-studio/src/hooks/",
+        "whisperx-studio/src/components/runDetails/",
+        "whisperx-studio/src/webAudioPlayback.ts"
+      ],
+      "execute": ["npm run build"],
+      "definitionOfDone": [
+        "L utilisateur pose deux marqueurs ou drag sur l ondeforme pour definir [t0, t1] (plage active).",
+        "La fenetre zoom / intervalle visible peut pre-remplir t0/t1 en option.",
+        "Chaines Web Audio (gain/EQ simple/balance) applicables en preview sur la lecture de la plage ou buffer autour playhead — sans ecrire le fichier tant que non valide.",
+        "Bypass / reset des effets; indication claire mode preview vs fichier reel.",
+        "Accessibilite: focus clavier sur marqueurs si possible."
+      ],
+      "acceptance": [
+        "Plage 5s sur fichier 1h: preview demarre < 500ms apres action.",
+        "Aucune fuite memoire sur 20 changements de plage consecutifs.",
+        "Si Web Audio indisponible: message degrade (lecture fichier seul)."
+      ]
+    },
+    {
+      "id": "WX-623",
+      "title": "Application ffmpeg des traitements sur plages + extension audioPipelineModules (segments)",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "6d",
+      "dependsOn": ["WX-622"],
+      "scope": [
+        "whisperx-studio/python/studio_audio_modules.py",
+        "whisperx-studio/python/worker.py",
+        "whisperx-studio/src-tauri/src/ffmpeg_tools.rs",
+        "audit/pipeline-modules-multi-speaker.md"
+      ],
+      "execute": ["python3 -m py_compile whisperx-studio/python/studio_audio_modules.py", "cargo check", "npm run build"],
+      "definitionOfDone": [
+        "Contrat JSON: liste optionnelle de segments {startSec, endSec} + modules a appliquer par segment ou globaux (spec ecrit dans audit).",
+        "Pour chaque segment: extraction ffmpeg -> traitement module existant ou chaine -> concat ou fichier de sortie dedie (decision produit documentee).",
+        "Job worker: erreurs explicites si plages invalides; logs __WXLOG__ avec resume des plages traitees.",
+        "UI: depuis plage selectionnee, action \"appliquer au job\" ou \"exporter snippet\" declenche le chemin backend (pas seulement preview).",
+        "Tests pytest minimaux sur parsing des plages + un cas ffmpeg mock ou fichier court."
+      ],
+      "acceptance": [
+        "Meme fichier: deux plages avec preNormalize sur l une seulement -> deux outputs attendus ou fichier concat selon spec.",
+        "Echec ffmpeg: job en error avec message lisible dans l UI.",
+        "Pas de regression: audioPipelineModules sans plages = comportement actuel inchangé."
+      ]
+    },
+    {
+      "id": "WX-624",
+      "title": "Player multi-vues (karaoké, lanes, colonnes, rythmo, chat) + alertes + contrats IPC",
+      "status": "todo",
+      "priority": "P1",
+      "estimate": "25d",
+      "dependsOn": ["WX-611", "WX-612", "WX-613"],
+      "scope": [
+        "whisperx-studio/src/components/player/",
+        "whisperx-studio/src/hooks/usePlayerPlayback.ts",
+        "whisperx-studio/src-tauri/src/player_run_commands.rs",
+        "whisperx-studio/src-tauri/src/window_slice.rs",
+        "audit/player-multi-view.md"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio/src-tauri && cargo check",
+        "cd whisperx-studio && npm run test"
+      ],
+      "definitionOfDone": [
+        "Workspace Player distinct de Compute/Explorer/Exports : aucun job ASR lourd ; lecture + slices SQLite + recompute alertes leger uniquement.",
+        "Entree utilisateur : depuis Open run -> mode Player ; run = source de verite (duree_ms, media path, events.sqlite indexe, envelopes WXENV, manifest).",
+        "TopBar persistante : libelle run, transport (play/pause, timecode, vitesse 0.5-2x, loop A-B), infos device read-only, stats QC (overlap, % interpole, timings manquants), bouton Export pack.",
+        "Viewport : 5 modes de vue selectionnables (Karaoké, Lanes, Colonnes, Rythmo, Chat) avec ViewportRenderer abstrait (render slice, hitTest, scroll/zoom, getPreferredWindow).",
+        "Panneau gauche : selecteur de vue (icones+label), speakers (alias editable, mute/hide), filtres (speaker, alerts only), navigateur next/prev alert + jump time.",
+        "Panneau droit : onglet Grand public (layout densite, texte, auto-scroll, toggles alertes, seuils principaux, bouton Recompute alerts fast, mini stats) + Avance replie (words/segments, wrap, bins rythmo/colonnes, debug overlays).",
+        "PlaybackController : play/pause/stop, seek absolu/relatif, vitesse, loop A-B, follow playhead ; auto-scroll ON par defaut, OFF si scroll user jusqu au bouton Follow ; evenements playback:tick/seek/state (front, RAF 30-60 Hz sans query backend par frame).",
+        "Vue Karaoké : bande continue, prefixe speaker, surlignage segment/mot si dispo ; virtualisation ±N segments (~200 max) ; words seulement si fenetre <= 30s ; marqueurs pause/overlap optionnels.",
+        "Vue Lanes : lanes par speaker, turns + segments option, pauses/IPU/overlap ; fenetre detail 10-60s + mini-map overview option ; drag plage -> loop ; double-clic seek ; toggles visibilite speakers 1-9.",
+        "Vue Colonnes : sous-modes time-aligned (bins 1s/2s/5s) et turn-aligned ; virtualisation lignes ; slice fenetre + buffer pas de generation 2h complete.",
+        "Vue Rythmo : repere NOW fixe, defilement vertical segments/IPU ; scrubbing drag -> seek ; fenetre glissante ~±60s virtualisee.",
+        "Vue Chat : bulles par speaker, timestamps, badges pause/overlap/interruption ; groupement segments ou IPU ; pagination ~50 bulles autour playhead ; pas de words.",
+        "Modele Alert { id, type, severity, start_ms, end_ms, speaker?, payload, message_short } ; types pause_long, overlap_long, ipu_too_short, rapid_turn_take, high_interpolation_zone (extensible).",
+        "UX alertes : panneau liste triee, filtres, next/prev, halo dans les vues, heat strip overview (v2 si hors scope v1).",
+        "Raccourcis : Space play/pause ; fleches seek ±1s ; Shift+fleches ±5s ; Alt+fleches ±0.1s ; +/- vitesse ; L loop ; N/P alerte suiv/prec ; F follow ; Ctrl+1..5 changement de vue ; W toggle words overlay ; 1..9 visibilite speaker.",
+        "Contrats Rust : open_run(path)->RunInfo ; get_run_status(run_id) ; query_window(run_id,t0,t1,layers,filter,limit_opts)->WindowSlice JSON compact (ms int) ; layers turns|pauses|ipus|segments|words|alerts ; recompute_alerts(run_id,config)->AlertStats ; ensure_envelopes(run_id) ; export_pack.",
+        "Structures slice : TurnSlice, PauseSlice, IPUSlice, SegmentSlice, WordSlice (flags, status interpole), AlertSlice — limites max_words pour eviter explosion (fallback density + message zoom).",
+        "Perf front : canvas pour waveform/lanes/rythmo ; DOM virtualise pour chat/liste alertes ; RAF playhead ; fetch query_window au changement de fenetre seek/scroll/zoom avec debounce 50-100ms et buffer ±10s.",
+        "Budgets cibles 2h+ : query_window typ <30ms (SQLite indexe) worst <100ms ; redraw lanes sans words <50ms ; avec words fenetre <=30s <150ms ; detail apres drag overview <100ms.",
+        "Livraison v1 : Lanes + Chat + liste alertes + next/prev + surlignage segment (pas word) + export pack + transport + follow.",
+        "Livraison v2 : Karaoké word-level, Rythmo complet, heat strip densite alertes, overlap overlay enrichi."
+      ],
+      "acceptance": [
+        "Un run 2h indexe : changement de fenetre detail (seek ou overview) declenche query_window et affichage stable sans freeze UI > 200ms hors premier chargement.",
+        "Aucune requete IPC/query_window a 60Hz : uniquement RAF cote front pour playhead.",
+        "Words : si reponse depasse max_words, UI affiche strategie degradee (markers + message) sans crash.",
+        "Player ne declenche pas whisperx/python worker ; seules commandes lecture SQLite + fichiers envelopes/media.",
+        "Raccourcis documentes dans audit/player-multi-view.md et non en conflit avec l editeur existant (prefixe ou contexte focus Player).",
+        "Export pack depuis Player produit les memes artefacts attendus qu depuis Explorer (ou chemin documente si subset)."
+      ],
+      "spec": [
+        "1 STRUCTURE : Workspaces Compute | Explorer | Player | Exports. Player = visualisation karaoké/lanes/chat/rythmo ; zero compute lourd ; recalcul leger alertes + layout.",
+        "1.2 ENTREE : Open run -> Player. Run unique : duree, media path, DB events.sqlite, envelopes L0-L4, manifest.",
+        "2 LAYOUT DESKTOP : TopBar (selector run, transport compact timecode/speed/loop, device info-only, QC Overlap/%interpole/missing timing, Export pack). Zone centrale = Viewport (vue active). Gauche : view mode icons, speakers alias/mute/hide, filters speaker+alerts, navigator next-prev alert + jump. Droite : onglet grand public (layout densite/taille texte/auto-scroll, toggles alertes + 2 seuils max, Recompute alerts, mini stats) + avance replie (show words/segments, wrap, align policy word->segment, bins colonnes/rythmo, debug overlays).",
+        "3.1 TRANSPORT : play pause stop ; seek absolu timecode ; seek relatif ms/s ; speed 0.5-2x ; loop A-B ; follow ; playback:tick 30-60Hz RAF ; playback:seek ; playback:state play|pause|buffering ; auto-scroll defaut ON, OFF apres scroll user, bouton Follow.",
+        "3.2 VIEWPORT RENDERER : interface render(window,dataSlice,options), hitTest->selection, onScroll/zoom, getPreferredWindow ; slices temporelles uniquement.",
+        "4 VUE A KARAOKÉ : bande marquee horizontal ou vertical ; prefixe speaker ; surlignage segment et mot ; direction, densite, wrap ; marqueurs pause/overlap ; clic segment/mot -> seek ; molette scroll texte desactive follow ; virtualisation ±N segments ; words si fenetre <=30s.",
+        "4 VUE B LANES : stacked lanes par speaker ; blocs turns fond + segments option ; pauses traits ; overlap bande transversale option ; show turns only vs turns+segments ; pauses IPU toggles ; drag plage loop A-B ; double-clic seek ; 1-9 toggle visibilite ; fenetre 10-60s + mini-map option.",
+        "4 VUE C COLONNES : time-aligned bins 1s/2s/5s cellules par speaker ; turn-aligned alternance tours ; merge short segments ; IPU only option ; clic cellule seek debut bin ; surlignage ligne active ; infinite scroll virtualise.",
+        "4 VUE D RYTHMO : NOW vertical centre ; segments/IPU defilent ; speaker debut ligne ; syllabes/density barres option ; scrub drag seek ; virtualisation fenetre glissante ±60s.",
+        "4 VUE E CHAT : bulles alternees ; timestamp discret ; badges pause/overlap/interruption ; gap explicite si transition >= seuil ; group segments vs IPU ; compact ; only alerts ; clic bulle seek ; next alert visible ; 50 bulles buffer autour playhead.",
+        "5 ALERTES : modele Alert id type severity start_ms end_ms speaker payload message_short ; liste triee filtres ; next/prev ; halo vues ; heat strip v2 ; grand public max 3-5 toggles + 2 seuils.",
+        "6 SHORTCUTS : Space ; fleches ±1s ; Shift ±5s ; Alt ±0.1s ; +/- speed ; L loop ; N P alertes ; F follow ; Ctrl 1-5 vues ; W words overlay ; 1-9 speakers.",
+        "7 API TAURI : RunInfo duration_ms speakers artifacts envelope_levels ; get_run_status has_words has_turns has_alerts qc_stats ; query_window layers + limit_opts max_words max_segments ; JSON ms int ; recompute_alerts ; ensure_envelopes ; export_pack ; lecture .bin envelopes via FS plugin pas JSON monolithique.",
+        "8 PERF : canvas lanes/rythmo/waveform ; DOM virtualise chat/alerts ; pas backend 60Hz ; fetch au changement fenetre debounce 50-100ms buffer ±10s ; budgets query <30ms typ redraw <50ms sans words <150ms avec words <=30s.",
+        "9 ROADMAP : v1 Lanes+Chat+alerts+segment highlight+export+transport ; v2 Karaoké word Rythmo heat strip overlap++."
+      ]
+    },
+    {
+      "id": "WX-625",
+      "title": "Refactor hooks & découpage (plan phases 0-6) — complexité, tests, non-régression",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "12d",
+      "dependsOn": [],
+      "scope": [
+        "audit/refactor-hooks-plan.md",
+        "audit/lingwhistx-v3-review.md",
+        "whisperx-studio/src/App.tsx",
+        "whisperx-studio/src/hooks/",
+        "whisperx-studio/src/components/",
+        "whisperx/transcribe.py (transcribe_task)",
+        "whisperx-studio/src-tauri (si hooks IPC)"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test",
+        "cd whisperx-studio/src-tauri && cargo check"
+      ],
+      "definitionOfDone": [
+        "Phase 1 : useAppErrorStack extrait de App ; tests Vitest sur la pile d erreurs.",
+        "Phase 2 : useTranscriptEditor découpé (history, draft, QA, IPC, load/export, ioHelpers, split/merge/nav, mutations, waveform) ; useEditorSegmentsState optionnel ; sans changement visible.",
+        "Phase 3 : useStudioExplorer / workspace découpés ; réutilisation erreurs via useAppErrorStack si pertinent.",
+        "Phase 4 : Player (WX-624) : sous-composants / usePlayerKeyboard sans régression raccourcis.",
+        "Phase 5 : Python — as_float unifié ; transcribe_task découpé en helpers privés ; py_compile + tests.",
+        "Phase 6 : Rust — clippy -D warnings sur modules concernés ; pas de changement comportement IPC."
+      ],
+      "acceptance": [
+        "Chaque vague : npm run build + npm run test verts ; cargo check sur src-tauri quand Rust touché.",
+        "Comportement produit inchangé sauf bugs documentés ; plan refactor-hooks-plan.md tenu à jour."
+      ]
     }
   ]
 }

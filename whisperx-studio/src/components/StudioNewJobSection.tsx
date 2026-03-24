@@ -1,5 +1,6 @@
 import { AnalysisTimingOptionsForm } from "./AnalysisTimingOptionsForm";
 import { ErrorBanner } from "./ErrorBanner";
+import { NewJobMediaPreview } from "./NewJobMediaPreview";
 import { LocalRuntimePanel, type LocalRuntimePanelProps } from "./LocalRuntimePanel";
 import { StudioAdvancedJobSection } from "./StudioAdvancedJobSection";
 import { WhisperxOptionsForm } from "./WhisperxOptionsForm";
@@ -7,7 +8,7 @@ import type { NewJobFormApi } from "../hooks/useNewJobForm";
 
 export type StudioNewJobSectionProps = {
   runningJobs: number;
-  error: string;
+  errors: string[];
   runtime: LocalRuntimePanelProps;
   jobForm: NewJobFormApi;
   refreshJobs: () => Promise<void>;
@@ -15,7 +16,7 @@ export type StudioNewJobSectionProps = {
 
 export function StudioNewJobSection({
   runningJobs,
-  error,
+  errors,
   runtime,
   jobForm,
   refreshJobs,
@@ -55,6 +56,8 @@ export function StudioNewJobSection({
       </header>
 
       <LocalRuntimePanel {...runtime} />
+
+      {inputPath.trim() ? <NewJobMediaPreview inputPath={inputPath} /> : null}
 
       <form className="job-form" onSubmit={submitJob}>
         <div className="job-stepper">
@@ -210,9 +213,13 @@ export function StudioNewJobSection({
         )}
       </form>
 
-      {error ? (
+      {errors.length > 0 ? (
         <ErrorBanner>
-          <p className="error-banner-text">{error}</p>
+          {errors.map((msg, i) => (
+            <p key={`${i}-${msg.slice(0, 24)}`} className="error-banner-text">
+              {msg}
+            </p>
+          ))}
         </ErrorBanner>
       ) : null}
     </section>

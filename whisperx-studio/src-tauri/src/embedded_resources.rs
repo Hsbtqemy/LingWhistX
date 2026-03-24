@@ -12,11 +12,19 @@ use crate::app_events::emit_runtime_setup_log;
 
 pub(crate) const EMBEDDED_WORKER_SCRIPT: &str =
     include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../python/worker.py"));
-pub(crate) const EMBEDDED_STUDIO_AUDIO_MODULES: &str =
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../python/studio_audio_modules.py"));
+pub(crate) const EMBEDDED_STUDIO_AUDIO_MODULES: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../python/studio_audio_modules.py"
+));
+#[cfg(target_os = "windows")]
 pub(crate) const EMBEDDED_RUNTIME_SETUP_SCRIPT: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../scripts/setup-local-runtime.ps1"
+));
+#[cfg(not(target_os = "windows"))]
+pub(crate) const EMBEDDED_RUNTIME_SETUP_MJS: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../scripts/setup-local-runtime.mjs"
 ));
 
 pub(crate) fn ensure_embedded_resource_file(
@@ -60,9 +68,8 @@ fn ensure_studio_audio_modules_adjacent(worker_path: &Path) -> Result<(), String
         Err(_) => true,
     };
     if should_write {
-        std::fs::write(&target, EMBEDDED_STUDIO_AUDIO_MODULES).map_err(|err| {
-            format!("Unable to write studio_audio_modules.py: {err}")
-        })?;
+        std::fs::write(&target, EMBEDDED_STUDIO_AUDIO_MODULES)
+            .map_err(|err| format!("Unable to write studio_audio_modules.py: {err}"))?;
     }
     Ok(())
 }
@@ -89,12 +96,15 @@ pub(crate) fn resolve_worker_path(app: &AppHandle) -> Result<PathBuf, String> {
         }
     }
 
-    let worker_path = ensure_embedded_resource_file(app, "python/worker.py", EMBEDDED_WORKER_SCRIPT)
-        .map_err(|err| format!("Python worker script not found. Embedded fallback failed: {err}"))?;
+    let worker_path =
+        ensure_embedded_resource_file(app, "python/worker.py", EMBEDDED_WORKER_SCRIPT).map_err(
+            |err| format!("Python worker script not found. Embedded fallback failed: {err}"),
+        )?;
     ensure_studio_audio_modules_adjacent(&worker_path)?;
     Ok(worker_path)
 }
 
+#[cfg(target_os = "windows")]
 pub(crate) fn resolve_runtime_setup_script_path(app: &AppHandle) -> Result<PathBuf, String> {
     let try_paths = [
         app.path()
@@ -123,6 +133,35 @@ pub(crate) fn resolve_runtime_setup_script_path(app: &AppHandle) -> Result<PathB
     .map_err(|err| format!("Runtime setup script not found. Embedded fallback failed: {err}"))
 }
 
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn resolve_runtime_setup_mjs_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let try_paths = [
+        app.path()
+            .resolve("setup-local-runtime.mjs", BaseDirectory::Resource),
+        app.path()
+            .resolve("scripts/setup-local-runtime.mjs", BaseDirectory::Resource),
+        Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .ok_or_else(|| "Unable to resolve project root".to_string())?
+            .join("scripts")
+            .join("setup-local-runtime.mjs")),
+    ];
+
+    for candidate in try_paths {
+        match candidate {
+            Ok(path) if path.exists() => return Ok(path),
+            _ => continue,
+        }
+    }
+
+    ensure_embedded_resource_file(
+        app,
+        "scripts/setup-local-runtime.mjs",
+        EMBEDDED_RUNTIME_SETUP_MJS,
+    )
+    .map_err(|err| format!("Runtime setup script (mjs) not found. Embedded fallback failed: {err}"))
+}
+
 pub(crate) fn runtime_setup_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let path = app
         .path()
@@ -137,12 +176,12 @@ pub(crate) fn runtime_setup_dir(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 pub(crate) fn run_runtime_setup_process(app: &AppHandle) -> Result<(), String> {
-    let script_path = resolve_runtime_setup_script_path(app)?;
     let runtime_dir = runtime_setup_dir(app)?;
     let runtime_dir_raw = runtime_dir.to_string_lossy().to_string();
 
     #[cfg(target_os = "windows")]
-    let mut command = {
+    let (mut command, script_path) = {
+        let script_path = resolve_runtime_setup_script_path(app)?;
         let mut cmd = Command::new("powershell");
         cmd.arg("-ExecutionPolicy")
             .arg("Bypass")
@@ -152,21 +191,18 @@ pub(crate) fn run_runtime_setup_process(app: &AppHandle) -> Result<(), String> {
             .arg(&runtime_dir_raw)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        cmd
+        (cmd, script_path)
     };
 
     #[cfg(not(target_os = "windows"))]
-    let mut command = {
-        let mut cmd = Command::new("pwsh");
-        cmd.arg("-ExecutionPolicy")
-            .arg("Bypass")
-            .arg("-File")
-            .arg(&script_path)
-            .arg("-RuntimeDir")
-            .arg(&runtime_dir_raw)
+    let (mut command, script_path) = {
+        let script_path = resolve_runtime_setup_mjs_path(app)?;
+        let mut cmd = Command::new("node");
+        cmd.arg(&script_path)
+            .env("RUNTIME_DIR", &runtime_dir_raw)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        cmd
+        (cmd, script_path)
     };
 
     emit_runtime_setup_log(
@@ -186,7 +222,7 @@ pub(crate) fn run_runtime_setup_process(app: &AppHandle) -> Result<(), String> {
             }
             #[cfg(not(target_os = "windows"))]
             {
-                return "pwsh not found to execute runtime setup script.".to_string();
+                return "node not found to execute runtime setup script. Install Node.js or run `npm run runtime:setup` in whisperx-studio/.".to_string();
             }
         }
         format!("Unable to start runtime setup process: {err}")
@@ -240,7 +276,15 @@ pub(crate) fn run_runtime_setup_process(app: &AppHandle) -> Result<(), String> {
         let details = stderr_acc
             .lock()
             .ok()
-            .and_then(|lock| lock.last().cloned())
+            .map(|lock| {
+                let joined = lock.join("\n");
+                if joined.len() > 8000 {
+                    format!("{}…", joined.chars().take(8000).collect::<String>())
+                } else {
+                    joined
+                }
+            })
+            .filter(|s| !s.trim().is_empty())
             .unwrap_or_else(|| "Runtime setup failed without stderr details.".into());
         return Err(format!("Runtime setup failed: {details}"));
     }

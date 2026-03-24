@@ -15,6 +15,8 @@ export type StudioOpenRunSectionProps = {
   setError: (message: string) => void;
   setActiveView: (view: StudioView) => void;
   setSelectedJobId: (id: string) => void;
+  /** WX-624 — ouvre le workspace Player avec ce dossier de run. */
+  onOpenPlayer?: (runDir: string, runLabel?: string | null) => void;
 };
 
 function formatDuration(sec: number | null | undefined): string {
@@ -35,6 +37,7 @@ export function StudioOpenRunSection({
   setError,
   setActiveView,
   setSelectedJobId,
+  onOpenPlayer,
 }: StudioOpenRunSectionProps) {
   const [recent, setRecent] = useState<RecentRunEntry[]>([]);
   const [summary, setSummary] = useState<RunManifestSummary | null>(null);
@@ -320,6 +323,15 @@ export function StudioOpenRunSection({
                 manuellement.
               </p>
             )}
+            {onOpenPlayer && summary ? (
+              <button
+                type="button"
+                className="ghost inline"
+                onClick={() => onOpenPlayer(summary.runDir, summary.runId)}
+              >
+                Ouvrir le Player (WX-624)
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}

@@ -49,6 +49,15 @@ export function StudioNav({
       <button
         type="button"
         role="tab"
+        aria-selected={activeView === "player"}
+        className={`studio-nav-tab ${activeView === "player" ? "is-active" : ""}`}
+        onClick={() => onViewChange("player")}
+      >
+        Player
+      </button>
+      <button
+        type="button"
+        role="tab"
         aria-selected={activeView === "about"}
         className={`studio-nav-tab ${activeView === "about" ? "is-active" : ""}`}
         onClick={() => onViewChange("about")}

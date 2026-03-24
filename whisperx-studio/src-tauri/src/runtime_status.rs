@@ -6,8 +6,7 @@ use crate::ffmpeg_tools::{resolve_ffmpeg_tools, run_probe};
 use crate::models::RuntimeStatus;
 use crate::python_runtime::resolve_python_command;
 
-#[tauri::command]
-pub fn get_runtime_status(app: AppHandle) -> RuntimeStatus {
+fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
     let python_command = resolve_python_command(&app);
     let ffmpeg_tools = resolve_ffmpeg_tools(&app);
     let mut python_ok = false;
@@ -76,4 +75,12 @@ pub fn get_runtime_status(app: AppHandle) -> RuntimeStatus {
         whisperx_version,
         details,
     }
+}
+
+/// Sondes Python / WhisperX / ffmpeg hors du thread async principal (évite de bloquer le runtime Tauri).
+#[tauri::command]
+pub async fn get_runtime_status(app: AppHandle) -> Result<RuntimeStatus, String> {
+    tokio::task::spawn_blocking(move || build_runtime_status(app))
+        .await
+        .map_err(|e| format!("Runtime status task failed: {e}"))
 }

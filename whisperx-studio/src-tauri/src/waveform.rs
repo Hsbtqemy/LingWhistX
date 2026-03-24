@@ -1,7 +1,6 @@
 //! Generation et cache des peaks waveform (ffmpeg).
 
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -22,6 +21,33 @@ use crate::path_guard::validate_path_string;
 use crate::process_utils::kill_process_tree;
 use crate::time_utils::now_ms;
 
+/// FNV-1a 64-bit — déterministe entre compilations Rust (contrairement à `DefaultHasher`).
+fn fnv1a64_mix_bytes(mut hash: u64, bytes: &[u8]) -> u64 {
+    const PRIME: u64 = 1099511628211;
+    for &b in bytes {
+        hash ^= u64::from(b);
+        hash = hash.wrapping_mul(PRIME);
+    }
+    hash
+}
+
+fn waveform_cache_key(
+    path_display: &str,
+    len: u64,
+    modified_nanos: u128,
+    bins_per_second: u32,
+    sample_rate: u32,
+) -> String {
+    const OFFSET: u64 = 14695981039346656037;
+    let mut h = OFFSET;
+    h = fnv1a64_mix_bytes(h, path_display.as_bytes());
+    h = fnv1a64_mix_bytes(h, &len.to_le_bytes());
+    h = fnv1a64_mix_bytes(h, &modified_nanos.to_le_bytes());
+    h = fnv1a64_mix_bytes(h, &bins_per_second.to_le_bytes());
+    h = fnv1a64_mix_bytes(h, &sample_rate.to_le_bytes());
+    format!("{:016x}", h)
+}
+
 fn waveform_cache_file(
     app: &AppHandle,
     source_path: &Path,
@@ -38,13 +64,13 @@ fn waveform_cache_file(
         .map(|value| value.as_nanos())
         .unwrap_or(0);
 
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    source_path.to_string_lossy().hash(&mut hasher);
-    metadata.len().hash(&mut hasher);
-    modified_nanos.hash(&mut hasher);
-    bins_per_second.hash(&mut hasher);
-    sample_rate.hash(&mut hasher);
-    let key = format!("{:016x}", hasher.finish());
+    let key = waveform_cache_key(
+        &source_path.to_string_lossy(),
+        metadata.len(),
+        modified_nanos,
+        bins_per_second,
+        sample_rate,
+    );
 
     let cache_root = app
         .path()

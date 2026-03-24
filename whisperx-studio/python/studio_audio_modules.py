@@ -9,7 +9,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
+import uuid
 from pathlib import Path
 from typing import Callable, Final, Mapping
 
@@ -1605,6 +1607,267 @@ def run_band_limit(
     return str(out_wav.resolve())
 
 
+def _parse_audio_pipeline_segments(options: dict[str, object]) -> list[dict[str, object]] | None:
+    raw = options.get("audioPipelineSegments") or options.get("audio_pipeline_segments")
+    if raw is None:
+        return None
+    if not isinstance(raw, list) or len(raw) == 0:
+        return None
+    out: list[dict[str, object]] = []
+    for item in raw:
+        if isinstance(item, dict):
+            out.append(item)
+    return out or None
+
+
+def _segment_time_bounds(seg: dict[str, object]) -> tuple[float, float]:
+    a = seg.get("startSec", seg.get("start_sec"))
+    b = seg.get("endSec", seg.get("end_sec"))
+    if isinstance(a, bool) or isinstance(b, bool):
+        raise RuntimeError("audioPipelineSegments: startSec/endSec invalides.")
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return float(a), float(b)
+    raise RuntimeError("audioPipelineSegments: startSec et endSec (secondes) sont requis.")
+
+
+def validate_audio_pipeline_segments(
+    segments: list[dict[str, object]],
+    duration_sec: float,
+) -> list[dict[str, object]]:
+    """Valide des plages [t0,t1] sans chevauchement ; utilisé par le worker et les tests."""
+    if duration_sec <= 0:
+        raise RuntimeError("Durée média nulle ou illisible — impossible de valider les plages.")
+    if not segments:
+        raise RuntimeError("audioPipelineSegments: liste vide.")
+    cleaned: list[tuple[float, float, dict[str, object]]] = []
+    for i, seg in enumerate(segments):
+        try:
+            t0, t1 = _segment_time_bounds(seg)
+        except RuntimeError as exc:
+            raise RuntimeError(f"audioPipelineSegments[{i}]: {exc}") from exc
+        if t1 <= t0:
+            raise RuntimeError(f"audioPipelineSegments[{i}]: endSec doit être > startSec.")
+        if t1 - t0 < 0.05:
+            raise RuntimeError(f"audioPipelineSegments[{i}]: plage trop courte (< 50 ms).")
+        if t0 < 0 or t1 > duration_sec + 1e-6:
+            raise RuntimeError(
+                f"audioPipelineSegments[{i}]: intervalle hors fichier (0 — {duration_sec:.3f}s)."
+            )
+        cleaned.append((t0, t1, seg))
+    cleaned.sort(key=lambda x: x[0])
+    for i in range(len(cleaned) - 1):
+        if cleaned[i + 1][0] < cleaned[i][1] - 1e-9:
+            raise RuntimeError(
+                "audioPipelineSegments: plages qui se chevauchent (non supporté pour la concat)."
+            )
+    return [c[2] for c in cleaned]
+
+
+def _effective_modules_for_segment(
+    global_spec: dict[str, object] | None,
+    segment: dict[str, object],
+) -> dict[str, object] | None:
+    raw_seg = (
+        segment.get("audioPipelineModules")
+        or segment.get("modules")
+        or segment.get("audio_pipeline_modules")
+    )
+    if isinstance(raw_seg, dict) and raw_seg:
+        return dict(raw_seg)
+    if global_spec:
+        return dict(global_spec)
+    return None
+
+
+def _ffmpeg_extract_wav_segment(src: Path, dst: Path, start_sec: float, duration_sec: float) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    start_sec = max(0.0, float(start_sec))
+    duration_sec = max(0.05, float(duration_sec))
+    cmd = [
+        _ffmpeg_binary(),
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-ss",
+        f"{start_sec:.6f}",
+        "-i",
+        str(src),
+        "-t",
+        f"{duration_sec:.6f}",
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        "-f",
+        "wav",
+        str(dst),
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=86_400)
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            "ffmpeg introuvable (FFMPEG_BINARY). Extraction de plage impossible."
+        ) from exc
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or "").strip()
+        raise RuntimeError(f"ffmpeg extraction plage a échoué (code {proc.returncode}): {err}")
+
+
+def _ffmpeg_concat_wavs(parts: list[Path], out: Path) -> None:
+    if not parts:
+        raise RuntimeError("concat: aucun fichier.")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if len(parts) == 1:
+        shutil.copyfile(parts[0], out)
+        return
+
+    list_file = out.parent / f"_concat_{uuid.uuid4().hex}.txt"
+    lines: list[str] = []
+    for p in parts:
+        ap = p.resolve().as_posix().replace("'", "'\\''")
+        lines.append(f"file '{ap}'")
+    list_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    cmd = [
+        _ffmpeg_binary(),
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        str(list_file),
+        "-c",
+        "copy",
+        str(out),
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=86_400)
+    except FileNotFoundError as exc:
+        raise RuntimeError("ffmpeg introuvable (FFMPEG_BINARY).") from exc
+    if proc.returncode != 0:
+        cmd2 = [
+            _ffmpeg_binary(),
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(list_file),
+            "-c:a",
+            "pcm_s16le",
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            str(out),
+        ]
+        proc2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=86_400)
+        if proc2.returncode != 0:
+            err = (proc2.stderr or proc2.stdout or "").strip()
+            raise RuntimeError(f"ffmpeg concat a échoué: {err}")
+    try:
+        list_file.unlink()
+    except OSError:
+        pass
+
+
+def _run_segmented_audio_pipeline(
+    input_path: str,
+    out_dir: Path,
+    options: dict[str, object],
+    segments: list[dict[str, object]],
+    emit_log: EmitLogFn | None,
+) -> str:
+    """WX-623 — par plage : extraction ffmpeg → pipeline modules (global ou par plage) → concat WAV."""
+    src = Path(input_path)
+    pipeline_root = out_dir / "studio_audio_pipeline"
+    pipeline_root.mkdir(parents=True, exist_ok=True)
+    work = pipeline_root / "segment_jobs"
+    work.mkdir(parents=True, exist_ok=True)
+    global_spec = _get_audio_modules_spec(options)
+
+    processed: list[Path] = []
+    manifest_rows: list[dict[str, object]] = []
+
+    for i, seg in enumerate(segments):
+        t0, t1 = _segment_time_bounds(seg)
+        span = t1 - t0
+        raw_chunk = work / f"chunk_{i:02d}_extract.wav"
+        _ffmpeg_extract_wav_segment(src, raw_chunk, t0, span)
+
+        eff = _effective_modules_for_segment(global_spec, seg)
+        opts_seg: dict[str, object] = {
+            k: v
+            for k, v in options.items()
+            if k not in ("audioPipelineSegments", "audio_pipeline_segments")
+        }
+        if eff:
+            opts_seg["audioPipelineModules"] = eff
+        else:
+            opts_seg.pop("audioPipelineModules", None)
+            opts_seg.pop("audio_pipeline_modules", None)
+
+        sub_out = work / f"job_{i:02d}"
+        sub_out.mkdir(parents=True, exist_ok=True)
+        if eff:
+            out_i = Path(maybe_prepare_audio_input(str(raw_chunk), sub_out, opts_seg, emit_log=emit_log))
+        else:
+            out_i = raw_chunk
+
+        processed.append(out_i)
+        manifest_rows.append(
+            {
+                "index": i,
+                "startSec": t0,
+                "endSec": t1,
+                "modules": eff,
+                "processedPath": str(out_i.resolve()),
+            }
+        )
+
+    out_concat = pipeline_root / "segment_concat.wav"
+    _ffmpeg_concat_wavs(processed, out_concat)
+
+    manifest_path = pipeline_root / "segment_pipeline_manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "wx623SegmentPipeline": True,
+                "sourcePath": str(src.resolve()),
+                "segmentCount": len(segments),
+                "segments": manifest_rows,
+                "outputWavRelative": "studio_audio_pipeline/segment_concat.wav",
+            },
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    range_bits = [f"{_segment_time_bounds(seg)[0]:.2f}-{_segment_time_bounds(seg)[1]:.2f}s" for seg in segments]
+    ranges_pretty = "[" + ", ".join(range_bits) + "]"
+    if emit_log:
+        emit_log(
+            "info",
+            "audio_modules",
+            f"WX-623: pipeline par plages — {len(segments)} segment(s) {ranges_pretty} → segment_concat.wav "
+            f"(manifest: segment_pipeline_manifest.json)",
+            8,
+        )
+
+    return str(out_concat.resolve())
+
+
 def maybe_prepare_audio_input(
     input_path: str,
     out_dir: Path,
@@ -1615,6 +1878,26 @@ def maybe_prepare_audio_input(
     """
     Point d'entrée avant `whisperx` : prépare un WAV dérivé ou retourne `input_path`.
     """
+    segment_list = _parse_audio_pipeline_segments(options)
+    if segment_list:
+        duration_sec = _probe_duration_seconds(Path(input_path))
+        validated = validate_audio_pipeline_segments(segment_list, duration_sec)
+        summary = summarize_requested_modules(options)
+        range_bits = [
+            f"{_segment_time_bounds(seg)[0]:.2f}-{_segment_time_bounds(seg)[1]:.2f}s"
+            for seg in validated
+        ]
+        ranges_pretty = "[" + ", ".join(range_bits) + "]"
+        if emit_log:
+            emit_log(
+                "info",
+                "audio_modules",
+                f"WX-623: {len(validated)} plage(s) validée(s) {ranges_pretty}"
+                + (f" ; modules globaux: {summary}" if summary else ""),
+                5,
+            )
+        return _run_segmented_audio_pipeline(input_path, out_dir, options, validated, emit_log)
+
     spec = _get_audio_modules_spec(options)
     if not spec:
         return input_path

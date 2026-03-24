@@ -2,8 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { LocalRuntimePanelProps } from "../model/localRuntimePanel";
-import { isRuntimeReady, runtimeMissingComponents } from "../appUtils";
-import type { RuntimeSetupFinishedEvent, RuntimeSetupLogEvent, RuntimeStatus } from "../types";
+import { isRuntimeReady, runtimeFfmpegInstallHint, runtimeMissingComponents } from "../appUtils";
+import type {
+  RuntimeSetupFinishedEvent,
+  RuntimeSetupLogEvent,
+  RuntimeStatus,
+  RuntimeSetupStatus,
+} from "../types";
 
 export type UseRuntimeDiagnosticsOptions = {
   setError: (message: string) => void;
@@ -20,6 +25,10 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
   const [isRuntimeTesting, setIsRuntimeTesting] = useState(false);
   const [runtimeActionMessage, setRuntimeActionMessage] = useState("");
   const [runtimeActionSuccess, setRuntimeActionSuccess] = useState<boolean | null>(null);
+  const [ffmpegInstallRunning, setFfmpegInstallRunning] = useState(false);
+  const [ffmpegInstallLogs, setFfmpegInstallLogs] = useState<RuntimeSetupLogEvent[]>([]);
+  const [ffmpegInstallMessage, setFfmpegInstallMessage] = useState("");
+  const [ffmpegInstallSuccess, setFfmpegInstallSuccess] = useState<boolean | null>(null);
 
   const runtimeReady = useMemo(() => isRuntimeReady(runtimeStatus), [runtimeStatus]);
   const runtimeCoreReady = useMemo(
@@ -62,8 +71,17 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
 
   const refreshRuntimeSetupStatus = useCallback(async () => {
     try {
-      const status = await invoke<{ running: boolean }>("get_runtime_setup_status");
+      const status = await invoke<RuntimeSetupStatus>("get_runtime_setup_status");
       setRuntimeSetupRunning(status.running);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [setError]);
+
+  const refreshFfmpegInstallStatus = useCallback(async () => {
+    try {
+      const status = await invoke<RuntimeSetupStatus>("get_ffmpeg_install_status");
+      setFfmpegInstallRunning(status.running);
     } catch (e) {
       setError(String(e));
     }
@@ -84,6 +102,21 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
     }
   }, [setError]);
 
+  const startFfmpegInstall = useCallback(async () => {
+    setError("");
+    setFfmpegInstallMessage("");
+    setFfmpegInstallSuccess(null);
+    setFfmpegInstallLogs([]);
+    setRuntimeActionMessage("");
+    setRuntimeActionSuccess(null);
+    try {
+      await invoke("start_ffmpeg_install");
+      setFfmpegInstallRunning(true);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, [setError]);
+
   const runRuntimeSmokeTest = useCallback(async () => {
     setRuntimeActionMessage("");
     setRuntimeActionSuccess(null);
@@ -97,7 +130,11 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
       }
       const missing = runtimeMissingComponents(status);
       setRuntimeActionSuccess(false);
-      setRuntimeActionMessage(`Test runtime KO: composant(s) manquant(s): ${missing.join(", ")}.`);
+      let msg = `Test runtime KO: composant(s) manquant(s): ${missing.join(", ")}.`;
+      if (missing.includes("ffmpeg")) {
+        msg += ` ${runtimeFfmpegInstallHint()}`;
+      }
+      setRuntimeActionMessage(msg);
     } finally {
       setIsRuntimeTesting(false);
     }
@@ -121,6 +158,10 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
         lines.push("Details:");
         for (const detail of status.details) {
           lines.push(`- ${detail}`);
+        }
+        if (!status.ffmpegOk) {
+          lines.push("");
+          lines.push(`Note ffmpeg: ${runtimeFfmpegInstallHint()}`);
         }
       } else {
         lines.push("No runtime status available.");
@@ -163,7 +204,8 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
   useEffect(() => {
     void refreshRuntimeStatus();
     void refreshRuntimeSetupStatus();
-  }, [refreshRuntimeStatus, refreshRuntimeSetupStatus]);
+    void refreshFfmpegInstallStatus();
+  }, [refreshRuntimeStatus, refreshRuntimeSetupStatus, refreshFfmpegInstallStatus]);
 
   useEffect(() => {
     const unlistenRuntimeSetupLogPromise = listen<RuntimeSetupLogEvent>(
@@ -190,9 +232,11 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
             } else {
               setRuntimeSetupSuccess(false);
               const missing = runtimeMissingComponents(status);
-              setRuntimeSetupMessage(
-                `Installation terminee, mais runtime incomplet (${missing.join(", ")} manquant${missing.length > 1 ? "s" : ""}). Clique sur 'Tester runtime'.`,
-              );
+              let setupMsg = `Installation terminee, mais runtime incomplet (${missing.join(", ")} manquant${missing.length > 1 ? "s" : ""}). Clique sur « Vérifier le runtime ».`;
+              if (missing.includes("ffmpeg")) {
+                setupMsg += ` ${runtimeFfmpegInstallHint()}`;
+              }
+              setRuntimeSetupMessage(setupMsg);
             }
           })();
         } else {
@@ -202,11 +246,41 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
       },
     );
 
+    const unlistenFfmpegLogPromise = listen<RuntimeSetupLogEvent>("ffmpeg-install-log", (event) => {
+      setFfmpegInstallLogs((current) => [...current, event.payload].slice(-1200));
+    });
+
+    const unlistenFfmpegFinishedPromise = listen<RuntimeSetupFinishedEvent>(
+      "ffmpeg-install-finished",
+      (event) => {
+        setFfmpegInstallRunning(false);
+        setFfmpegInstallMessage(event.payload.message);
+        setFfmpegInstallSuccess(event.payload.success);
+        setRuntimeActionMessage("");
+        setRuntimeActionSuccess(null);
+        if (event.payload.success) {
+          void (async () => {
+            await refreshRuntimeStatusWithRetry(4, 1200);
+          })();
+        } else {
+          void refreshRuntimeStatus();
+        }
+        void refreshFfmpegInstallStatus();
+      },
+    );
+
     return () => {
       void unlistenRuntimeSetupLogPromise.then((unlisten) => unlisten());
       void unlistenRuntimeSetupFinishedPromise.then((unlisten) => unlisten());
+      void unlistenFfmpegLogPromise.then((unlisten) => unlisten());
+      void unlistenFfmpegFinishedPromise.then((unlisten) => unlisten());
     };
-  }, [refreshRuntimeStatus, refreshRuntimeStatusWithRetry, refreshRuntimeSetupStatus]);
+  }, [
+    refreshRuntimeStatus,
+    refreshRuntimeStatusWithRetry,
+    refreshRuntimeSetupStatus,
+    refreshFfmpegInstallStatus,
+  ]);
 
   const localRuntimePanelProps = useMemo<LocalRuntimePanelProps>(
     () => ({
@@ -222,6 +296,10 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
       runtimeActionMessage,
       runtimeActionSuccess,
       runtimeSetupLogs,
+      ffmpegInstallRunning,
+      ffmpegInstallLogs,
+      ffmpegInstallMessage,
+      ffmpegInstallSuccess,
       onRefreshRuntime: () => void refreshRuntimeStatus(),
       onRunSmokeTest: () => void runRuntimeSmokeTest(),
       onCopyDiagnostic: () => void copyRuntimeDiagnostic(),
@@ -231,6 +309,12 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
         setRuntimeSetupLogs([]);
         setRuntimeSetupMessage("");
         setRuntimeSetupSuccess(null);
+      },
+      onStartFfmpegInstall: startFfmpegInstall,
+      onClearFfmpegInstallLogs: () => {
+        setFfmpegInstallLogs([]);
+        setFfmpegInstallMessage("");
+        setFfmpegInstallSuccess(null);
       },
     }),
     [
@@ -246,11 +330,16 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
       runtimeActionMessage,
       runtimeActionSuccess,
       runtimeSetupLogs,
+      ffmpegInstallRunning,
+      ffmpegInstallLogs,
+      ffmpegInstallMessage,
+      ffmpegInstallSuccess,
       refreshRuntimeStatus,
       runRuntimeSmokeTest,
       copyRuntimeDiagnostic,
       startRuntimeSetup,
       refreshRuntimeSetupStatus,
+      startFfmpegInstall,
     ],
   );
 

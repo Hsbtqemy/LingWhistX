@@ -25,6 +25,8 @@ export function useWaveformCanvas(
     clampWaveformViewStart,
     detailEnvelope,
     showSegmentOverlaysOnWaveform,
+    previewRangeSec,
+    rangeDragPreviewSec,
   } = wf;
 
   useEffect(() => {
@@ -118,6 +120,27 @@ export function useWaveformCanvas(
           drawHandle(endX, endActive || endHover);
         }
       }
+    }
+
+    const drawRangeBand = (startSec: number, endSec: number, fillStyle: string) => {
+      if (endSec <= startSec) {
+        return;
+      }
+      const s = Math.max(startSec, viewStart);
+      const e = Math.min(endSec, viewEnd);
+      if (e <= s) {
+        return;
+      }
+      const x0 = Math.floor(toX(s));
+      const x1 = Math.ceil(toX(e));
+      ctx.fillStyle = fillStyle;
+      ctx.fillRect(x0, 0, Math.max(1, x1 - x0), heightCss);
+    };
+    if (previewRangeSec) {
+      drawRangeBand(previewRangeSec.start, previewRangeSec.end, "rgba(52, 140, 88, 0.22)");
+    }
+    if (rangeDragPreviewSec) {
+      drawRangeBand(rangeDragPreviewSec.start, rangeDragPreviewSec.end, "rgba(210, 165, 40, 0.2)");
     }
 
     const centerY = heightCss / 2;
@@ -221,5 +244,7 @@ export function useWaveformCanvas(
     viewportWidth,
     detailEnvelope,
     showSegmentOverlaysOnWaveform,
+    previewRangeSec,
+    rangeDragPreviewSec,
   ]);
 }

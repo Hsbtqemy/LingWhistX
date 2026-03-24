@@ -28,12 +28,15 @@ export type UseWaveformWorkspaceOptions = {
   selectedJob: Job | null;
   selectedJobId: string;
   selectedIsVideo: boolean;
+  /** Flux « Nouveau job » : média sans Job encore créé (chemin local). */
+  previewMediaPath?: string | null;
 };
 
 export function useWaveformWorkspace({
   selectedJob,
   selectedJobId,
   selectedIsVideo,
+  previewMediaPath = null,
 }: UseWaveformWorkspaceOptions) {
   const [waveform, setWaveform] = useState<WaveformPeaks | null>(null);
   const [isWaveformLoading, setIsWaveformLoading] = useState(false);
@@ -54,6 +57,17 @@ export function useWaveformWorkspace({
   const webAudioPlayerRef = useRef<WebAudioWindowPlayer | null>(null);
   const [webAudioMode, setWebAudioMode] = useState(false);
   const [webAudioError, setWebAudioError] = useState("");
+  /** WX-622 — plage [t0,t1] sur la timeline (audio / ondeforme). */
+  const [previewRangeSec, setPreviewRangeSec] = useState<{ start: number; end: number } | null>(null);
+  const [rangeSelectionMode, setRangeSelectionMode] = useState(false);
+  const [rangeDragStartSec, setRangeDragStartSec] = useState<number | null>(null);
+  const [rangeDragEndSec, setRangeDragEndSec] = useState<number | null>(null);
+  const rangeDragStartRef = useRef<number | null>(null);
+  const rangeDragEndRef = useRef<number | null>(null);
+  const [previewWaveGainDb, setPreviewWaveGainDb] = useState(0);
+  const [previewWaveEqLowDb, setPreviewWaveEqLowDb] = useState(0);
+  const [previewWaveBalance, setPreviewWaveBalance] = useState(0);
+  const [previewWaveBypassEffects, setPreviewWaveBypassEffects] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -65,7 +79,17 @@ export function useWaveformWorkspace({
   const [detailEnvelope, setDetailEnvelope] = useState<WaveformDetailEnvelope | null>(null);
 
   const waveformDurationSec = waveform?.durationSec ?? 0;
-  const webAudioSourcePath = selectedJob?.inputPath ?? "";
+
+  const effectiveMediaPath = useMemo(() => {
+    const jobPath = selectedJob?.inputPath?.trim();
+    if (jobPath) {
+      return jobPath;
+    }
+    const preview = previewMediaPath?.trim();
+    return preview ?? "";
+  }, [previewMediaPath, selectedJob?.inputPath]);
+
+  const webAudioSourcePath = effectiveMediaPath;
   const waveformVisibleDurationSec = useMemo(() => {
     if (waveformDurationSec <= 0) {
       return 0;
@@ -79,15 +103,15 @@ export function useWaveformWorkspace({
   );
 
   const buildWaveformPyramid = useCallback(async () => {
-    if (!selectedJob) {
-      setPyramidError("Aucun job selectionne.");
+    if (!effectiveMediaPath) {
+      setPyramidError("Aucun fichier media.");
       return;
     }
     setIsPyramidBuilding(true);
     setPyramidError("");
     try {
       const built = await invoke<WaveformPyramidBuilt>("build_waveform_pyramid", {
-        path: selectedJob.inputPath,
+        path: effectiveMediaPath,
         sampleRate: 16000,
       });
       setWaveformPyramid(built);
@@ -98,12 +122,22 @@ export function useWaveformWorkspace({
     } finally {
       setIsPyramidBuilding(false);
     }
-  }, [selectedJob]);
+  }, [effectiveMediaPath]);
 
   const waveformViewEndSec = useMemo(
     () => waveformViewStartSec + waveformVisibleDurationSec,
     [waveformViewStartSec, waveformVisibleDurationSec],
   );
+
+  const rangeDragPreviewSec = useMemo(() => {
+    if (rangeDragStartSec === null || rangeDragEndSec === null) {
+      return null;
+    }
+    return {
+      start: Math.min(rangeDragStartSec, rangeDragEndSec),
+      end: Math.max(rangeDragStartSec, rangeDragEndSec),
+    };
+  }, [rangeDragEndSec, rangeDragStartSec]);
 
   const waveformMaxViewStartSec = useMemo(() => {
     if (waveformDurationSec <= 0 || waveformVisibleDurationSec <= 0) {
@@ -192,6 +226,12 @@ export function useWaveformWorkspace({
       if (webAudioMode && !selectedIsVideo && webAudioPlayerRef.current) {
         setWebAudioError("");
         const p = webAudioPlayerRef.current;
+        p.setPreviewEffects({
+          gainDb: previewWaveGainDb,
+          eqLowDb: previewWaveEqLowDb,
+          balance: previewWaveBalance,
+          bypass: previewWaveBypassEffects,
+        });
         void p
           .loadWindowAtSeek(clamped)
           .then(() => {
@@ -215,6 +255,10 @@ export function useWaveformWorkspace({
       applySnap,
       ensureTimeVisible,
       getActiveMediaElement,
+      previewWaveBalance,
+      previewWaveBypassEffects,
+      previewWaveEqLowDb,
+      previewWaveGainDb,
       selectedIsVideo,
       webAudioMode,
       waveform?.durationSec,
@@ -243,13 +287,36 @@ export function useWaveformWorkspace({
       if (p.isPlaying()) {
         p.pause();
       } else {
-        await p.loadWindowAtSeek(mediaCurrentSec);
+        p.setPreviewEffects({
+          gainDb: previewWaveGainDb,
+          eqLowDb: previewWaveEqLowDb,
+          balance: previewWaveBalance,
+          bypass: previewWaveBypassEffects,
+        });
+        const hasRange =
+          previewRangeSec !== null &&
+          previewRangeSec.end - previewRangeSec.start >= 0.05;
+        if (hasRange) {
+          await p.loadRangeChunk(previewRangeSec.start, previewRangeSec.end);
+        } else {
+          await p.loadWindowAtSeek(mediaCurrentSec);
+        }
         await p.play();
       }
     } catch (e) {
       setWebAudioError(String(e));
     }
-  }, [getActiveMediaElement, mediaCurrentSec, selectedIsVideo, webAudioMode]);
+  }, [
+    getActiveMediaElement,
+    mediaCurrentSec,
+    previewRangeSec,
+    previewWaveBalance,
+    previewWaveBypassEffects,
+    previewWaveEqLowDb,
+    previewWaveGainDb,
+    selectedIsVideo,
+    webAudioMode,
+  ]);
 
   const setWaveformViewStart = useCallback(
     (nextStartRaw: number) => {
@@ -282,6 +349,64 @@ export function useWaveformWorkspace({
     setWaveformViewStartSec(0);
   }, []);
 
+  const beginRangeDrag = useCallback((sec: number) => {
+    rangeDragStartRef.current = sec;
+    rangeDragEndRef.current = sec;
+    setRangeDragStartSec(sec);
+    setRangeDragEndSec(sec);
+  }, []);
+
+  const updateRangeDrag = useCallback((sec: number) => {
+    rangeDragEndRef.current = sec;
+    setRangeDragEndSec(sec);
+  }, []);
+
+  const commitRangeDrag = useCallback(() => {
+    const a = rangeDragStartRef.current;
+    const b = rangeDragEndRef.current;
+    rangeDragStartRef.current = null;
+    rangeDragEndRef.current = null;
+    setRangeDragStartSec(null);
+    setRangeDragEndSec(null);
+    if (a === null || b === null) {
+      return;
+    }
+    const start = Math.min(a, b);
+    const end = Math.max(a, b);
+    if (end - start < 0.05) {
+      return;
+    }
+    setPreviewRangeSec({ start, end });
+  }, []);
+
+  const cancelRangeDrag = useCallback(() => {
+    rangeDragStartRef.current = null;
+    rangeDragEndRef.current = null;
+    setRangeDragStartSec(null);
+    setRangeDragEndSec(null);
+  }, []);
+
+  const setPreviewRangeFromVisibleWindow = useCallback(() => {
+    if (waveformDurationSec <= 0) {
+      return;
+    }
+    const a = waveformViewStartSec;
+    const b = waveformViewEndSec;
+    setPreviewRangeSec({ start: Math.min(a, b), end: Math.max(a, b) });
+  }, [waveformDurationSec, waveformViewEndSec, waveformViewStartSec]);
+
+  const clearPreviewRange = useCallback(() => {
+    setPreviewRangeSec(null);
+  }, []);
+
+  const resetPreviewWaveEffects = useCallback(() => {
+    setPreviewWaveGainDb(0);
+    setPreviewWaveEqLowDb(0);
+    setPreviewWaveBalance(0);
+    setPreviewWaveBypassEffects(false);
+    webAudioPlayerRef.current?.resetPreviewEffects();
+  }, []);
+
   const requestCancelWaveformGeneration = useCallback(async (taskIdOverride?: string) => {
     const taskId = taskIdOverride ?? waveformTaskIdRef.current;
     if (!taskId) {
@@ -295,8 +420,8 @@ export function useWaveformWorkspace({
   }, []);
 
   const loadWaveformForSelectedJob = useCallback(async () => {
-    if (!selectedJob) {
-      setWaveformError("Aucun job selectionne.");
+    if (!effectiveMediaPath) {
+      setWaveformError("Aucun fichier media.");
       return;
     }
 
@@ -315,7 +440,7 @@ export function useWaveformWorkspace({
     setIsWaveformLoading(true);
     try {
       const started = await invoke<WaveformTaskStarted>("start_waveform_generation", {
-        path: selectedJob.inputPath,
+        path: effectiveMediaPath,
         binsPerSecond,
         sampleRate: 16000,
       });
@@ -329,7 +454,7 @@ export function useWaveformWorkspace({
       setWaveformProgress(0);
       setIsWaveformLoading(false);
     }
-  }, [requestCancelWaveformGeneration, selectedJob, waveformBinsPerSecond]);
+  }, [effectiveMediaPath, requestCancelWaveformGeneration, waveformBinsPerSecond]);
 
   const onWaveformWheel = useCallback(
     (event: WheelEvent<HTMLCanvasElement>) => {
@@ -458,6 +583,61 @@ export function useWaveformWorkspace({
   }, [webAudioSourcePath, waveformDurationSec]);
 
   useEffect(() => {
+    const p = webAudioPlayerRef.current;
+    if (!p) {
+      return;
+    }
+    p.setPreviewEffects({
+      gainDb: previewWaveGainDb,
+      eqLowDb: previewWaveEqLowDb,
+      balance: previewWaveBalance,
+      bypass: previewWaveBypassEffects,
+    });
+  }, [previewWaveBalance, previewWaveBypassEffects, previewWaveEqLowDb, previewWaveGainDb]);
+
+  useEffect(() => {
+    if (rangeDragStartSec === null) {
+      return;
+    }
+    const onUp = () => {
+      commitRangeDrag();
+    };
+    window.addEventListener("mouseup", onUp);
+    return () => window.removeEventListener("mouseup", onUp);
+  }, [commitRangeDrag, rangeDragStartSec]);
+
+  useEffect(() => {
+    if (rangeDragStartSec === null || !waveform || waveform.durationSec <= 0) {
+      return;
+    }
+    const onMove = (e: MouseEvent) => {
+      const canvas = waveformCanvasRef.current;
+      if (!canvas) {
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width <= 0) {
+        return;
+      }
+      const ratio = (e.clientX - rect.left) / rect.width;
+      const clampedRatio = Math.min(1, Math.max(0, ratio));
+      const raw = waveformViewStartSec + clampedRatio * waveformVisibleDurationSec;
+      const sec = applySnap(clampNumber(raw, 0, waveform.durationSec));
+      updateRangeDrag(sec);
+      setWaveformCursorSec(sec);
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [
+    applySnap,
+    rangeDragStartSec,
+    updateRangeDrag,
+    waveform,
+    waveformViewStartSec,
+    waveformVisibleDurationSec,
+  ]);
+
+  useEffect(() => {
     if (!webAudioMode || selectedIsVideo) {
       return;
     }
@@ -468,7 +648,17 @@ export function useWaveformWorkspace({
       }
       const p = webAudioPlayerRef.current;
       if (p?.isPlaying()) {
-        setMediaCurrentSec(p.getCurrentFileTime());
+        const t = p.getCurrentFileTime();
+        if (previewRangeSec && previewRangeSec.end - previewRangeSec.start >= 0.05) {
+          if (t >= previewRangeSec.end - 0.03) {
+            p.pause();
+            setMediaCurrentSec(previewRangeSec.end);
+          } else {
+            setMediaCurrentSec(t);
+          }
+        } else {
+          setMediaCurrentSec(t);
+        }
       }
       requestAnimationFrame(loop);
     };
@@ -476,7 +666,7 @@ export function useWaveformWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [selectedIsVideo, webAudioMode]);
+  }, [previewRangeSec, selectedIsVideo, webAudioMode]);
 
   useEffect(() => {
     if (!webAudioMode || selectedIsVideo) {
@@ -510,6 +700,16 @@ export function useWaveformWorkspace({
     setOverviewEnvelope(null);
     setDetailEnvelope(null);
     setPyramidError("");
+    setPreviewRangeSec(null);
+    setRangeSelectionMode(false);
+    rangeDragStartRef.current = null;
+    rangeDragEndRef.current = null;
+    setRangeDragStartSec(null);
+    setRangeDragEndSec(null);
+    setPreviewWaveGainDb(0);
+    setPreviewWaveEqLowDb(0);
+    setPreviewWaveBalance(0);
+    setPreviewWaveBypassEffects(false);
   }, [selectedJobId, requestCancelWaveformGeneration]);
 
   useEffect(() => {
@@ -650,6 +850,26 @@ export function useWaveformWorkspace({
     isOverviewLoading,
     detailEnvelope,
     showSegmentOverlaysOnWaveform,
+    previewRangeSec,
+    setPreviewRangeSec,
+    rangeDragPreviewSec,
+    rangeSelectionMode,
+    setRangeSelectionMode,
+    rangeDragStartSec,
+    beginRangeDrag,
+    updateRangeDrag,
+    cancelRangeDrag,
+    setPreviewRangeFromVisibleWindow,
+    clearPreviewRange,
+    previewWaveGainDb,
+    setPreviewWaveGainDb,
+    previewWaveEqLowDb,
+    setPreviewWaveEqLowDb,
+    previewWaveBalance,
+    setPreviewWaveBalance,
+    previewWaveBypassEffects,
+    setPreviewWaveBypassEffects,
+    resetPreviewWaveEffects,
   };
 }
 

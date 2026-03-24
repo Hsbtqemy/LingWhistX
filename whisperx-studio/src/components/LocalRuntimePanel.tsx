@@ -15,12 +15,18 @@ export function LocalRuntimePanel({
   runtimeActionMessage,
   runtimeActionSuccess,
   runtimeSetupLogs,
+  ffmpegInstallRunning,
+  ffmpegInstallLogs,
+  ffmpegInstallMessage,
+  ffmpegInstallSuccess,
   onRefreshRuntime,
   onRunSmokeTest,
   onCopyDiagnostic,
   onStartRuntimeSetup,
   onRefreshSetupStatus,
   onClearSetupLogs,
+  onStartFfmpegInstall,
+  onClearFfmpegInstallLogs,
 }: LocalRuntimePanelProps) {
   return (
     <div className={`runtime-box ${runtimeReady ? "ok" : "warn"}`}>
@@ -31,7 +37,9 @@ export function LocalRuntimePanel({
             type="button"
             className="ghost"
             onClick={onRefreshRuntime}
-            disabled={isRuntimeLoading || runtimeSetupRunning || isRuntimeTesting}
+            disabled={
+              isRuntimeLoading || runtimeSetupRunning || isRuntimeTesting || ffmpegInstallRunning
+            }
           >
             {isRuntimeLoading ? "Vérification…" : "Vérifier le runtime"}
           </button>
@@ -39,7 +47,9 @@ export function LocalRuntimePanel({
             type="button"
             className="ghost"
             onClick={onRunSmokeTest}
-            disabled={isRuntimeLoading || runtimeSetupRunning || isRuntimeTesting}
+            disabled={
+              isRuntimeLoading || runtimeSetupRunning || isRuntimeTesting || ffmpegInstallRunning
+            }
           >
             {isRuntimeTesting ? "Test en cours…" : "Tester le runtime"}
           </button>
@@ -82,6 +92,61 @@ export function LocalRuntimePanel({
             {runtimeStatus.whisperxOk ? "ok" : "ko"} | ffmpeg:{" "}
             {runtimeStatus.ffmpegOk ? "ok" : "ko"}
           </p>
+          {!runtimeStatus.ffmpegOk ? (
+            <div className="runtime-ffmpeg-hint">
+              <p className="small">
+                <strong>ffmpeg</strong> sert à décoder les médias et aux jobs WhisperX. Il n’est{" "}
+                <strong>pas</strong> installé par « Installer runtime local » (seulement Python +
+                WhisperX dans un venv).
+              </p>
+              <div className="runtime-ffmpeg-install">
+                <button
+                  type="button"
+                  onClick={onStartFfmpegInstall}
+                  disabled={
+                    ffmpegInstallRunning ||
+                    runtimeSetupRunning ||
+                    isRuntimeLoading ||
+                    isRuntimeTesting
+                  }
+                >
+                  {ffmpegInstallRunning ? "Installation ffmpeg…" : "Installer ffmpeg (automatique)"}
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={onClearFfmpegInstallLogs}
+                  disabled={ffmpegInstallRunning || ffmpegInstallLogs.length === 0}
+                >
+                  Effacer logs ffmpeg
+                </button>
+              </div>
+              <p className="small">
+                macOS / Linux : utilise <strong>Homebrew</strong> (<code className="mono">brew install
+                ffmpeg</code>) si <code className="mono">brew</code> est disponible. Windows :{" "}
+                <strong>winget</strong> (Gyan.FFmpeg) ou <strong>Chocolatey</strong>. Sinon installe
+                ffmpeg à la main et définis <code className="mono">FFMPEG_BINARY</code> /{" "}
+                <code className="mono">FFPROBE_BINARY</code>.
+              </p>
+              {ffmpegInstallMessage ? (
+                <p
+                  className={`small runtime-setup-feedback ${ffmpegInstallSuccess === false ? "error" : "ok"}`}
+                >
+                  {ffmpegInstallMessage}
+                </p>
+              ) : null}
+              {ffmpegInstallLogs.length > 0 ? (
+                <ul className="runtime-setup-log-list">
+                  {ffmpegInstallLogs.map((entry, idx) => (
+                    <li key={`ff-${entry.tsMs}-${idx}`}>
+                      <span className="mono">[{new Date(entry.tsMs).toLocaleTimeString()}]</span>{" "}
+                      <strong>{entry.stream}</strong> {entry.message}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
           {runtimeSetupMessage ? (
             <p
               className={`runtime-setup-feedback ${runtimeSetupSuccess === false ? "error" : "ok"}`}

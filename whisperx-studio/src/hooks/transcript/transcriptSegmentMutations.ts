@@ -1,0 +1,103 @@
+import { MIN_SEGMENT_DURATION_SEC } from "../../constants";
+import { buildEditorSnapshot, cloneEditableSegments, roundSecondsMs } from "../../appUtils";
+import type { EditableSegment, EditorSnapshot, SegmentEdge } from "../../types";
+
+/** Mutations pures sur un `EditorSnapshot` (tests sans React). */
+
+export function resizeSegmentBoundaryInSnapshot(
+  current: EditorSnapshot,
+  index: number,
+  edge: SegmentEdge,
+  rawSeconds: number,
+  maxDurationSec: number,
+  applySnap: (seconds: number) => number,
+): EditorSnapshot {
+  const nextSegments = cloneEditableSegments(current.segments);
+  const segment = nextSegments[index];
+  if (!segment) {
+    return current;
+  }
+
+  const maxDuration =
+    Number.isFinite(maxDurationSec) && maxDurationSec > 0
+      ? maxDurationSec
+      : Number.POSITIVE_INFINITY;
+
+  let start = segment.start;
+  let end = segment.end;
+  const snappedInput = applySnap(Number.isFinite(rawSeconds) ? rawSeconds : 0);
+  const clampedInput = Math.max(0, snappedInput);
+
+  if (edge === "start") {
+    start = Math.min(clampedInput, end - MIN_SEGMENT_DURATION_SEC);
+    if (start < 0) {
+      start = 0;
+    }
+    if (start > maxDuration - MIN_SEGMENT_DURATION_SEC) {
+      start = Math.max(0, maxDuration - MIN_SEGMENT_DURATION_SEC);
+    }
+  } else {
+    end = Math.max(clampedInput, start + MIN_SEGMENT_DURATION_SEC);
+    if (end > maxDuration) {
+      end = maxDuration;
+    }
+  }
+
+  if (end < start + MIN_SEGMENT_DURATION_SEC) {
+    end = start + MIN_SEGMENT_DURATION_SEC;
+  }
+  start = Math.max(0, start);
+  end = Math.max(start + MIN_SEGMENT_DURATION_SEC, end);
+
+  nextSegments[index] = {
+    ...segment,
+    start: roundSecondsMs(start),
+    end: roundSecondsMs(end),
+  };
+  return buildEditorSnapshot(current.language, nextSegments);
+}
+
+export function mutateSegmentText(current: EditorSnapshot, index: number, text: string): EditorSnapshot {
+  const nextSegments = cloneEditableSegments(current.segments);
+  const segment = nextSegments[index];
+  if (!segment) {
+    return current;
+  }
+  nextSegments[index] = { ...segment, text };
+  return buildEditorSnapshot(current.language, nextSegments);
+}
+
+export function mutateEditorLanguage(current: EditorSnapshot, nextLanguage: string): EditorSnapshot {
+  if (current.language === nextLanguage) {
+    return current;
+  }
+  return buildEditorSnapshot(nextLanguage, current.segments);
+}
+
+export function replaceSegmentWithPair(
+  current: EditorSnapshot,
+  targetIndex: number,
+  left: EditableSegment,
+  right: EditableSegment,
+): EditorSnapshot {
+  const nextSegments = cloneEditableSegments(current.segments);
+  if (!nextSegments[targetIndex]) {
+    return current;
+  }
+  nextSegments.splice(targetIndex, 1, left, right);
+  return buildEditorSnapshot(current.language, nextSegments);
+}
+
+export function mergeTwoSegmentsAt(
+  current: EditorSnapshot,
+  firstIndex: number,
+  secondIndex: number,
+  merged: EditableSegment,
+): EditorSnapshot {
+  const nextSegments = cloneEditableSegments(current.segments);
+  if (!nextSegments[firstIndex] || !nextSegments[secondIndex]) {
+    return current;
+  }
+  nextSegments.splice(firstIndex, 2, merged);
+  return buildEditorSnapshot(current.language, nextSegments);
+}

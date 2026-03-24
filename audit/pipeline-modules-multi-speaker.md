@@ -74,3 +74,32 @@ Voir aussi `audit/wrapper-feasibility.md` (stades 0–6) pour une vue ingestion 
 - **`acousticPauses`** (E14) : `run_acoustic_pauses` — même mécanisme que `vadEnergy` avec défauts plus « pauses longues » (`noiseDb` / `minSilenceDurationSec`) ; écrit **`acoustic_pauses.json`**, média inchangé.
 - **Ordre d’exécution dans le worker** : `bestChannel` → `stereoMidSide` → `preNormalize` → `bandLimit` → `spectralDenoise` → `vadModel` → `vadEnergy` → `vadAlignedChunking` → `speakerTurnPostprocess` → `overlapDetection` → `qcSpectral` → `qcPitch` → `acousticPauses` (chaque étape activable seule ; certaines exigent des JSON produits en amont, voir ci-dessus).
 - Toutes les **clés canoniques** listées dans `studio_audio_modules.CANONICAL_KEYS` ont une implémentation ; les erreurs à l’exécution concernent surtout des **prérequis** (ex. `vadModel` avant `speakerTurnPostprocess`).
+
+## Plages temporelles (WX-623)
+
+- Option **`audioPipelineSegments`** dans `WhisperxOptions` : tableau JSON de segments
+  `{ "startSec": number, "endSec": number, "audioPipelineModules"?: object }` (alias acceptés :
+  `start_sec` / `end_sec`, modules sous `modules` ou `audio_pipeline_modules`). Côté worker, les
+  plages sont validées (durée ≥ 50 ms, pas de chevauchement, bornes dans la durée fichier).
+- Pour chaque plage : extraction ffmpeg du segment sur le fichier source → application de
+  `maybe_prepare_audio_input` sur l’extrait (modules **de la plage**, ou repli sur
+  `audioPipelineModules` global) → concaténation des WAV traités en
+  `studio_audio_pipeline/segment_concat.wav`, avec manifeste `segment_pipeline_manifest.json`.
+- Sans plages : le pipeline audio global inchangé (comportement historique avec `audioPipelineModules`
+  seul).
+- Studio : champ **Plages pipeline (JSON)** dans le formulaire WhisperX ; depuis l’Alignment,
+  **Injecter plage → JSON pipeline** préremplit une plage exemple ; **Exporter snippet WAV** appelle
+  la commande Tauri `export_audio_wav_segment` (mono 16 kHz, chemin absolu choisi par l’utilisateur).
+
+### Validation locale (suite immédiate WX-623)
+
+- **Automatisé** : `python3 -m unittest test_wx623_segments` — les tests d’intégration s’exécutent si
+  `ffmpeg` **et** `ffprobe` sont résolus comme le worker : `PATH`, ou `FFMPEG_BINARY` /
+  `FFPROBE_BINARY`, ou `ffprobe` dans le même dossier que le binaire `ffmpeg` (cas Homebrew).
+  Sinon les tests sont ignorés. Vérifier aussi `python3 -m py_compile studio_audio_modules.py`.
+- **Manuel UI** : deux plages dont une seule avec `preNormalize` → job WhisperX OK et
+  `segment_pipeline_manifest.json` cohérent ; couper ffmpeg (ou chemin invalide) → job en erreur,
+  message lisible ; sans clé `audioPipelineSegments` → même comportement qu’avant avec modules globaux
+  seuls.
+- **Logs** : le worker émet des lignes `__WXLOG__` avec préfixe `WX-623` et le résumé des plages
+  `[t0-t1s, …]` avant concat.

@@ -34,7 +34,7 @@ Ce document decrit la surface d’attaque des commandes Tauri exposees au fronte
 
 ## Processus externes
 
-- Worker Python, ffmpeg/ffprobe, PowerShell/pwsh pour le setup runtime : voir `ffmpeg_tools`, `jobs`, `embedded_resources`. Aucun chemin utilisateur brut n’est passe comme nom de binaire ; les binaires sont resolus par l’application.
+- Worker Python, ffmpeg/ffprobe, PowerShell (Windows) ou `node` + `setup-local-runtime.mjs` (macOS/Linux) pour le setup runtime : voir `ffmpeg_tools`, `jobs`, `embedded_resources`. L’installation guidée de ffmpeg lance **uniquement** `brew install ffmpeg`, **winget** (Gyan.FFmpeg) ou **choco install ffmpeg** si l’outil est présent sur la machine (pas de téléchargement arbitraire depuis Internet). Aucun chemin utilisateur brut n’est passe comme nom de binaire ; les binaires sont resolus par l’application.
 
 ## Suivi
 

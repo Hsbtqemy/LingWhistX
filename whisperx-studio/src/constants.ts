@@ -35,6 +35,7 @@ export const defaultWhisperxOptions: UiWhisperxOptions = {
   analysisWordTsNeighborRatioHigh: "",
   analysisWordTsSmoothMaxSec: "",
   audioPipelineModulesJson: "",
+  audioPipelineSegmentsJson: "",
 };
 
 export const profilePresets: ProfilePreset[] = [

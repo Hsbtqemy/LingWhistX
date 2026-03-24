@@ -16,8 +16,8 @@ fn map_job_row(row: &Row<'_>) -> Result<Job, rusqlite::Error> {
     let output_files = serde_json::from_str::<Vec<String>>(&output_files_json).unwrap_or_default();
 
     let whisperx_options_json: Option<String> = row.get(11)?;
-    let whisperx_options = whisperx_options_json
-        .and_then(|json| serde_json::from_str::<WhisperxOptions>(&json).ok());
+    let whisperx_options =
+        whisperx_options_json.and_then(|json| serde_json::from_str::<WhisperxOptions>(&json).ok());
 
     Ok(Job {
         id: row.get(0)?,

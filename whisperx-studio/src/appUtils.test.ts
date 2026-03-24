@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import { defaultWhisperxOptions } from "./constants";
 import {
   clampNumber,
+  fileBasename,
+  formatTimestamp,
+  parsePlayerTimecodeToSeconds,
   normalizeWhisperxOptions,
   parseAudioPipelineModulesFromUi,
+  parseAudioPipelineSegmentsFromUi,
   parseFiniteNumberInput,
   pathsEqualNormalized,
   upsertJobInList,
@@ -15,6 +19,49 @@ describe("clampNumber", () => {
     expect(clampNumber(5, 0, 10)).toBe(5);
     expect(clampNumber(-1, 0, 10)).toBe(0);
     expect(clampNumber(99, 0, 10)).toBe(10);
+  });
+});
+
+describe("fileBasename", () => {
+  it("retourne le dernier segment unix ou windows", () => {
+    expect(fileBasename("/a/b/c.wav")).toBe("c.wav");
+    expect(fileBasename("C:\\foo\\bar.mp3")).toBe("bar.mp3");
+    expect(fileBasename("solo")).toBe("solo");
+  });
+});
+
+describe("parsePlayerTimecodeToSeconds", () => {
+  it("parse secondes seules et décimales", () => {
+    expect(parsePlayerTimecodeToSeconds("0")).toBe(0);
+    expect(parsePlayerTimecodeToSeconds("42.5")).toBe(42.5);
+    expect(parsePlayerTimecodeToSeconds("1,25")).toBe(1.25);
+  });
+
+  it("parse mm:ss", () => {
+    expect(parsePlayerTimecodeToSeconds("1:30")).toBe(90);
+    expect(parsePlayerTimecodeToSeconds("0:00.5")).toBe(0.5);
+  });
+
+  it("parse hh:mm:ss", () => {
+    expect(parsePlayerTimecodeToSeconds("1:01:01")).toBe(3661);
+  });
+
+  it("retourne null si invalide", () => {
+    expect(parsePlayerTimecodeToSeconds("")).toBeNull();
+    expect(parsePlayerTimecodeToSeconds("  ")).toBeNull();
+    expect(parsePlayerTimecodeToSeconds("abc")).toBeNull();
+  });
+});
+
+describe("formatTimestamp", () => {
+  it("accepte 0 ms (epoch) sans retourner « - »", () => {
+    expect(formatTimestamp(0)).not.toBe("-");
+    expect(formatTimestamp(0)).toMatch(/\d/);
+  });
+
+  it("retourne « - » pour NaN / Infinity", () => {
+    expect(formatTimestamp(Number.NaN)).toBe("-");
+    expect(formatTimestamp(Number.POSITIVE_INFINITY)).toBe("-");
   });
 });
 
@@ -69,6 +116,7 @@ describe("normalizeWhisperxOptions", () => {
     expect(out.analysisWordTsNeighborRatioLow).toBeUndefined();
     expect(out.analysisWordTsNeighborRatioHigh).toBeUndefined();
     expect(out.analysisWordTsSmoothMaxSec).toBeUndefined();
+    expect(out.audioPipelineSegments).toBeUndefined();
   });
 
   it("WX-605 : preset + gaps numériques", () => {
@@ -146,6 +194,38 @@ describe("normalizeWhisperxOptions", () => {
     expect(
       normalizeWhisperxOptions({ ...base, audioPipelineModulesJson: "{}" }).audioPipelineModules,
     ).toEqual({ vadEnergy: true });
+  });
+
+  it("WX-623 : audioPipelineSegments depuis JSON tableau", () => {
+    const out = normalizeWhisperxOptions({
+      ...defaultWhisperxOptions,
+      audioPipelineSegmentsJson:
+        '[{"startSec":0,"endSec":1.2,"audioPipelineModules":{"preNormalize":true}}]',
+    });
+    expect(out.audioPipelineSegments).toEqual([
+      { startSec: 0, endSec: 1.2, audioPipelineModules: { preNormalize: true } },
+    ]);
+  });
+});
+
+describe("parseAudioPipelineSegmentsFromUi", () => {
+  it("retourne undefined si vide, tableau vide ou JSON invalide", () => {
+    expect(
+      parseAudioPipelineSegmentsFromUi({ ...defaultWhisperxOptions, audioPipelineSegmentsJson: "" }),
+    ).toBeUndefined();
+    expect(
+      parseAudioPipelineSegmentsFromUi({ ...defaultWhisperxOptions, audioPipelineSegmentsJson: "[]" }),
+    ).toBeUndefined();
+    expect(
+      parseAudioPipelineSegmentsFromUi({ ...defaultWhisperxOptions, audioPipelineSegmentsJson: "[" }),
+    ).toBeUndefined();
+  });
+
+  it("retourne le tableau parse", () => {
+    const raw = '[{"startSec":0,"endSec":2}]';
+    expect(
+      parseAudioPipelineSegmentsFromUi({ ...defaultWhisperxOptions, audioPipelineSegmentsJson: raw }),
+    ).toEqual([{ startSec: 0, endSec: 2 }]);
   });
 });
 

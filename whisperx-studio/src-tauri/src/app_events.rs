@@ -45,3 +45,17 @@ pub(crate) fn emit_runtime_setup_finished(app: &AppHandle, success: bool, messag
     let event = RuntimeSetupFinishedEvent { success, message };
     let _ = app.emit("runtime-setup-finished", event);
 }
+
+pub(crate) fn emit_ffmpeg_install_log(app: &AppHandle, stream: &str, message: &str) {
+    let event = RuntimeSetupLogEvent {
+        ts_ms: now_ms(),
+        stream: stream.into(),
+        message: message.into(),
+    };
+    let _ = app.emit("ffmpeg-install-log", event);
+}
+
+pub(crate) fn emit_ffmpeg_install_finished(app: &AppHandle, success: bool, message: String) {
+    let event = RuntimeSetupFinishedEvent { success, message };
+    let _ = app.emit("ffmpeg-install-finished", event);
+}

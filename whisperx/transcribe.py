@@ -31,7 +31,7 @@ from whisperx.external_alignment import (
     apply_external_word_timings_to_result,
     load_external_word_timings_json,
 )
-from whisperx.schema import AlignedTranscriptionResult, TranscriptionResult
+from whisperx.schema import TranscriptionResult
 from whisperx.timeline import (
     DEFAULT_ANALYSIS_INCLUDE_NONSPEECH,
     DEFAULT_IPU_BRIDGE_SHORT_GAPS_UNDER,
@@ -44,10 +44,10 @@ from whisperx.timeline import (
     build_canonical_timeline,
 )
 from whisperx.annotation_exports import write_annotation_exports
+from whisperx.numeric import as_float
 from whisperx.utils import (
     LANGUAGES,
     TO_LANGUAGE_CODE,
-    as_float,
     get_writer,
     write_data_science_exports,
 )
@@ -476,6 +476,256 @@ def _run_analyze_only(
     logger.info("Analyze-only completed. Artifacts written to: %s", analysis_output_dir)
 
 
+def _build_timeline_analysis_config(
+    *,
+    analysis_pause_min: float,
+    analysis_pause_ignore_below: float,
+    analysis_pause_max: float | None,
+    analysis_include_nonspeech: bool,
+    analysis_nonspeech_min_duration: float,
+    analysis_ipu_min_words: int,
+    analysis_ipu_min_duration: float,
+    analysis_ipu_bridge_short_gaps_under: float,
+    analysis_preset: str | None,
+    analysis_calibrate_window_sec: float | None,
+    analysis_calibrate_start_sec: float,
+    analysis_speaker_turn_postprocess_preset: str | None,
+    analysis_speaker_turn_merge_gap_sec_max: float | None,
+    analysis_speaker_turn_split_word_gap_sec: float | None,
+    wts_mode: str,
+    analysis_word_ts_neighbor_ratio_low: float | None,
+    analysis_word_ts_neighbor_ratio_high: float | None,
+    analysis_word_ts_smooth_max_sec: float | None,
+) -> dict[str, Any]:
+    timeline_analysis_config: dict[str, Any] = {
+        "pause_min": analysis_pause_min,
+        "pause_ignore_below": analysis_pause_ignore_below,
+        "pause_max": analysis_pause_max,
+        "include_nonspeech": analysis_include_nonspeech,
+        "nonspeech_min_duration": analysis_nonspeech_min_duration,
+        "ipu_min_words": analysis_ipu_min_words,
+        "ipu_min_duration": analysis_ipu_min_duration,
+        "ipu_bridge_short_gaps_under": analysis_ipu_bridge_short_gaps_under,
+    }
+    if isinstance(analysis_preset, str) and analysis_preset.strip():
+        timeline_analysis_config["analysis_preset"] = analysis_preset.strip()
+    if analysis_calibrate_window_sec is not None and analysis_calibrate_window_sec > 0:
+        timeline_analysis_config["calibration"] = {
+            "window_sec": float(analysis_calibrate_window_sec),
+            "start_sec": float(analysis_calibrate_start_sec),
+        }
+    if analysis_speaker_turn_postprocess_preset:
+        timeline_analysis_config["speaker_turn_postprocess_preset"] = analysis_speaker_turn_postprocess_preset
+    if analysis_speaker_turn_merge_gap_sec_max is not None:
+        timeline_analysis_config["speaker_turn_merge_gap_sec_max"] = float(
+            analysis_speaker_turn_merge_gap_sec_max
+        )
+    if analysis_speaker_turn_split_word_gap_sec is not None:
+        timeline_analysis_config["speaker_turn_split_word_gap_sec"] = float(
+            analysis_speaker_turn_split_word_gap_sec
+        )
+    if wts_mode != "off":
+        timeline_analysis_config["word_timestamp_stabilize_mode"] = wts_mode
+    if analysis_word_ts_neighbor_ratio_low is not None:
+        timeline_analysis_config["word_ts_neighbor_ratio_low"] = float(analysis_word_ts_neighbor_ratio_low)
+    if analysis_word_ts_neighbor_ratio_high is not None:
+        timeline_analysis_config["word_ts_neighbor_ratio_high"] = float(analysis_word_ts_neighbor_ratio_high)
+    if analysis_word_ts_smooth_max_sec is not None:
+        timeline_analysis_config["word_ts_smooth_max_sec"] = float(analysis_word_ts_smooth_max_sec)
+    return timeline_analysis_config
+
+
+def _run_full_pipeline_align(
+    results: list[tuple[TranscriptionResult, str]],
+    *,
+    no_align: bool,
+    align_language: str,
+    align_model_name: str,
+    model_dir: str,
+    model_cache_only: bool,
+    device: str,
+    interpolate_method: str,
+    return_char_alignments: bool,
+    print_progress: bool,
+) -> list[tuple[TranscriptionResult, str]]:
+    if no_align:
+        return results
+    tmp_results = results
+    out: list[tuple[TranscriptionResult, str]] = []
+    align_model, align_metadata = load_align_model(
+        align_language,
+        device,
+        model_name=align_model_name,
+        model_dir=model_dir,
+        model_cache_only=model_cache_only,
+    )
+    for result, audio_path in tmp_results:
+        detected_language = result.get("language")
+        input_audio = audio_path
+
+        if align_model is not None and len(result["segments"]) > 0:
+            if result.get("language", "en") != align_metadata["language"]:
+                logger.info(
+                    "New language found (%s)! Previous was (%s), loading new alignment model for new language...",
+                    result["language"],
+                    align_metadata["language"],
+                )
+                align_model, align_metadata = load_align_model(
+                    result["language"], device, model_dir=model_dir, model_cache_only=model_cache_only
+                )
+            logger.info("Performing alignment...")
+            result = align(
+                result["segments"],
+                align_model,
+                align_metadata,
+                input_audio,
+                device,
+                interpolate_method=interpolate_method,
+                return_char_alignments=return_char_alignments,
+                print_progress=print_progress,
+            )
+        if detected_language is not None:
+            result["language"] = detected_language
+
+        out.append((result, audio_path))
+
+    del align_model
+    gc.collect()
+    torch.cuda.empty_cache()
+    return out
+
+
+def _run_full_pipeline_diarize(
+    results: list[tuple[TranscriptionResult, str]],
+    *,
+    diarize: bool,
+    hf_token: str | None,
+    diarize_model_name: str,
+    device: str,
+    model_dir: str,
+    force_n_speakers: int | None,
+    min_speakers: int | None,
+    max_speakers: int | None,
+    return_speaker_embeddings: bool,
+) -> list[tuple[TranscriptionResult, str]]:
+    if not diarize:
+        return results
+    if hf_token is None:
+        logger.warning(
+            "No --hf_token provided, needs to be saved in environment variable, otherwise will throw error loading diarization model"
+        )
+    tmp_results = results
+    logger.info("Performing diarization...")
+    logger.info("Using model: %s", diarize_model_name)
+    out: list[tuple[TranscriptionResult, str]] = []
+    diarize_model = DiarizationPipeline(
+        model_name=diarize_model_name, token=hf_token, device=device, cache_dir=model_dir
+    )
+    for result, input_audio_path in tmp_results:
+        diarize_result = diarize_model(
+            input_audio_path,
+            num_speakers=force_n_speakers,
+            min_speakers=min_speakers,
+            max_speakers=max_speakers,
+            return_embeddings=return_speaker_embeddings,
+        )
+
+        if return_speaker_embeddings:
+            diarize_segments, speaker_embeddings = diarize_result
+        else:
+            diarize_segments = diarize_result
+            speaker_embeddings = None
+
+        result = assign_word_speakers(diarize_segments, result, speaker_embeddings)
+        out.append((result, input_audio_path))
+    return out
+
+
+def _run_full_pipeline_write_outputs(
+    results: list[tuple[TranscriptionResult, str]],
+    parser: argparse.ArgumentParser,
+    *,
+    args: dict[str, Any],
+    align_language: str,
+    timeline_analysis_config: dict[str, Any],
+    writer: Any,
+    writer_args: dict[str, Any],
+    output_dir: str,
+    export_data_science: bool,
+    export_annotation_rttm: bool,
+    export_annotation_textgrid: bool,
+    export_annotation_eaf: bool,
+    export_word_ctm: bool,
+    export_parquet_dataset: bool,
+    external_timings_payload: dict[str, Any] | None,
+    external_word_timings_json: str | None,
+    external_word_timings_strict: bool,
+    run_config_snapshot: dict[str, Any],
+) -> None:
+    try:
+        whisperx_version = importlib.metadata.version("whisperx")
+    except importlib.metadata.PackageNotFoundError:
+        whisperx_version = "unknown"
+
+    for result, audio_path in results:
+        if result.get("language") is None:
+            result["language"] = args["language"] if args["language"] is not None else align_language
+        if external_timings_payload is not None and external_word_timings_json:
+            try:
+                meta = apply_external_word_timings_to_result(
+                    result,
+                    external_timings_payload,
+                    source_path=external_word_timings_json,
+                    strict_token_match=external_word_timings_strict,
+                )
+                result["external_alignment"] = meta
+                logger.info(
+                    "Applied external word timings (%d words) from %s.",
+                    meta["n_words_applied"],
+                    external_word_timings_json,
+                )
+            except ExternalAlignmentError as exc:
+                parser.error(str(exc))
+        result["timeline"] = build_canonical_timeline(
+            result,
+            analysis_config=timeline_analysis_config,
+        )
+        writer(result, audio_path, writer_args)
+        if export_data_science:
+            run_metadata = {
+                "generatedAt": datetime.now(timezone.utc).isoformat(),
+                "versions": {
+                    "whisperx": whisperx_version,
+                    "python": platform.python_version(),
+                    "torch": getattr(torch, "__version__", "unknown"),
+                },
+                "input": {
+                    "audioPath": os.path.abspath(audio_path),
+                    "audioName": os.path.basename(audio_path),
+                },
+                "config": run_config_snapshot,
+                "pipeline": {
+                    "chunking": result.get("pipeline_chunking"),
+                },
+            }
+            write_data_science_exports(
+                output_dir=output_dir,
+                audio_path=audio_path,
+                result=result,
+                run_metadata=run_metadata,
+                export_word_ctm=export_word_ctm,
+                export_parquet_dataset=export_parquet_dataset,
+            )
+        write_annotation_exports(
+            output_dir=output_dir,
+            audio_path=audio_path,
+            result=result,
+            rttm=export_annotation_rttm,
+            textgrid=export_annotation_textgrid,
+            eaf=export_annotation_eaf,
+        )
+
+
 def transcribe_task(args: dict, parser: argparse.ArgumentParser):
     """Transcription task to be called from CLI.
 
@@ -578,6 +828,19 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
     if isinstance(analyze_only_from, str):
         analyze_only_from = analyze_only_from.strip() or None
 
+    audio_paths_early: list[str] = args.get("audio") or []
+    if not isinstance(audio_paths_early, list):
+        audio_paths_early = []
+    if analyze_only_from is None and len(audio_paths_early) < 1:
+        parser.error(
+            "At least one audio file is required unless --analyze_only_from is set.",
+        )
+    if analyze_only_from is not None and len(audio_paths_early) > 0:
+        logger.warning(
+            "Ignoring %d positional audio path(s) because --analyze_only_from is set.",
+            len(audio_paths_early),
+        )
+
     chunk_state_dir_arg: str | None = args.pop("chunk_state_dir")
     if isinstance(chunk_state_dir_arg, str):
         chunk_state_dir_arg = chunk_state_dir_arg.strip() or None
@@ -655,37 +918,26 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
     if analysis_word_ts_smooth_max_sec is not None and analysis_word_ts_smooth_max_sec <= 0:
         parser.error("--analysis_word_ts_smooth_max_sec must be > 0 when set")
 
-    timeline_analysis_config = {
-        "pause_min": analysis_pause_min,
-        "pause_ignore_below": analysis_pause_ignore_below,
-        "pause_max": analysis_pause_max,
-        "include_nonspeech": analysis_include_nonspeech,
-        "nonspeech_min_duration": analysis_nonspeech_min_duration,
-        "ipu_min_words": analysis_ipu_min_words,
-        "ipu_min_duration": analysis_ipu_min_duration,
-        "ipu_bridge_short_gaps_under": analysis_ipu_bridge_short_gaps_under,
-    }
-    if isinstance(analysis_preset, str) and analysis_preset.strip():
-        timeline_analysis_config["analysis_preset"] = analysis_preset.strip()
-    if analysis_calibrate_window_sec is not None and analysis_calibrate_window_sec > 0:
-        timeline_analysis_config["calibration"] = {
-            "window_sec": float(analysis_calibrate_window_sec),
-            "start_sec": float(analysis_calibrate_start_sec),
-        }
-    if analysis_speaker_turn_postprocess_preset:
-        timeline_analysis_config["speaker_turn_postprocess_preset"] = analysis_speaker_turn_postprocess_preset
-    if analysis_speaker_turn_merge_gap_sec_max is not None:
-        timeline_analysis_config["speaker_turn_merge_gap_sec_max"] = float(analysis_speaker_turn_merge_gap_sec_max)
-    if analysis_speaker_turn_split_word_gap_sec is not None:
-        timeline_analysis_config["speaker_turn_split_word_gap_sec"] = float(analysis_speaker_turn_split_word_gap_sec)
-    if wts_mode != "off":
-        timeline_analysis_config["word_timestamp_stabilize_mode"] = wts_mode
-    if analysis_word_ts_neighbor_ratio_low is not None:
-        timeline_analysis_config["word_ts_neighbor_ratio_low"] = float(analysis_word_ts_neighbor_ratio_low)
-    if analysis_word_ts_neighbor_ratio_high is not None:
-        timeline_analysis_config["word_ts_neighbor_ratio_high"] = float(analysis_word_ts_neighbor_ratio_high)
-    if analysis_word_ts_smooth_max_sec is not None:
-        timeline_analysis_config["word_ts_smooth_max_sec"] = float(analysis_word_ts_smooth_max_sec)
+    timeline_analysis_config = _build_timeline_analysis_config(
+        analysis_pause_min=analysis_pause_min,
+        analysis_pause_ignore_below=analysis_pause_ignore_below,
+        analysis_pause_max=analysis_pause_max,
+        analysis_include_nonspeech=analysis_include_nonspeech,
+        analysis_nonspeech_min_duration=analysis_nonspeech_min_duration,
+        analysis_ipu_min_words=analysis_ipu_min_words,
+        analysis_ipu_min_duration=analysis_ipu_min_duration,
+        analysis_ipu_bridge_short_gaps_under=analysis_ipu_bridge_short_gaps_under,
+        analysis_preset=analysis_preset,
+        analysis_calibrate_window_sec=analysis_calibrate_window_sec,
+        analysis_calibrate_start_sec=analysis_calibrate_start_sec,
+        analysis_speaker_turn_postprocess_preset=analysis_speaker_turn_postprocess_preset,
+        analysis_speaker_turn_merge_gap_sec_max=analysis_speaker_turn_merge_gap_sec_max,
+        analysis_speaker_turn_split_word_gap_sec=analysis_speaker_turn_split_word_gap_sec,
+        wts_mode=wts_mode,
+        analysis_word_ts_neighbor_ratio_low=analysis_word_ts_neighbor_ratio_low,
+        analysis_word_ts_neighbor_ratio_high=analysis_word_ts_neighbor_ratio_high,
+        analysis_word_ts_smooth_max_sec=analysis_word_ts_smooth_max_sec,
+    )
     if args["language"] is not None:
         args["language"] = args["language"].lower()
         if args["language"] not in LANGUAGES:
@@ -860,139 +1112,52 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
     gc.collect()
     torch.cuda.empty_cache()
 
-    # Part 2: Align Loop
-    if not no_align:
-        tmp_results = results
-        results = []
-        align_model, align_metadata = load_align_model(
-            align_language, device, model_name=align_model, model_dir=model_dir, model_cache_only=model_cache_only
-        )
-        for result, audio_path in tmp_results:
-            detected_language = result.get("language")
-            # >> Align
-            input_audio = audio_path
+    results = _run_full_pipeline_align(
+        results,
+        no_align=no_align,
+        align_language=align_language,
+        align_model_name=align_model,
+        model_dir=model_dir,
+        model_cache_only=model_cache_only,
+        device=device,
+        interpolate_method=interpolate_method,
+        return_char_alignments=return_char_alignments,
+        print_progress=print_progress,
+    )
 
-            if align_model is not None and len(result["segments"]) > 0:
-                if result.get("language", "en") != align_metadata["language"]:
-                    # load new language
-                    logger.info(
-                        f"New language found ({result['language']})! Previous was ({align_metadata['language']}), loading new alignment model for new language..."
-                    )
-                    align_model, align_metadata = load_align_model(
-                        result["language"], device, model_dir=model_dir, model_cache_only=model_cache_only
-                    )
-                logger.info("Performing alignment...")
-                result: AlignedTranscriptionResult = align(
-                    result["segments"],
-                    align_model,
-                    align_metadata,
-                    input_audio,
-                    device,
-                    interpolate_method=interpolate_method,
-                    return_char_alignments=return_char_alignments,
-                    print_progress=print_progress,
-                )
-            if detected_language is not None:
-                result["language"] = detected_language
+    results = _run_full_pipeline_diarize(
+        results,
+        diarize=diarize,
+        hf_token=hf_token,
+        diarize_model_name=diarize_model_name,
+        device=device,
+        model_dir=model_dir,
+        force_n_speakers=force_n_speakers,
+        min_speakers=min_speakers,
+        max_speakers=max_speakers,
+        return_speaker_embeddings=return_speaker_embeddings,
+    )
 
-            results.append((result, audio_path))
-
-        # Unload align model
-        del align_model
-        gc.collect()
-        torch.cuda.empty_cache()
-
-    # >> Diarize
-    if diarize:
-        if hf_token is None:
-            logger.warning(
-                "No --hf_token provided, needs to be saved in environment variable, otherwise will throw error loading diarization model"
-            )
-        tmp_results = results
-        logger.info("Performing diarization...")
-        logger.info(f"Using model: {diarize_model_name}")
-        results = []
-        diarize_model = DiarizationPipeline(model_name=diarize_model_name, token=hf_token, device=device, cache_dir=model_dir)
-        for result, input_audio_path in tmp_results:
-            diarize_result = diarize_model(
-                input_audio_path, 
-                num_speakers=force_n_speakers,
-                min_speakers=min_speakers, 
-                max_speakers=max_speakers, 
-                return_embeddings=return_speaker_embeddings
-            )
-
-            if return_speaker_embeddings:
-                diarize_segments, speaker_embeddings = diarize_result
-            else:
-                diarize_segments = diarize_result
-                speaker_embeddings = None
-
-            result = assign_word_speakers(diarize_segments, result, speaker_embeddings)
-            results.append((result, input_audio_path))
-    # >> Write
-    try:
-        whisperx_version = importlib.metadata.version("whisperx")
-    except importlib.metadata.PackageNotFoundError:
-        whisperx_version = "unknown"
-
-    for result, audio_path in results:
-        if result.get("language") is None:
-            result["language"] = args["language"] if args["language"] is not None else align_language
-        if external_timings_payload is not None and external_word_timings_json:
-            try:
-                meta = apply_external_word_timings_to_result(
-                    result,
-                    external_timings_payload,
-                    source_path=external_word_timings_json,
-                    strict_token_match=external_word_timings_strict,
-                )
-                result["external_alignment"] = meta
-                logger.info(
-                    "Applied external word timings (%d words) from %s.",
-                    meta["n_words_applied"],
-                    external_word_timings_json,
-                )
-            except ExternalAlignmentError as exc:
-                parser.error(str(exc))
-        result["timeline"] = build_canonical_timeline(
-            result,
-            analysis_config=timeline_analysis_config,
-        )
-        writer(result, audio_path, writer_args)
-        if export_data_science:
-            run_metadata = {
-                "generatedAt": datetime.now(timezone.utc).isoformat(),
-                "versions": {
-                    "whisperx": whisperx_version,
-                    "python": platform.python_version(),
-                    "torch": getattr(torch, "__version__", "unknown"),
-                },
-                "input": {
-                    "audioPath": os.path.abspath(audio_path),
-                    "audioName": os.path.basename(audio_path),
-                },
-                "config": run_config_snapshot,
-                "pipeline": {
-                    "chunking": result.get("pipeline_chunking"),
-                },
-            }
-            write_data_science_exports(
-                output_dir=output_dir,
-                audio_path=audio_path,
-                result=result,
-                run_metadata=run_metadata,
-                export_word_ctm=export_word_ctm,
-                export_parquet_dataset=export_parquet_dataset,
-            )
-        write_annotation_exports(
-            output_dir=output_dir,
-            audio_path=audio_path,
-            result=result,
-            rttm=export_annotation_rttm,
-            textgrid=export_annotation_textgrid,
-            eaf=export_annotation_eaf,
-        )
+    _run_full_pipeline_write_outputs(
+        results,
+        parser,
+        args=args,
+        align_language=align_language,
+        timeline_analysis_config=timeline_analysis_config,
+        writer=writer,
+        writer_args=writer_args,
+        output_dir=output_dir,
+        export_data_science=export_data_science,
+        export_annotation_rttm=export_annotation_rttm,
+        export_annotation_textgrid=export_annotation_textgrid,
+        export_annotation_eaf=export_annotation_eaf,
+        export_word_ctm=export_word_ctm,
+        export_parquet_dataset=export_parquet_dataset,
+        external_timings_payload=external_timings_payload,
+        external_word_timings_json=external_word_timings_json,
+        external_word_timings_strict=external_word_timings_strict,
+        run_config_snapshot=run_config_snapshot,
+    )
 
 
 def export_only_task(args: dict, parser: argparse.ArgumentParser) -> None:

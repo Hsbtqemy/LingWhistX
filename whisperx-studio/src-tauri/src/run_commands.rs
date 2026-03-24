@@ -20,8 +20,7 @@ fn recent_runs_path(app: &AppHandle) -> Result<PathBuf, String> {
         .path()
         .app_local_data_dir()
         .map_err(|err| format!("Unable to resolve app local data dir: {err}"))?;
-    std::fs::create_dir_all(&dir)
-        .map_err(|err| format!("Unable to create app data dir: {err}"))?;
+    std::fs::create_dir_all(&dir).map_err(|err| format!("Unable to create app data dir: {err}"))?;
     Ok(dir.join(RECENT_RUNS_FILE))
 }
 
@@ -110,14 +109,20 @@ fn resolve_media_path(run_dir: &Path, raw: &str) -> (Option<String>, Option<Stri
             .map(|x| x.to_string_lossy().to_string())
     } else {
         let joined = run_dir.join(raw);
-        joined.canonicalize().ok().map(|x| x.to_string_lossy().to_string())
+        joined
+            .canonicalize()
+            .ok()
+            .map(|x| x.to_string_lossy().to_string())
     };
     (display, resolved)
 }
 
-fn parse_run_manifest_summary(run_dir: &Path, manifest_path: &Path) -> Result<RunManifestSummary, String> {
-    let text = fs::read_to_string(manifest_path)
-        .map_err(|e| format!("Lecture run_manifest.json: {e}"))?;
+fn parse_run_manifest_summary(
+    run_dir: &Path,
+    manifest_path: &Path,
+) -> Result<RunManifestSummary, String> {
+    let text =
+        fs::read_to_string(manifest_path).map_err(|e| format!("Lecture run_manifest.json: {e}"))?;
     let v: Value = serde_json::from_str(&text).map_err(|e| format!("JSON invalide: {e}"))?;
 
     let schema_version = v
@@ -208,7 +213,10 @@ fn parse_run_manifest_summary(run_dir: &Path, manifest_path: &Path) -> Result<Ru
 }
 
 #[tauri::command]
-pub fn read_run_manifest_summary(app: AppHandle, input_path: String) -> Result<RunManifestSummary, String> {
+pub fn read_run_manifest_summary(
+    app: AppHandle,
+    input_path: String,
+) -> Result<RunManifestSummary, String> {
     let (run_dir, manifest_path) = resolve_run_dir_and_manifest(&input_path)?;
     let summary = parse_run_manifest_summary(&run_dir, &manifest_path)?;
     register_recent_run_inner(&app, &summary)?;
@@ -262,4 +270,3 @@ pub fn clear_recent_runs(app: AppHandle) -> Result<(), String> {
     }
     Ok(())
 }
-

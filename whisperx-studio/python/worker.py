@@ -466,11 +466,12 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
 
 
 def run_analyze_only(input_path: str, out_dir: Path, options: dict[str, object]) -> list[str]:
+    # Subcommand `analyze` + --analyze_only_from uniquement : pas de faux « fichier audio » positionnel.
     command = [
         sys.executable,
         "-m",
         "whisperx",
-        input_path,
+        "analyze",
         "--output_dir",
         str(out_dir),
         "--output_format",

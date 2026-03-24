@@ -1,8 +1,7 @@
-import type { Dispatch, SetStateAction } from "react";
 import { useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-export function useOpenLocalPath(setError: Dispatch<SetStateAction<string>>) {
+export function useOpenLocalPath(setError: (message: string) => void) {
   return useCallback(
     async (path: string) => {
       try {

@@ -476,20 +476,28 @@ def _derive_speaker_turns(
 def _derive_overlap_events(
     turns: list[CanonicalTimelineSpeakerTurn],
 ) -> list[CanonicalTimelineEvent]:
+    """Détecte les chevauchements entre tours de locuteurs distincts (balayage par début croissant)."""
     if len(turns) < 2:
         return []
 
+    order = sorted(
+        range(len(turns)),
+        key=lambda i: (float(turns[i]["start"]), float(turns[i]["end"])),
+    )
     events: list[CanonicalTimelineEvent] = []
-    for idx in range(len(turns)):
-        left = turns[idx]
-        for jdx in range(idx + 1, len(turns)):
-            right = turns[jdx]
-            if right["start"] >= left["end"]:
-                break
-            if left["speaker"] == right["speaker"]:
+    active: list[int] = []
+
+    for idx in order:
+        cur = turns[idx]
+        cur_s = float(cur["start"])
+        cur_e = float(cur["end"])
+        active = [j for j in active if float(turns[j]["end"]) > cur_s + EPSILON]
+        for j in active:
+            left = turns[j]
+            if left["speaker"] == cur["speaker"]:
                 continue
-            start = max(left["start"], right["start"])
-            end = min(left["end"], right["end"])
+            start = max(float(left["start"]), cur_s)
+            end = min(float(left["end"]), cur_e)
             if end <= start + EPSILON:
                 continue
             events.append(
@@ -497,9 +505,11 @@ def _derive_overlap_events(
                     "type": "overlap",
                     "start": _round_ts(start),
                     "end": _round_ts(end),
-                    "speakers": sorted([left["speaker"], right["speaker"]]),
+                    "speakers": sorted([left["speaker"], cur["speaker"]]),
                 }
             )
+        active.append(idx)
+
     return events
 
 

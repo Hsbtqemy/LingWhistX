@@ -10,16 +10,18 @@ mod app_events;
 mod app_setup;
 mod audio_preview;
 mod embedded_resources;
+mod ffmpeg_install;
+mod ffmpeg_install_commands;
 mod ffmpeg_tools;
 mod job_commands;
 mod jobs;
 mod local_fs_commands;
-mod run_commands;
-mod run_events;
-mod run_events_recalc;
 mod path_guard;
 mod process_utils;
 mod python_runtime;
+mod run_commands;
+mod run_events;
+mod run_events_recalc;
 mod runtime_setup_commands;
 mod runtime_status;
 mod transcript_commands;
@@ -38,6 +40,7 @@ pub fn run() {
         .manage(JobsPaginationState::default())
         .manage(RuntimeState::default())
         .manage(RuntimeSetupState::default())
+        .manage(FfmpegInstallState::default())
         .manage(WaveformTaskState::default())
         .setup(app_setup::setup_app)
         .invoke_handler(tauri::generate_handler![
@@ -49,6 +52,8 @@ pub fn run() {
             runtime_status::get_runtime_status,
             runtime_setup_commands::get_runtime_setup_status,
             runtime_setup_commands::start_runtime_setup,
+            ffmpeg_install_commands::get_ffmpeg_install_status,
+            ffmpeg_install_commands::start_ffmpeg_install,
             waveform::build_waveform_peaks,
             waveform::start_waveform_generation,
             waveform::cancel_waveform_generation,
@@ -61,6 +66,7 @@ pub fn run() {
             transcript_commands::delete_transcript_draft,
             transcript_commands::save_transcript_json,
             transcript_commands::export_transcript,
+            transcript_commands::export_run_timing_pack,
             local_fs_commands::open_local_path,
             local_fs_commands::read_text_preview,
             job_commands::cancel_job,
@@ -71,7 +77,8 @@ pub fn run() {
             run_events::list_run_speakers,
             run_events::query_run_events_window,
             run_events_recalc::recalc_pauses_ipu,
-            audio_preview::extract_audio_wav_window
+            audio_preview::extract_audio_wav_window,
+            audio_preview::export_audio_wav_segment
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

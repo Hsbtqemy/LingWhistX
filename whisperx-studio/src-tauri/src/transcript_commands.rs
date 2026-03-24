@@ -1,11 +1,11 @@
 //! Commandes Tauri: chargement, brouillon, export transcript.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::models::{
-    ExportTranscriptRequest, ExportTranscriptResponse, SaveTranscriptDraftRequest,
-    SaveTranscriptDraftResponse, SaveTranscriptRequest, TranscriptDocument,
-    TranscriptDraftDocument,
+    ExportRunTimingPackRequest, ExportRunTimingPackResponse, ExportTranscriptRequest,
+    ExportTranscriptResponse, SaveTranscriptDraftRequest, SaveTranscriptDraftResponse,
+    SaveTranscriptRequest, TranscriptDocument, TranscriptDraftDocument,
 };
 use crate::path_guard::{resolve_existing_file_path, validate_path_string};
 use crate::time_utils::{now_ms, system_time_to_ms};
@@ -14,6 +14,14 @@ use crate::transcript::{
     draft_path_for_source, edited_path_with_ext, load_segments_from_json, to_csv_text, to_srt_text,
     to_txt_text, to_vtt_text,
 };
+
+fn write_export_sidecar_file(path: &Path, content: &str, err_ctx: &str) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|err| format!("Unable to create export directory: {err}"))?;
+    }
+    std::fs::write(path, content).map_err(|err| format!("{err_ctx}: {err}"))
+}
 
 #[tauri::command]
 pub fn load_transcript_document(path: String) -> Result<TranscriptDocument, String> {
@@ -44,8 +52,11 @@ pub fn load_transcript_document(path: String) -> Result<TranscriptDocument, Stri
 
 #[tauri::command]
 pub fn load_transcript_draft(path: String) -> Result<Option<TranscriptDraftDocument>, String> {
-    validate_path_string(&path)?;
-    let source = PathBuf::from(path.trim());
+    let source = resolve_existing_file_path(
+        &path,
+        "Transcript file does not exist",
+        "Transcript path is not a file",
+    )?;
     let draft_path = draft_path_for_source(&source);
     if !draft_path.exists() {
         return Ok(None);
@@ -87,8 +98,11 @@ pub fn load_transcript_draft(path: String) -> Result<Option<TranscriptDraftDocum
 pub fn save_transcript_draft(
     request: SaveTranscriptDraftRequest,
 ) -> Result<SaveTranscriptDraftResponse, String> {
-    validate_path_string(&request.path)?;
-    let source = PathBuf::from(request.path.trim());
+    let source = resolve_existing_file_path(
+        &request.path,
+        "Transcript file does not exist",
+        "Transcript path is not a file",
+    )?;
     let draft_path = draft_path_for_source(&source);
     let payload = build_transcript_draft_json(&source, request.language, &request.segments);
     let serialized = serde_json::to_string_pretty(&payload)
@@ -117,8 +131,11 @@ pub fn save_transcript_draft(
 
 #[tauri::command]
 pub fn delete_transcript_draft(path: String) -> Result<bool, String> {
-    validate_path_string(&path)?;
-    let source = PathBuf::from(path.trim());
+    let source = resolve_existing_file_path(
+        &path,
+        "Transcript file does not exist",
+        "Transcript path is not a file",
+    )?;
     let draft_path = draft_path_for_source(&source);
     if !draft_path.exists() {
         return Ok(false);
@@ -176,56 +193,31 @@ pub fn export_transcript(
             let payload = build_transcript_json(request.language.clone(), &segments_for_export);
             let serialized = serde_json::to_string_pretty(&payload)
                 .map_err(|err| format!("Unable to serialize transcript JSON: {err}"))?;
-            if let Some(parent) = target_path.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|err| format!("Unable to create export directory: {err}"))?;
-            }
-            std::fs::write(&target_path, serialized)
-                .map_err(|err| format!("Unable to export JSON transcript: {err}"))?;
+            write_export_sidecar_file(&target_path, &serialized, "Unable to export JSON transcript")?;
             target_path
         }
         "srt" => {
             let target_path = edited_path_with_ext(&source, "srt");
             let serialized = to_srt_text(&segments_for_export);
-            if let Some(parent) = target_path.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|err| format!("Unable to create export directory: {err}"))?;
-            }
-            std::fs::write(&target_path, serialized)
-                .map_err(|err| format!("Unable to export SRT transcript: {err}"))?;
+            write_export_sidecar_file(&target_path, &serialized, "Unable to export SRT transcript")?;
             target_path
         }
         "vtt" => {
             let target_path = edited_path_with_ext(&source, "vtt");
             let serialized = to_vtt_text(&segments_for_export);
-            if let Some(parent) = target_path.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|err| format!("Unable to create export directory: {err}"))?;
-            }
-            std::fs::write(&target_path, serialized)
-                .map_err(|err| format!("Unable to export VTT transcript: {err}"))?;
+            write_export_sidecar_file(&target_path, &serialized, "Unable to export VTT transcript")?;
             target_path
         }
         "txt" => {
             let target_path = edited_path_with_ext(&source, "txt");
             let serialized = to_txt_text(&segments_for_export);
-            if let Some(parent) = target_path.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|err| format!("Unable to create export directory: {err}"))?;
-            }
-            std::fs::write(&target_path, serialized)
-                .map_err(|err| format!("Unable to export TXT transcript: {err}"))?;
+            write_export_sidecar_file(&target_path, &serialized, "Unable to export TXT transcript")?;
             target_path
         }
         "csv" => {
             let target_path = edited_path_with_ext(&source, "csv");
             let serialized = to_csv_text(&segments_for_export);
-            if let Some(parent) = target_path.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|err| format!("Unable to create export directory: {err}"))?;
-            }
-            std::fs::write(&target_path, serialized)
-                .map_err(|err| format!("Unable to export CSV transcript: {err}"))?;
+            write_export_sidecar_file(&target_path, &serialized, "Unable to export CSV transcript")?;
             target_path
         }
         other => return Err(format!("Unsupported export format: {other}")),
@@ -233,6 +225,85 @@ pub fn export_transcript(
 
     Ok(ExportTranscriptResponse {
         output_path: output.to_string_lossy().to_string(),
+        report,
+    })
+}
+
+/// Même livrable que « Export pack timing » (Explorer) : JSON + SRT + CSV à côté du fichier source
+/// (`timeline_json` ou `run_json` du manifest).
+#[tauri::command]
+pub fn export_run_timing_pack(
+    request: ExportRunTimingPackRequest,
+) -> Result<ExportRunTimingPackResponse, String> {
+    validate_path_string(&request.run_dir)?;
+    let run_dir = PathBuf::from(request.run_dir.trim());
+    let run_dir = run_dir
+        .canonicalize()
+        .map_err(|e| format!("Impossible de canoniser run_dir: {e}"))?;
+    let manifest_path = run_dir.join("run_manifest.json");
+    if !manifest_path.is_file() {
+        return Err("run_manifest.json introuvable dans ce dossier.".into());
+    }
+    let raw = std::fs::read_to_string(&manifest_path).map_err(|e| e.to_string())?;
+    let manifest: serde_json::Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    let art = manifest
+        .get("artifacts")
+        .and_then(|a| a.as_object())
+        .ok_or_else(|| "Champ artifacts manquant dans run_manifest.json.".to_string())?;
+
+    let mut source_path: Option<PathBuf> = None;
+    let mut language: Option<String> = None;
+    let mut segments = Vec::new();
+
+    for key in ["timeline_json", "run_json"] {
+        let Some(rel) = art.get(key).and_then(|x| x.as_str()) else {
+            continue;
+        };
+        let p = run_dir.join(rel);
+        if !p.is_file() {
+            continue;
+        }
+        let text = std::fs::read_to_string(&p).map_err(|e| format!("Lecture {rel}: {e}"))?;
+        let json: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| format!("JSON {rel}: {e}"))?;
+        let segs = load_segments_from_json(&json);
+        if !segs.is_empty() {
+            source_path = Some(p);
+            language = json
+                .get("language")
+                .and_then(|lang| lang.as_str())
+                .map(std::string::ToString::to_string);
+            segments = segs;
+            break;
+        }
+    }
+
+    let source_path = source_path.ok_or_else(|| {
+        "Aucun artifact timeline_json ou run_json avec segments exploitables.".to_string()
+    })?;
+
+    let source_str = source_path.to_string_lossy().to_string();
+    let mut last_path = String::new();
+    let mut last_report = None;
+
+    for format in ["json", "srt", "csv"] {
+        let r = export_transcript(ExportTranscriptRequest {
+            path: source_str.clone(),
+            language: language.clone(),
+            segments: segments.clone(),
+            format: format.to_string(),
+            rules: request.rules.clone(),
+        })?;
+        last_path = r.output_path;
+        last_report = Some(r.report);
+    }
+
+    let report =
+        last_report.ok_or_else(|| "export pack: aucun format exporté (interne)".to_string())?;
+
+    Ok(ExportRunTimingPackResponse {
+        source_path: source_str,
+        last_output_path: last_path,
         report,
     })
 }

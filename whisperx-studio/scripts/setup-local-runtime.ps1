@@ -5,8 +5,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Aligné sur `app.path().app_local_data_dir()` (Tauri) — même identifiant que `tauri.conf.json`.
+$bundleId = "com.hsemil01.whisperx-studio"
 if ([string]::IsNullOrWhiteSpace($RuntimeDir)) {
-    $baseDir = Join-Path $env:LOCALAPPDATA "whisperx-studio"
+    $baseDir = Join-Path $env:LOCALAPPDATA $bundleId
     $RuntimeDir = Join-Path $baseDir "python-runtime"
 }
 

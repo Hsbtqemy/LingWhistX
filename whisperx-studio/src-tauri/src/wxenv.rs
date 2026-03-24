@@ -94,18 +94,13 @@ pub fn merge_level_down(blocks: &[(i16, i16)]) -> Vec<(i16, i16)> {
 
 /// Construit L0…L4 : `levels[0]` = L0, puis chaque niveau fusionne ×4 le précédent.
 pub fn build_pyramid_levels_from_l0(l0: Vec<(i16, i16)>) -> [Vec<(i16, i16)>; 5] {
-    let mut levels: [Vec<(i16, i16)>; 5] = [
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-    ];
+    let mut levels: [Vec<(i16, i16)>; 5] =
+        [Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()];
     levels[0] = l0.clone();
     let mut cur = l0;
-    for k in 1..5 {
+    for level_slot in levels.iter_mut().skip(1) {
         cur = merge_level_down(&cur);
-        levels[k] = cur.clone();
+        *level_slot = cur.clone();
     }
     levels
 }
@@ -168,7 +163,11 @@ fn wxenv_cache_dir(app: &AppHandle, source: &Path, sample_rate: u32) -> Result<P
 }
 
 /// Décode le média en mono f32 via ffmpeg, construit L0 (fenêtres 256 échantillons int16), puis L1–L4.
-pub fn build_waveform_pyramid_internal(app: &AppHandle, path: &str, sample_rate: u32) -> Result<WaveformPyramidBuilt, String> {
+pub fn build_waveform_pyramid_internal(
+    app: &AppHandle,
+    path: &str,
+    sample_rate: u32,
+) -> Result<WaveformPyramidBuilt, String> {
     validate_path_string(path)?;
     let source = PathBuf::from(path.trim());
     if !source.is_file() {
@@ -425,9 +424,7 @@ mod tests {
 
     #[test]
     fn merge_four_then_one() {
-        let b: Vec<(i16, i16)> = (0..5)
-            .map(|i| (i as i16 * 10, i as i16 * 10 + 5))
-            .collect();
+        let b: Vec<(i16, i16)> = (0..5).map(|i| (i as i16 * 10, i as i16 * 10 + 5)).collect();
         let m = merge_level_down(&b);
         assert_eq!(m.len(), 2);
         let m2 = merge_level_down(&m);

@@ -11,6 +11,7 @@ pub fn setup_app(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let app_handle = app.handle();
     let db_path = database_path(app_handle).map_err(std::io::Error::other)?;
     init_database(&db_path).map_err(std::io::Error::other)?;
+    // `COUNT(*)` : total en base ; `load_jobs` ne charge que la première page (`JOBS_PAGE_SIZE`).
     let total_in_db = count_jobs(&db_path).map_err(std::io::Error::other)?;
     let persisted_jobs = load_jobs(&db_path).map_err(std::io::Error::other)?;
     let initial_offset = persisted_jobs.len() as i64;

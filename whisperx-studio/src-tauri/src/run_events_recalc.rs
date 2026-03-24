@@ -51,6 +51,9 @@ struct WordRow {
     token: String,
 }
 
+type PauseInsertRow = (i64, i64, i64, Option<String>, Option<String>);
+type IpuInsertRow = (i64, i64, i64, i32, Option<String>, String);
+
 fn load_words(conn: &Connection) -> Result<Vec<WordRow>, String> {
     let mut stmt = conn
         .prepare(
@@ -73,7 +76,7 @@ fn load_words(conn: &Connection) -> Result<Vec<WordRow>, String> {
 fn compute_recalc(
     words: &[WordRow],
     cfg: &RecalcPausesIpuConfig,
-) -> (Vec<(i64, i64, i64, Option<String>, Option<String>)>, Vec<(i64, i64, i64, i32, Option<String>, String)>, RecalcPausesIpuStats) {
+) -> (Vec<PauseInsertRow>, Vec<IpuInsertRow>, RecalcPausesIpuStats) {
     let min_pause_ms = (cfg.min_pause_sec * 1000.0).round().max(0.0) as i64;
     let ignore_below_ms = (cfg.ignore_below_sec * 1000.0).round().max(0.0) as i64;
     let pause_max_ms = cfg
@@ -84,8 +87,8 @@ fn compute_recalc(
 
     let mut overlap_total_ms: i64 = 0;
     let mut pause_durations: Vec<i64> = Vec::new();
-    let mut pauses_out: Vec<(i64, i64, i64, Option<String>, Option<String>)> = Vec::new();
-    let mut ipus_out: Vec<(i64, i64, i64, i32, Option<String>, String)> = Vec::new();
+    let mut pauses_out: Vec<PauseInsertRow> = Vec::new();
+    let mut ipus_out: Vec<IpuInsertRow> = Vec::new();
 
     if words.is_empty() {
         return (
@@ -202,8 +205,8 @@ fn compute_recalc(
 
 fn persist_pauses_ipus(
     conn: &Connection,
-    pauses: &[(i64, i64, i64, Option<String>, Option<String>)],
-    ipus: &[(i64, i64, i64, i32, Option<String>, String)],
+    pauses: &[PauseInsertRow],
+    ipus: &[IpuInsertRow],
 ) -> Result<(), String> {
     conn.execute("DELETE FROM pauses", [])
         .map_err(|e| format!("delete pauses: {e}"))?;
@@ -262,10 +265,7 @@ pub fn recalc_pauses_ipu_inner(
         .map_err(|e| format!("run_dir: {e}"))?;
     let db_path = run_dir.join(EVENTS_DB_FILE);
     if !db_path.is_file() {
-        return Err(format!(
-            "events.sqlite introuvable: {}",
-            db_path.display()
-        ));
+        return Err(format!("events.sqlite introuvable: {}", db_path.display()));
     }
 
     if !cfg.min_pause_sec.is_finite() || cfg.min_pause_sec < 0.0 {

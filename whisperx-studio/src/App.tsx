@@ -6,7 +6,9 @@ import { StudioHero } from "./components/StudioHero";
 import { StudioNav } from "./components/StudioNav";
 import { StudioNewJobSection } from "./components/StudioNewJobSection";
 import { StudioOpenRunSection } from "./components/StudioOpenRunSection";
+import { PlayerWorkspaceSection } from "./components/player/PlayerWorkspaceSection";
 import { StudioWorkspaceSection } from "./components/StudioWorkspaceSection";
+import { useAppErrorStack } from "./hooks/useAppErrorStack";
 import { useNewJobForm } from "./hooks/useNewJobForm";
 import { useRuntimeDiagnostics } from "./hooks/useRuntimeDiagnostics";
 import { useStudioWorkspace } from "./hooks/useStudioWorkspace";
@@ -14,9 +16,12 @@ import type { StudioView } from "./types";
 
 function App() {
   const runDetailsRef = useRef<HTMLElement | null>(null);
-  const [error, setError] = useState("");
+  const injectAudioPipelineSegmentsJsonRef = useRef<(json: string) => void>(() => {});
+  const { errors: appErrors, setError } = useAppErrorStack();
   const [activeView, setActiveView] = useState<StudioView>("create");
   const [editorFocusMode, setEditorFocusMode] = useState(false);
+  const [playerRunDir, setPlayerRunDir] = useState<string | null>(null);
+  const [playerRunLabel, setPlayerRunLabel] = useState<string | null>(null);
 
   const onToggleEditorFocusMode = useCallback(() => {
     setEditorFocusMode((prev) => {
@@ -34,10 +39,24 @@ function App() {
     }
   }, [activeView]);
 
+  const handleOpenPlayer = useCallback((runDir: string, label?: string | null) => {
+    setPlayerRunDir(runDir);
+    setPlayerRunLabel(label ?? runDir);
+    setActiveView("player");
+  }, []);
+
+  const handlePlayerBack = useCallback((view: StudioView) => {
+    setActiveView(view);
+  }, []);
+
   const { runtimeReady, runtimeCoreReady, localRuntimePanelProps, runtimeStatus } =
     useRuntimeDiagnostics({
       setError,
     });
+
+  const injectAudioPipelineSegmentsJson = useCallback((json: string) => {
+    injectAudioPipelineSegmentsJsonRef.current(json);
+  }, []);
 
   const { jobsHistory, runDetails, runningJobs, refreshJobs, setSelectedJobId, explorer } =
     useStudioWorkspace({
@@ -46,6 +65,7 @@ function App() {
       editorFocusMode,
       onToggleEditorFocusMode,
       runtimeStatus,
+      injectAudioPipelineSegmentsJson,
     });
 
   const jobForm = useNewJobForm({
@@ -55,6 +75,12 @@ function App() {
     runtimeReady,
     runtimeCoreReady,
   });
+
+  useEffect(() => {
+    injectAudioPipelineSegmentsJsonRef.current = (json: string) => {
+      jobForm.setWhisperxOptions((prev) => ({ ...prev, audioPipelineSegmentsJson: json }));
+    };
+  }, [jobForm.setWhisperxOptions]);
 
   const onExitEditorFocus = useCallback(() => {
     setEditorFocusMode(false);
@@ -76,10 +102,11 @@ function App() {
             setError={setError}
             setActiveView={setActiveView}
             setSelectedJobId={setSelectedJobId}
+            onOpenPlayer={handleOpenPlayer}
           />
           <StudioNewJobSection
             runningJobs={runningJobs}
-            error={error}
+            errors={appErrors}
             refreshJobs={refreshJobs}
             jobForm={jobForm}
             runtime={localRuntimePanelProps}
@@ -89,6 +116,14 @@ function App() {
 
       {!editorFocusMode && activeView === "about" ? (
         <StudioAboutView runtime={localRuntimePanelProps} />
+      ) : null}
+
+      {!editorFocusMode && activeView === "player" ? (
+        <PlayerWorkspaceSection
+          runDir={playerRunDir}
+          runLabel={playerRunLabel}
+          onBack={handlePlayerBack}
+        />
       ) : null}
 
       {(editorFocusMode || activeView === "workspace") && (

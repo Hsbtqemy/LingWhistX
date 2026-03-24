@@ -1,6 +1,8 @@
-import type { MouseEvent, RefObject, WheelEvent } from "react";
+import { useState, type MouseEvent, type RefObject, type WheelEvent } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import { MAX_WAVEFORM_ZOOM, MIN_WAVEFORM_ZOOM } from "../../constants";
-import { formatClockSeconds, parseFiniteNumberInput } from "../../appUtils";
+import { clampNumber, formatClockSeconds, parseFiniteNumberInput } from "../../appUtils";
 import type { FocusedSegmentInfo, Job, WaveformOverviewEnvelope, WaveformPeaks } from "../../types";
 import { wordLabelsLimitedToDenseView } from "../../waveformWxenv";
 import { ErrorBanner } from "../ErrorBanner";
@@ -63,6 +65,23 @@ export type AlignmentWorkspacePanelProps = {
   setWebAudioMode: (v: boolean) => void;
   webAudioError: string;
   toggleMediaPlayback: () => Promise<void>;
+  /** WX-623 — remplit le champ JSON « Plages pipeline » du formulaire Nouveau job. */
+  injectAudioPipelineSegmentsJson?: (json: string) => void;
+  previewRangeSec: { start: number; end: number } | null;
+  setPreviewRangeSec: (r: { start: number; end: number } | null) => void;
+  rangeSelectionMode: boolean;
+  setRangeSelectionMode: (v: boolean) => void;
+  setPreviewRangeFromVisibleWindow: () => void;
+  clearPreviewRange: () => void;
+  previewWaveGainDb: number;
+  setPreviewWaveGainDb: (v: number) => void;
+  previewWaveEqLowDb: number;
+  setPreviewWaveEqLowDb: (v: number) => void;
+  previewWaveBalance: number;
+  setPreviewWaveBalance: (v: number) => void;
+  previewWaveBypassEffects: boolean;
+  setPreviewWaveBypassEffects: (v: boolean) => void;
+  resetPreviewWaveEffects: () => void;
 };
 
 export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
@@ -123,12 +142,131 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
     setWebAudioMode,
     webAudioError,
     toggleMediaPlayback,
+    injectAudioPipelineSegmentsJson,
+    previewRangeSec,
+    setPreviewRangeSec,
+    rangeSelectionMode,
+    setRangeSelectionMode,
+    setPreviewRangeFromVisibleWindow,
+    clearPreviewRange,
+    previewWaveGainDb,
+    setPreviewWaveGainDb,
+    previewWaveEqLowDb,
+    setPreviewWaveEqLowDb,
+    previewWaveBalance,
+    setPreviewWaveBalance,
+    previewWaveBypassEffects,
+    setPreviewWaveBypassEffects,
+    resetPreviewWaveEffects,
   } = props;
+
+  const [wx623Hint, setWx623Hint] = useState<string | null>(null);
+
+  function injectPipelineJsonFromRange() {
+    if (!previewRangeSec || !injectAudioPipelineSegmentsJson) {
+      return;
+    }
+    const payload = [
+      {
+        startSec: previewRangeSec.start,
+        endSec: previewRangeSec.end,
+        audioPipelineModules: { preNormalize: true },
+      },
+    ];
+    injectAudioPipelineSegmentsJson(JSON.stringify(payload, null, 2));
+    setWx623Hint(
+      "JSON injecté dans « Plages pipeline » (Nouveau job). Ouvre la vue Créer pour l’éditer ou lancer un job.",
+    );
+  }
+
+  async function exportSnippetWav() {
+    if (!previewRangeSec) {
+      return;
+    }
+    setWx623Hint(null);
+    const outPath = await save({
+      title: "Exporter extrait WAV (WX-623)",
+      filters: [{ name: "WAV", extensions: ["wav"] }],
+      defaultPath: "snippet.wav",
+    });
+    if (!outPath) {
+      return;
+    }
+    try {
+      await invoke("export_audio_wav_segment", {
+        inputPath: selectedJob.inputPath,
+        outputPath: outPath,
+        startSec: previewRangeSec.start,
+        endSec: previewRangeSec.end,
+      });
+      setWx623Hint(`WAV exporté : ${outPath}`);
+    } catch (e) {
+      setWx623Hint(`Export WAV : ${String(e)}`);
+    }
+  }
 
   return (
     <>
       <h3>Alignment Workspace</h3>
       <div className="alignment-panel">
+        <div
+          className={`alignment-media-split ${selectedIsVideo ? "alignment-media-split--video" : "alignment-media-split--audio"}`}
+        >
+          <div className="alignment-media-player-zone">
+            {selectedIsVideo ? (
+              <video
+                ref={videoRef}
+                className="media-player"
+                src={selectedMediaSrc}
+                controls
+                preload="metadata"
+                onTimeUpdate={(e) => setMediaCurrentSec(e.currentTarget.currentTime)}
+                onSeeked={(e) => setMediaCurrentSec(e.currentTarget.currentTime)}
+              />
+            ) : (
+              <>
+                <label className="checkbox-row web-audio-toggle">
+                  <input
+                    type="checkbox"
+                    checked={webAudioMode}
+                    onChange={(e) => setWebAudioMode(e.currentTarget.checked)}
+                  />
+                  Lecture Web Audio (WX-619) — fenêtre WAV dérivée (ffmpeg), ±10 s autour du playhead
+                </label>
+                {webAudioError ? (
+                  <ErrorBanner>
+                    <p className="error-banner-text">{webAudioError}</p>
+                  </ErrorBanner>
+                ) : null}
+                {webAudioMode ? (
+                  <div className="web-audio-actions">
+                    <button type="button" className="ghost" onClick={() => void toggleMediaPlayback()}>
+                      Play / Pause
+                    </button>
+                    <span className="small">
+                      Raccourci <kbd>Alt</kbd>+<kbd>K</kbd> — le lecteur natif est muet ; le son sort via
+                      Web Audio.
+                    </span>
+                  </div>
+                ) : null}
+                <audio
+                  ref={audioRef}
+                  className="media-player"
+                  src={selectedMediaSrc}
+                  controls={!webAudioMode}
+                  muted={webAudioMode}
+                  preload="metadata"
+                  onTimeUpdate={
+                    webAudioMode ? undefined : (e) => setMediaCurrentSec(e.currentTarget.currentTime)
+                  }
+                  onSeeked={
+                    webAudioMode ? undefined : (e) => setMediaCurrentSec(e.currentTarget.currentTime)
+                  }
+                />
+              </>
+            )}
+          </div>
+          <div className="alignment-media-waveform-zone">
         <div className="alignment-toolbar">
           <label>
             Resolution waveform (bins/s)
@@ -268,58 +406,171 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
         </p>
 
         <p className="small mono">{selectedJob.inputPath}</p>
-        {!selectedIsVideo ? (
-          <label className="checkbox-row web-audio-toggle">
+
+        <div className="waveform-range-preview">
+          <p className="small">
+            <strong>Plage (WX-622)</strong> — lecture Web Audio uniquement sur la fenêtre WAV dérivée
+            (ffmpeg) ; le fichier source sur disque n&apos;est pas modifié.
+          </p>
+          <label className="checkbox-row">
             <input
               type="checkbox"
-              checked={webAudioMode}
-              onChange={(e) => setWebAudioMode(e.currentTarget.checked)}
+              checked={rangeSelectionMode}
+              onChange={(e) => setRangeSelectionMode(e.currentTarget.checked)}
             />
-            Lecture Web Audio (WX-619) — fenêtre WAV dérivée (ffmpeg), ±10 s autour du playhead
+            Mode sélection plage — glisser sur la waveform pour définir [t0, t1]
           </label>
-        ) : null}
-        {webAudioError && !selectedIsVideo ? (
-          <ErrorBanner>
-            <p className="error-banner-text">{webAudioError}</p>
-          </ErrorBanner>
-        ) : null}
-        {!selectedIsVideo && webAudioMode ? (
-          <div className="web-audio-actions">
-            <button type="button" className="ghost" onClick={() => void toggleMediaPlayback()}>
-              Play / Pause
+          <div className="file-actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={setPreviewRangeFromVisibleWindow}
+              disabled={!waveform}
+              title="Préremplit la plage avec la fenêtre zoomée actuelle"
+            >
+              Plage = fenêtre visible
             </button>
-            <span className="small">
-              Raccourci <kbd>Alt</kbd>+<kbd>K</kbd> — le lecteur natif est muet ; le son sort via
-              Web Audio.
-            </span>
+            <button type="button" className="ghost" onClick={clearPreviewRange} disabled={!previewRangeSec}>
+              Effacer plage
+            </button>
+            <button type="button" className="ghost" onClick={resetPreviewWaveEffects}>
+              Réinitialiser effets preview
+            </button>
           </div>
-        ) : null}
-        {selectedIsVideo ? (
-          <video
-            ref={videoRef}
-            className="media-player"
-            src={selectedMediaSrc}
-            controls
-            preload="metadata"
-            onTimeUpdate={(e) => setMediaCurrentSec(e.currentTarget.currentTime)}
-            onSeeked={(e) => setMediaCurrentSec(e.currentTarget.currentTime)}
-          />
-        ) : (
-          <audio
-            ref={audioRef}
-            className="media-player"
-            src={selectedMediaSrc}
-            controls={!webAudioMode}
-            muted={webAudioMode}
-            preload="metadata"
-            onTimeUpdate={
-              webAudioMode ? undefined : (e) => setMediaCurrentSec(e.currentTarget.currentTime)
-            }
-            onSeeked={
-              webAudioMode ? undefined : (e) => setMediaCurrentSec(e.currentTarget.currentTime)
-            }
-          />
-        )}
+          {previewRangeSec ? (
+            <p className="small">
+              Plage active : {formatClockSeconds(previewRangeSec.start)} —{" "}
+              {formatClockSeconds(previewRangeSec.end)} ({" "}
+              {(previewRangeSec.end - previewRangeSec.start).toFixed(2)} s)
+            </p>
+          ) : (
+            <p className="small">Aucune plage — la lecture Web Audio utilise le playhead comme avant.</p>
+          )}
+          <div className="waveform-range-inputs">
+            <label>
+              Début (s)
+              <input
+                type="number"
+                step={0.01}
+                aria-label="Plage début secondes"
+                value={previewRangeSec?.start ?? ""}
+                min={0}
+                max={waveform ? waveform.durationSec : undefined}
+                onChange={(e) => {
+                  const next = parseFiniteNumberInput(e.currentTarget.value);
+                  const dur = waveform?.durationSec ?? 0;
+                  if (next === null || dur <= 0) {
+                    return;
+                  }
+                  const end = previewRangeSec?.end ?? dur;
+                  setPreviewRangeSec({
+                    start: clampNumber(next, 0, dur),
+                    end: clampNumber(Math.max(end, next + 0.05), 0, dur),
+                  });
+                }}
+              />
+            </label>
+            <label>
+              Fin (s)
+              <input
+                type="number"
+                step={0.01}
+                aria-label="Plage fin secondes"
+                value={previewRangeSec?.end ?? ""}
+                min={0}
+                max={waveform ? waveform.durationSec : undefined}
+                onChange={(e) => {
+                  const next = parseFiniteNumberInput(e.currentTarget.value);
+                  const dur = waveform?.durationSec ?? 0;
+                  if (next === null || dur <= 0) {
+                    return;
+                  }
+                  const start = previewRangeSec?.start ?? 0;
+                  setPreviewRangeSec({
+                    start: clampNumber(Math.min(start, next - 0.05), 0, dur),
+                    end: clampNumber(next, 0, dur),
+                  });
+                }}
+              />
+            </label>
+          </div>
+          <div className="waveform-range-wx623">
+            <p className="small">
+              <strong>WX-623</strong> — plages pipeline (worker : extraction → modules par plage → concat) ;
+              export WAV mono 16 kHz hors job.
+            </p>
+            <div className="file-actions">
+              <button
+                type="button"
+                className="ghost"
+                onClick={injectPipelineJsonFromRange}
+                disabled={!previewRangeSec || !injectAudioPipelineSegmentsJson}
+                title="Exemple : une plage avec preNormalize — modifiable dans Nouveau job"
+              >
+                Injecter plage → JSON pipeline
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => void exportSnippetWav()}
+                disabled={!previewRangeSec}
+                title="Extrait [début, fin) du fichier média du job"
+              >
+                Exporter snippet WAV…
+              </button>
+            </div>
+            {wx623Hint ? <p className="small">{wx623Hint}</p> : null}
+          </div>
+          <p className="small">Effets preview (Web Audio uniquement, hors bypass) :</p>
+          <div className="waveform-preview-effects">
+            <label>
+              Gain (dB)
+              <input
+                type="range"
+                min={-12}
+                max={12}
+                step={0.5}
+                value={previewWaveGainDb}
+                onChange={(e) => setPreviewWaveGainDb(parseFiniteNumberInput(e.currentTarget.value) ?? 0)}
+              />
+              <span className="small">{previewWaveGainDb.toFixed(1)}</span>
+            </label>
+            <label>
+              EQ low shelf (dB @ 320 Hz)
+              <input
+                type="range"
+                min={-12}
+                max={12}
+                step={0.5}
+                value={previewWaveEqLowDb}
+                onChange={(e) => setPreviewWaveEqLowDb(parseFiniteNumberInput(e.currentTarget.value) ?? 0)}
+              />
+              <span className="small">{previewWaveEqLowDb.toFixed(1)}</span>
+            </label>
+            <label>
+              Balance
+              <input
+                type="range"
+                min={-1}
+                max={1}
+                step={0.05}
+                value={previewWaveBalance}
+                onChange={(e) =>
+                  setPreviewWaveBalance(parseFiniteNumberInput(e.currentTarget.value) ?? 0)
+                }
+              />
+              <span className="small">{previewWaveBalance.toFixed(2)}</span>
+            </label>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={previewWaveBypassEffects}
+                onChange={(e) => setPreviewWaveBypassEffects(e.currentTarget.checked)}
+              />
+              Bypass effets (chaîne neutre)
+            </label>
+          </div>
+        </div>
 
         {waveformError ? (
           <ErrorBanner>
@@ -434,6 +685,8 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
             Pour lier waveform et texte, charge un transcript JSON dans "Transcript Editor".
           </p>
         )}
+          </div>
+        </div>
       </div>
     </>
   );

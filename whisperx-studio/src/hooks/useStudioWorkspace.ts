@@ -1,4 +1,4 @@
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import type { RefObject } from "react";
 import { useMemo } from "react";
 import type { JobsHistoryPanelProps } from "../components/JobsHistoryPanel";
 import { buildRunDetailsPanelProps } from "../components/runDetails/buildRunDetailsPanelProps";
@@ -15,10 +15,12 @@ import { useWaveformWorkspace } from "./useWaveformWorkspace";
 
 export type UseStudioWorkspaceOptions = {
   runDetailsRef: RefObject<HTMLElement | null>;
-  setError: Dispatch<SetStateAction<string>>;
+  setError: (message: string) => void;
   editorFocusMode: boolean;
   onToggleEditorFocusMode: () => void;
   runtimeStatus: RuntimeStatus | null;
+  /** WX-623 — injecte le JSON des plages dans le formulaire « Nouveau job ». */
+  injectAudioPipelineSegmentsJson?: (json: string) => void;
 };
 
 export type StudioWorkspaceModel = {
@@ -36,6 +38,7 @@ export function useStudioWorkspace({
   editorFocusMode,
   onToggleEditorFocusMode,
   runtimeStatus,
+  injectAudioPipelineSegmentsJson,
 }: UseStudioWorkspaceOptions): StudioWorkspaceModel {
   const {
     selectedPreviewPath,
@@ -111,6 +114,7 @@ export function useStudioWorkspace({
         onPreviewOutput: previewOutput,
         editorFocusMode,
         onToggleEditorFocusMode,
+        injectAudioPipelineSegmentsJson,
       }),
     [
       selectedJob,
@@ -128,6 +132,7 @@ export function useStudioWorkspace({
       previewOutput,
       editorFocusMode,
       onToggleEditorFocusMode,
+      injectAudioPipelineSegmentsJson,
     ],
   );
 

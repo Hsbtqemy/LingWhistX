@@ -257,6 +257,7 @@ fn run_worker(
                     .env("HUGGINGFACE_TOKEN", token);
             }
         }
+        // `hf_token` est retiré ci-dessus : ne jamais le remettre dans ce JSON (évite fuite dans `ps`).
         let options_json = serde_json::to_string(&worker_options)
             .map_err(|err| format!("Serialize worker options failed: {err}"))?;
         command.arg("--options-json").arg(options_json);

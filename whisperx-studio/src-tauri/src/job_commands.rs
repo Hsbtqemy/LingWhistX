@@ -62,7 +62,9 @@ pub fn create_job(
         if dir.trim().is_empty() {
             default_output_dir(&app, &job_id)?
         } else {
-            validate_custom_output_dir(&app, &dir)?.to_string_lossy().to_string()
+            validate_custom_output_dir(&app, &dir)?
+                .to_string_lossy()
+                .to_string()
         }
     } else {
         default_output_dir(&app, &job_id)?
@@ -188,11 +190,7 @@ pub fn load_more_jobs_from_db(
         });
     }
 
-    let page = load_jobs_page(
-        db_state.path.as_ref(),
-        meta.next_db_offset,
-        JOBS_PAGE_SIZE,
-    )?;
+    let page = load_jobs_page(db_state.path.as_ref(), meta.next_db_offset, JOBS_PAGE_SIZE)?;
     let page_len = page.len();
 
     if page_len == 0 {

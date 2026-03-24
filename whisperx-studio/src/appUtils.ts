@@ -11,6 +11,9 @@ import type {
   WhisperxOptions,
 } from "./types";
 
+/** Nombre de mots minimum pour signaler un « débit faible » (évite le bruit sur segments très courts). */
+export const QA_SPEECH_RATE_LOW_MIN_WORDS = 3;
+
 export function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -58,8 +61,29 @@ export function parseAudioPipelineModulesFromUi(
   return undefined;
 }
 
+/**
+ * `audioPipelineSegmentsJson` (prioritaire) : tableau de plages pour WX-623.
+ */
+export function parseAudioPipelineSegmentsFromUi(
+  source: UiWhisperxOptions,
+): unknown[] | undefined {
+  const raw = source.audioPipelineSegmentsJson?.trim();
+  if (!raw) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return undefined;
+    }
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
 export function formatTimestamp(ms: number): string {
-  if (!ms) {
+  if (!Number.isFinite(ms)) {
     return "-";
   }
   return new Date(ms).toLocaleString();
@@ -83,6 +107,13 @@ export function pathsEqualNormalized(a: string, b: string): boolean {
   return strip(a) === strip(b);
 }
 
+/** Dernier segment de chemin (slash ou backslash). */
+export function fileBasename(path: string): string {
+  const n = path.replace(/\\/g, "/");
+  const i = n.lastIndexOf("/");
+  return i >= 0 ? n.slice(i + 1) : n;
+}
+
 export function normalizeWhisperxOptions(source: UiWhisperxOptions): WhisperxOptions {
   const batchSize = Number(source.batchSize);
   const pipelineChunkSeconds = Number(source.pipelineChunkSeconds);
@@ -103,6 +134,7 @@ export function normalizeWhisperxOptions(source: UiWhisperxOptions): WhisperxOpt
   const wrh = parseFiniteNumberInput(source.analysisWordTsNeighborRatioHigh);
   const wsm = parseFiniteNumberInput(source.analysisWordTsSmoothMaxSec);
   const apm = parseAudioPipelineModulesFromUi(source);
+  const aps = parseAudioPipelineSegmentsFromUi(source);
   return {
     model: source.model.trim() || undefined,
     language: source.language.trim() || undefined,
@@ -170,6 +202,7 @@ export function normalizeWhisperxOptions(source: UiWhisperxOptions): WhisperxOpt
     analysisWordTsNeighborRatioHigh: wrh !== null && wrh > 1 ? wrh : undefined,
     analysisWordTsSmoothMaxSec: wsm !== null && wsm > 0 ? wsm : undefined,
     ...(apm ? { audioPipelineModules: apm } : {}),
+    ...(aps ? { audioPipelineSegments: aps } : {}),
   };
 }
 
@@ -210,6 +243,40 @@ export function formatClockSeconds(seconds: number): string {
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
 }
 
+/**
+ * Parse un timecode saisi par l’utilisateur (Player, navigateur) : secondes décimales, `mm:ss`, `hh:mm:ss`.
+ * Virgule ou point pour les décimales.
+ */
+export function parsePlayerTimecodeToSeconds(raw: string): number | null {
+  const s = raw.trim();
+  if (!s) {
+    return null;
+  }
+  const parts = s.split(":").map((p) => p.trim());
+  if (parts.length === 1) {
+    const n = Number(parts[0].replace(",", "."));
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }
+  if (parts.length === 2) {
+    const m = Number(parts[0]);
+    const sec = Number(parts[1].replace(",", "."));
+    if (!Number.isFinite(m) || !Number.isFinite(sec) || m < 0 || sec < 0) {
+      return null;
+    }
+    return m * 60 + sec;
+  }
+  if (parts.length === 3) {
+    const h = Number(parts[0]);
+    const m = Number(parts[1]);
+    const sec = Number(parts[2].replace(",", "."));
+    if (!Number.isFinite(h) || !Number.isFinite(m) || !Number.isFinite(sec) || h < 0 || m < 0 || sec < 0) {
+      return null;
+    }
+    return h * 3600 + m * 60 + sec;
+  }
+  return null;
+}
+
 export function closestSegmentIndex(segments: EditableSegment[], timeSec: number): number | null {
   if (segments.length === 0) {
     return null;
@@ -227,7 +294,7 @@ export function closestSegmentIndex(segments: EditableSegment[], timeSec: number
     if (distance < bestDistance) {
       bestDistance = distance;
       bestIndex = i;
-      if (distance === 0) {
+      if (distance < 1e-6) {
         break;
       }
     }
@@ -366,7 +433,7 @@ export function buildTranscriptQaIssues(
           message: `Debit eleve (${wps.toFixed(2)} mots/s > ${safeMaxWps.toFixed(2)}).`,
           canAutoFix: true,
         });
-      } else if (wps < safeMinWps && words >= 3) {
+      } else if (wps < safeMinWps && words >= QA_SPEECH_RATE_LOW_MIN_WORDS) {
         issues.push({
           id: `speech_rate_low-${i}`,
           type: "speech_rate_low",
@@ -433,6 +500,17 @@ export function runtimeMissingComponents(status: RuntimeStatus | null): string[]
     missing.push("ffmpeg");
   }
   return missing;
+}
+
+/**
+ * ffmpeg n’est pas installé par l’assistant « runtime local » (venv + WhisperX uniquement).
+ */
+export function runtimeFfmpegInstallHint(): string {
+  return (
+    "Dans le panneau Runtime, utilise « Installer ffmpeg (automatique) » si Homebrew, winget ou Chocolatey est disponible. " +
+    "Sinon : macOS « brew install ffmpeg », Windows winget/choco, ou variables FFMPEG_BINARY / FFPROBE_BINARY. " +
+    "L’app cherche aussi /opt/homebrew/bin et /usr/local/bin."
+  );
 }
 
 export function qaIssueLabel(type: TranscriptQaIssueType): string {

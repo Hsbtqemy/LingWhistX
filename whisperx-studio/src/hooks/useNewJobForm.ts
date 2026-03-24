@@ -1,4 +1,4 @@
-import type { Dispatch, FormEvent, SetStateAction } from "react";
+import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -7,7 +7,7 @@ import { normalizeWhisperxOptions } from "../appUtils";
 import type { CreateJobRequest, Job, JobFormStep, UiWhisperxOptions } from "../types";
 
 export type UseNewJobFormOptions = {
-  setError: Dispatch<SetStateAction<string>>;
+  setError: (message: string) => void;
   setSelectedJobId: (id: string) => void;
   refreshJobs: () => Promise<void>;
   runtimeReady: boolean;
@@ -159,6 +159,20 @@ export function useNewJobForm({
           }
         } catch {
           setError("Modules audio (JSON) : JSON invalide.");
+          return;
+        }
+      }
+
+      const apsTrim = whisperxOptions.audioPipelineSegmentsJson.trim();
+      if (apsTrim) {
+        try {
+          const parsed = JSON.parse(apsTrim) as unknown;
+          if (!Array.isArray(parsed) || parsed.length === 0) {
+            setError("Plages pipeline (JSON) : un tableau non vide est attendu.");
+            return;
+          }
+        } catch {
+          setError("Plages pipeline (JSON) : JSON invalide.");
           return;
         }
       }
