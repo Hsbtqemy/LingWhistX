@@ -13,7 +13,7 @@ dependencies = [
     "tomli>=2.0.1; python_version < '3.11'",
     "ctranslate2>=4.5.0",
     "faster-whisper>=1.1.1",
-    "nltk>=3.9.1",
+    "nltk>=3.9.3",
     "numpy>=2.1.0",
     "omegaconf>=2.3.0",
     "pandas>=2.2.3",
@@ -40,7 +40,17 @@ where = ["."]
 include = ["whisperx*"]
 
 # torchcodec (transitive dep of pyannote-audio >=4) has no wheels for Linux aarch64
+# Versions minimales pour pip-audit / correctifs sécurité (transitives).
 [tool.uv]
+constraint-dependencies = [
+    "aiohttp>=3.13.3",
+    "filelock>=3.20.3",
+    "fonttools>=4.60.2",
+    "protobuf>=6.33.5",
+    "nltk>=3.9.3",
+    "urllib3>=2.6.3",
+    "pillow>=12.1.1",
+]
 override-dependencies = [
     "torchcodec>=0.6.0; (sys_platform == 'linux' and platform_machine == 'x86_64') or sys_platform == 'darwin' or sys_platform == 'win32'",
 ]
