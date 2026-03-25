@@ -1,0 +1,2 @@
+# Même fins de ligne partout (CI Windows + macOS + Linux) — évite les échecs Prettier --check
+* text=auto eol=lf
