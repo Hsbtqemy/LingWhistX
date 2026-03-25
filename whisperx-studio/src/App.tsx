@@ -3,7 +3,7 @@ import "./App.css";
 
 import { StudioAboutView } from "./components/StudioAboutView";
 import { StudioHero } from "./components/StudioHero";
-import { StudioNav } from "./components/StudioNav";
+import { STUDIO_PANEL_IDS, STUDIO_TAB_IDS, StudioNav } from "./components/StudioNav";
 import { StudioNewJobSection } from "./components/StudioNewJobSection";
 import { StudioOpenRunSection } from "./components/StudioOpenRunSection";
 import { PlayerWorkspaceSection } from "./components/player/PlayerWorkspaceSection";
@@ -17,6 +17,7 @@ import type { StudioView } from "./types";
 function App() {
   const runDetailsRef = useRef<HTMLElement | null>(null);
   const injectAudioPipelineSegmentsJsonRef = useRef<(json: string) => void>(() => {});
+  /** Erreurs shell (max 5) — rendu `ErrorBanner` / tokens `--lx-danger` (WX-634). */
   const { errors: appErrors, setError } = useAppErrorStack();
   const [activeView, setActiveView] = useState<StudioView>("create");
   const [editorFocusMode, setEditorFocusMode] = useState(false);
@@ -86,6 +87,11 @@ function App() {
     setEditorFocusMode(false);
   }, []);
 
+  const showCreatePanel = !editorFocusMode && activeView === "create";
+  const showAboutPanel = !editorFocusMode && activeView === "about";
+  const showPlayerPanel = !editorFocusMode && activeView === "player";
+  const showWorkspacePanel = editorFocusMode || activeView === "workspace";
+
   return (
     <main className={`studio-shell ${editorFocusMode ? "studio-shell--editor-focus" : ""}`.trim()}>
       <StudioNav
@@ -95,45 +101,76 @@ function App() {
         onExitEditorFocus={onExitEditorFocus}
       />
 
-      {!editorFocusMode && activeView === "create" ? (
-        <div className="home-page">
-          <StudioHero />
-          <StudioOpenRunSection
-            setError={setError}
-            setActiveView={setActiveView}
-            setSelectedJobId={setSelectedJobId}
-            onOpenPlayer={handleOpenPlayer}
-          />
-          <StudioNewJobSection
-            runningJobs={runningJobs}
-            errors={appErrors}
-            refreshJobs={refreshJobs}
-            jobForm={jobForm}
-            runtime={localRuntimePanelProps}
-          />
+      <div className="studio-shell__main">
+        <div
+          id={STUDIO_PANEL_IDS.create}
+          role="tabpanel"
+          aria-labelledby={STUDIO_TAB_IDS.create}
+          hidden={!showCreatePanel}
+        >
+          {showCreatePanel ? (
+            <div className="home-page">
+              <StudioHero />
+              <div className="home-page__content" role="region" aria-label="Fichiers et traitements">
+                <StudioOpenRunSection
+                  setError={setError}
+                  setActiveView={setActiveView}
+                  setSelectedJobId={setSelectedJobId}
+                  onOpenPlayer={handleOpenPlayer}
+                />
+                <StudioNewJobSection
+                  runningJobs={runningJobs}
+                  errors={appErrors}
+                  refreshJobs={refreshJobs}
+                  jobForm={jobForm}
+                  runtime={localRuntimePanelProps}
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
-      ) : null}
 
-      {!editorFocusMode && activeView === "about" ? (
-        <StudioAboutView runtime={localRuntimePanelProps} />
-      ) : null}
+        <div
+          id={STUDIO_PANEL_IDS.about}
+          role="tabpanel"
+          aria-labelledby={STUDIO_TAB_IDS.about}
+          hidden={!showAboutPanel}
+        >
+          {showAboutPanel ? <StudioAboutView runtime={localRuntimePanelProps} /> : null}
+        </div>
 
-      {!editorFocusMode && activeView === "player" ? (
-        <PlayerWorkspaceSection
-          runDir={playerRunDir}
-          runLabel={playerRunLabel}
-          onBack={handlePlayerBack}
-        />
-      ) : null}
+        <div
+          id={STUDIO_PANEL_IDS.player}
+          role="tabpanel"
+          aria-labelledby={STUDIO_TAB_IDS.player}
+          hidden={!showPlayerPanel}
+        >
+          {showPlayerPanel ? (
+            <PlayerWorkspaceSection
+              runDir={playerRunDir}
+              runLabel={playerRunLabel}
+              onBack={handlePlayerBack}
+            />
+          ) : null}
+        </div>
 
-      {(editorFocusMode || activeView === "workspace") && (
-        <StudioWorkspaceSection
-          jobsHistory={jobsHistory}
-          runDetailsRef={runDetailsRef}
-          runDetails={runDetails}
-          explorer={explorer}
-        />
-      )}
+        <div
+          id={STUDIO_PANEL_IDS.workspace}
+          role={editorFocusMode ? "region" : "tabpanel"}
+          aria-labelledby={editorFocusMode ? undefined : STUDIO_TAB_IDS.workspace}
+          aria-label={editorFocusMode ? "Workspace — mode focus éditeur" : undefined}
+          hidden={!showWorkspacePanel}
+        >
+          {showWorkspacePanel ? (
+            <StudioWorkspaceSection
+              jobsHistory={jobsHistory}
+              runDetailsRef={runDetailsRef}
+              runDetails={runDetails}
+              explorer={explorer}
+            />
+          ) : null}
+        </div>
+      </div>
     </main>
   );
 }

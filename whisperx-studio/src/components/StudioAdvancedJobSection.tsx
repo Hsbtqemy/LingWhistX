@@ -26,7 +26,7 @@ export function StudioAdvancedJobSection({ jobForm }: StudioAdvancedJobSectionPr
 
   return (
     <details className="advanced-job-panel">
-      <summary className="advanced-job-summary">Advanced — compute lourd</summary>
+      <summary className="advanced-job-summary">Avancé — préréglages lourds &amp; debug</summary>
       <div className="advanced-job-body">
         <p className="small advanced-job-lead">
           Les réglages d&apos;analyse (pauses, IPU, non-speech) ne lancent <strong>aucun</strong>{" "}

@@ -1,53 +1,75 @@
 import type { ExplorerLayerToggles } from "../types";
 import type { StudioExplorerModel } from "../hooks/useStudioExplorer";
+import { LayerList, StatsCard } from "./ui";
 
-function LayerToggle(props: { label: string; checked: boolean; onChange: () => void }) {
-  return (
-    <label className="explorer-layer-toggle">
-      <input type="checkbox" checked={props.checked} onChange={props.onChange} />
-      {props.label}
-    </label>
-  );
-}
-
-/** Barre supérieure Explorer (WX-616). */
+/** Barre supérieure Explorer — 3 groupes (audit §B.4, WX-628). */
 export function StudioExplorerTopBar({ explorer: ex }: { explorer: StudioExplorerModel }) {
+  const statsItems = [
+    {
+      label: "Mots",
+      value: String(ex.statusChips.words ?? "—"),
+      title: "Mots (manifest)",
+    },
+    {
+      label: "Segments",
+      value: String(ex.statusChips.segments ?? "—"),
+      title: "Segments (manifest)",
+    },
+    {
+      label: "Locuteurs",
+      value: String(ex.statusChips.speakers ?? "—"),
+      title: "Tours locuteur (manifest)",
+    },
+    {
+      label: "Overlap",
+      value: String(ex.statusChips.overlapWarnings),
+      title: "Avertissements overlap dans le manifest",
+    },
+  ];
+
   return (
     <header className="explorer-topbar" aria-label="Explorateur run">
-      <div className="explorer-topbar-row explorer-topbar-row--actions">
-        <button
-          type="button"
-          className="ghost"
-          disabled={ex.explorerBusy}
-          onClick={() => void ex.pickOpenRun()}
-        >
-          Ouvrir run
-        </button>
-        <button type="button" className="ghost" onClick={() => void ex.pickOpenFile()}>
-          Ouvrir fichier
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={!ex.activeRunSummary || ex.importBusy}
-          onClick={() => void ex.importRunEvents()}
-        >
-          {ex.importBusy ? "Indexation…" : "Indexer événements"}
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={!ex.hasTranscriptSource}
-          onClick={() => void ex.exportTimingPack()}
-          title="JSON + SRT + CSV à côté du fichier transcript source"
-        >
-          Export pack timing
-        </button>
-      </div>
-      <div className="explorer-topbar-row explorer-topbar-row--meta">
+      <div className="explorer-topbar-group explorer-topbar-group--file" aria-label="Fichier et média">
+        <div className="explorer-topbar-group__actions">
+          <button
+            type="button"
+            className="ghost"
+            disabled={ex.explorerBusy}
+            onClick={() => void ex.pickOpenRun()}
+          >
+            Ouvrir run
+          </button>
+          <button type="button" className="ghost" onClick={() => void ex.pickOpenFile()}>
+            Ouvrir fichier
+          </button>
+        </div>
+        <span className="explorer-topbar-sep" aria-hidden="true" />
         <span className="explorer-resume mono" title="Média / durée (manifest ou fichier)">
           {ex.resumeLine}
         </span>
+      </div>
+
+      <div className="explorer-topbar-group explorer-topbar-group--index" aria-label="Index, export et runtime">
+        <div className="explorer-topbar-group__actions">
+          <button
+            type="button"
+            className="ghost"
+            disabled={!ex.activeRunSummary || ex.importBusy}
+            onClick={() => void ex.importRunEvents()}
+          >
+            {ex.importBusy ? "Indexation…" : "Indexer événements"}
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={!ex.hasTranscriptSource}
+            onClick={() => void ex.exportTimingPack()}
+            title="JSON + SRT + CSV à côté du fichier transcript source"
+          >
+            Export pack timing
+          </button>
+        </div>
+        <span className="explorer-topbar-sep explorer-topbar-sep--wide" aria-hidden="true" />
         <span className="explorer-device" title="Device job / runtime local">
           Device: <strong>{ex.deviceLabel}</strong>
           <span className="explorer-runtime-badges">
@@ -57,40 +79,28 @@ export function StudioExplorerTopBar({ explorer: ex }: { explorer: StudioExplore
           </span>
         </span>
       </div>
-      <div className="explorer-status-chips" role="list">
-        <span className="explorer-chip" title="Mots (manifest)">
-          Mots: {ex.statusChips.words ?? "—"}
-        </span>
-        <span className="explorer-chip" title="Tours locuteur (manifest)">
-          Locuteurs: {ex.statusChips.speakers ?? "—"}
-        </span>
-        <span className="explorer-chip" title="Avertissements overlap dans le manifest">
-          Overlap: {ex.statusChips.overlapWarnings}
-        </span>
-        <span className="explorer-chip" title="Segments (manifest)">
-          Segments: {ex.statusChips.segments ?? "—"}
-        </span>
-      </div>
-      <div className="explorer-topbar-row explorer-topbar-row--nav">
-        <button type="button" className="ghost" onClick={() => void ex.seekToNextPause()}>
-          Pause suivante
-        </button>
-        <button type="button" className="ghost" disabled title="Index overlap (à brancher)">
-          Overlap suivant
-        </button>
-        <label className="explorer-goto">
-          Aller au temps
-          <input
-            className="explorer-goto-input mono"
-            value={ex.goToTimeInput}
-            onChange={(e) => ex.setGoToTimeInput(e.target.value)}
-            placeholder="1:02:05 ou 90"
-          />
-          <button type="button" className="ghost" onClick={() => ex.applyGoToTime()}>
-            Go
+
+      <div className="explorer-topbar-group explorer-topbar-group--nav" aria-label="Navigation temps et manifest">
+        <div className="explorer-topbar-nav-row">
+          <button type="button" className="ghost" onClick={() => void ex.seekToNextPause()}>
+            Pause suivante
           </button>
-        </label>
+          <label className="explorer-goto">
+            Aller au temps
+            <input
+              className="explorer-goto-input mono"
+              value={ex.goToTimeInput}
+              onChange={(e) => ex.setGoToTimeInput(e.target.value)}
+              placeholder="1:02:05 ou 90"
+            />
+            <button type="button" className="ghost" onClick={() => ex.applyGoToTime()}>
+              Go
+            </button>
+          </label>
+        </div>
+        <StatsCard items={statsItems} />
       </div>
+
       {ex.lastImport ? (
         <p className="small explorer-import-hint">
           Index SQLite : {ex.lastImport.nWords} mots, {ex.lastImport.nTurns} tours,{" "}
@@ -106,6 +116,33 @@ export function StudioExplorerSidePanels({ explorer: ex }: { explorer: StudioExp
   const layers = ex.layers;
   const setLayer = (key: keyof ExplorerLayerToggles) => () => ex.toggleLayer(key);
 
+  const layerItems = [
+    {
+      id: "turns",
+      label: "Turns",
+      checked: layers.turns,
+      onChange: setLayer("turns"),
+    },
+    {
+      id: "pauses",
+      label: "Pauses",
+      checked: layers.pauses,
+      onChange: setLayer("pauses"),
+    },
+    {
+      id: "ipus",
+      label: "IPU",
+      checked: layers.ipus,
+      onChange: setLayer("ipus"),
+    },
+    {
+      id: "words",
+      label: "Mots",
+      checked: layers.words,
+      onChange: setLayer("words"),
+    },
+  ];
+
   return (
     <div className="explorer-panels explorer-panels--sidebar">
       <section className="explorer-card" aria-labelledby="explorer-layers-title">
@@ -113,21 +150,15 @@ export function StudioExplorerSidePanels({ explorer: ex }: { explorer: StudioExp
           Calques
         </h3>
         <p className="small explorer-card-hint">
-          Préférences UI (session). Branchement requêtes timeline à venir.
+          Préférences pour la session. Ces cases correspondent aux filtres{" "}
+          <code>words</code>, <code>turns</code>, <code>pauses</code> et <code>ipus</code> de la
+          requête SQLite <code>query_run_events_window</code> (index <code>events.sqlite</code>{" "}
+          requis).
         </p>
-        <div className="explorer-layer-grid">
-          <LayerToggle label="Turns" checked={layers.turns} onChange={setLayer("turns")} />
-          <LayerToggle label="Pauses" checked={layers.pauses} onChange={setLayer("pauses")} />
-          <LayerToggle label="IPU" checked={layers.ipus} onChange={setLayer("ipus")} />
-          <LayerToggle label="Overlap" checked={layers.overlap} onChange={setLayer("overlap")} />
-          <LayerToggle label="Mots" checked={layers.words} onChange={setLayer("words")} />
-          <LayerToggle
-            label="Mots (auto zoom)"
-            checked={layers.wordsAutoZoom}
-            onChange={setLayer("wordsAutoZoom")}
-          />
-          <LayerToggle label="Segments" checked={layers.segments} onChange={setLayer("segments")} />
-        </div>
+        <LayerList
+          aria-label="Calques événements indexés"
+          items={layerItems}
+        />
       </section>
 
       <section className="explorer-card" aria-labelledby="explorer-speakers-title">

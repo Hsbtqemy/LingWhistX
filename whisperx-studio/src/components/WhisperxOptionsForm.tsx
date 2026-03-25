@@ -44,7 +44,7 @@ export function WhisperxOptionsForm({
         <p className="field-help">{selectedProfile?.description}</p>
       </label>
 
-      <div className="option-grid">
+      <div className="option-grid job-form-whisperx-basic">
         <label>
           Modele Whisper
           <input
@@ -68,7 +68,18 @@ export function WhisperxOptionsForm({
           />
           <p className="field-help">Laisser vide pour autodetection (plus lent).</p>
         </label>
+      </div>
 
+      <details className="advanced-job-panel job-form-whisperx-advanced">
+        <summary className="advanced-job-summary">
+          Options WhisperX avancées (device, chunks, diarize, alignement…)
+        </summary>
+        <div className="advanced-job-body">
+          <p className="small job-form-advanced-lead">
+            Device, découpage média, diarization et exports détaillés — les valeurs restent celles du
+            profil tant que tu ne modifies pas ces champs.
+          </p>
+          <div className="option-grid">
         <label>
           Device
           <select
@@ -376,7 +387,9 @@ export function WhisperxOptionsForm({
           />
           <p className="field-help">Token Hugging Face lecture pour modeles pyannote.</p>
         </label>
-      </div>
+          </div>
+        </div>
+      </details>
     </>
   );
 }

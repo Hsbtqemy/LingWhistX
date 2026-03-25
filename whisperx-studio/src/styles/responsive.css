@@ -1,0 +1,357 @@
+/* Blocs @media — importé en dernier (cascade).
+ * Ordre des largeurs : 1200 → 1024 (md) → 900 (nav-stack) → 768 (sm) → 640 → 480 (xs)
+ */
+@media (max-width: 1200px) {
+  .studio-shell {
+    width: calc(100% - 2 * var(--studio-shell-gutter));
+  }
+
+  .studio-shell--editor-focus {
+    width: calc(100% - 2 * var(--studio-shell-gutter));
+  }
+
+  .studio-nav.studio-nav--sidebar {
+    padding: 12px 10px;
+    gap: 8px;
+  }
+
+  .panel--open-run {
+    padding: 14px 14px 16px;
+  }
+
+  .explorer-topbar {
+    padding: 10px 12px;
+  }
+
+  .home-page,
+  .home-page__content {
+    gap: clamp(14px, 2.2vw, 20px);
+  }
+}
+
+@media (max-width: 900px) {
+  .studio-shell:not(.studio-shell--editor-focus) {
+    grid-template-columns: 1fr;
+    margin-top: clamp(8px, 2vw, 16px);
+    gap: clamp(12px, 3vw, 18px);
+  }
+
+  .studio-shell__main {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .studio-nav.studio-nav--sidebar {
+    position: static;
+    width: 100%;
+    max-width: none;
+  }
+
+  .home-page,
+  .home-page__content {
+    gap: clamp(12px, 3vw, 20px);
+  }
+
+  .player-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+  }
+
+  .player-panel {
+    border-right: none;
+    border-left: none;
+    border-bottom: 1px solid rgba(9, 69, 76, 0.08);
+  }
+
+  .player-panel--right {
+    border-bottom: none;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hero-feature-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(15, 138, 148, 0.22);
+    box-shadow: 0 14px 28px rgba(6, 39, 44, 0.09);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .studio-shell:has(.studio-workspace-layout) {
+    width: calc(100% - 2 * var(--studio-shell-gutter));
+  }
+
+  .hero-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .option-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .explorer-workspace-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .explorer-sidebar {
+    position: static;
+    top: auto;
+  }
+
+  .explorer-layer-grid,
+  .explorer-recalc-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .explorer-recalc-span2 {
+    grid-column: 1 / -1;
+  }
+
+  .explorer-recalc-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .open-run-dl {
+    grid-template-columns: 1fr;
+  }
+
+  .open-run-dl dt {
+    margin-top: 6px;
+  }
+
+  .open-run-dl dt:first-child {
+    margin-top: 0;
+  }
+
+  .alignment-toolbar label {
+    min-width: 0;
+    flex: 1 1 200px;
+  }
+
+  .alignment-media-split {
+    flex-direction: column;
+  }
+
+  .output-files-toolbar select,
+  .output-files-toolbar input[type="search"] {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .studio-shell {
+    width: calc(100% - 2 * var(--studio-shell-gutter));
+    margin: 12px auto 18px;
+    gap: 14px;
+  }
+
+  .studio-shell--editor-focus {
+    width: calc(100% - 2 * var(--studio-shell-gutter));
+  }
+
+  .studio-nav {
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .studio-nav-tab {
+    flex: 1 1 auto;
+    min-width: min(160px, 100%);
+    text-align: center;
+    justify-content: center;
+  }
+
+  .studio-nav.studio-nav--sidebar .studio-nav-tab {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+    justify-content: flex-start;
+  }
+
+  .hero-card,
+  .panel {
+    border-radius: 12px;
+  }
+
+  .panel--home {
+    border-radius: 16px;
+  }
+
+  .hero-card-inner {
+    padding: 18px 16px 20px;
+  }
+
+  .hero-feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  .job-stepper {
+    width: 100%;
+  }
+
+  .job-stepper .step-tab {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 120px;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+
+  .path-input-row {
+    grid-template-columns: 1fr;
+  }
+
+  .runtime-setup-actions button {
+    width: 100%;
+  }
+
+  .option-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .details-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .alignment-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .alignment-toolbar label {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .alignment-toolbar button {
+    width: 100%;
+  }
+
+  .waveform-inline-controls {
+    flex-wrap: wrap;
+  }
+
+  .waveform-inline-controls button {
+    width: auto;
+  }
+
+  .waveform-canvas {
+    height: 160px;
+  }
+
+  .segment-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .export-rules-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .qa-toolbar label {
+    min-width: 100%;
+  }
+
+  .timeline-list li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .explorer-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .explorer-goto-input {
+    width: min(100%, 160px);
+  }
+
+  .explorer-topbar-group,
+  .explorer-topbar-nav-row {
+    gap: 8px;
+  }
+
+  .panel-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .panel--open-run {
+    padding: 12px 12px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --studio-shell-gutter: 10px;
+  }
+
+  .studio-nav.studio-nav--sidebar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .studio-nav.studio-nav--sidebar .studio-nav-tab {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .studio-nav--focus {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .job-stepper {
+    flex-direction: column;
+  }
+
+  .job-stepper .step-tab {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .home-page {
+    gap: 16px;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .job-count-pill {
+    align-self: flex-start;
+  }
+
+  .explorer-topbar-group--nav {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lx-stats-card {
+    max-width: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .lx-stats-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

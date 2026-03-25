@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-03-24T12:00:00.000Z",
+  "updatedAt": "2026-03-23T08:00:00.000Z",
   "statuses": ["todo", "in_progress", "blocked", "done"],
   "tasks": [
     {
@@ -1514,6 +1514,284 @@
       "acceptance": [
         "Chaque vague : npm run build + npm run test verts ; cargo check sur src-tauri quand Rust touché.",
         "Comportement produit inchangé sauf bugs documentés ; plan refactor-hooks-plan.md tenu à jour."
+      ]
+    },
+    {
+      "id": "WX-626",
+      "title": "UI — Tokens design system (--lx-*) + baseline App.css",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "0.5d",
+      "dependsOn": [],
+      "scope": [
+        "audit/ui-ux-harmonization-spec.md",
+        "whisperx-studio/src/App.css",
+        "whisperx-studio/src/App.tsx"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
+      "definitionOfDone": [
+        "Variables CSS --lx-surface, --lx-text, --lx-accent, --lx-border, --lx-space-*, --lx-radius-*, --lx-focus-ring documentées en tête de App.css (ou fichier tokens importé).",
+        "body / .studio-shell / fond utilisent les tokens sans régression visuelle > 5 % sur écrans pilotes (accueil + Studio)."
+      ],
+      "acceptance": [
+        "Build + tests verts.",
+        "Référence section C.1 de audit/ui-ux-harmonization-spec.md couverte ou équivalent noté en commentaire."
+      ]
+    },
+    {
+      "id": "WX-627",
+      "title": "UI — Composants Button + Badge + états focus/hover/disabled",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "1d",
+      "dependsOn": ["WX-626"],
+      "scope": [
+        "audit/ui-ux-harmonization-spec.md",
+        "whisperx-studio/src/components/ui/",
+        "whisperx-studio/src/components/StudioNav.tsx"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
+      "definitionOfDone": [
+        "Composants réutilisables Button (variants primary/secondary/ghost/danger) et Badge (tons).",
+        "StudioNav utilise Button ou classes alignées ; focus-visible conforme --lx-focus-ring.",
+        "Pas de régression clavier sur les onglets."
+      ],
+      "acceptance": [
+        "Tabulation : focus visible sur au moins StudioNav + un panneau pilote."
+      ]
+    },
+    {
+      "id": "WX-628",
+      "title": "UI — Explorer topbar regroupée + StatsCard (chips stats)",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "1d",
+      "dependsOn": ["WX-627"],
+      "scope": [
+        "audit/ui-ux-harmonization-spec.md",
+        "whisperx-studio/src/components/StudioExplorerChrome.tsx",
+        "whisperx-studio/src/App.css"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
+      "definitionOfDone": [
+        "Topbar Explorer : max 3 groupes visuels (fichier/index-export/nav temps) selon spec section B.4.",
+        "Stats manifest en grille lisible (Badge / StatsCard), pas une liste de spans hétérogènes.",
+        "Bouton « Overlap suivant » masqué ou déplacé en Avancé tant que non branché (spec A4)."
+      ],
+      "acceptance": [
+        "Indexer + export + navigation temps utilisables sans scroll dans la topbar sur 1280px."
+      ]
+    },
+    {
+      "id": "WX-629",
+      "title": "UI — RunDetailsPanel onglets (méta / fichiers / alignement / transcript)",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "1.5d",
+      "dependsOn": ["WX-627"],
+      "scope": [
+        "audit/ui-ux-harmonization-spec.md",
+        "whisperx-studio/src/components/runDetails/RunDetailsPanel.tsx",
+        "whisperx-studio/src/components/ui/"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
+      "definitionOfDone": [
+        "Tabs avec role=tablist / aria-controls / panneaux associés.",
+        "Contenu actuel de RunDetailsPanel réparti sans perte de fonctionnalité.",
+        "Navigation clavier entre onglets."
+      ],
+      "acceptance": [
+        "Sélection job + éditeur + alignement inchangés fonctionnellement."
+      ]
+    },
+    {
+      "id": "WX-630",
+      "title": "UI — Formulaire nouveau job : sections « Avancé » repliées (WhisperxOptionsForm)",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "1d",
+      "dependsOn": ["WX-626"],
+      "scope": [
+        "audit/ui-ux-harmonization-spec.md",
+        "whisperx-studio/src/components/WhisperxOptionsForm.tsx",
+        "whisperx-studio/src/components/StudioNewJobSection.tsx"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
+      "definitionOfDone": [
+        "Par défaut : média + profil rapide visibles ; device/chunking/diarize/analyse lourde sous repliable ou toggle « Avancé ».",
+        "Aucun slider n’impose un recalcul pipeline lourd sans action explicite (règle produit)."
+      ],
+      "acceptance": [
+        "Création de job smoke : même payload JSON job qu’avant pour un preset identique."
+      ]
+    },
+    {
+      "id": "WX-631",
+      "title": "UI — Explorer sidebar : LayerList + cohérence calques (retirer placeholder ou brancher)",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "1d",
+      "dependsOn": ["WX-627"],
+      "scope": [
+        "audit/ui-ux-harmonization-spec.md",
+        "whisperx-studio/src/components/StudioExplorerChrome.tsx",
+        "whisperx-studio/src/hooks/useStudioExplorer.ts"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
+      "definitionOfDone": [
+        "Texte « branchement à venir » retiré ou remplacé par comportement réel ou masquage des calques non branchés.",
+        "Calques overlap désactivés ou cachés tant que non supportés (spec A3)."
+      ],
+      "acceptance": [
+        "Aucune case à cocher sans effet documenté pour l’utilisateur."
+      ]
+    },
+    {
+      "id": "WX-632",
+      "title": "UI — Player : état vide si aucun run (CTA vers Accueil / Studio)",
+      "status": "done",
+      "priority": "P1",
+      "estimate": "0.5d",
+      "dependsOn": ["WX-626"],
+      "scope": [
+        "audit/ui-ux-harmonization-spec.md",
+        "whisperx-studio/src/components/player/PlayerWorkspaceSection.tsx"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
+      "definitionOfDone": [
+        "Si runDir null : message + boutons vers vues create/workspace (spec B.2).",
+        "Pas d’écran vide sans explication."
+      ],
+      "acceptance": [
+        "Onglet Player sans run ouvert depuis la nav : message clair en < 2 clics pour ouvrir un run."
+      ]
+    },
+    {
+      "id": "WX-633",
+      "title": "UI — StudioNav : pattern ARIA tab/tabpanel + libellé « Studio » (provisoire)",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "0.5d",
+      "dependsOn": ["WX-627"],
+      "scope": [
+        "audit/ui-ux-harmonization-spec.md",
+        "whisperx-studio/src/App.tsx",
+        "whisperx-studio/src/components/StudioNav.tsx"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm run test"
+      ],
+      "definitionOfDone": [
+        "Historique & run renommé en « Studio » (ou libellé défini produit) — provisoire jusqu’à WX-637.",
+        "Chaque vue a un conteneur role=tabpanel avec id relié par aria-labelledby ou aria-controls.",
+        "Documenter dans le ticket que le nom final du workspace est à arbitrer (WX-637)."
+      ],
+      "acceptance": [
+        "VoiceOver / NVDA : annonce cohérente onglet + panneau actif."
+      ]
+    },
+    {
+      "id": "WX-634",
+      "title": "UI — Toasts / pile erreurs alignés tokens (useAppErrorStack)",
+      "status": "done",
+      "priority": "P2",
+      "estimate": "0.5d",
+      "dependsOn": ["WX-626"],
+      "scope": [
+        "audit/ui-ux-harmonization-spec.md",
+        "whisperx-studio/src/hooks/useAppErrorStack.ts",
+        "whisperx-studio/src/App.tsx",
+        "whisperx-studio/src/App.css"
+      ],
+      "execute": [
+        "cd whisperx-studio && npm run test"
+      ],
+      "definitionOfDone": [
+        "Styles erreurs utilisent tokens danger/surface ; lisibilité contraste WCAG visé.",
+        "Comportement pile max 5 inchangé fonctionnellement."
+      ],
+      "acceptance": [
+        "setError message long : pas de overflow hors fenêtre."
+      ]
+    },
+    {
+      "id": "WX-635",
+      "title": "Docs — Parcours utilisateur « ouvrir run → indexer → recalcul léger → export »",
+      "status": "done",
+      "priority": "P3",
+      "estimate": "0.5d",
+      "dependsOn": [],
+      "scope": [
+        "audit/ui-ux-harmonization-spec.md",
+        "whisperx-studio/README.md"
+      ],
+      "execute": [],
+      "definitionOfDone": [
+        "Section README (ou docs/studio-user-flow.md) avec les 4 étapes et captures ou listes à puces.",
+        "Lien vers audit/ui-ux-harmonization-spec.md section F.2."
+      ],
+      "acceptance": [
+        "Relu par un pair ou auteur : compréhensible sans jargon GPU."
+      ]
+    },
+    {
+      "id": "WX-636",
+      "title": "QA — Checklist contraste/focus/zoom (doc + validation manuelle)",
+      "status": "todo",
+      "priority": "P3",
+      "estimate": "0.25d",
+      "dependsOn": ["WX-635", "WX-626"],
+      "scope": [
+        "audit/ui-ux-harmonization-spec.md"
+      ],
+      "execute": [],
+      "definitionOfDone": [
+        "Checklist section F.1 copiée ou référencée dans README ou docs/qa-ui.md avec cases à cocher.",
+        "Une passe manuelle macOS + Windows notée (date + version app)."
+      ],
+      "acceptance": [
+        "Au moins 5 items F.1 validés sur build release candidate."
+      ]
+    },
+    {
+      "id": "WX-637",
+      "title": "Produit — Arbitrage libellé workspace central (remplacer « Studio » si besoin)",
+      "status": "done",
+      "priority": "P3",
+      "estimate": "0.1d",
+      "dependsOn": [],
+      "scope": [
+        "whisperx-studio/src/components/StudioNav.tsx",
+        "whisperx-studio/README.md"
+      ],
+      "execute": [],
+      "definitionOfDone": [
+        "Décision écrite (issue ou README) : nom final pour l’onglet workspace (ex. Travail, Édition, etc.).",
+        "Mise à jour des chaînes UI + doc ; fermer ou mettre à jour WX-633 si libellé provisoire remplacé."
+      ],
+      "acceptance": [
+        "Cohérence des menus, aide intégrée, et messages Player/Explorer."
       ]
     }
   ]

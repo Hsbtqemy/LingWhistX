@@ -181,7 +181,11 @@ export function StudioOpenRunSection({
   }, [setError, refreshRecent]);
 
   return (
-    <section className="panel panel--open-run" aria-labelledby="open-run-title">
+    <section
+      id="home-open-run"
+      className="panel panel--open-run lx-focus-pilot"
+      aria-labelledby="open-run-title"
+    >
       <header className="panel-header">
         <h2 id="open-run-title">Ouvrir un run</h2>
         <span className="field-help">WX-611 — dossier avec run_manifest.json (schema v1)</span>

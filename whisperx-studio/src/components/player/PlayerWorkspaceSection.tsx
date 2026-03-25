@@ -14,6 +14,7 @@ import {
 } from "./PlayerRunWindowViews";
 import { PlayerJumpPanel } from "./PlayerJumpPanel";
 import { PlayerTopBar } from "./PlayerTopBar";
+import { Button } from "../ui";
 
 export type PlayerWorkspaceSectionProps = {
   runDir: string | null;
@@ -456,11 +457,31 @@ export function PlayerWorkspaceSection({
       />
 
       {!runDir ? (
-        <div className="player-empty">
-          <p>
-            Aucun run sélectionné. Va sur <strong>Créer un job</strong>, ouvre un dossier de run
-            (manifest), puis clique sur <strong>Ouvrir le Player</strong>.
-          </p>
+        <div className="player-empty player-empty--no-run">
+          <div
+            className="empty-state-card empty-state-card--compact"
+            role="status"
+            aria-labelledby="player-empty-no-run-title"
+          >
+            <div className="empty-state-card-icon empty-state-card-icon--muted" aria-hidden />
+            <h3 id="player-empty-no-run-title" className="empty-state-card-title">
+              Aucun run ouvert pour la lecture
+            </h3>
+            <p className="empty-state-card-text">
+              Depuis l&apos;accueil, ouvre un dossier de run (manifest) puis utilise{" "}
+              <strong>Ouvrir le Player</strong>.
+              <br />
+              Depuis le Studio, sélectionne un job avec média pour lancer la lecture ici.
+            </p>
+            <div className="player-empty-cta">
+              <Button type="button" variant="primary" onClick={() => onBack("create")}>
+                Aller à l&apos;accueil
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => onBack("workspace")}>
+                Aller au Studio
+              </Button>
+            </div>
+          </div>
         </div>
       ) : manifestLoading ? (
         <div className="player-empty">

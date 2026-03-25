@@ -43,7 +43,7 @@ export function StudioNewJobSection({
   } = jobForm;
 
   return (
-    <section className="panel panel--home">
+    <section id="home-new-job" className="panel panel--home">
       <header className="panel-header">
         <h2>Nouveau job</h2>
         <span
@@ -185,10 +185,17 @@ export function StudioNewJobSection({
             ) : null}
 
             {mode === "whisperx" || mode === "analyze_only" ? (
-              <AnalysisTimingOptionsForm
-                whisperxOptions={whisperxOptions}
-                setWhisperxOptions={setWhisperxOptions}
-              />
+              <details className="advanced-job-panel job-form-analysis-advanced">
+                <summary className="advanced-job-summary">
+                  Analyse &amp; timing (pauses, IPU, tours de parole, timestamps mots)
+                </summary>
+                <div className="advanced-job-body">
+                  <AnalysisTimingOptionsForm
+                    whisperxOptions={whisperxOptions}
+                    setWhisperxOptions={setWhisperxOptions}
+                  />
+                </div>
+              </details>
             ) : null}
 
             <StudioAdvancedJobSection jobForm={jobForm} />
@@ -214,7 +221,7 @@ export function StudioNewJobSection({
       </form>
 
       {errors.length > 0 ? (
-        <ErrorBanner>
+        <ErrorBanner multiline>
           {errors.map((msg, i) => (
             <p key={`${i}-${msg.slice(0, 24)}`} className="error-banner-text">
               {msg}

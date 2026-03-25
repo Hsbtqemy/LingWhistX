@@ -497,14 +497,21 @@ export type WaveformOverviewEnvelope = {
   levelIndex: 3 | 4;
 };
 
-/** Toggles calques Explorer (WX-616) — persistés session. */
+/**
+ * Toggles calques Explorer — persistés session (`studioExplorerLayers`).
+ * `query_run_events_window` ne filtre que words / turns / pauses / ipus ; les autres clés sont
+ * réservées (UI masquée tant que non branchées, WX-631).
+ */
 export type ExplorerLayerToggles = {
   turns: boolean;
   pauses: boolean;
   ipus: boolean;
+  /** Réservé — pas de couche overlap dans la requête fenêtre pour l’instant. */
   overlap: boolean;
   words: boolean;
+  /** Réservé — zoom auto mots sur la timeline Explorer. */
   wordsAutoZoom: boolean;
+  /** Réservé — segments comme couche distincte dans la requête fenêtre. */
   segments: boolean;
 };
 

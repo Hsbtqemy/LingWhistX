@@ -12,6 +12,7 @@ export type UseAppErrorStackResult = {
 
 /**
  * Pile d’erreurs globales pour le shell Studio (voir backlog **WX-625**, `audit/refactor-hooks-plan.md`).
+ * Styles associés : `ErrorBanner` + `.error-banner` dans `App.css` (tokens `--lx-danger` / surface, **WX-634**).
  */
 export function useAppErrorStack(maxMessages = APP_ERROR_STACK_MAX): UseAppErrorStackResult {
   const [errors, setErrors] = useState<string[]>([]);

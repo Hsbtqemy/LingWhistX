@@ -1,0 +1,86 @@
+/*
+ * Design system — tokens CSS (--lx-*)
+ * Source : audit/ui-ux-harmonization-spec.md §C.1 · backlog WX-626.
+ * Les alias --home-accent / --home-accent-2 pointent vers --lx-accent / --lx-accent-secondary.
+ */
+:root {
+  /* Surfaces */
+  --lx-surface-0: #f3f8f7;
+  --lx-surface-1: rgba(255, 255, 255, 0.94);
+  --lx-surface-2: rgba(222, 243, 241, 0.45);
+  /* Texte */
+  --lx-text-0: #072029;
+  --lx-text-1: #33535b;
+  --lx-text-2: #53727a;
+  --lx-border: rgba(9, 69, 76, 0.1);
+  /* Accent & états */
+  --lx-accent: #0f8a94;
+  --lx-accent-hover: #0c6f77;
+  --lx-accent-secondary: #0aa07a;
+  --lx-danger: #b42318;
+  --lx-warning: #8a4b16;
+  /* Typographie */
+  --lx-font-sans:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    "Bahnschrift",
+    "Trebuchet MS",
+    sans-serif;
+  --lx-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --lx-text-xs: 0.72rem;
+  --lx-text-sm: 0.85rem;
+  --lx-text-md: 1rem;
+  --lx-text-lg: 1.125rem;
+  /* Espacement (échelle §C.1 ; 30px = rythme shell bas) */
+  --lx-space-1: 4px;
+  --lx-space-2: 8px;
+  --lx-space-3: 12px;
+  --lx-space-4: 16px;
+  --lx-space-5: 24px;
+  --lx-space-shell-bottom: 30px;
+  /* Rayons & ombre */
+  --lx-radius-sm: 8px;
+  --lx-radius-md: 12px;
+  --lx-radius-lg: 20px;
+  --lx-shadow-card:
+    0 1px 0 rgba(255, 255, 255, 0.92) inset,
+    0 22px 48px rgba(6, 39, 44, 0.06);
+  --lx-focus-ring: 0 0 0 2px #fff, 0 0 0 4px var(--lx-accent);
+  /* Fond page (mesh — mêmes teintes qu’avant tokenisation) */
+  --lx-body-gradient-stop-1: #f8fcfb;
+  --lx-body-gradient-stop-2: #eef6f4;
+  --lx-body-gradient-stop-3: #e8f2ef;
+  --lx-body-radial-a: rgba(37, 186, 174, 0.18);
+  --lx-body-radial-b: rgba(241, 132, 74, 0.12);
+  --lx-body-radial-c: rgba(15, 138, 148, 0.08);
+  /* Marque héros (dégradé texte — inchangé) */
+  --lx-hero-brand-gradient: linear-gradient(118deg, #0c8a96 0%, #0aa07a 48%, #14b898 100%);
+
+  font-family: var(--lx-font-sans);
+  color: var(--lx-text-0);
+  background: var(--lx-surface-0);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --home-accent: var(--lx-accent);
+  --home-accent-2: var(--lx-accent-secondary);
+  /*
+   * Breakpoints @media — garder les valeurs alignées avec les blocs ci-dessous
+   * (pas de var() dans @media pour compatibilité navigateurs plus larges).
+   * nav-stack : shell sidebar + grille Player · md : workspace / explorer · sm : formulaires · xs : shell gutter fixe
+   */
+  --studio-bp-xs: 480px;
+  --studio-bp-sm: 768px;
+  --studio-bp-nav-stack: 900px;
+  --studio-bp-md: 1024px;
+  --studio-bp-lg: 1280px;
+  --studio-bp-stats-compact: 640px;
+  /* Largeur max du bloc central (évite bandes énormes sur ultra‑large) */
+  --studio-shell-max-width: 1600px;
+  --studio-shell-max-width-focus: 1760px;
+  /* Marges latérales fenêtre → contenu (plafonnées pour ne pas gaspiller l’espace) */
+  --studio-shell-gutter: clamp(10px, 1.5vw, 20px);
+}
