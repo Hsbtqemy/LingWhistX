@@ -211,20 +211,32 @@ describe("normalizeWhisperxOptions", () => {
 describe("parseAudioPipelineSegmentsFromUi", () => {
   it("retourne undefined si vide, tableau vide ou JSON invalide", () => {
     expect(
-      parseAudioPipelineSegmentsFromUi({ ...defaultWhisperxOptions, audioPipelineSegmentsJson: "" }),
+      parseAudioPipelineSegmentsFromUi({
+        ...defaultWhisperxOptions,
+        audioPipelineSegmentsJson: "",
+      }),
     ).toBeUndefined();
     expect(
-      parseAudioPipelineSegmentsFromUi({ ...defaultWhisperxOptions, audioPipelineSegmentsJson: "[]" }),
+      parseAudioPipelineSegmentsFromUi({
+        ...defaultWhisperxOptions,
+        audioPipelineSegmentsJson: "[]",
+      }),
     ).toBeUndefined();
     expect(
-      parseAudioPipelineSegmentsFromUi({ ...defaultWhisperxOptions, audioPipelineSegmentsJson: "[" }),
+      parseAudioPipelineSegmentsFromUi({
+        ...defaultWhisperxOptions,
+        audioPipelineSegmentsJson: "[",
+      }),
     ).toBeUndefined();
   });
 
   it("retourne le tableau parse", () => {
     const raw = '[{"startSec":0,"endSec":2}]';
     expect(
-      parseAudioPipelineSegmentsFromUi({ ...defaultWhisperxOptions, audioPipelineSegmentsJson: raw }),
+      parseAudioPipelineSegmentsFromUi({
+        ...defaultWhisperxOptions,
+        audioPipelineSegmentsJson: raw,
+      }),
     ).toEqual([{ startSec: 0, endSec: 2 }]);
   });
 });

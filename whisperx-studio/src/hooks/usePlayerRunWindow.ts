@@ -62,8 +62,7 @@ export function usePlayerRunWindow({
   centerRef.current = centerTimeSec;
 
   const coarseKey = Math.floor(centerTimeSec / PLAYER_WINDOW_COARSE_SEC) * PLAYER_WINDOW_COARSE_SEC;
-  const speakersKey =
-    speakersFilter && speakersFilter.length > 0 ? speakersFilter.join("|") : "";
+  const speakersKey = speakersFilter && speakersFilter.length > 0 ? speakersFilter.join("|") : "";
 
   useEffect(() => {
     if (!runDir || !enabled) {
@@ -82,14 +81,14 @@ export function usePlayerRunWindow({
     const t = window.setTimeout(() => {
       void (async () => {
         const centerMs = Math.round(centerRef.current * 1000);
-        const totalMs = queryPreset === "words_detail" ? PLAYER_WINDOW_WORDS_MS : PLAYER_WINDOW_TOTAL_MS;
+        const totalMs =
+          queryPreset === "words_detail" ? PLAYER_WINDOW_WORDS_MS : PLAYER_WINDOW_TOTAL_MS;
         const half = Math.floor(totalMs / 2);
         const t0 = Math.max(0, centerMs - half);
         const t1 = centerMs + half;
         const includeWords = queryPreset === "words_detail";
         try {
-          const speakers =
-            speakersFilter && speakersFilter.length > 0 ? speakersFilter : [];
+          const speakers = speakersFilter && speakersFilter.length > 0 ? speakersFilter : [];
           const r = await invoke<QueryWindowResult>("query_run_events_window", {
             request: {
               runDir,

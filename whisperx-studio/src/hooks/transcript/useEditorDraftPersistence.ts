@@ -100,7 +100,9 @@ export function useEditorDraftPersistence({
         setEditorDraftUpdatedAtMs(null);
         setEditorAutosaveError("");
         setEditorAutosaveMessage(manual ? "Brouillon purge." : "");
-        lastAutosavedSnapshotRef.current = manual ? cloneEditorSnapshot(getCurrentSnapshot()) : null;
+        lastAutosavedSnapshotRef.current = manual
+          ? cloneEditorSnapshot(getCurrentSnapshot())
+          : null;
       } else if (manual) {
         setEditorAutosaveMessage("Aucun brouillon a purger.");
         lastAutosavedSnapshotRef.current = cloneEditorSnapshot(getCurrentSnapshot());
@@ -129,7 +131,11 @@ export function useEditorDraftPersistence({
     setEditorDraftUpdatedAtMs(null);
   }
 
-  function markDraftLoadedFromDisk(draftPath: string, updatedAtMs: number, snapshot: EditorSnapshot) {
+  function markDraftLoadedFromDisk(
+    draftPath: string,
+    updatedAtMs: number,
+    snapshot: EditorSnapshot,
+  ) {
     setEditorDraftPath(draftPath);
     setEditorDraftUpdatedAtMs(updatedAtMs);
     lastAutosavedSnapshotRef.current = cloneEditorSnapshot(snapshot);

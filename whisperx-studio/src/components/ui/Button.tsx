@@ -31,8 +31,7 @@ export function Button({
   type = "button",
   ...rest
 }: ButtonProps) {
-  const sizeClass =
-    variant === "navTab" ? "" : size !== "md" ? `lx-btn--${size}` : "";
+  const sizeClass = variant === "navTab" ? "" : size !== "md" ? `lx-btn--${size}` : "";
   const classes = [variantClass[variant], sizeClass, active ? "is-active" : "", className]
     .filter(Boolean)
     .join(" ");

@@ -49,7 +49,6 @@ body {
 
 /* --studio-bp-nav-stack (900px) */
 
-
 /* Page d'accueil (vue Accueil) */
 .home-page {
   display: grid;
@@ -315,7 +314,9 @@ body {
 }
 
 .studio-nav-tab.is-active:focus-visible {
-  box-shadow: var(--lx-focus-ring), 0 4px 14px rgba(12, 88, 96, 0.22);
+  box-shadow:
+    var(--lx-focus-ring),
+    0 4px 14px rgba(12, 88, 96, 0.22);
 }
 
 .about-view {
@@ -537,8 +538,6 @@ body {
     box-shadow 0.18s ease,
     border-color 0.18s ease;
 }
-
-
 
 .hero-feature-icon {
   width: 36px;
@@ -813,7 +812,9 @@ button.step-tab:focus-visible {
 }
 
 button.step-tab.active:focus-visible {
-  box-shadow: var(--lx-focus-ring), 0 2px 8px rgba(6, 39, 44, 0.07);
+  box-shadow:
+    var(--lx-focus-ring),
+    0 2px 8px rgba(6, 39, 44, 0.07);
 }
 
 button.step-tab:disabled {
@@ -2139,16 +2140,11 @@ button.lx-btn--danger:hover:not(:disabled) {
   line-height: 1.45;
 }
 
-
-
 /* --studio-bp-md (1024px) : workspace / explorer */
-
 
 /* --studio-bp-sm (768px) : shell resserré, formulaires, nav */
 
-
 /* --studio-bp-xs (480px) : shell gutter fixe, navigation empilée */
-
 
 /* WX-616 — Explorateur workspace */
 .studio-workspace-layout {
@@ -2255,7 +2251,6 @@ button.lx-btn--danger:hover:not(:disabled) {
 }
 
 /* --studio-bp-stats-compact (640px) : StatsCard explorer */
-
 
 .explorer-resume {
   font-size: 13px;
@@ -2696,7 +2691,6 @@ button.ghost.small.player-video-fs-on {
 }
 
 /* --studio-bp-nav-stack (900px) : Player 3 panneaux → pile */
-
 
 .player-panel-title {
   margin: 0 0 6px;

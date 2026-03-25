@@ -1,18 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ipcInvokeDev } from "../dev/ipcPerf";
 import { fileBasename } from "../appUtils";
-import type {
-  ExplorerLayerToggles,
-  Job,
-  QueryWindowResult,
-  RuntimeStatus,
-} from "../types";
+import type { ExplorerLayerToggles, Job, QueryWindowResult, RuntimeStatus } from "../types";
 import { QUERY_WINDOW_DEFAULT_MAX } from "../types";
 import type { WaveformWorkspace } from "./useWaveformWorkspace";
-import {
-  EXPLORER_LAYERS_STORAGE_KEY,
-  loadExplorerLayers,
-} from "./explorer/studioExplorerLayers";
+import { EXPLORER_LAYERS_STORAGE_KEY, loadExplorerLayers } from "./explorer/studioExplorerLayers";
 import { formatDuration } from "./explorer/studioExplorerUi";
 import { useExplorerRecalc } from "./explorer/useExplorerRecalc";
 import { useExplorerRunContext } from "./explorer/useExplorerRunContext";

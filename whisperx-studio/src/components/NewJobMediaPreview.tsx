@@ -32,10 +32,7 @@ export function NewJobMediaPreview({ inputPath }: NewJobMediaPreviewProps) {
 
   useWaveformCanvas(wf, [], null, null, null);
 
-  const mediaSrc = useMemo(
-    () => (trimmed ? convertFileSrc(trimmed) : ""),
-    [trimmed],
-  );
+  const mediaSrc = useMemo(() => (trimmed ? convertFileSrc(trimmed) : ""), [trimmed]);
 
   const waveformPointerCtx = useMemo(
     (): WaveformPointerContext => ({
@@ -44,12 +41,7 @@ export function NewJobMediaPreview({ inputPath }: NewJobMediaPreviewProps) {
       waveformViewStartSec: wf.waveformViewStartSec,
       applySnap: wf.applySnap,
     }),
-    [
-      wf.waveform,
-      wf.waveformVisibleDurationSec,
-      wf.waveformViewStartSec,
-      wf.applySnap,
-    ],
+    [wf.waveform, wf.waveformVisibleDurationSec, wf.waveformViewStartSec, wf.applySnap],
   );
 
   const onWaveformMouseDown = useCallback(
@@ -96,7 +88,8 @@ export function NewJobMediaPreview({ inputPath }: NewJobMediaPreviewProps) {
                     checked={wf.webAudioMode}
                     onChange={(e) => wf.setWebAudioMode(e.currentTarget.checked)}
                   />
-                  Lecture Web Audio (WX-619) — fenêtre WAV dérivée (ffmpeg), ±10 s autour du playhead
+                  Lecture Web Audio (WX-619) — fenêtre WAV dérivée (ffmpeg), ±10 s autour du
+                  playhead
                 </label>
                 {wf.webAudioError ? (
                   <ErrorBanner>
@@ -105,12 +98,16 @@ export function NewJobMediaPreview({ inputPath }: NewJobMediaPreviewProps) {
                 ) : null}
                 {wf.webAudioMode ? (
                   <div className="web-audio-actions">
-                    <button type="button" className="ghost" onClick={() => void wf.toggleMediaPlayback()}>
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => void wf.toggleMediaPlayback()}
+                    >
                       Play / Pause
                     </button>
                     <span className="small">
-                      Raccourci <kbd>Alt</kbd>+<kbd>K</kbd> — le lecteur natif est muet ; le son sort via
-                      Web Audio.
+                      Raccourci <kbd>Alt</kbd>+<kbd>K</kbd> — le lecteur natif est muet ; le son
+                      sort via Web Audio.
                     </span>
                   </div>
                 ) : null}
@@ -274,8 +271,8 @@ export function NewJobMediaPreview({ inputPath }: NewJobMediaPreviewProps) {
               </div>
             ) : null}
             <p className="small">
-              Raccourcis: <code>Alt+J</code>/<code>Alt+L</code> seek +/-1s, <code>Alt+K</code> play/pause
-              (workspace avec transcript: segments aussi).
+              Raccourcis: <code>Alt+J</code>/<code>Alt+L</code> seek +/-1s, <code>Alt+K</code>{" "}
+              play/pause (workspace avec transcript: segments aussi).
             </p>
             <p className="small mono">{trimmed}</p>
 
@@ -290,7 +287,9 @@ export function NewJobMediaPreview({ inputPath }: NewJobMediaPreviewProps) {
               </ErrorBanner>
             ) : null}
             {!wf.waveform ? (
-              <p className="small">Charge le waveform pour activer le seek précis sur la timeline.</p>
+              <p className="small">
+                Charge le waveform pour activer le seek précis sur la timeline.
+              </p>
             ) : (
               <>
                 <WaveformOverviewStrip
@@ -316,11 +315,13 @@ export function NewJobMediaPreview({ inputPath }: NewJobMediaPreviewProps) {
                   Durée : {formatClockSeconds(wf.waveform.durationSec)} | Lecture :{" "}
                   {formatClockSeconds(wf.mediaCurrentSec)} | Curseur :{" "}
                   {formatClockSeconds(wf.waveformCursorSec ?? wf.mediaCurrentSec)} | Zoom : ×
-                  {wf.waveformZoom.toFixed(2)} | Fenêtre : {formatClockSeconds(wf.waveformViewStartSec)}-
-                  {formatClockSeconds(Math.min(wf.waveformViewEndSec, wf.waveform.durationSec))} | Snap :{" "}
-                  {wf.snapEnabled ? `${wf.snapStepMs} ms` : "désactivé"} | Cache :{" "}
+                  {wf.waveformZoom.toFixed(2)} | Fenêtre :{" "}
+                  {formatClockSeconds(wf.waveformViewStartSec)}-
+                  {formatClockSeconds(Math.min(wf.waveformViewEndSec, wf.waveform.durationSec))} |
+                  Snap : {wf.snapEnabled ? `${wf.snapStepMs} ms` : "désactivé"} | Cache :{" "}
                   {wf.waveform.cached ? "oui" : "non"} | Segments overlay :{" "}
-                  {wf.waveformVisibleDurationSec <= 60 ? "oui (≤60s)" : "non (>60s)"} | Mots timeline :{" "}
+                  {wf.waveformVisibleDurationSec <= 60 ? "oui (≤60s)" : "non (>60s)"} | Mots
+                  timeline :{" "}
                   {wf.waveformVisibleDurationSec > 60
                     ? "masqués (>60s)"
                     : wordLabelsLimitedToDenseView(wf.waveformVisibleDurationSec)
@@ -330,8 +331,8 @@ export function NewJobMediaPreview({ inputPath }: NewJobMediaPreviewProps) {
               </>
             )}
             <p className="small">
-              Clic sur la waveform : seek sur le même temps que le lecteur (pas de transcript sur cet
-              écran).
+              Clic sur la waveform : seek sur le même temps que le lecteur (pas de transcript sur
+              cet écran).
             </p>
           </div>
         </div>

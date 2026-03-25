@@ -1,10 +1,6 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { useEffect, useMemo, useState } from "react";
-import {
-  DEFAULT_QA_GAP_SEC,
-  DEFAULT_QA_MAX_WPS,
-  DEFAULT_QA_MIN_WPS,
-} from "../../constants";
+import { DEFAULT_QA_GAP_SEC, DEFAULT_QA_MAX_WPS, DEFAULT_QA_MIN_WPS } from "../../constants";
 import { buildTranscriptQaIssues, qaIssueLabel } from "../../appUtils";
 import type { EditableSegment, EditorSnapshot, TranscriptQaIssue } from "../../types";
 import { applyQaAutoFixSnapshot } from "./qaAutoFix";

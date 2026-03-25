@@ -13,11 +13,11 @@ L’onglet de navigation qui ouvre la vue **jobs + Explorer + détail de run** (
 
 ## Alternatives non retenues pour l’instant
 
-| Libellé            | Motif d’écart                                      |
-| ------------------ | -------------------------------------------------- |
-| Historique & run   | Trop long ; focus « historique » plutôt que lieu de travail |
-| Travail            | Valide sémantiquement ; réservé si test utilisateur futur |
-| Édition            | Sous-entend surtout le transcript, pas tout l’Explorer |
+| Libellé          | Motif d’écart                                               |
+| ---------------- | ----------------------------------------------------------- |
+| Historique & run | Trop long ; focus « historique » plutôt que lieu de travail |
+| Travail          | Valide sémantiquement ; réservé si test utilisateur futur   |
+| Édition          | Sous-entend surtout le transcript, pas tout l’Explorer      |
 
 Une révision est possible après retours terrain ; ouvrir une entrée backlog ou une issue dédiée.
 

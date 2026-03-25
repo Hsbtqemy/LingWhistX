@@ -61,7 +61,8 @@ export function PlayerRunWindowViews({
     }
     return (
       <p className="player-viewport-placeholder small">
-        Aucune donnée — importe <code>events.sqlite</code> depuis <strong>Open run</strong> si besoin.
+        Aucune donnée — importe <code>events.sqlite</code> depuis <strong>Open run</strong> si
+        besoin.
       </p>
     );
   }
@@ -87,7 +88,9 @@ function PlayerComingSoonBody({ title, detail }: { title: string; detail: string
     <div className="player-coming-soon">
       <p className="player-coming-soon-title">{title}</p>
       <p className="small player-coming-soon-detail">{detail}</p>
-      <p className="small mono player-coming-soon-hint">Placeholder v2 — aucune requête SQLite supplémentaire.</p>
+      <p className="small mono player-coming-soon-hint">
+        Placeholder v2 — aucune requête SQLite supplémentaire.
+      </p>
     </div>
   );
 }
@@ -134,7 +137,8 @@ function PlayerLanesBody({
                       onClick={() => onSeekToMs?.(t.startMs)}
                     >
                       <span className="mono player-lanes-turn-time">
-                        {formatClockSeconds(t.startMs / 1000)} → {formatClockSeconds(t.endMs / 1000)}
+                        {formatClockSeconds(t.startMs / 1000)} →{" "}
+                        {formatClockSeconds(t.endMs / 1000)}
                       </span>
                     </button>
                   </li>
@@ -194,9 +198,7 @@ function PlayerWordsBody({
           );
         })}
       </ul>
-      {slice.words.length === 0 ? (
-        <p className="small">Aucun mot dans cette fenêtre.</p>
-      ) : null}
+      {slice.words.length === 0 ? <p className="small">Aucun mot dans cette fenêtre.</p> : null}
     </div>
   );
 }
@@ -239,9 +241,7 @@ function PlayerChatBody({
           );
         })}
       </div>
-      {slice.ipus.length === 0 ? (
-        <p className="small">Aucun IPU dans cette fenêtre.</p>
-      ) : null}
+      {slice.ipus.length === 0 ? <p className="small">Aucun IPU dans cette fenêtre.</p> : null}
     </div>
   );
 }

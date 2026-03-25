@@ -226,7 +226,9 @@ export function PlayerTopBar({
             onClick={() => void onToggleVideoFullscreen()}
             disabled={transportDisabled}
             title={
-              videoFullscreen ? "Quitter le plein écran (Alt+Entrée)" : "Plein écran vidéo (Alt+Entrée)"
+              videoFullscreen
+                ? "Quitter le plein écran (Alt+Entrée)"
+                : "Plein écran vidéo (Alt+Entrée)"
             }
           >
             {videoFullscreen ? "Quit. plein écran" : "Plein écran"}
@@ -245,10 +247,20 @@ export function PlayerTopBar({
         <span className="player-loop-hint small mono" title="Boucle A–B">
           {loopHint}
         </span>
-        <button type="button" className="ghost small" onClick={onMarkLoopA} disabled={transportDisabled}>
+        <button
+          type="button"
+          className="ghost small"
+          onClick={onMarkLoopA}
+          disabled={transportDisabled}
+        >
           Marquer A
         </button>
-        <button type="button" className="ghost small" onClick={onMarkLoopB} disabled={transportDisabled}>
+        <button
+          type="button"
+          className="ghost small"
+          onClick={onMarkLoopB}
+          disabled={transportDisabled}
+        >
           Marquer B
         </button>
         <button

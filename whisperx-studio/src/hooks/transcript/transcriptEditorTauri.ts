@@ -26,9 +26,7 @@ export type SaveTranscriptJsonRequest = {
   overwrite: boolean;
 };
 
-export async function tauriSaveTranscriptJson(
-  request: SaveTranscriptJsonRequest,
-): Promise<string> {
+export async function tauriSaveTranscriptJson(request: SaveTranscriptJsonRequest): Promise<string> {
   return invoke<string>("save_transcript_json", { request });
 }
 

@@ -1,9 +1,6 @@
 import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  areEditorSnapshotsEqual,
-  closestSegmentIndex,
-} from "../../appUtils";
+import { areEditorSnapshotsEqual, closestSegmentIndex } from "../../appUtils";
 import type { EditableSegment, EditorSnapshot, SegmentDragState, SegmentEdge } from "../../types";
 import {
   hitTestFocusedSegmentEdge,

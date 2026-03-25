@@ -8,10 +8,7 @@ import { usePlayerRunWindow } from "../../hooks/usePlayerRunWindow";
 import { derivePlayerAlerts } from "../../player/derivePlayerAlerts";
 import type { PlayerDerivedAlertKind } from "../../player/derivePlayerAlerts";
 import type { ExportRunTimingPackResponse, StudioView } from "../../types";
-import {
-  PlayerRunWindowViews,
-  type PlayerViewportMode,
-} from "./PlayerRunWindowViews";
+import { PlayerRunWindowViews, type PlayerViewportMode } from "./PlayerRunWindowViews";
 import { PlayerJumpPanel } from "./PlayerJumpPanel";
 import { PlayerTopBar } from "./PlayerTopBar";
 import { Button } from "../ui";
@@ -27,11 +24,7 @@ type AlertListFilter = "all" | PlayerDerivedAlertKind;
 /**
  * Player multi-vues (WX-624) — layout TopBar + colonnes + viewport ; transport via usePlayerPlayback.
  */
-export function PlayerWorkspaceSection({
-  runDir,
-  runLabel,
-  onBack,
-}: PlayerWorkspaceSectionProps) {
+export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorkspaceSectionProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [viewportMode, setViewportMode] = useState<PlayerViewportMode>("lanes");
   const [wordsWindowEnabled, setWordsWindowEnabled] = useState(false);
@@ -181,9 +174,7 @@ export function PlayerWorkspaceSection({
       const r = await invoke<ExportRunTimingPackResponse>("export_run_timing_pack", {
         request: { runDir },
       });
-      setExportPackHint(
-        `Pack exporté (JSON + SRT + CSV) · dernier fichier : ${r.lastOutputPath}`,
-      );
+      setExportPackHint(`Pack exporté (JSON + SRT + CSV) · dernier fichier : ${r.lastOutputPath}`);
     } catch (e) {
       setExportPackError(String(e));
     } finally {
@@ -562,15 +553,9 @@ export function PlayerWorkspaceSection({
             <p className="small mono player-view-mode-hint">⌃1 · ⌃2 · ⌃3 · ⌃4 · ⌃5 · ⌃6</p>
             <h4 className="player-panel-title">Filtres</h4>
             <p className="small">
-              Locuteur :{" "}
-              <span className="mono">
-                {speakerSolo ?? "tous"}
-              </span>
+              Locuteur : <span className="mono">{speakerSolo ?? "tous"}</span>
               {runSpeakerIds.length > 0 ? (
-                <>
-                  {" "}
-                  · 1–9 (réappuyer = off) · 0 = tous
-                </>
+                <> · 1–9 (réappuyer = off) · 0 = tous</>
               ) : (
                 <> — indexer le run pour le solo clavier</>
               )}
@@ -634,8 +619,8 @@ export function PlayerWorkspaceSection({
               ) : null}
               {sliceTruncationLayers ? (
                 <p className="small player-slice-truncation-hint" role="status">
-                  Troncature sur : {sliceTruncationLayers.join(" · ")} — plafonds fenêtre SQLite ; pour les
-                  mots, garde la fenêtre ≤ 30 s.
+                  Troncature sur : {sliceTruncationLayers.join(" · ")} — plafonds fenêtre SQLite ;
+                  pour les mots, garde la fenêtre ≤ 30 s.
                 </p>
               ) : null}
               <PlayerRunWindowViews
@@ -665,7 +650,9 @@ export function PlayerWorkspaceSection({
               </select>
             </label>
             {derivedAlerts.length === 0 ? (
-              <p className="small">Aucune alerte détectée (chevauchements de tours, pauses ≥ 3 s).</p>
+              <p className="small">
+                Aucune alerte détectée (chevauchements de tours, pauses ≥ 3 s).
+              </p>
             ) : displayedAlerts.length === 0 ? (
               <p className="small">Aucune alerte pour ce filtre.</p>
             ) : (
@@ -687,9 +674,10 @@ export function PlayerWorkspaceSection({
             <h4 className="player-panel-title">Contrôles</h4>
             <p className="small">Layout, recompute — bientôt</p>
             <p className="small player-shortcuts-hint">
-              Espace · Home / Fin · ⌃⇧C copier · ⌃⇧O dossier · ⌃⇧E export · ← → · Shift / Alt · +/− vitesse · M
-              muet · Alt+Entrée plein écran (vidéo) · F suivi · W mots · L boucle · ⌃1–6 vues · N / P alertes · 0 /
-              1–9 locuteur · Aller au temps (panneau gauche) · <strong>?</strong> aide
+              Espace · Home / Fin · ⌃⇧C copier · ⌃⇧O dossier · ⌃⇧E export · ← → · Shift / Alt · +/−
+              vitesse · M muet · Alt+Entrée plein écran (vidéo) · F suivi · W mots · L boucle · ⌃1–6
+              vues · N / P alertes · 0 / 1–9 locuteur · Aller au temps (panneau gauche) ·{" "}
+              <strong>?</strong> aide
             </p>
           </aside>
         </div>
@@ -710,70 +698,75 @@ export function PlayerWorkspaceSection({
                 aria-labelledby="player-shortcuts-help-title"
                 onClick={(ev) => ev.stopPropagation()}
               >
-            <div className="player-shortcuts-help-head">
-              <h2 id="player-shortcuts-help-title" className="player-shortcuts-help-title">
-                Raccourcis Player
-              </h2>
-              <button
-                type="button"
-                className="ghost small"
-                onClick={() => setShortcutsHelpOpen(false)}
-              >
-                Fermer
-              </button>
-            </div>
-            <ul className="player-shortcuts-help-list small">
-              <li>
-                <kbd className="player-kbd">Espace</kbd> Lecture / pause
-              </li>
-              <li>
-                <kbd className="player-kbd">Stop</kbd> · <kbd className="player-kbd">Home</kbd> Arrêt + début
-              </li>
-              <li>
-                <kbd className="player-kbd">Fin</kbd> Fin de média
-              </li>
-              <li>
-                <kbd className="player-kbd">⌃⇧C</kbd> Copier timecode · double-clic sur le timecode
-              </li>
-              <li>
-                <kbd className="player-kbd">⌃⇧O</kbd> Dossier run · <kbd className="player-kbd">⌃⇧E</kbd> Export
-                pack
-              </li>
-              <li>
-                <kbd className="player-kbd">←</kbd> <kbd className="player-kbd">→</kbd> ±1 s ·{" "}
-                <kbd className="player-kbd">Shift</kbd>+flèches ±5 s · <kbd className="player-kbd">Alt</kbd>
-                +flèches ±0,1 s
-              </li>
-              <li>
-                <kbd className="player-kbd">+</kbd> / <kbd className="player-kbd">−</kbd> Vitesse
-              </li>
-              <li>
-                <kbd className="player-kbd">F</kbd> Suivi viewport · <kbd className="player-kbd">W</kbd>{" "}
-                Fenêtre mots · <kbd className="player-kbd">L</kbd> Boucle A→B · <kbd className="player-kbd">
-                  M
-                </kbd>{" "}
-                Muet · <kbd className="player-kbd">Alt</kbd>+<kbd className="player-kbd">Entrée</kbd> Plein écran
-                (vidéo)
-              </li>
-              <li>
-                <kbd className="player-kbd">⌃1</kbd>–<kbd className="player-kbd">6</kbd> Vues
-              </li>
-              <li>
-                <kbd className="player-kbd">N</kbd> / <kbd className="player-kbd">P</kbd> Alerte suiv. / préc.
-              </li>
-              <li>
-                <kbd className="player-kbd">0</kbd>–<kbd className="player-kbd">9</kbd> Solo locuteur
-              </li>
-              <li>
-                Navigateur : champ <strong>Aller au temps</strong> + <kbd className="player-kbd">Entrée</kbd>
-              </li>
-            </ul>
-            <p className="small player-shortcuts-help-foot">
-              <kbd className="player-kbd">?</kbd> ouvre / ferme cette aide · <kbd className="player-kbd">
-                Échap
-              </kbd>{" "}
-              ferme · détail dans <code>audit/player-multi-view.md</code>
-            </p>
+                <div className="player-shortcuts-help-head">
+                  <h2 id="player-shortcuts-help-title" className="player-shortcuts-help-title">
+                    Raccourcis Player
+                  </h2>
+                  <button
+                    type="button"
+                    className="ghost small"
+                    onClick={() => setShortcutsHelpOpen(false)}
+                  >
+                    Fermer
+                  </button>
+                </div>
+                <ul className="player-shortcuts-help-list small">
+                  <li>
+                    <kbd className="player-kbd">Espace</kbd> Lecture / pause
+                  </li>
+                  <li>
+                    <kbd className="player-kbd">Stop</kbd> · <kbd className="player-kbd">Home</kbd>{" "}
+                    Arrêt + début
+                  </li>
+                  <li>
+                    <kbd className="player-kbd">Fin</kbd> Fin de média
+                  </li>
+                  <li>
+                    <kbd className="player-kbd">⌃⇧C</kbd> Copier timecode · double-clic sur le
+                    timecode
+                  </li>
+                  <li>
+                    <kbd className="player-kbd">⌃⇧O</kbd> Dossier run ·{" "}
+                    <kbd className="player-kbd">⌃⇧E</kbd> Export pack
+                  </li>
+                  <li>
+                    <kbd className="player-kbd">←</kbd> <kbd className="player-kbd">→</kbd> ±1 s ·{" "}
+                    <kbd className="player-kbd">Shift</kbd>+flèches ±5 s ·{" "}
+                    <kbd className="player-kbd">Alt</kbd>
+                    +flèches ±0,1 s
+                  </li>
+                  <li>
+                    <kbd className="player-kbd">+</kbd> / <kbd className="player-kbd">−</kbd>{" "}
+                    Vitesse
+                  </li>
+                  <li>
+                    <kbd className="player-kbd">F</kbd> Suivi viewport ·{" "}
+                    <kbd className="player-kbd">W</kbd> Fenêtre mots ·{" "}
+                    <kbd className="player-kbd">L</kbd> Boucle A→B ·{" "}
+                    <kbd className="player-kbd">M</kbd> Muet · <kbd className="player-kbd">Alt</kbd>
+                    +<kbd className="player-kbd">Entrée</kbd> Plein écran (vidéo)
+                  </li>
+                  <li>
+                    <kbd className="player-kbd">⌃1</kbd>–<kbd className="player-kbd">6</kbd> Vues
+                  </li>
+                  <li>
+                    <kbd className="player-kbd">N</kbd> / <kbd className="player-kbd">P</kbd> Alerte
+                    suiv. / préc.
+                  </li>
+                  <li>
+                    <kbd className="player-kbd">0</kbd>–<kbd className="player-kbd">9</kbd> Solo
+                    locuteur
+                  </li>
+                  <li>
+                    Navigateur : champ <strong>Aller au temps</strong> +{" "}
+                    <kbd className="player-kbd">Entrée</kbd>
+                  </li>
+                </ul>
+                <p className="small player-shortcuts-help-foot">
+                  <kbd className="player-kbd">?</kbd> ouvre / ferme cette aide ·{" "}
+                  <kbd className="player-kbd">Échap</kbd> ferme · détail dans{" "}
+                  <code>audit/player-multi-view.md</code>
+                </p>
               </div>
             </div>,
             document.body,

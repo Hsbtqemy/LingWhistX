@@ -111,7 +111,11 @@ function App() {
           {showCreatePanel ? (
             <div className="home-page">
               <StudioHero />
-              <div className="home-page__content" role="region" aria-label="Fichiers et traitements">
+              <div
+                className="home-page__content"
+                role="region"
+                aria-label="Fichiers et traitements"
+              >
                 <StudioOpenRunSection
                   setError={setError}
                   setActiveView={setActiveView}

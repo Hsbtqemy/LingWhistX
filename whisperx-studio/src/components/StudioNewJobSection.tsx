@@ -119,8 +119,8 @@ export function StudioNewJobSection({
                 Continuer vers parametres
               </button>
               <p className="field-help" style={{ marginTop: 8, marginBottom: 0 }}>
-                Tu peux aussi ouvrir l&apos;étape 2 sans média pour parcourir les options (le lancement
-                exige toujours un fichier valide).
+                Tu peux aussi ouvrir l&apos;étape 2 sans média pour parcourir les options (le
+                lancement exige toujours un fichier valide).
               </p>
               <button type="button" className="ghost" onClick={() => void refreshJobs()}>
                 Rafraichir
@@ -132,8 +132,8 @@ export function StudioNewJobSection({
             <div className="import-summary">
               {!inputPath.trim() ? (
                 <p className="small import-summary-warning">
-                  <strong>Aucun média</strong> — les options ci-dessous sont consultables ; indique un
-                  fichier à l&apos;étape 1 (ou ci-dessous) avant de lancer un job.
+                  <strong>Aucun média</strong> — les options ci-dessous sont consultables ; indique
+                  un fichier à l&apos;étape 1 (ou ci-dessous) avant de lancer un job.
                 </p>
               ) : null}
               <p className="small">

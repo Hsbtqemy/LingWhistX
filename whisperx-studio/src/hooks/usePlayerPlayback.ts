@@ -173,7 +173,7 @@ export function usePlayerPlayback(runDir: string | null): UsePlayerPlaybackResul
         return;
       }
       const dur =
-        Number.isFinite(el.duration) && el.duration > 0 ? el.duration : durationSec ?? Infinity;
+        Number.isFinite(el.duration) && el.duration > 0 ? el.duration : (durationSec ?? Infinity);
       const clamped = Math.max(0, Math.min(sec, dur));
       el.currentTime = clamped;
       setCurrentTimeSec(clamped);

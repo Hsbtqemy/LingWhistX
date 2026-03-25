@@ -48,7 +48,8 @@ function run(exe, args, opts = {}) {
   }
 }
 
-const pythonExe = process.env.PYTHON_EXE?.trim() || (process.platform === "win32" ? "python" : "python3");
+const pythonExe =
+  process.env.PYTHON_EXE?.trim() || (process.platform === "win32" ? "python" : "python3");
 const runtimeDir = defaultRuntimeDir();
 
 console.log("[1/4] Runtime directory:", runtimeDir);

@@ -13,7 +13,6 @@ export function relativeSegmentIndex(
   if (segments.length === 0) {
     return null;
   }
-  const baseIndex =
-    actionSegmentIndex ?? closestSegmentIndex(segments, cursorTimeSec) ?? 0;
+  const baseIndex = actionSegmentIndex ?? closestSegmentIndex(segments, cursorTimeSec) ?? 0;
   return clampNumber(baseIndex + delta, 0, segments.length - 1);
 }

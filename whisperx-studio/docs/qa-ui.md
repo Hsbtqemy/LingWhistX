@@ -17,7 +17,7 @@ Checklist alignée sur **F.1** de l’audit :
 
 ## Passe manuelle (plateformes)
 
-| Date       | Plateforme | Version app / build | Validateur | Notes |
-| ---------- | ---------- | ------------------- | ---------- | ----- |
+| Date       | Plateforme | Version app / build | Validateur | Notes                               |
+| ---------- | ---------- | ------------------- | ---------- | ----------------------------------- |
 | 2026-03-23 | macOS      | dev `0.1.0`         | doc init   | Template — à dupliquer lors des RC. |
-|            | Windows    |                     |            |       |
+|            | Windows    |                     |            |                                     |

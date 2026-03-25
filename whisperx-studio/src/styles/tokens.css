@@ -21,13 +21,7 @@
   --lx-warning: #8a4b16;
   /* Typographie */
   --lx-font-sans:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    "Bahnschrift",
-    "Trebuchet MS",
-    sans-serif;
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Bahnschrift", "Trebuchet MS", sans-serif;
   --lx-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --lx-text-xs: 0.72rem;
   --lx-text-sm: 0.85rem;
@@ -44,9 +38,7 @@
   --lx-radius-sm: 8px;
   --lx-radius-md: 12px;
   --lx-radius-lg: 20px;
-  --lx-shadow-card:
-    0 1px 0 rgba(255, 255, 255, 0.92) inset,
-    0 22px 48px rgba(6, 39, 44, 0.06);
+  --lx-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.92) inset, 0 22px 48px rgba(6, 39, 44, 0.06);
   --lx-focus-ring: 0 0 0 2px #fff, 0 0 0 4px var(--lx-accent);
   /* Fond page (mesh — mêmes teintes qu’avant tokenisation) */
   --lx-body-gradient-stop-1: #f8fcfb;

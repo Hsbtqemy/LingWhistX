@@ -48,9 +48,7 @@ describe("PlayerRunWindowViews", () => {
   });
 
   it("mode Colonnes affiche le placeholder v2", () => {
-    render(
-      <PlayerRunWindowViews {...baseProps} mode="columns" slice={null} loading={false} />,
-    );
+    render(<PlayerRunWindowViews {...baseProps} mode="columns" slice={null} loading={false} />);
     expect(screen.getByText("Colonnes")).toBeInTheDocument();
     expect(screen.getByText(/placeholder v2/i)).toBeInTheDocument();
   });

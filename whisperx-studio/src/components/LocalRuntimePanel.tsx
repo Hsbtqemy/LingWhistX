@@ -122,10 +122,11 @@ export function LocalRuntimePanel({
                 </button>
               </div>
               <p className="small">
-                macOS / Linux : utilise <strong>Homebrew</strong> (<code className="mono">brew install
-                ffmpeg</code>) si <code className="mono">brew</code> est disponible. Windows :{" "}
-                <strong>winget</strong> (Gyan.FFmpeg) ou <strong>Chocolatey</strong>. Sinon installe
-                ffmpeg à la main et définis <code className="mono">FFMPEG_BINARY</code> /{" "}
+                macOS / Linux : utilise <strong>Homebrew</strong> (
+                <code className="mono">brew install ffmpeg</code>) si{" "}
+                <code className="mono">brew</code> est disponible. Windows : <strong>winget</strong>{" "}
+                (Gyan.FFmpeg) ou <strong>Chocolatey</strong>. Sinon installe ffmpeg à la main et
+                définis <code className="mono">FFMPEG_BINARY</code> /{" "}
                 <code className="mono">FFPROBE_BINARY</code>.
               </p>
               {ffmpegInstallMessage ? (

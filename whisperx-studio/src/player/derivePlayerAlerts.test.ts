@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { QueryWindowResult } from "../types";
 import { derivePlayerAlerts } from "./derivePlayerAlerts";
 
-function sliceStub(partial: Partial<QueryWindowResult> & Pick<QueryWindowResult, "turns" | "pauses">): QueryWindowResult {
+function sliceStub(
+  partial: Partial<QueryWindowResult> & Pick<QueryWindowResult, "turns" | "pauses">,
+): QueryWindowResult {
   return {
     runDir: "/tmp/run",
     t0Ms: 0,

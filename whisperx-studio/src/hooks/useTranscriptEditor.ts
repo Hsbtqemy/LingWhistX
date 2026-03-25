@@ -244,13 +244,14 @@ export function useTranscriptEditor({
     setActiveSegmentIndex,
   });
 
-  const waveformCursorStyle = wf.rangeDragStartSec !== null
-    ? "col-resize"
-    : dragSegmentState
-      ? "grabbing"
-      : hoveredSegmentEdge
-        ? "ew-resize"
-        : "crosshair";
+  const waveformCursorStyle =
+    wf.rangeDragStartSec !== null
+      ? "col-resize"
+      : dragSegmentState
+        ? "grabbing"
+        : hoveredSegmentEdge
+          ? "ew-resize"
+          : "crosshair";
 
   const actionSegmentIndex = useMemo(() => {
     if (activeSegmentIndex !== null && editorSegments[activeSegmentIndex]) {

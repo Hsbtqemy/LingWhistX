@@ -11,7 +11,10 @@ export type StatsCardProps = {
 };
 
 /** Grille de stats manifest (WX-628, audit §C.3 StatsCard). */
-export function StatsCard({ items, "aria-label": ariaLabel = "Statistiques manifest" }: StatsCardProps) {
+export function StatsCard({
+  items,
+  "aria-label": ariaLabel = "Statistiques manifest",
+}: StatsCardProps) {
   return (
     <dl className="lx-stats-card" aria-label={ariaLabel}>
       {items.map((item) => (

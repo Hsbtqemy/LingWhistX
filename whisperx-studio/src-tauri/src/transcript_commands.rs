@@ -193,31 +193,51 @@ pub fn export_transcript(
             let payload = build_transcript_json(request.language.clone(), &segments_for_export);
             let serialized = serde_json::to_string_pretty(&payload)
                 .map_err(|err| format!("Unable to serialize transcript JSON: {err}"))?;
-            write_export_sidecar_file(&target_path, &serialized, "Unable to export JSON transcript")?;
+            write_export_sidecar_file(
+                &target_path,
+                &serialized,
+                "Unable to export JSON transcript",
+            )?;
             target_path
         }
         "srt" => {
             let target_path = edited_path_with_ext(&source, "srt");
             let serialized = to_srt_text(&segments_for_export);
-            write_export_sidecar_file(&target_path, &serialized, "Unable to export SRT transcript")?;
+            write_export_sidecar_file(
+                &target_path,
+                &serialized,
+                "Unable to export SRT transcript",
+            )?;
             target_path
         }
         "vtt" => {
             let target_path = edited_path_with_ext(&source, "vtt");
             let serialized = to_vtt_text(&segments_for_export);
-            write_export_sidecar_file(&target_path, &serialized, "Unable to export VTT transcript")?;
+            write_export_sidecar_file(
+                &target_path,
+                &serialized,
+                "Unable to export VTT transcript",
+            )?;
             target_path
         }
         "txt" => {
             let target_path = edited_path_with_ext(&source, "txt");
             let serialized = to_txt_text(&segments_for_export);
-            write_export_sidecar_file(&target_path, &serialized, "Unable to export TXT transcript")?;
+            write_export_sidecar_file(
+                &target_path,
+                &serialized,
+                "Unable to export TXT transcript",
+            )?;
             target_path
         }
         "csv" => {
             let target_path = edited_path_with_ext(&source, "csv");
             let serialized = to_csv_text(&segments_for_export);
-            write_export_sidecar_file(&target_path, &serialized, "Unable to export CSV transcript")?;
+            write_export_sidecar_file(
+                &target_path,
+                &serialized,
+                "Unable to export CSV transcript",
+            )?;
             target_path
         }
         other => return Err(format!("Unsupported export format: {other}")),

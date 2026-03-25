@@ -83,22 +83,12 @@ export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
         void o.togglePlayPause();
         return;
       }
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        e.shiftKey &&
-        e.code === "KeyC" &&
-        !e.altKey
-      ) {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyC" && !e.altKey) {
         e.preventDefault();
         void o.copyPlayheadToClipboard();
         return;
       }
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        e.shiftKey &&
-        e.code === "KeyE" &&
-        !e.altKey
-      ) {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyE" && !e.altKey) {
         e.preventDefault();
         if (!o.runDir || o.exportPackBusy) {
           return;
@@ -106,12 +96,7 @@ export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
         void o.exportRunTimingPack();
         return;
       }
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        e.shiftKey &&
-        e.code === "KeyO" &&
-        !e.altKey
-      ) {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyO" && !e.altKey) {
         e.preventDefault();
         if (!o.runDir) {
           return;

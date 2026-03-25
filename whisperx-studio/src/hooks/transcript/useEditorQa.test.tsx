@@ -63,9 +63,7 @@ describe("useEditorQa", () => {
     });
 
     act(() => {
-      result.current.seedQaFromLoadedSegments(
-        buildEditorSnapshot("fr", [seg("a", 0, 1)]).segments,
-      );
+      result.current.seedQaFromLoadedSegments(buildEditorSnapshot("fr", [seg("a", 0, 1)]).segments);
     });
 
     expect(result.current.qaIssues.length).toBeGreaterThanOrEqual(0);

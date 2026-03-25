@@ -57,7 +57,11 @@ export function resizeSegmentBoundaryInSnapshot(
   return buildEditorSnapshot(current.language, nextSegments);
 }
 
-export function mutateSegmentText(current: EditorSnapshot, index: number, text: string): EditorSnapshot {
+export function mutateSegmentText(
+  current: EditorSnapshot,
+  index: number,
+  text: string,
+): EditorSnapshot {
   const nextSegments = cloneEditableSegments(current.segments);
   const segment = nextSegments[index];
   if (!segment) {
@@ -67,7 +71,10 @@ export function mutateSegmentText(current: EditorSnapshot, index: number, text: 
   return buildEditorSnapshot(current.language, nextSegments);
 }
 
-export function mutateEditorLanguage(current: EditorSnapshot, nextLanguage: string): EditorSnapshot {
+export function mutateEditorLanguage(
+  current: EditorSnapshot,
+  nextLanguage: string,
+): EditorSnapshot {
   if (current.language === nextLanguage) {
     return current;
   }

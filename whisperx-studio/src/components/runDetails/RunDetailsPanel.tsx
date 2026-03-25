@@ -95,11 +95,7 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                 aria-label="Sections des détails du run"
               />
 
-              <TabPanel
-                tabId="meta"
-                idPrefix={RUN_DETAILS_TAB_PREFIX}
-                hidden={tab !== "meta"}
-              >
+              <TabPanel tabId="meta" idPrefix={RUN_DETAILS_TAB_PREFIX} hidden={tab !== "meta"}>
                 <RunDetailsMetaSection
                   job={selectedJob}
                   onOpenInput={() => openLocalPath(selectedJob.inputPath)}

@@ -54,9 +54,7 @@ export function JobsHistoryPanel({
             aria-busy={loadMoreJobsLoading}
             onClick={() => void onLoadMoreJobs()}
           >
-            {loadMoreJobsLoading
-              ? "Chargement…"
-              : "Charger les jobs plus anciens (par paquets)"}
+            {loadMoreJobsLoading ? "Chargement…" : "Charger les jobs plus anciens (par paquets)"}
           </button>
         </div>
       ) : null}
@@ -67,8 +65,8 @@ export function JobsHistoryPanel({
             <div className="empty-state-card-icon" aria-hidden />
             <h3 className="empty-state-card-title">Aucun job pour le moment</h3>
             <p className="empty-state-card-text">
-              Va sur l&apos;onglet « Accueil », importe un média puis configure WhisperX. Les
-              runs apparaîtront ici avec leur progression.
+              Va sur l&apos;onglet « Accueil », importe un média puis configure WhisperX. Les runs
+              apparaîtront ici avec leur progression.
             </p>
           </div>
         ) : (

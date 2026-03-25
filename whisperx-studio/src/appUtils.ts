@@ -50,12 +50,7 @@ export function parseAudioPipelineModulesFromUi(
     }
   }
   const obj = source.audioPipelineModules;
-  if (
-    obj &&
-    typeof obj === "object" &&
-    !Array.isArray(obj) &&
-    Object.keys(obj).length > 0
-  ) {
+  if (obj && typeof obj === "object" && !Array.isArray(obj) && Object.keys(obj).length > 0) {
     return obj;
   }
   return undefined;
@@ -64,9 +59,7 @@ export function parseAudioPipelineModulesFromUi(
 /**
  * `audioPipelineSegmentsJson` (prioritaire) : tableau de plages pour WX-623.
  */
-export function parseAudioPipelineSegmentsFromUi(
-  source: UiWhisperxOptions,
-): unknown[] | undefined {
+export function parseAudioPipelineSegmentsFromUi(source: UiWhisperxOptions): unknown[] | undefined {
   const raw = source.audioPipelineSegmentsJson?.trim();
   if (!raw) {
     return undefined;
@@ -269,7 +262,14 @@ export function parsePlayerTimecodeToSeconds(raw: string): number | null {
     const h = Number(parts[0]);
     const m = Number(parts[1]);
     const sec = Number(parts[2].replace(",", "."));
-    if (!Number.isFinite(h) || !Number.isFinite(m) || !Number.isFinite(sec) || h < 0 || m < 0 || sec < 0) {
+    if (
+      !Number.isFinite(h) ||
+      !Number.isFinite(m) ||
+      !Number.isFinite(sec) ||
+      h < 0 ||
+      m < 0 ||
+      sec < 0
+    ) {
       return null;
     }
     return h * 3600 + m * 60 + sec;

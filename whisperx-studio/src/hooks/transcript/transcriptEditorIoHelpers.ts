@@ -1,12 +1,8 @@
 /** Garde-fous et enveloppe d’état « sauvegarde / export » communs à l’éditeur de transcript. */
 
-export const TRANSCRIPT_EDITOR_NOT_LOADED_ERROR =
-  "Aucun transcript charge dans l'editeur.";
+export const TRANSCRIPT_EDITOR_NOT_LOADED_ERROR = "Aucun transcript charge dans l'editeur.";
 
-export function isTranscriptEditorReadyForIo(
-  sourcePath: string,
-  segmentsLength: number,
-): boolean {
+export function isTranscriptEditorReadyForIo(sourcePath: string, segmentsLength: number): boolean {
   return Boolean(sourcePath && segmentsLength > 0);
 }
 

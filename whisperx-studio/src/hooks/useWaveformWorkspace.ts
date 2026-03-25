@@ -58,7 +58,9 @@ export function useWaveformWorkspace({
   const [webAudioMode, setWebAudioMode] = useState(false);
   const [webAudioError, setWebAudioError] = useState("");
   /** WX-622 — plage [t0,t1] sur la timeline (audio / ondeforme). */
-  const [previewRangeSec, setPreviewRangeSec] = useState<{ start: number; end: number } | null>(null);
+  const [previewRangeSec, setPreviewRangeSec] = useState<{ start: number; end: number } | null>(
+    null,
+  );
   const [rangeSelectionMode, setRangeSelectionMode] = useState(false);
   const [rangeDragStartSec, setRangeDragStartSec] = useState<number | null>(null);
   const [rangeDragEndSec, setRangeDragEndSec] = useState<number | null>(null);
@@ -294,8 +296,7 @@ export function useWaveformWorkspace({
           bypass: previewWaveBypassEffects,
         });
         const hasRange =
-          previewRangeSec !== null &&
-          previewRangeSec.end - previewRangeSec.start >= 0.05;
+          previewRangeSec !== null && previewRangeSec.end - previewRangeSec.start >= 0.05;
         if (hasRange) {
           await p.loadRangeChunk(previewRangeSec.start, previewRangeSec.end);
         } else {

@@ -1400,7 +1400,11 @@
         "whisperx-studio/src-tauri/src/ffmpeg_tools.rs",
         "audit/pipeline-modules-multi-speaker.md"
       ],
-      "execute": ["python3 -m py_compile whisperx-studio/python/studio_audio_modules.py", "cargo check", "npm run build"],
+      "execute": [
+        "python3 -m py_compile whisperx-studio/python/studio_audio_modules.py",
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Contrat JSON: liste optionnelle de segments {startSec, endSec} + modules a appliquer par segment ou globaux (spec ecrit dans audit).",
         "Pour chaque segment: extraction ffmpeg -> traitement module existant ou chaine -> concat ou fichier de sortie dedie (decision produit documentee).",
@@ -1528,10 +1532,7 @@
         "whisperx-studio/src/App.css",
         "whisperx-studio/src/App.tsx"
       ],
-      "execute": [
-        "cd whisperx-studio && npm run build",
-        "cd whisperx-studio && npm run test"
-      ],
+      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
       "definitionOfDone": [
         "Variables CSS --lx-surface, --lx-text, --lx-accent, --lx-border, --lx-space-*, --lx-radius-*, --lx-focus-ring documentées en tête de App.css (ou fichier tokens importé).",
         "body / .studio-shell / fond utilisent les tokens sans régression visuelle > 5 % sur écrans pilotes (accueil + Studio)."
@@ -1553,18 +1554,13 @@
         "whisperx-studio/src/components/ui/",
         "whisperx-studio/src/components/StudioNav.tsx"
       ],
-      "execute": [
-        "cd whisperx-studio && npm run build",
-        "cd whisperx-studio && npm run test"
-      ],
+      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
       "definitionOfDone": [
         "Composants réutilisables Button (variants primary/secondary/ghost/danger) et Badge (tons).",
         "StudioNav utilise Button ou classes alignées ; focus-visible conforme --lx-focus-ring.",
         "Pas de régression clavier sur les onglets."
       ],
-      "acceptance": [
-        "Tabulation : focus visible sur au moins StudioNav + un panneau pilote."
-      ]
+      "acceptance": ["Tabulation : focus visible sur au moins StudioNav + un panneau pilote."]
     },
     {
       "id": "WX-628",
@@ -1578,10 +1574,7 @@
         "whisperx-studio/src/components/StudioExplorerChrome.tsx",
         "whisperx-studio/src/App.css"
       ],
-      "execute": [
-        "cd whisperx-studio && npm run build",
-        "cd whisperx-studio && npm run test"
-      ],
+      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
       "definitionOfDone": [
         "Topbar Explorer : max 3 groupes visuels (fichier/index-export/nav temps) selon spec section B.4.",
         "Stats manifest en grille lisible (Badge / StatsCard), pas une liste de spans hétérogènes.",
@@ -1603,18 +1596,13 @@
         "whisperx-studio/src/components/runDetails/RunDetailsPanel.tsx",
         "whisperx-studio/src/components/ui/"
       ],
-      "execute": [
-        "cd whisperx-studio && npm run build",
-        "cd whisperx-studio && npm run test"
-      ],
+      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
       "definitionOfDone": [
         "Tabs avec role=tablist / aria-controls / panneaux associés.",
         "Contenu actuel de RunDetailsPanel réparti sans perte de fonctionnalité.",
         "Navigation clavier entre onglets."
       ],
-      "acceptance": [
-        "Sélection job + éditeur + alignement inchangés fonctionnellement."
-      ]
+      "acceptance": ["Sélection job + éditeur + alignement inchangés fonctionnellement."]
     },
     {
       "id": "WX-630",
@@ -1628,10 +1616,7 @@
         "whisperx-studio/src/components/WhisperxOptionsForm.tsx",
         "whisperx-studio/src/components/StudioNewJobSection.tsx"
       ],
-      "execute": [
-        "cd whisperx-studio && npm run build",
-        "cd whisperx-studio && npm run test"
-      ],
+      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
       "definitionOfDone": [
         "Par défaut : média + profil rapide visibles ; device/chunking/diarize/analyse lourde sous repliable ou toggle « Avancé ».",
         "Aucun slider n’impose un recalcul pipeline lourd sans action explicite (règle produit)."
@@ -1652,17 +1637,12 @@
         "whisperx-studio/src/components/StudioExplorerChrome.tsx",
         "whisperx-studio/src/hooks/useStudioExplorer.ts"
       ],
-      "execute": [
-        "cd whisperx-studio && npm run build",
-        "cd whisperx-studio && npm run test"
-      ],
+      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
       "definitionOfDone": [
         "Texte « branchement à venir » retiré ou remplacé par comportement réel ou masquage des calques non branchés.",
         "Calques overlap désactivés ou cachés tant que non supportés (spec A3)."
       ],
-      "acceptance": [
-        "Aucune case à cocher sans effet documenté pour l’utilisateur."
-      ]
+      "acceptance": ["Aucune case à cocher sans effet documenté pour l’utilisateur."]
     },
     {
       "id": "WX-632",
@@ -1675,10 +1655,7 @@
         "audit/ui-ux-harmonization-spec.md",
         "whisperx-studio/src/components/player/PlayerWorkspaceSection.tsx"
       ],
-      "execute": [
-        "cd whisperx-studio && npm run build",
-        "cd whisperx-studio && npm run test"
-      ],
+      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
       "definitionOfDone": [
         "Si runDir null : message + boutons vers vues create/workspace (spec B.2).",
         "Pas d’écran vide sans explication."
@@ -1699,17 +1676,13 @@
         "whisperx-studio/src/App.tsx",
         "whisperx-studio/src/components/StudioNav.tsx"
       ],
-      "execute": [
-        "cd whisperx-studio && npm run test"
-      ],
+      "execute": ["cd whisperx-studio && npm run test"],
       "definitionOfDone": [
         "Historique & run renommé en « Studio » (ou libellé défini produit) — provisoire jusqu’à WX-637.",
         "Chaque vue a un conteneur role=tabpanel avec id relié par aria-labelledby ou aria-controls.",
         "Documenter dans le ticket que le nom final du workspace est à arbitrer (WX-637)."
       ],
-      "acceptance": [
-        "VoiceOver / NVDA : annonce cohérente onglet + panneau actif."
-      ]
+      "acceptance": ["VoiceOver / NVDA : annonce cohérente onglet + panneau actif."]
     },
     {
       "id": "WX-634",
@@ -1724,16 +1697,12 @@
         "whisperx-studio/src/App.tsx",
         "whisperx-studio/src/App.css"
       ],
-      "execute": [
-        "cd whisperx-studio && npm run test"
-      ],
+      "execute": ["cd whisperx-studio && npm run test"],
       "definitionOfDone": [
         "Styles erreurs utilisent tokens danger/surface ; lisibilité contraste WCAG visé.",
         "Comportement pile max 5 inchangé fonctionnellement."
       ],
-      "acceptance": [
-        "setError message long : pas de overflow hors fenêtre."
-      ]
+      "acceptance": ["setError message long : pas de overflow hors fenêtre."]
     },
     {
       "id": "WX-635",
@@ -1742,18 +1711,13 @@
       "priority": "P3",
       "estimate": "0.5d",
       "dependsOn": [],
-      "scope": [
-        "audit/ui-ux-harmonization-spec.md",
-        "whisperx-studio/README.md"
-      ],
+      "scope": ["audit/ui-ux-harmonization-spec.md", "whisperx-studio/README.md"],
       "execute": [],
       "definitionOfDone": [
         "Section README (ou docs/studio-user-flow.md) avec les 4 étapes et captures ou listes à puces.",
         "Lien vers audit/ui-ux-harmonization-spec.md section F.2."
       ],
-      "acceptance": [
-        "Relu par un pair ou auteur : compréhensible sans jargon GPU."
-      ]
+      "acceptance": ["Relu par un pair ou auteur : compréhensible sans jargon GPU."]
     },
     {
       "id": "WX-636",
@@ -1762,17 +1726,13 @@
       "priority": "P3",
       "estimate": "0.25d",
       "dependsOn": ["WX-635", "WX-626"],
-      "scope": [
-        "audit/ui-ux-harmonization-spec.md"
-      ],
+      "scope": ["audit/ui-ux-harmonization-spec.md"],
       "execute": [],
       "definitionOfDone": [
         "Checklist section F.1 copiée ou référencée dans README ou docs/qa-ui.md avec cases à cocher.",
         "Une passe manuelle macOS + Windows notée (date + version app)."
       ],
-      "acceptance": [
-        "Au moins 5 items F.1 validés sur build release candidate."
-      ]
+      "acceptance": ["Au moins 5 items F.1 validés sur build release candidate."]
     },
     {
       "id": "WX-637",
@@ -1781,18 +1741,13 @@
       "priority": "P3",
       "estimate": "0.1d",
       "dependsOn": [],
-      "scope": [
-        "whisperx-studio/src/components/StudioNav.tsx",
-        "whisperx-studio/README.md"
-      ],
+      "scope": ["whisperx-studio/src/components/StudioNav.tsx", "whisperx-studio/README.md"],
       "execute": [],
       "definitionOfDone": [
         "Décision écrite (issue ou README) : nom final pour l’onglet workspace (ex. Travail, Édition, etc.).",
         "Mise à jour des chaînes UI + doc ; fermer ou mettre à jour WX-633 si libellé provisoire remplacé."
       ],
-      "acceptance": [
-        "Cohérence des menus, aide intégrée, et messages Player/Explorer."
-      ]
+      "acceptance": ["Cohérence des menus, aide intégrée, et messages Player/Explorer."]
     }
   ]
 }

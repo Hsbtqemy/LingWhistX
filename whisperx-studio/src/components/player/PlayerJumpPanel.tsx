@@ -38,7 +38,12 @@ export function PlayerJumpPanel({
           }}
           disabled={disabled}
         />
-        <button type="button" className="ghost small" disabled={disabled} onClick={() => onCommit()}>
+        <button
+          type="button"
+          className="ghost small"
+          disabled={disabled}
+          onClick={() => onCommit()}
+        >
           Aller
         </button>
       </div>

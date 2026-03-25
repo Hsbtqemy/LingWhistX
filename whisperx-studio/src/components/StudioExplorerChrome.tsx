@@ -29,7 +29,10 @@ export function StudioExplorerTopBar({ explorer: ex }: { explorer: StudioExplore
 
   return (
     <header className="explorer-topbar" aria-label="Explorateur run">
-      <div className="explorer-topbar-group explorer-topbar-group--file" aria-label="Fichier et média">
+      <div
+        className="explorer-topbar-group explorer-topbar-group--file"
+        aria-label="Fichier et média"
+      >
         <div className="explorer-topbar-group__actions">
           <button
             type="button"
@@ -49,7 +52,10 @@ export function StudioExplorerTopBar({ explorer: ex }: { explorer: StudioExplore
         </span>
       </div>
 
-      <div className="explorer-topbar-group explorer-topbar-group--index" aria-label="Index, export et runtime">
+      <div
+        className="explorer-topbar-group explorer-topbar-group--index"
+        aria-label="Index, export et runtime"
+      >
         <div className="explorer-topbar-group__actions">
           <button
             type="button"
@@ -80,7 +86,10 @@ export function StudioExplorerTopBar({ explorer: ex }: { explorer: StudioExplore
         </span>
       </div>
 
-      <div className="explorer-topbar-group explorer-topbar-group--nav" aria-label="Navigation temps et manifest">
+      <div
+        className="explorer-topbar-group explorer-topbar-group--nav"
+        aria-label="Navigation temps et manifest"
+      >
         <div className="explorer-topbar-nav-row">
           <button type="button" className="ghost" onClick={() => void ex.seekToNextPause()}>
             Pause suivante
@@ -150,15 +159,11 @@ export function StudioExplorerSidePanels({ explorer: ex }: { explorer: StudioExp
           Calques
         </h3>
         <p className="small explorer-card-hint">
-          Préférences pour la session. Ces cases correspondent aux filtres{" "}
-          <code>words</code>, <code>turns</code>, <code>pauses</code> et <code>ipus</code> de la
-          requête SQLite <code>query_run_events_window</code> (index <code>events.sqlite</code>{" "}
-          requis).
+          Préférences pour la session. Ces cases correspondent aux filtres <code>words</code>,{" "}
+          <code>turns</code>, <code>pauses</code> et <code>ipus</code> de la requête SQLite{" "}
+          <code>query_run_events_window</code> (index <code>events.sqlite</code> requis).
         </p>
-        <LayerList
-          aria-label="Calques événements indexés"
-          items={layerItems}
-        />
+        <LayerList aria-label="Calques événements indexés" items={layerItems} />
       </section>
 
       <section className="explorer-card" aria-labelledby="explorer-speakers-title">

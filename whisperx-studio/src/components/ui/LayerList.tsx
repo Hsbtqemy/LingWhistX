@@ -17,11 +17,7 @@ export function LayerList({ items, "aria-label": ariaLabel }: LayerListProps) {
     <div className="explorer-layer-grid lx-layer-list" role="group" aria-label={ariaLabel}>
       {items.map((item) => (
         <label key={item.id} className="explorer-layer-toggle">
-          <input
-            type="checkbox"
-            checked={item.checked}
-            onChange={() => item.onChange()}
-          />
+          <input type="checkbox" checked={item.checked} onChange={() => item.onChange()} />
           {item.label}
         </label>
       ))}

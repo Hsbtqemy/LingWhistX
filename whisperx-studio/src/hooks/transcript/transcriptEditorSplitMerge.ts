@@ -31,7 +31,10 @@ export function computeSplitAtCursor(
   return { ok: true, splitAt };
 }
 
-export function buildSplitPair(segment: EditableSegment, splitAt: number): [EditableSegment, EditableSegment] {
+export function buildSplitPair(
+  segment: EditableSegment,
+  splitAt: number,
+): [EditableSegment, EditableSegment] {
   const [leftText, rightText] = splitSegmentText(segment.text);
   const left: EditableSegment = {
     ...segment,
@@ -46,7 +49,10 @@ export function buildSplitPair(segment: EditableSegment, splitAt: number): [Edit
   return [left, right];
 }
 
-export function mergeTwoEditableSegments(first: EditableSegment, second: EditableSegment): EditableSegment {
+export function mergeTwoEditableSegments(
+  first: EditableSegment,
+  second: EditableSegment,
+): EditableSegment {
   const leftSpeaker = first.speaker?.trim() || "";
   const rightSpeaker = second.speaker?.trim() || "";
   const mergedSpeaker = leftSpeaker || rightSpeaker || undefined;
