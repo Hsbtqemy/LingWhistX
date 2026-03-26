@@ -41,6 +41,7 @@ include = ["whisperx*"]
 
 # torchcodec (transitive dep of pyannote-audio >=4) has no wheels for Linux aarch64
 # Versions minimales pour pip-audit / correctifs sécurité (transitives).
+# pygments: CVE-2026-4539 sans release corrigée sur PyPI (2.19.2) — ignore pip-audit dans security-python.yml jusqu'à mise à jour.
 [tool.uv]
 constraint-dependencies = [
     "aiohttp>=3.13.3",

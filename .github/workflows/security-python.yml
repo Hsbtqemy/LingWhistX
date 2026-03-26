@@ -20,7 +20,6 @@ on:
 jobs:
   pip-audit:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,8 +36,8 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras
 
-      # pygments: CVE-2026-4539 sans version corrigée sur PyPI (dernière release 2.19.2).
-      - name: Run pip-audit (warning mode)
+      # pygments CVE-2026-4539: pas de wheel >2.19.2 sur PyPI ; retirer --ignore-vuln après correctif upstream.
+      - name: Run pip-audit
         run: uv run --with pip-audit pip-audit --desc --format markdown --output pip-audit-report.md --ignore-vuln CVE-2026-4539
 
       - name: Upload pip-audit report
