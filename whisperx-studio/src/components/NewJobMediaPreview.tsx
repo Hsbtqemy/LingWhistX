@@ -1,5 +1,5 @@
 import type { MouseEvent } from "react";
-import { useCallback, useMemo } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { MAX_WAVEFORM_ZOOM, MIN_WAVEFORM_ZOOM } from "../constants";
 import { formatClockSeconds, isVideoFile, parseFiniteNumberInput } from "../appUtils";
@@ -17,8 +17,10 @@ export type NewJobMediaPreviewProps = {
 
 /**
  * Aperçu média + ondeforme (WX-621) sur le formulaire « Nouveau job », avant création du job.
+ * `memo` : ne pas re-rendre quand seules les options WhisperX changent (le parent refait un
+ * nouvel objet `jobForm` à chaque mise à jour d’état).
  */
-export function NewJobMediaPreview({ inputPath }: NewJobMediaPreviewProps) {
+function NewJobMediaPreviewComponent({ inputPath }: NewJobMediaPreviewProps) {
   const trimmed = inputPath.trim();
   const previewScopeId = trimmed ? `preview:${trimmed}` : "preview-idle";
   const previewIsVideo = trimmed ? isVideoFile(trimmed) : false;
@@ -340,3 +342,5 @@ export function NewJobMediaPreview({ inputPath }: NewJobMediaPreviewProps) {
     </section>
   );
 }
+
+export const NewJobMediaPreview = memo(NewJobMediaPreviewComponent);

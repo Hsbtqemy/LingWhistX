@@ -1,8 +1,9 @@
+import { memo } from "react";
 import type { LocalRuntimePanelProps } from "../model/localRuntimePanel";
 
 export type { LocalRuntimePanelProps } from "../model/localRuntimePanel";
 
-export function LocalRuntimePanel({
+function LocalRuntimePanelComponent({
   runtimeReady,
   runtimeMissing,
   runtimeLastCheckedAtMs,
@@ -214,3 +215,5 @@ export function LocalRuntimePanel({
     </div>
   );
 }
+
+export const LocalRuntimePanel = memo(LocalRuntimePanelComponent);
