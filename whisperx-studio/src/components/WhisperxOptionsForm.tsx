@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { useCallback, startTransition } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { profilePresets } from "../constants";
 import type { ProfilePreset, UiWhisperxOptions } from "../types";
@@ -18,6 +19,13 @@ export function WhisperxOptionsForm({
   onProfileChange,
   selectedProfile,
 }: WhisperxOptionsFormProps) {
+  const patchWhisperx = useCallback(
+    (partial: Partial<UiWhisperxOptions>) => {
+      setWhisperxOptions((prev) => ({ ...prev, ...partial }));
+    },
+    [setWhisperxOptions],
+  );
+
   async function pickExternalWordTimingsJson() {
     const selected = await open({
       multiple: false,
@@ -26,7 +34,7 @@ export function WhisperxOptionsForm({
       filters: [{ name: "JSON", extensions: ["json"] }],
     });
     if (typeof selected === "string") {
-      setWhisperxOptions((prev) => ({ ...prev, externalWordTimingsJson: selected }));
+      patchWhisperx({ externalWordTimingsJson: selected });
     }
   }
 
@@ -49,9 +57,7 @@ export function WhisperxOptionsForm({
           Modele Whisper
           <input
             value={whisperxOptions.model}
-            onChange={(e) =>
-              setWhisperxOptions((prev) => ({ ...prev, model: e.currentTarget.value }))
-            }
+            onChange={(e) => patchWhisperx({ model: e.currentTarget.value })}
             placeholder="small / medium / large-v3"
           />
           <p className="field-help">Plus le modele est grand, plus la precision augmente.</p>
@@ -61,9 +67,7 @@ export function WhisperxOptionsForm({
           Langue
           <input
             value={whisperxOptions.language}
-            onChange={(e) =>
-              setWhisperxOptions((prev) => ({ ...prev, language: e.currentTarget.value }))
-            }
+            onChange={(e) => patchWhisperx({ language: e.currentTarget.value })}
             placeholder="fr, en... (vide = autodetection)"
           />
           <p className="field-help">Laisser vide pour autodetection (plus lent).</p>
@@ -85,10 +89,9 @@ export function WhisperxOptionsForm({
               <select
                 value={whisperxOptions.device}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
+                  patchWhisperx({
                     device: e.currentTarget.value as UiWhisperxOptions["device"],
-                  }))
+                  })
                 }
               >
                 <option value="auto">auto</option>
@@ -103,10 +106,9 @@ export function WhisperxOptionsForm({
               <select
                 value={whisperxOptions.computeType}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
+                  patchWhisperx({
                     computeType: e.currentTarget.value as UiWhisperxOptions["computeType"],
-                  }))
+                  })
                 }
               >
                 <option value="default">default</option>
@@ -120,9 +122,7 @@ export function WhisperxOptionsForm({
               Batch Size
               <input
                 value={whisperxOptions.batchSize}
-                onChange={(e) =>
-                  setWhisperxOptions((prev) => ({ ...prev, batchSize: e.currentTarget.value }))
-                }
+                onChange={(e) => patchWhisperx({ batchSize: e.currentTarget.value })}
                 placeholder="8"
               />
               <p className="field-help">Plus haut = plus rapide, mais plus de VRAM/RAM.</p>
@@ -133,10 +133,9 @@ export function WhisperxOptionsForm({
               <input
                 value={whisperxOptions.pipelineChunkSeconds}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
+                  patchWhisperx({
                     pipelineChunkSeconds: e.currentTarget.value,
-                  }))
+                  })
                 }
                 placeholder="vide = desactive"
               />
@@ -150,10 +149,9 @@ export function WhisperxOptionsForm({
               <input
                 value={whisperxOptions.pipelineChunkOverlapSeconds}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
+                  patchWhisperx({
                     pipelineChunkOverlapSeconds: e.currentTarget.value,
-                  }))
+                  })
                 }
                 placeholder="0"
               />
@@ -166,12 +164,12 @@ export function WhisperxOptionsForm({
               Output Format
               <select
                 value={whisperxOptions.outputFormat}
-                onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
-                    outputFormat: e.currentTarget.value as UiWhisperxOptions["outputFormat"],
-                  }))
-                }
+                onChange={(e) => {
+                  const outputFormat = e.currentTarget.value as UiWhisperxOptions["outputFormat"];
+                  startTransition(() => {
+                    setWhisperxOptions((prev) => ({ ...prev, outputFormat }));
+                  });
+                }}
               >
                 <option value="all">all</option>
                 <option value="json">json</option>
@@ -192,10 +190,9 @@ export function WhisperxOptionsForm({
               <select
                 value={whisperxOptions.vadMethod}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
+                  patchWhisperx({
                     vadMethod: e.currentTarget.value as UiWhisperxOptions["vadMethod"],
-                  }))
+                  })
                 }
               >
                 <option value="pyannote">pyannote (precision)</option>
@@ -208,9 +205,7 @@ export function WhisperxOptionsForm({
               <input
                 type="checkbox"
                 checked={whisperxOptions.diarize}
-                onChange={(e) =>
-                  setWhisperxOptions((prev) => ({ ...prev, diarize: e.currentTarget.checked }))
-                }
+                onChange={(e) => patchWhisperx({ diarize: e.currentTarget.checked })}
               />
               Diarization (qui parle ?)
             </label>
@@ -236,10 +231,9 @@ export function WhisperxOptionsForm({
               <input
                 value={whisperxOptions.maxSpeakers}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
+                  patchWhisperx({
                     maxSpeakers: e.currentTarget.value,
-                  }))
+                  })
                 }
                 placeholder="vide = auto"
                 disabled={!whisperxOptions.diarize}
@@ -252,10 +246,9 @@ export function WhisperxOptionsForm({
               <input
                 value={whisperxOptions.forceNSpeakers}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
+                  patchWhisperx({
                     forceNSpeakers: e.currentTarget.value,
-                  }))
+                  })
                 }
                 placeholder="vide = desactive"
                 disabled={!whisperxOptions.diarize}
@@ -290,10 +283,9 @@ export function WhisperxOptionsForm({
               <input
                 value={whisperxOptions.externalWordTimingsJson}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
+                  patchWhisperx({
                     externalWordTimingsJson: e.currentTarget.value,
-                  }))
+                  })
                 }
                 placeholder="Chemin absolu vers le JSON (vide = desactive)"
               />
@@ -323,10 +315,9 @@ export function WhisperxOptionsForm({
                 type="checkbox"
                 checked={whisperxOptions.printProgress}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
+                  patchWhisperx({
                     printProgress: e.currentTarget.checked,
-                  }))
+                  })
                 }
               />
               Print Progress (logs plus verbeux)
@@ -338,10 +329,9 @@ export function WhisperxOptionsForm({
                 rows={4}
                 value={whisperxOptions.audioPipelineModulesJson}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
+                  patchWhisperx({
                     audioPipelineModulesJson: e.currentTarget.value,
-                  }))
+                  })
                 }
                 placeholder='{"preNormalize": true, "vadEnergy": true}'
                 spellCheck={false}
@@ -361,10 +351,9 @@ export function WhisperxOptionsForm({
                 rows={5}
                 value={whisperxOptions.audioPipelineSegmentsJson}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
+                  patchWhisperx({
                     audioPipelineSegmentsJson: e.currentTarget.value,
-                  }))
+                  })
                 }
                 placeholder={`[\n  { "startSec": 0, "endSec": 12.5, "audioPipelineModules": { "preNormalize": true } }\n]`}
                 spellCheck={false}
@@ -383,9 +372,7 @@ export function WhisperxOptionsForm({
               HF Token (optionnel, requis si diarization)
               <input
                 value={whisperxOptions.hfToken}
-                onChange={(e) =>
-                  setWhisperxOptions((prev) => ({ ...prev, hfToken: e.currentTarget.value }))
-                }
+                onChange={(e) => patchWhisperx({ hfToken: e.currentTarget.value })}
                 placeholder="hf_xxx"
               />
               <p className="field-help">Token Hugging Face lecture pour modeles pyannote.</p>

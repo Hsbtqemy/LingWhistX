@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { AnalysisTimingOptionsForm } from "./AnalysisTimingOptionsForm";
 import { ErrorBanner } from "./ErrorBanner";
 import { NewJobMediaPreview } from "./NewJobMediaPreview";
@@ -13,6 +14,36 @@ export type StudioNewJobSectionProps = {
   jobForm: NewJobFormApi;
   refreshJobs: () => Promise<void>;
 };
+
+/** Header + runtime + aperçu média : isolé pour ne pas se re-rendre avec chaque changement d’option WhisperX. */
+const JobPanelTop = memo(function JobPanelTop({
+  runningJobs,
+  inputPath,
+  runtime,
+}: {
+  runningJobs: number;
+  inputPath: string;
+  runtime: LocalRuntimePanelProps;
+}) {
+  return (
+    <>
+      <header className="panel-header">
+        <h2>Nouveau job</h2>
+        <span
+          className={`job-count-pill ${runningJobs > 0 ? "job-count-pill--active" : ""}`}
+          aria-live="polite"
+          title={runningJobs === 0 ? "Aucune tâche en file" : `${runningJobs} tâche(s) en cours`}
+        >
+          {runningJobs === 0 ? "Aucun job en cours" : `${runningJobs} en cours`}
+        </span>
+      </header>
+
+      <LocalRuntimePanel {...runtime} />
+
+      {inputPath.trim() ? <NewJobMediaPreview inputPath={inputPath} /> : null}
+    </>
+  );
+});
 
 export function StudioNewJobSection({
   runningJobs,
@@ -44,20 +75,7 @@ export function StudioNewJobSection({
 
   return (
     <section id="home-new-job" className="panel panel--home">
-      <header className="panel-header">
-        <h2>Nouveau job</h2>
-        <span
-          className={`job-count-pill ${runningJobs > 0 ? "job-count-pill--active" : ""}`}
-          aria-live="polite"
-          title={runningJobs === 0 ? "Aucune tâche en file" : `${runningJobs} tâche(s) en cours`}
-        >
-          {runningJobs === 0 ? "Aucun job en cours" : `${runningJobs} en cours`}
-        </span>
-      </header>
-
-      <LocalRuntimePanel {...runtime} />
-
-      {inputPath.trim() ? <NewJobMediaPreview inputPath={inputPath} /> : null}
+      <JobPanelTop runningJobs={runningJobs} inputPath={inputPath} runtime={runtime} />
 
       <form className="job-form" onSubmit={submitJob}>
         <div className="job-stepper">
