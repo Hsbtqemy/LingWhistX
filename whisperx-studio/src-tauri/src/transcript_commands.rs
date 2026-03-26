@@ -150,8 +150,11 @@ pub fn delete_transcript_draft(path: String) -> Result<bool, String> {
 
 #[tauri::command]
 pub fn save_transcript_json(request: SaveTranscriptRequest) -> Result<String, String> {
-    validate_path_string(&request.path)?;
-    let source = PathBuf::from(request.path.trim());
+    let source = resolve_existing_file_path(
+        &request.path,
+        "Transcript file does not exist",
+        "Transcript path is not a file",
+    )?;
     let target_path = if request.overwrite.unwrap_or(false) {
         source.clone()
     } else {
@@ -182,9 +185,12 @@ pub fn save_transcript_json(request: SaveTranscriptRequest) -> Result<String, St
 pub fn export_transcript(
     request: ExportTranscriptRequest,
 ) -> Result<ExportTranscriptResponse, String> {
-    validate_path_string(&request.path)?;
+    let source = resolve_existing_file_path(
+        &request.path,
+        "Transcript file does not exist",
+        "Transcript path is not a file",
+    )?;
     let format = request.format.trim().to_lowercase();
-    let source = PathBuf::from(request.path.trim());
     let (segments_for_export, report) =
         apply_export_timing_rules(&request.segments, request.rules.as_ref());
     let output = match format.as_str() {
