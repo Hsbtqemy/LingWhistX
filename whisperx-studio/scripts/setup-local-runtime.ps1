@@ -34,8 +34,21 @@ if ($LASTEXITCODE -ne 0) {
     throw "pip upgrade failed."
 }
 
-Write-Host "[4/4] Installing WhisperX..."
-& $venvPython -m pip install --upgrade whisperx
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+$pyproject = Join-Path $repoRoot "pyproject.toml"
+$whisperxInit = Join-Path $repoRoot "whisperx\__init__.py"
+$usePypiOnly = $env:WHISPERX_STUDIO_PIP_WHISPERX -eq "pypi"
+
+if (-not $usePypiOnly -and (Test-Path $pyproject) -and (Test-Path $whisperxInit)) {
+    Write-Host "[4/4] Installing WhisperX (LingWhistX fork, editable from repo)..."
+    Write-Host "     $repoRoot"
+    & $venvPython -m pip install --upgrade -e $repoRoot
+}
+else {
+    Write-Host "[4/4] Installing WhisperX from PyPI..."
+    Write-Warning "The Studio worker passes CLI flags (--analysis_*, etc.) that are not in the PyPI package. Clone the LingWhistX repo and re-run this script from whisperx-studio/ to install the fork."
+    & $venvPython -m pip install --upgrade whisperx
+}
 if ($LASTEXITCODE -ne 0) {
     throw "whisperx installation failed."
 }

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Job } from "../../types";
+import { runInTransition } from "../../whisperxOptionsTransitions";
 
 export type RunDetailsOutputFilesProps = {
   job: Job;
@@ -115,7 +116,9 @@ export function RunDetailsOutputFiles({
               <span className="small">Type</span>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value as OutputCategory)}
+                onChange={(e) =>
+                  runInTransition(() => setCategory(e.target.value as OutputCategory))
+                }
                 aria-label="Filtrer par type de fichier"
               >
                 <option value="all">Tous ({job.outputFiles.length})</option>

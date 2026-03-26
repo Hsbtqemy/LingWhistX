@@ -11,6 +11,17 @@ from whisperx.log_utils import get_logger
 logger = get_logger(__name__)
 
 
+class Segment:
+    """Intervalle VAD (start, end, locuteur) — utilisé par whisperx.vads (pyannote, silero)."""
+
+    __slots__ = ("start", "end", "speaker")
+
+    def __init__(self, start: float, end: float, speaker: str) -> None:
+        self.start = float(start)
+        self.end = float(end)
+        self.speaker = speaker
+
+
 class IntervalTree:
     """
     Simple interval tree for fast overlap queries using sorted array + binary search.

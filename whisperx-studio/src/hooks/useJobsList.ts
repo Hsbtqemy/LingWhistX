@@ -10,6 +10,8 @@ const JOBS_REFRESH_MS_ACTIVE = 1500;
 /** Sinon : moins d’appels IPC tant que l’historique est statique. */
 const JOBS_REFRESH_MS_IDLE = 20_000;
 
+const SELECTED_JOB_STORAGE_KEY = "lx-studio-selected-job-id";
+
 export type UseJobsListOptions = {
   runDetailsRef: RefObject<HTMLElement | null>;
   setError: (message: string) => void;
@@ -23,7 +25,13 @@ export function useJobsList({
 }: UseJobsListOptions) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobLogs, setJobLogs] = useState<Record<string, JobLogEvent[]>>({});
-  const [selectedJobId, setSelectedJobId] = useState("");
+  const [selectedJobId, setSelectedJobId] = useState(() => {
+    try {
+      return sessionStorage.getItem(SELECTED_JOB_STORAGE_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
   const [jobsPagination, setJobsPagination] = useState<JobsPaginationInfo | null>(null);
   const [loadMoreJobsLoading, setLoadMoreJobsLoading] = useState(false);
 
@@ -55,6 +63,14 @@ export function useJobsList({
     () => jobs.filter((job) => job.status === "queued" || job.status === "running").length,
     [jobs],
   );
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SELECTED_JOB_STORAGE_KEY, selectedJobId);
+    } catch {
+      /* ignore */
+    }
+  }, [selectedJobId]);
 
   useEffect(() => {
     void refreshJobs();

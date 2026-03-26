@@ -13,13 +13,27 @@ import { useRuntimeDiagnostics } from "./hooks/useRuntimeDiagnostics";
 import { useStudioWorkspace } from "./hooks/useStudioWorkspace";
 import type { StudioView, UiWhisperxOptions } from "./types";
 
+const VIEW_STORAGE_KEY = "lx-studio-view";
+
+function readStoredView(): StudioView {
+  try {
+    const v = sessionStorage.getItem(VIEW_STORAGE_KEY);
+    if (v === "create" || v === "workspace" || v === "player" || v === "about") {
+      return v;
+    }
+  } catch {
+    /* ignore */
+  }
+  return "create";
+}
+
 function App() {
   const runDetailsRef = useRef<HTMLElement | null>(null);
   const injectAudioPipelineSegmentsJsonRef = useRef<(json: string) => void>(() => {});
   const whisperxSetterRef = useRef<Dispatch<SetStateAction<UiWhisperxOptions>> | null>(null);
   /** Erreurs shell (max 5) — rendu `ErrorBanner` / tokens `--lx-danger` (WX-634). */
   const { errors: appErrors, setError } = useAppErrorStack();
-  const [activeView, setActiveView] = useState<StudioView>("create");
+  const [activeView, setActiveView] = useState<StudioView>(readStoredView);
   const [editorFocusMode, setEditorFocusMode] = useState(false);
   const [playerRunDir, setPlayerRunDir] = useState<string | null>(null);
   const [playerRunLabel, setPlayerRunLabel] = useState<string | null>(null);
@@ -33,6 +47,14 @@ function App() {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(VIEW_STORAGE_KEY, activeView);
+    } catch {
+      /* ignore */
+    }
+  }, [activeView]);
 
   useEffect(() => {
     if (activeView !== "workspace") {

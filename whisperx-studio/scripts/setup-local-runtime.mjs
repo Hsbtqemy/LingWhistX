@@ -5,8 +5,26 @@
  */
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+
+/** Racine du dépôt (…/LingWhistX) : scripts/ → whisperx-studio/ → repo. */
+function monorepoWhisperxRoot() {
+  const scriptDir = dirname(fileURLToPath(import.meta.url));
+  return join(scriptDir, "..", "..");
+}
+
+function shouldInstallForkFromRepo() {
+  if (process.env.WHISPERX_STUDIO_PIP_WHISPERX?.trim() === "pypi") {
+    return false;
+  }
+  const root = monorepoWhisperxRoot();
+  return (
+    existsSync(join(root, "pyproject.toml")) &&
+    existsSync(join(root, "whisperx", "__init__.py"))
+  );
+}
 
 const BUNDLE_ID = process.env.WHISPERX_STUDIO_BUNDLE_ID ?? "com.hsemil01.whisperx-studio";
 
@@ -67,8 +85,21 @@ if (!existsSync(venvPy)) {
 console.log("[3/4] Upgrading pip/setuptools/wheel...");
 run(venvPy, ["-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"]);
 
-console.log("[4/4] Installing WhisperX...");
-run(venvPy, ["-m", "pip", "install", "--upgrade", "whisperx"]);
+if (shouldInstallForkFromRepo()) {
+  const root = monorepoWhisperxRoot();
+  console.log("[4/4] Installing WhisperX (fork LingWhistX, editable depuis le dépôt)...");
+  console.log("    ", root);
+  run(venvPy, ["-m", "pip", "install", "--upgrade", "-e", root]);
+} else {
+  console.log("[4/4] Installing WhisperX from PyPI...");
+  console.warn(
+    "    Attention: le worker Studio envoie des options CLI (--analysis_*, etc.) absentes du paquet PyPI.",
+  );
+  console.warn(
+    "    Clone le dépôt LingWhistX et relance ce script depuis whisperx-studio/ pour installer le fork.",
+  );
+  run(venvPy, ["-m", "pip", "install", "--upgrade", "whisperx"]);
+}
 
 console.log("");
 console.log("Runtime installed successfully.");

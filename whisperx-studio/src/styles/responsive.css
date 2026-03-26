@@ -99,6 +99,20 @@
     grid-template-columns: 1fr;
   }
 
+  .studio-workspace-body--run-primary {
+    grid-template-columns: 1fr;
+  }
+
+  .studio-workspace-secondary-stack {
+    position: static;
+    max-height: none;
+  }
+
+  .studio-jobs-rail {
+    max-height: min(42vh, 360px);
+    overflow: auto;
+  }
+
   .explorer-workspace-grid {
     grid-template-columns: 1fr;
     gap: 14px;
@@ -147,6 +161,25 @@
   .output-files-toolbar input[type="search"] {
     min-width: 0;
     width: 100%;
+  }
+
+  /* Pipeline + logs worker : grille 3 colonnes trop serrée sous ~1024px */
+  .job-pipeline-strip__activity-list li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .job-pipeline-strip__activity-stage {
+    max-width: none;
+    white-space: normal;
+  }
+
+  .studio-jobs-rail .job-top-row {
+    flex-wrap: wrap;
+  }
+
+  .studio-jobs-rail .status-pill {
+    margin-left: auto;
   }
 }
 
@@ -295,6 +328,43 @@
   .panel--open-run {
     padding: 12px 12px 14px;
   }
+
+  /* Bandeau pipeline : étapes en colonne, texte meta pleine largeur */
+  .job-pipeline-strip__rail {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .job-pipeline-strip__step {
+    width: 100%;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(9, 69, 76, 0.1);
+  }
+
+  .job-pipeline-strip__step:last-child {
+    border-bottom: none;
+  }
+
+  .job-pipeline-strip__meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .job-pipeline-strip__message {
+    flex: 1 1 auto;
+    width: 100%;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+  }
+
+  .empty-state-card-text {
+    max-width: 100%;
+  }
+
+  .panel-header-job-id {
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 480px) {
@@ -347,6 +417,50 @@
 
   .lx-stats-card {
     max-width: none;
+  }
+
+  .job-pipeline-strip {
+    padding: var(--lx-space-2) var(--lx-space-3);
+  }
+
+  .job-pipeline-strip__mode {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+  }
+
+  .job-pipeline-strip__message {
+    font-size: var(--lx-text-xs);
+  }
+
+  .job-pipeline-strip__progress-wrap {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .job-pipeline-strip__pct {
+    align-self: flex-end;
+  }
+
+  .job-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .job-actions button {
+    width: 100%;
+  }
+
+  .empty-state-card {
+    padding: 20px 14px 18px;
+  }
+
+  .empty-state-card-title {
+    font-size: 0.98rem;
+  }
+
+  .empty-state-card-text {
+    font-size: 0.88rem;
   }
 }
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { runInTransition } from "../../whisperxOptionsTransitions";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { clampNumber, formatClockSeconds, parsePlayerTimecodeToSeconds } from "../../appUtils";
@@ -546,7 +547,9 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
               <input
                 type="checkbox"
                 checked={wordsWindowEnabled}
-                onChange={(e) => setWordsWindowEnabled(e.target.checked)}
+                onChange={(e) =>
+                  runInTransition(() => setWordsWindowEnabled(e.target.checked))
+                }
               />
               Fenêtre mots (30s) + requête words
             </label>
@@ -641,7 +644,11 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
               Liste :{" "}
               <select
                 value={alertListFilter}
-                onChange={(e) => setAlertListFilter(e.target.value as AlertListFilter)}
+                onChange={(e) =>
+                  runInTransition(() =>
+                    setAlertListFilter(e.target.value as AlertListFilter),
+                  )
+                }
                 aria-label="Filtrer le type d’alertes dans la liste"
               >
                 <option value="all">Toutes</option>

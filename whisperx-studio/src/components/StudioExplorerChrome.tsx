@@ -1,5 +1,6 @@
 import type { ExplorerLayerToggles } from "../types";
 import type { StudioExplorerModel } from "../hooks/useStudioExplorer";
+import { runInTransition } from "../whisperxOptionsTransitions";
 import { LayerList, StatsCard } from "./ui";
 
 /** Barre supérieure Explorer — 3 groupes (audit §B.4, WX-628). */
@@ -123,7 +124,8 @@ export function StudioExplorerTopBar({ explorer: ex }: { explorer: StudioExplore
 /** Panneaux calques + locuteurs (colonne latérale). */
 export function StudioExplorerSidePanels({ explorer: ex }: { explorer: StudioExplorerModel }) {
   const layers = ex.layers;
-  const setLayer = (key: keyof ExplorerLayerToggles) => () => ex.toggleLayer(key);
+  const setLayer = (key: keyof ExplorerLayerToggles) => () =>
+    runInTransition(() => ex.toggleLayer(key));
 
   const layerItems = [
     {
@@ -187,7 +189,9 @@ export function StudioExplorerSidePanels({ explorer: ex }: { explorer: StudioExp
                   <input
                     type="checkbox"
                     checked={row.visible}
-                    onChange={() => ex.toggleSpeakerVisible(row.id)}
+                    onChange={() =>
+                      runInTransition(() => ex.toggleSpeakerVisible(row.id))
+                    }
                   />
                   Vis.
                 </label>

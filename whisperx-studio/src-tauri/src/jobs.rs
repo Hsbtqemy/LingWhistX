@@ -161,7 +161,7 @@ fn record_worker_stderr_line(lines: &Arc<Mutex<Vec<String>>>, line: &str) {
     }
     if let Ok(mut lock) = lines.lock() {
         lock.push(line.to_string());
-        const MAX_LINES: usize = 40;
+        const MAX_LINES: usize = 200;
         if lock.len() > MAX_LINES {
             let drop = lock.len() - MAX_LINES;
             lock.drain(0..drop);
@@ -173,7 +173,7 @@ fn record_worker_stderr_line(lines: &Arc<Mutex<Vec<String>>>, line: &str) {
 fn append_worker_failure_context(mut message: String, stderr_tail: &str) -> String {
     let trimmed = stderr_tail.trim();
     if !trimmed.is_empty() {
-        const MAX_CHARS: usize = 6000;
+        const MAX_CHARS: usize = 32_768;
         let slice = if trimmed.len() > MAX_CHARS {
             &trimmed[trimmed.len() - MAX_CHARS..]
         } else {
@@ -183,6 +183,18 @@ fn append_worker_failure_context(mut message: String, stderr_tail: &str) -> Stri
         message.push_str(slice);
     }
     let lower = stderr_tail.to_lowercase();
+
+    // Depôt HF « gated » (pyannote community, etc.) : 401 + acceptation des conditions + token read.
+    let hf_gated_repo = lower.contains("gatedrepoerror")
+        || lower.contains("cannot access gated repo")
+        || (lower.contains("access to model") && lower.contains("restricted"))
+        || (lower.contains("you must have access") && lower.contains("authenticated"));
+    if hf_gated_repo {
+        message.push_str(
+            "\n\n[Aide HF — modele gated (pyannote)] Le modele de diarization par defaut (ex. pyannote/speaker-diarization-community-1) est sur Hugging Face : 1) Compte HF connecte, ouvrir la page du modele et accepter les conditions d'utilisation. 2) Creer un token avec au moins le droit de lecture (hf.co/settings/tokens). 3) Dans WhisperX Studio, coller ce token dans le champ « HF Token » du formulaire (onglet Accueil), ou exporter HF_TOKEN dans l'environnement avant de lancer l'app. 4) Relancer le job. Pour tester sans diarization : decocher « Diarization » dans les options WhisperX.",
+        );
+    }
+
     let hf_auth = lower.contains("401")
         || lower.contains("unauthorized")
         || lower.contains("invalid credentials")
@@ -193,7 +205,7 @@ fn append_worker_failure_context(mut message: String, stderr_tail: &str) -> Stri
         && (lower.contains("token")
             || lower.contains("authentication")
             || lower.contains("access"));
-    if hf_auth || pyannote_token {
+    if !hf_gated_repo && (hf_auth || pyannote_token) {
         message.push_str(
             "\n\n[Aide diarization] Verifiez un token Hugging Face valide, les accords d'utilisation des modeles pyannote sur huggingface.co, puis renseignez le champ HF Token ou la variable d'environnement HF_TOKEN.",
         );
@@ -204,6 +216,36 @@ fn append_worker_failure_context(mut message: String, stderr_tail: &str) -> Stri
     {
         message.push_str(
             "\n\n[Aide GPU] Memoire GPU insuffisante : essayez un modele plus petit, reduisez le batch, ou passez en device CPU.",
+        );
+    }
+
+    // Echec verification TLS (frequent : Python.org sur macOS sans certificats systeme importes).
+    let ssl_cert_issue = lower.contains("certificate_verify_failed")
+        || lower.contains("sslcertverificationerror")
+        || lower.contains("unable to get local issuer certificate")
+        || (lower.contains("certificate verify failed") && lower.contains("ssl"));
+    if ssl_cert_issue {
+        message.push_str(
+            "\n\n[Aide SSL] Verification des certificats HTTPS refusee (ex. [SSL: CERTIFICATE_VERIFY_FAILED]). Sur macOS avec Python depuis python.org : executer « Install Certificates.command » dans le dossier de cette version Python. Sinon : `python3 -m pip install --upgrade certifi` puis utiliser le bundle indique par `python3 -c \"import certifi; print(certifi.where())\"` (variables SSL_CERT_FILE ou REQUESTS_CA_BUNDLE). En entreprise (proxy SSL), importer le certificat racine dans le trousseau ou le fichier CA du proxy.",
+        );
+    }
+
+    let network_or_https = !ssl_cert_issue
+        && (lower.contains("urllib")
+            || lower.contains("https_open")
+            || lower.contains("http.client")
+            || lower.contains("ssl.")
+            || lower.contains("connection refused")
+            || lower.contains("timed out")
+            || lower.contains("temporary failure in name resolution")
+            || lower.contains("network is unreachable")
+            || lower.contains("urlerror")
+            || lower.contains("sslerror")
+            || lower.contains("nodename nor servname")
+            || lower.contains("getaddrinfo failed"));
+    if network_or_https {
+        message.push_str(
+            "\n\n[Aide reseau / HTTPS] Une requete HTTPS a echoue (souvent telechargement de poids de modele Whisper ou Hugging Face). Verifiez la connexion Internet, un eventuel proxy ou pare-feu, les certificats SSL, et que le hub est joignable. Pour travailler hors ligne : pre-telechargez les modeles (cache HF / dossiers locaux) ou definissez HF_HUB_OFFLINE=1 si tout est deja en cache.",
         );
     }
     message

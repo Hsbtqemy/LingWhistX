@@ -68,6 +68,67 @@ body {
   box-shadow: var(--lx-shadow-card);
 }
 
+/* Carte HF Token — visible dès l’étape 1 / 2 du formulaire nouveau job */
+.hf-token-card {
+  margin-bottom: clamp(12px, 2vw, 18px);
+  padding: 14px 16px;
+  border-radius: var(--lx-radius-md, 10px);
+  border: 1px solid var(--lx-border);
+  background: var(--lx-surface-0, var(--lx-surface-1));
+  display: grid;
+  gap: 10px;
+}
+
+.hf-token-card__header {
+  display: grid;
+  gap: 6px;
+}
+
+.hf-token-card__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.hf-token-card__subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--lx-text-muted, inherit);
+}
+
+.hf-token-card__label {
+  display: grid;
+  gap: 6px;
+}
+
+.hf-token-card__label-text {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--lx-text-muted, inherit);
+}
+
+.hf-token-card__input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.hf-token-card__help {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--lx-text-muted, inherit);
+}
+
+.hf-token-card__help a {
+  color: var(--lx-accent, inherit);
+}
+
+.hf-token-card__warn {
+  margin: 0;
+}
+
 /* WX-627 : .lx-focus-pilot — repère QA tabulation (focus --lx-focus-ring sur boutons du panneau) */
 .panel--open-run {
   border-radius: var(--lx-radius-lg);
@@ -583,6 +644,41 @@ body {
 
 .panel {
   padding: 18px 20px 20px;
+}
+
+.panel--run-workspace {
+  min-width: 0;
+}
+
+.panel--job-error {
+  border: 1px solid color-mix(in srgb, var(--lx-danger) 42%, var(--lx-border));
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--lx-danger) 14%, transparent);
+}
+
+.run-details-error-hero {
+  margin: 0 0 var(--lx-space-3);
+  padding: var(--lx-space-4);
+  border-radius: var(--lx-radius-md);
+  border: 1px solid color-mix(in srgb, var(--lx-danger) 38%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--lx-danger) 10%, var(--lx-surface-1)),
+    var(--lx-surface-1)
+  );
+}
+
+.run-details-error-hero__title {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--lx-danger, #b42318);
+}
+
+.run-details-error-hero__lead {
+  margin: 0 0 var(--lx-space-3);
+  font-size: var(--lx-text-sm);
+  color: var(--lx-text-1);
+  line-height: 1.45;
 }
 
 .runtime-box {
@@ -1204,9 +1300,19 @@ button.lx-btn--danger:hover:not(:disabled) {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+
+.job-top-row strong {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 700;
 }
 
 .status-pill {
+  flex: 0 0 auto;
   border-radius: 999px;
   padding: 2px 10px;
   font-size: 0.78rem;
@@ -1324,6 +1430,19 @@ button.lx-btn--danger:hover:not(:disabled) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 14px;
+}
+
+/* WX — priorité transcript / onglets : une colonne + journal pleine largeur dessous */
+.details-layout--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.details-layout--stacked > .details-column {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .details-column {
@@ -1877,6 +1996,7 @@ button.lx-btn--danger:hover:not(:disabled) {
   background: #ffffff;
 }
 
+/* Entrées du plus récent au plus ancien : défiler vers le bas = historique */
 .timeline-list {
   list-style: none;
   margin: 0;
@@ -2151,6 +2271,322 @@ button.lx-btn--danger:hover:not(:disabled) {
   display: grid;
   gap: 14px;
   min-width: 0;
+}
+
+/*
+ * Workspace Studio : la colonne principale (détail du run / transcript) est à gauche et prend
+ * l’essentiel de la largeur ; historique + paramètres explorateur à droite.
+ */
+.studio-workspace-body--run-primary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: var(--lx-space-4);
+  align-items: start;
+  min-width: 0;
+}
+
+.studio-workspace-primary {
+  min-width: 0;
+  order: 0;
+}
+
+.studio-workspace-secondary {
+  min-width: 0;
+  order: 1;
+}
+
+.studio-workspace-secondary-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lx-space-3);
+  position: sticky;
+  top: var(--lx-space-2);
+  align-self: start;
+  max-height: min(88vh, calc(100vh - 120px));
+  overflow: auto;
+}
+
+.studio-jobs-rail {
+  min-width: 0;
+}
+
+.studio-explorer-params {
+  margin: 0;
+  border-radius: var(--lx-radius-md);
+  border: 1px solid var(--lx-border);
+  background: var(--lx-surface-1);
+  box-shadow: var(--lx-shadow-card);
+  overflow: hidden;
+}
+
+.studio-explorer-params__summary {
+  cursor: pointer;
+  list-style: none;
+  padding: var(--lx-space-3) var(--lx-space-4);
+  font-size: var(--lx-text-sm);
+  font-weight: 700;
+  color: var(--lx-text-0);
+  background: rgba(9, 69, 76, 0.05);
+}
+
+.studio-explorer-params__summary::-webkit-details-marker {
+  display: none;
+}
+
+.studio-explorer-params__summary::before {
+  content: "▸ ";
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 0.15s ease;
+}
+
+.studio-explorer-params[open] .studio-explorer-params__summary::before {
+  transform: rotate(90deg);
+}
+
+.studio-explorer-params__body {
+  padding: 0 var(--lx-space-3) var(--lx-space-3);
+  border-top: 1px solid rgba(9, 69, 76, 0.1);
+}
+
+.explorer-workspace-inner {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Étapes du pipeline (job sélectionné) */
+.job-pipeline-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lx-space-2);
+  padding: var(--lx-space-3) var(--lx-space-4);
+  margin: 0 0 var(--lx-space-3);
+  border-radius: var(--lx-radius-md);
+  border: 1px solid rgba(15, 126, 138, 0.22);
+  background: linear-gradient(135deg, rgba(15, 126, 138, 0.06), rgba(9, 69, 76, 0.04));
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.job-pipeline-strip__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lx-space-2);
+}
+
+.job-pipeline-strip__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--lx-space-2) var(--lx-space-3);
+  min-width: 0;
+}
+
+.job-pipeline-strip__mode {
+  flex: 0 0 auto;
+  font-size: var(--lx-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--lx-text-1);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(15, 126, 138, 0.12);
+}
+
+.job-pipeline-strip__message {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-size: var(--lx-text-sm);
+  color: var(--lx-text-0);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.job-pipeline-strip__banner {
+  margin: 0;
+  font-size: var(--lx-text-sm);
+  color: var(--lx-text-1);
+}
+
+.job-pipeline-strip__rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--lx-space-2) var(--lx-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.job-pipeline-strip__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--lx-text-sm);
+  font-weight: 600;
+  color: var(--lx-text-2);
+  max-width: 100%;
+}
+
+.job-pipeline-strip__step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.job-pipeline-strip__hint-inline {
+  font-size: var(--lx-text-xs);
+  font-weight: 500;
+  color: var(--lx-text-2);
+}
+
+.job-pipeline-strip__step--done {
+  color: var(--lx-text-0);
+}
+
+.job-pipeline-strip__step--current {
+  color: var(--lx-accent, #0e7a86);
+}
+
+.job-pipeline-strip__step--error .job-pipeline-strip__label {
+  color: var(--lx-danger, #b42318);
+}
+
+.job-pipeline-strip__step--cancelled .job-pipeline-strip__label {
+  color: var(--lx-text-2);
+  font-style: italic;
+}
+
+.job-pipeline-strip__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(9, 69, 76, 0.2);
+  border: 2px solid rgba(9, 69, 76, 0.25);
+}
+
+.job-pipeline-strip__step--done .job-pipeline-strip__dot {
+  background: rgba(15, 138, 148, 0.85);
+  border-color: rgba(12, 112, 122, 0.9);
+}
+
+.job-pipeline-strip__step--current .job-pipeline-strip__dot {
+  background: rgba(15, 138, 148, 0.35);
+  border-color: rgba(15, 138, 148, 0.95);
+  box-shadow: 0 0 0 3px rgba(15, 138, 148, 0.2);
+}
+
+.job-pipeline-strip__step--error .job-pipeline-strip__dot {
+  background: rgba(180, 35, 24, 0.9);
+  border-color: rgba(140, 28, 20, 0.95);
+}
+
+.job-pipeline-strip__step--cancelled .job-pipeline-strip__dot {
+  background: rgba(9, 69, 76, 0.35);
+}
+
+.job-pipeline-strip__progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--lx-space-2);
+  min-width: 0;
+}
+
+.job-pipeline-strip__track {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+.job-pipeline-strip__pct {
+  flex: 0 0 auto;
+  font-size: var(--lx-text-xs);
+  color: var(--lx-text-1);
+}
+
+.job-pipeline-strip__hint {
+  margin: 0;
+  color: var(--lx-text-2);
+}
+
+.job-pipeline-strip__activity {
+  margin: 0;
+  padding: var(--lx-space-2) 0 0;
+  border-top: 1px solid rgba(9, 69, 76, 0.12);
+}
+
+.job-pipeline-strip__activity summary {
+  cursor: pointer;
+  font-size: var(--lx-text-sm);
+  font-weight: 600;
+  color: var(--lx-text-0);
+  list-style: none;
+}
+
+.job-pipeline-strip__activity summary::-webkit-details-marker {
+  display: none;
+}
+
+.job-pipeline-strip__activity-count {
+  margin-left: 6px;
+  font-size: var(--lx-text-xs);
+  font-weight: 600;
+  color: var(--lx-text-2);
+}
+
+.job-pipeline-strip__activity-list {
+  margin: var(--lx-space-2) 0 var(--lx-space-2);
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.job-pipeline-strip__activity-list li {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: start;
+  font-size: var(--lx-text-xs);
+  line-height: 1.35;
+}
+
+.job-pipeline-strip__activity-ts {
+  color: var(--lx-text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.job-pipeline-strip__activity-stage {
+  color: var(--lx-accent, #0e7a86);
+  font-weight: 600;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-pipeline-strip__activity-msg {
+  color: var(--lx-text-0);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.job-pipeline-strip__logs-link {
+  margin-top: var(--lx-space-1);
 }
 
 .explorer-topbar {

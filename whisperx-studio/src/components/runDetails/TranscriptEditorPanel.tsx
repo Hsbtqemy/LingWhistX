@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { runInTransition } from "../../whisperxOptionsTransitions";
 import {
   MAX_DRAFT_AUTOSAVE_SEC,
   MAX_EDITOR_HISTORY_LIMIT,
@@ -284,7 +285,12 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
             type="checkbox"
             checked={exportRules.fixOverlaps}
             onChange={(e) =>
-              setExportRules((prev) => ({ ...prev, fixOverlaps: e.currentTarget.checked }))
+              runInTransition(() =>
+                setExportRules((prev) => ({
+                  ...prev,
+                  fixOverlaps: e.currentTarget.checked,
+                })),
+              )
             }
           />
           Corriger overlaps

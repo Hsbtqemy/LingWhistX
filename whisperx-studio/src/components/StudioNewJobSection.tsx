@@ -1,8 +1,10 @@
 import { memo } from "react";
+import { runInTransition } from "../whisperxOptionsTransitions";
 import { AnalysisTimingOptionsForm } from "./AnalysisTimingOptionsForm";
 import { ErrorBanner } from "./ErrorBanner";
 import { NewJobMediaPreview } from "./NewJobMediaPreview";
 import { LocalRuntimePanel, type LocalRuntimePanelProps } from "./LocalRuntimePanel";
+import { HfTokenQuickCard } from "./HfTokenQuickCard";
 import { StudioAdvancedJobSection } from "./StudioAdvancedJobSection";
 import { WhisperxOptionsForm } from "./WhisperxOptionsForm";
 import type { NewJobFormApi } from "../hooks/useNewJobForm";
@@ -78,6 +80,8 @@ export function StudioNewJobSection({
       <JobPanelTop runningJobs={runningJobs} inputPath={inputPath} runtime={runtime} />
 
       <form className="job-form" onSubmit={submitJob}>
+        <HfTokenQuickCard whisperxOptions={whisperxOptions} setWhisperxOptions={setWhisperxOptions} />
+
         <div className="job-stepper">
           <button
             type="button"
@@ -176,7 +180,9 @@ export function StudioNewJobSection({
               <select
                 value={mode}
                 onChange={(e) =>
-                  setMode(e.currentTarget.value as "mock" | "whisperx" | "analyze_only")
+                  runInTransition(() =>
+                    setMode(e.currentTarget.value as "mock" | "whisperx" | "analyze_only"),
+                  )
                 }
               >
                 <option value="mock">mock (test rapide sans ASR)</option>

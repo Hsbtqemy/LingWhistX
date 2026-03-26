@@ -1,8 +1,9 @@
 import type { Dispatch, SetStateAction } from "react";
-import { useCallback, startTransition } from "react";
+import { useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { profilePresets } from "../constants";
 import type { ProfilePreset, UiWhisperxOptions } from "../types";
+import { runInTransition, setWhisperxOptionsDeferred } from "../whisperxOptionsTransitions";
 
 export type WhisperxOptionsFormProps = {
   whisperxOptions: UiWhisperxOptions;
@@ -34,7 +35,7 @@ export function WhisperxOptionsForm({
       filters: [{ name: "JSON", extensions: ["json"] }],
     });
     if (typeof selected === "string") {
-      patchWhisperx({ externalWordTimingsJson: selected });
+      setWhisperxOptionsDeferred(setWhisperxOptions, { externalWordTimingsJson: selected });
     }
   }
 
@@ -42,7 +43,12 @@ export function WhisperxOptionsForm({
     <>
       <label>
         Profil rapide
-        <select value={selectedProfileId} onChange={(e) => onProfileChange(e.currentTarget.value)}>
+        <select
+          value={selectedProfileId}
+          onChange={(e) =>
+            runInTransition(() => onProfileChange(e.currentTarget.value))
+          }
+        >
           {profilePresets.map((preset) => (
             <option key={preset.id} value={preset.id}>
               {preset.label}
@@ -89,7 +95,7 @@ export function WhisperxOptionsForm({
               <select
                 value={whisperxOptions.device}
                 onChange={(e) =>
-                  patchWhisperx({
+                  setWhisperxOptionsDeferred(setWhisperxOptions, {
                     device: e.currentTarget.value as UiWhisperxOptions["device"],
                   })
                 }
@@ -106,7 +112,7 @@ export function WhisperxOptionsForm({
               <select
                 value={whisperxOptions.computeType}
                 onChange={(e) =>
-                  patchWhisperx({
+                  setWhisperxOptionsDeferred(setWhisperxOptions, {
                     computeType: e.currentTarget.value as UiWhisperxOptions["computeType"],
                   })
                 }
@@ -164,12 +170,11 @@ export function WhisperxOptionsForm({
               Output Format
               <select
                 value={whisperxOptions.outputFormat}
-                onChange={(e) => {
-                  const outputFormat = e.currentTarget.value as UiWhisperxOptions["outputFormat"];
-                  startTransition(() => {
-                    setWhisperxOptions((prev) => ({ ...prev, outputFormat }));
-                  });
-                }}
+                onChange={(e) =>
+                  setWhisperxOptionsDeferred(setWhisperxOptions, {
+                    outputFormat: e.currentTarget.value as UiWhisperxOptions["outputFormat"],
+                  })
+                }
               >
                 <option value="all">all</option>
                 <option value="json">json</option>
@@ -190,7 +195,7 @@ export function WhisperxOptionsForm({
               <select
                 value={whisperxOptions.vadMethod}
                 onChange={(e) =>
-                  patchWhisperx({
+                  setWhisperxOptionsDeferred(setWhisperxOptions, {
                     vadMethod: e.currentTarget.value as UiWhisperxOptions["vadMethod"],
                   })
                 }
@@ -205,10 +210,18 @@ export function WhisperxOptionsForm({
               <input
                 type="checkbox"
                 checked={whisperxOptions.diarize}
-                onChange={(e) => patchWhisperx({ diarize: e.currentTarget.checked })}
+                onChange={(e) =>
+                  setWhisperxOptionsDeferred(setWhisperxOptions, { diarize: e.currentTarget.checked })
+                }
               />
               Diarization (qui parle ?)
             </label>
+            <p className="field-help full-width">
+              La diarization repose sur les modèles <strong>pyannote</strong> (Hugging Face) : un
+              token de lecture valide est <strong>obligatoire</strong> — renseignez la carte « Token
+              Hugging Face » en haut du formulaire (accords d&apos;utilisation des modèles sur
+              huggingface.co).
+            </p>
 
             <label>
               Min speakers
@@ -261,7 +274,9 @@ export function WhisperxOptionsForm({
                 type="checkbox"
                 checked={whisperxOptions.noAlign}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({ ...prev, noAlign: e.currentTarget.checked }))
+                  setWhisperxOptionsDeferred(setWhisperxOptions, {
+                    noAlign: e.currentTarget.checked,
+                  })
                 }
               />
               No Align (plus rapide, horodatage moins fin)
@@ -301,10 +316,9 @@ export function WhisperxOptionsForm({
                 type="checkbox"
                 checked={whisperxOptions.externalWordTimingsStrict}
                 onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
+                  setWhisperxOptionsDeferred(setWhisperxOptions, {
                     externalWordTimingsStrict: e.currentTarget.checked,
-                  }))
+                  })
                 }
               />
               Strict: verifier la correspondance des tokens avec le JSON
@@ -315,7 +329,7 @@ export function WhisperxOptionsForm({
                 type="checkbox"
                 checked={whisperxOptions.printProgress}
                 onChange={(e) =>
-                  patchWhisperx({
+                  setWhisperxOptionsDeferred(setWhisperxOptions, {
                     printProgress: e.currentTarget.checked,
                   })
                 }
@@ -366,16 +380,6 @@ export function WhisperxOptionsForm({
                 le champ « Modules pipeline » ci-dessus). Depuis l’Alignment, « Injecter plage »
                 peut préremplir ce champ. Laisser vide pour désactiver le mode par plages.
               </p>
-            </label>
-
-            <label className="full-width">
-              HF Token (optionnel, requis si diarization)
-              <input
-                value={whisperxOptions.hfToken}
-                onChange={(e) => patchWhisperx({ hfToken: e.currentTarget.value })}
-                placeholder="hf_xxx"
-              />
-              <p className="field-help">Token Hugging Face lecture pour modeles pyannote.</p>
             </label>
           </div>
         </div>

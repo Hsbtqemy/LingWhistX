@@ -44,7 +44,7 @@ npm install
 npm run tauri dev
 ```
 
-If WhisperX runtime is not installed yet (installe un venv sous le dossier données de l’app + `pip install whisperx`) :
+If WhisperX runtime is not installed yet : le script crée un venv sous le dossier données de l’app et installe **le fork WhisperX du dépôt** (`pip install -e <racine du repo>`) lorsque `pyproject.toml` et `whisperx/` sont présents au-dessus de `whisperx-studio/`. Sans monorepo complet, il retombe sur `pip install whisperx` (PyPI) — dans ce cas les options d’analyse (`--analysis_*`, etc.) **ne sont pas** dans le CLI amont et les jobs peuvent échouer avec affichage de l’aide argparse (code de sortie 2).
 
 ```bash
 cd whisperx-studio
@@ -53,7 +53,10 @@ npm run runtime:setup
 
 (Sur Windows, `npm run runtime:setup:ps1` appelle encore le script PowerShell si tu préfères.)
 
-Variables utiles : `PYTHON_EXE` (défaut `python3` / `python`), `RUNTIME_DIR` (chemin du venv), `WHISPERX_STUDIO_BUNDLE_ID` (défaut `com.hsemil01.whisperx-studio`).
+**Dépannage** : si un job `whisperx` se termine avec « whisperx command failed » et des lignes `usage: __main__.py`, réinstalle depuis la racine du clone :  
+`"<venv>/bin/python3" -m pip install --upgrade -e /chemin/vers/LingWhistX`
+
+Variables utiles : `PYTHON_EXE` (défaut `python3` / `python`), `RUNTIME_DIR` (chemin du venv), `WHISPERX_STUDIO_BUNDLE_ID` (défaut `com.hsemil01.whisperx-studio`). Forcer l’installation PyPI : `WHISPERX_STUDIO_PIP_WHISPERX=pypi` (déconseillé pour Studio complet).
 
 In the app:
 

@@ -34,6 +34,7 @@ def test_worker_does_not_put_hf_token_in_cli_args(tmp_path, monkeypatch):
     worker = _load_worker_module()
     monkeypatch.setattr(worker.subprocess, "Popen", _FakePopen)
     monkeypatch.setattr(worker, "emit_log", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(worker, "_whisperx_cli_is_lingwhistx_fork", lambda: True)
 
     out_dir = tmp_path / "out"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -54,6 +55,7 @@ def test_worker_reads_token_from_env_fallback(tmp_path, monkeypatch):
     worker = _load_worker_module()
     monkeypatch.setattr(worker.subprocess, "Popen", _FakePopen)
     monkeypatch.setattr(worker, "emit_log", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(worker, "_whisperx_cli_is_lingwhistx_fork", lambda: True)
 
     monkeypatch.delenv("WHISPERX_HF_TOKEN", raising=False)
     monkeypatch.delenv("HF_TOKEN", raising=False)
@@ -79,6 +81,7 @@ def test_worker_forwards_media_chunking_options(tmp_path, monkeypatch):
     worker = _load_worker_module()
     monkeypatch.setattr(worker.subprocess, "Popen", _FakePopen)
     monkeypatch.setattr(worker, "emit_log", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(worker, "_whisperx_cli_is_lingwhistx_fork", lambda: True)
 
     out_dir = tmp_path / "out"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -106,6 +109,7 @@ def test_worker_forwards_diarization_speaker_bounds(tmp_path, monkeypatch):
     worker = _load_worker_module()
     monkeypatch.setattr(worker.subprocess, "Popen", _FakePopen)
     monkeypatch.setattr(worker, "emit_log", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(worker, "_whisperx_cli_is_lingwhistx_fork", lambda: True)
 
     out_dir = tmp_path / "out"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -134,6 +138,7 @@ def test_worker_force_n_speakers_overrides_min_max(tmp_path, monkeypatch):
     worker = _load_worker_module()
     monkeypatch.setattr(worker.subprocess, "Popen", _FakePopen)
     monkeypatch.setattr(worker, "emit_log", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(worker, "_whisperx_cli_is_lingwhistx_fork", lambda: True)
 
     out_dir = tmp_path / "out"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -158,10 +163,36 @@ def test_worker_force_n_speakers_overrides_min_max(tmp_path, monkeypatch):
     assert command[command.index("--force_n_speakers") + 1] == "2"
 
 
+def test_worker_omits_fork_only_cli_when_upstream_whisperx(tmp_path, monkeypatch):
+    worker = _load_worker_module()
+    monkeypatch.setattr(worker.subprocess, "Popen", _FakePopen)
+    monkeypatch.setattr(worker, "emit_log", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(worker, "_whisperx_cli_is_lingwhistx_fork", lambda: False)
+
+    out_dir = tmp_path / "out"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    worker.run_whisperx(
+        "input.wav",
+        out_dir,
+        {
+            "outputFormat": "json",
+            "analysisPauseMin": 0.2,
+            "pipelineChunkSeconds": 600,
+            "pipelineChunkOverlapSeconds": 2,
+        },
+    )
+
+    command = _FakePopen.last_command
+    assert "--analysis_pause_min" not in command
+    assert "--pipeline_chunk_seconds" not in command
+
+
 def test_worker_forwards_analysis_options(tmp_path, monkeypatch):
     worker = _load_worker_module()
     monkeypatch.setattr(worker.subprocess, "Popen", _FakePopen)
     monkeypatch.setattr(worker, "emit_log", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(worker, "_whisperx_cli_is_lingwhistx_fork", lambda: True)
 
     out_dir = tmp_path / "out"
     out_dir.mkdir(parents=True, exist_ok=True)

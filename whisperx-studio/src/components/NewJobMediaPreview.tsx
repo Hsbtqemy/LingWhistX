@@ -1,5 +1,6 @@
 import type { MouseEvent } from "react";
 import { memo, useCallback, useMemo } from "react";
+import { runInTransition } from "../whisperxOptionsTransitions";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { MAX_WAVEFORM_ZOOM, MIN_WAVEFORM_ZOOM } from "../constants";
 import { formatClockSeconds, isVideoFile, parseFiniteNumberInput } from "../appUtils";
@@ -88,7 +89,9 @@ function NewJobMediaPreviewComponent({ inputPath }: NewJobMediaPreviewProps) {
                   <input
                     type="checkbox"
                     checked={wf.webAudioMode}
-                    onChange={(e) => wf.setWebAudioMode(e.currentTarget.checked)}
+                    onChange={(e) =>
+                      runInTransition(() => wf.setWebAudioMode(e.currentTarget.checked))
+                    }
                   />
                   Lecture Web Audio (WX-619) — fenêtre WAV dérivée (ffmpeg), ±10 s autour du
                   playhead
@@ -140,7 +143,9 @@ function NewJobMediaPreviewComponent({ inputPath }: NewJobMediaPreviewProps) {
                 Resolution waveform (bins/s)
                 <select
                   value={wf.waveformBinsPerSecond}
-                  onChange={(e) => wf.setWaveformBinsPerSecond(e.currentTarget.value)}
+                  onChange={(e) =>
+                    runInTransition(() => wf.setWaveformBinsPerSecond(e.currentTarget.value))
+                  }
                 >
                   <option value="25">25</option>
                   <option value="50">50</option>
@@ -242,7 +247,9 @@ function NewJobMediaPreviewComponent({ inputPath }: NewJobMediaPreviewProps) {
                 <input
                   type="checkbox"
                   checked={wf.snapEnabled}
-                  onChange={(e) => wf.setSnapEnabled(e.currentTarget.checked)}
+                  onChange={(e) =>
+                    runInTransition(() => wf.setSnapEnabled(e.currentTarget.checked))
+                  }
                 />
                 Snap
               </label>
@@ -250,7 +257,11 @@ function NewJobMediaPreviewComponent({ inputPath }: NewJobMediaPreviewProps) {
                 Pas snap
                 <select
                   value={wf.snapStepMs}
-                  onChange={(e) => wf.setSnapStepMs(e.currentTarget.value as "10" | "20" | "40")}
+                  onChange={(e) =>
+                    runInTransition(() =>
+                      wf.setSnapStepMs(e.currentTarget.value as "10" | "20" | "40"),
+                    )
+                  }
                   disabled={!wf.snapEnabled}
                 >
                   <option value="10">10 ms</option>

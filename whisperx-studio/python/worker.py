@@ -9,13 +9,18 @@ Modes:
 Progress protocol (stdout, one JSON object per line):
 - Lines prefixed with LOG_PREFIX (__WXLOG__) are parsed by the Rust sidecar and relayed to the UI.
 - Final success line uses RESULT_PREFIX (__WXRESULT__) with output file paths.
+- WhisperX peut émettre des lignes `Progress: NN.NN%...` (voir --print_progress) ; le worker les
+  transforme en progression job monotone (30–95 %) pour l’UI.
 """
 
 from __future__ import annotations
 
 import argparse
+from collections import deque
+import inspect
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -40,6 +45,75 @@ LOG_PREFIX = "__WXLOG__"
 RESULT_PREFIX = "__WXRESULT__"
 SUPPORTED_OUTPUT_FORMATS = {"all", "json", "srt", "vtt", "txt", "tsv", "aud"}
 
+# whisperx/asr.py et whisperx/alignment.py : print(f"Progress: {percent_complete:.2f}%...")
+WHISPERX_PROGRESS_RE = re.compile(r"Progress:\s*([\d.]+)\s*%", re.IGNORECASE)
+
+
+def parse_whisperx_progress_line(line: str) -> float | None:
+    """Extrait le pourcentage WhisperX (0–100) si la ligne est une ligne Progress."""
+    m = WHISPERX_PROGRESS_RE.search(line)
+    if not m:
+        return None
+    try:
+        return float(m.group(1))
+    except ValueError:
+        return None
+
+
+def infer_whisperx_stdout_stage(line: str) -> str | None:
+    """
+    Déduit une étape pipeline pour l’UI à partir d’une ligne stdout/stderr fusionnée WhisperX.
+    Les libellés correspondent aux logger.info courants de whisperx/transcribe.py.
+    """
+    low = line.lower()
+    if "performing transcription" in low:
+        return "wx_transcribe"
+    if "transcribed chunk #" in low:
+        return "wx_transcribe"
+    if "performing alignment" in low:
+        return "wx_align"
+    if "performing diarization" in low:
+        return "wx_diarize"
+    return None
+
+
+class WhisperxProgressMapper:
+    """
+    WhisperX répète souvent 0–100 % par phase (transcription, alignement, chunks).
+    Phase 0 : 30–65 % (transcription / premier passage). Phases suivantes : le reliquat jusqu’à 95 %
+    par paliers (reset = baisse brutale du % WhisperX, ex. fin transcription → alignement).
+    """
+
+    __slots__ = ("_last_emitted", "_last_wx", "_phase")
+
+    def __init__(self) -> None:
+        self._last_wx = -1.0
+        self._last_emitted = 30
+        self._phase = 0
+
+    def feed(self, wx_pct: float) -> int | None:
+        """Retourne un nouveau pourcentage job (31–95) si la barre doit avancer, sinon None."""
+        wx_pct = max(0.0, min(100.0, wx_pct))
+        last_wx = self._last_wx
+        last_emitted = self._last_emitted
+
+        if last_wx >= 0.0 and wx_pct < last_wx - 20.0 and last_wx > 55.0:
+            self._phase += 1
+
+        if self._phase == 0:
+            linear = 30 + int(wx_pct * 0.35)
+            candidate = max(last_emitted, min(65, linear))
+        else:
+            step = min(25, max(0, 95 - last_emitted))
+            candidate = last_emitted + int((wx_pct / 100.0) * step)
+
+        candidate = max(last_emitted, min(95, candidate))
+        self._last_wx = wx_pct
+        if candidate > last_emitted:
+            self._last_emitted = candidate
+            return candidate
+        return None
+
 
 def emit_log(
     level: str,
@@ -60,6 +134,65 @@ def emit_log(
 def emit_result(message: str, output_files: list[str]) -> None:
     payload = {"message": message, "output_files": output_files}
     print(f"{RESULT_PREFIX}{json.dumps(payload, ensure_ascii=False)}", flush=True)
+
+
+_whisperx_help_cache: str | None = None
+_whisperx_fork_cache: bool | None = None
+
+
+def _whisperx_cli_help_text() -> str:
+    """Texte de `python -m whisperx --help` (mis en cache pour le process)."""
+    global _whisperx_help_cache
+    if _whisperx_help_cache is None:
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-m", "whisperx", "--help"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            _whisperx_help_cache = (proc.stdout or "") + (proc.stderr or "")
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            emit_log("warning", "whisperx", f"Impossible de lire whisperx --help: {exc}", 5)
+            _whisperx_help_cache = ""
+    return _whisperx_help_cache
+
+
+def _whisperx_cli_is_lingwhistx_fork() -> bool:
+    """Le fork LingWhistX ajoute --analysis_* et --pipeline_chunk_* (entre autres).
+
+    On teste d'abord la sortie de `--help` ; si elle est vide ou tronquée, on relit
+    `whisperx/cli.py` chargé par le même interpréteur (détecte le fork même quand
+    l'aide argparse échoue ou diffère).
+    """
+    global _whisperx_fork_cache
+    if _whisperx_fork_cache is not None:
+        return _whisperx_fork_cache
+
+    helpt = _whisperx_cli_help_text()
+    if "analysis_pause_min" in helpt:
+        _whisperx_fork_cache = True
+        return True
+
+    try:
+        import whisperx.cli as wx_cli
+
+        cli_path = Path(inspect.getfile(wx_cli))
+        source = cli_path.read_text(encoding="utf-8", errors="ignore")
+        if "analysis_pause_min" in source:
+            _whisperx_fork_cache = True
+            emit_log(
+                "info",
+                "whisperx",
+                f"Fork LingWhistX détecté via {cli_path} (aide CLI sans marqueur attendu).",
+                8,
+            )
+            return True
+    except Exception as exc:
+        emit_log("warning", "whisperx", f"Détection fork: lecture cli.py impossible: {exc}", 6)
+
+    _whisperx_fork_cache = False
+    return False
 
 
 def parse_args() -> argparse.Namespace:
@@ -381,19 +514,32 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
     if isinstance(vad_method, str) and vad_method.strip():
         command.extend(["--vad_method", vad_method.strip()])
 
-    pipeline_chunk_seconds = options.get("pipelineChunkSeconds")
-    if isinstance(pipeline_chunk_seconds, (int, float)) and float(pipeline_chunk_seconds) > 0:
-        command.extend(["--pipeline_chunk_seconds", f"{float(pipeline_chunk_seconds):g}"])
+    fork_cli = _whisperx_cli_is_lingwhistx_fork()
+    if fork_cli:
+        pipeline_chunk_seconds = options.get("pipelineChunkSeconds")
+        if isinstance(pipeline_chunk_seconds, (int, float)) and float(pipeline_chunk_seconds) > 0:
+            command.extend(["--pipeline_chunk_seconds", f"{float(pipeline_chunk_seconds):g}"])
 
-    pipeline_chunk_overlap_seconds = options.get("pipelineChunkOverlapSeconds")
-    if isinstance(pipeline_chunk_overlap_seconds, (int, float)) and float(pipeline_chunk_overlap_seconds) >= 0:
-        command.extend(
-            [
-                "--pipeline_chunk_overlap_seconds",
-                f"{float(pipeline_chunk_overlap_seconds):g}",
-            ]
+        pipeline_chunk_overlap_seconds = options.get("pipelineChunkOverlapSeconds")
+        if isinstance(pipeline_chunk_overlap_seconds, (int, float)) and float(
+            pipeline_chunk_overlap_seconds,
+        ) >= 0:
+            command.extend(
+                [
+                    "--pipeline_chunk_overlap_seconds",
+                    f"{float(pipeline_chunk_overlap_seconds):g}",
+                ]
+            )
+        append_analysis_options(command, options)
+    else:
+        emit_log(
+            "warning",
+            "whisperx",
+            "CLI sans extensions Studio (options --analysis_*, pipeline chunk). "
+            "Installez le fork LingWhistX : pip install -e <racine du dépôt> "
+            "(voir whisperx-studio/README).",
+            11,
         )
-    append_analysis_options(command, options)
 
     command_env = os.environ.copy()
     hf_token = resolve_hf_token(options)
@@ -424,8 +570,9 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
     if options.get("noAlign") is True:
         command.append("--no_align")
 
-    if options.get("printProgress") is True:
-        command.extend(["--print_progress", "True"])
+    # Toujours activer côté sous-processus : le worker parse `Progress: …` pour l’UI (option UI
+    # printProgress reste disponible pour d’autres usages futurs).
+    command.extend(["--print_progress", "True"])
 
     visible_parts: list[str] = []
     hide_next = False
@@ -438,8 +585,8 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         if part == "--hf_token":
             hide_next = True
     visible_command = " ".join(visible_parts)
-    emit_log("info", "whisperx", f"Commande: {visible_command}", 15)
-    emit_log("info", "whisperx", "Execution whisperx...", 30)
+    emit_log("info", "wx_prep", f"Commande: {visible_command}", 15)
+    emit_log("info", "wx_prep", "Lancement du sous-processus WhisperX…", 30)
 
     process = subprocess.Popen(
         command,
@@ -452,16 +599,36 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
 
     if process.stdout is None:
         raise RuntimeError("whisperx subprocess stdout is unavailable")
+    whisperx_tail: deque[str] = deque(maxlen=48)
+    wx_progress = WhisperxProgressMapper()
+    last_wx_stage = "wx_transcribe"
     for line in process.stdout:
         clean = line.strip()
-        if clean:
-            emit_log("info", "whisperx", clean)
+        if not clean:
+            continue
+        whisperx_tail.append(clean)
+        inferred = infer_whisperx_stdout_stage(clean)
+        if inferred is not None:
+            last_wx_stage = inferred
+        wx_pct = parse_whisperx_progress_line(clean)
+        if wx_pct is not None:
+            job_pct = wx_progress.feed(wx_pct)
+            if job_pct is not None:
+                emit_log("info", last_wx_stage, clean, job_pct)
+                continue
+        emit_log("info", last_wx_stage, clean)
 
     return_code = process.wait()
     if return_code != 0:
-        raise RuntimeError(f"whisperx command failed with exit code {return_code}")
+        # Résumé en dernière ligne : le message d’erreur job (stderr) est souvent tronqué
+        # en « fin de chaîne » côté UI — ainsi le code de sortie reste visible.
+        summary = f"[Échec] Sous-processus whisperx terminé avec le code {return_code}."
+        if whisperx_tail:
+            body = "\n".join(whisperx_tail)
+            raise RuntimeError(f"{body}\n\n{summary}")
+        raise RuntimeError(summary)
 
-    emit_log("info", "whisperx", "WhisperX termine, collecte des fichiers...", 96)
+    emit_log("info", "wx_finalize", "WhisperX terminé — collecte des fichiers de sortie…", 96)
     return [str(path) for path in sorted(out_dir.rglob("*")) if path.is_file()]
 
 
@@ -481,9 +648,9 @@ def run_analyze_only(input_path: str, out_dir: Path, options: dict[str, object])
     ]
     append_analysis_options(command, options)
 
-    emit_log("info", "analyze_only", f"Analyse-only source: {input_path}", 10)
-    emit_log("info", "analyze_only", f"Commande: {' '.join(command)}", 15)
-    emit_log("info", "analyze_only", "Recalcul des metriques analytiques...", 40)
+    emit_log("info", "wx_prep", f"Analyse-only — source : {input_path}", 10)
+    emit_log("info", "wx_prep", f"Commande : {' '.join(command)}", 15)
+    emit_log("info", "wx_analyze", "Recalcul des métriques analytiques (analyze-only)…", 40)
 
     process = subprocess.Popen(
         command,
@@ -498,13 +665,13 @@ def run_analyze_only(input_path: str, out_dir: Path, options: dict[str, object])
     for line in process.stdout:
         clean = line.strip()
         if clean:
-            emit_log("info", "analyze_only", clean)
+            emit_log("info", "wx_analyze", clean)
 
     return_code = process.wait()
     if return_code != 0:
         raise RuntimeError(f"analyze-only command failed with exit code {return_code}")
 
-    emit_log("info", "analyze_only", "Analyse-only termine, collecte des fichiers...", 96)
+    emit_log("info", "wx_finalize", "Analyse-only terminée — collecte des fichiers…", 96)
     return [str(path) for path in sorted(out_dir.rglob("*")) if path.is_file()]
 
 

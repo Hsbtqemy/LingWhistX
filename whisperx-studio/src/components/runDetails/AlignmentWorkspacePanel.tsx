@@ -1,4 +1,5 @@
 import { useState, type MouseEvent, type RefObject, type WheelEvent } from "react";
+import { runInTransition } from "../../whisperxOptionsTransitions";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { MAX_WAVEFORM_ZOOM, MIN_WAVEFORM_ZOOM } from "../../constants";
@@ -229,7 +230,9 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                   <input
                     type="checkbox"
                     checked={webAudioMode}
-                    onChange={(e) => setWebAudioMode(e.currentTarget.checked)}
+                    onChange={(e) =>
+                      runInTransition(() => setWebAudioMode(e.currentTarget.checked))
+                    }
                   />
                   Lecture Web Audio (WX-619) — fenêtre WAV dérivée (ffmpeg), ±10 s autour du
                   playhead
@@ -281,7 +284,9 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                 Resolution waveform (bins/s)
                 <select
                   value={waveformBinsPerSecond}
-                  onChange={(e) => setWaveformBinsPerSecond(e.currentTarget.value)}
+                  onChange={(e) =>
+                    runInTransition(() => setWaveformBinsPerSecond(e.currentTarget.value))
+                  }
                 >
                   <option value="25">25</option>
                   <option value="50">50</option>
@@ -379,7 +384,9 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                 <input
                   type="checkbox"
                   checked={snapEnabled}
-                  onChange={(e) => setSnapEnabled(e.currentTarget.checked)}
+                  onChange={(e) =>
+                    runInTransition(() => setSnapEnabled(e.currentTarget.checked))
+                  }
                 />
                 Snap
               </label>
@@ -387,7 +394,11 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                 Pas snap
                 <select
                   value={snapStepMs}
-                  onChange={(e) => setSnapStepMs(e.currentTarget.value as "10" | "20" | "40")}
+                  onChange={(e) =>
+                    runInTransition(() =>
+                      setSnapStepMs(e.currentTarget.value as "10" | "20" | "40"),
+                    )
+                  }
                   disabled={!snapEnabled}
                 >
                   <option value="10">10 ms</option>
@@ -426,7 +437,9 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                 <input
                   type="checkbox"
                   checked={rangeSelectionMode}
-                  onChange={(e) => setRangeSelectionMode(e.currentTarget.checked)}
+                  onChange={(e) =>
+                    runInTransition(() => setRangeSelectionMode(e.currentTarget.checked))
+                  }
                 />
                 Mode sélection plage — glisser sur la waveform pour définir [t0, t1]
               </label>
@@ -586,7 +599,11 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                   <input
                     type="checkbox"
                     checked={previewWaveBypassEffects}
-                    onChange={(e) => setPreviewWaveBypassEffects(e.currentTarget.checked)}
+                    onChange={(e) =>
+                      runInTransition(() =>
+                        setPreviewWaveBypassEffects(e.currentTarget.checked),
+                      )
+                    }
                   />
                   Bypass effets (chaîne neutre)
                 </label>

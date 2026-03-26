@@ -1,9 +1,10 @@
 import type { FormEvent } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { defaultWhisperxOptions, profilePresets } from "../constants";
 import { normalizeWhisperxOptions } from "../appUtils";
+import { readStoredHfToken, writeStoredHfToken } from "../hfTokenStorage";
 import type { CreateJobRequest, Job, JobFormStep, UiWhisperxOptions } from "../types";
 
 export type UseNewJobFormOptions = {
@@ -12,6 +13,8 @@ export type UseNewJobFormOptions = {
   refreshJobs: () => Promise<void>;
   runtimeReady: boolean;
   runtimeCoreReady: boolean;
+  /** Après création réussie d’un job (ex. basculer vers l’onglet Studio). */
+  onJobCreated?: () => void;
 };
 
 export function useNewJobForm({
@@ -20,12 +23,20 @@ export function useNewJobForm({
   refreshJobs,
   runtimeReady,
   runtimeCoreReady,
+  onJobCreated,
 }: UseNewJobFormOptions) {
   const [inputPath, setInputPath] = useState("");
   const [outputDir, setOutputDir] = useState("");
   const [mode, setMode] = useState<"mock" | "whisperx" | "analyze_only">("mock");
-  const [whisperxOptions, setWhisperxOptions] = useState<UiWhisperxOptions>(defaultWhisperxOptions);
+  const [whisperxOptions, setWhisperxOptions] = useState<UiWhisperxOptions>(() => ({
+    ...defaultWhisperxOptions,
+    hfToken: readStoredHfToken(),
+  }));
   const [selectedProfileId, setSelectedProfileId] = useState("balanced");
+
+  useEffect(() => {
+    writeStoredHfToken(whisperxOptions.hfToken);
+  }, [whisperxOptions.hfToken]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [jobFormStep, setJobFormStep] = useState<JobFormStep>("import");
 
@@ -287,6 +298,7 @@ export function useNewJobForm({
       const created = await invoke<Job>("create_job", { request });
       setSelectedJobId(created.id);
       await refreshJobs();
+      onJobCreated?.();
       setInputPath("");
       setJobFormStep("import");
     } catch (e) {
@@ -300,7 +312,7 @@ export function useNewJobForm({
     setSelectedProfileId(profileId);
     const profile = profilePresets.find((preset) => preset.id === profileId);
     if (profile) {
-      setWhisperxOptions({ ...profile.options });
+      setWhisperxOptions((prev) => ({ ...profile.options, hfToken: prev.hfToken }));
     }
   }
 

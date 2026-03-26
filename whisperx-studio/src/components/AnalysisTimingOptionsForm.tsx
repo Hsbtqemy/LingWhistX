@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
-import { startTransition } from "react";
 import type { UiWhisperxOptions } from "../types";
+import { setWhisperxOptionsDeferred } from "../whisperxOptionsTransitions";
 
 export type AnalysisTimingOptionsFormProps = {
   whisperxOptions: UiWhisperxOptions;
@@ -64,10 +64,9 @@ export function AnalysisTimingOptionsForm({
           type="checkbox"
           checked={whisperxOptions.analysisIncludeNonspeech}
           onChange={(e) =>
-            setWhisperxOptions((prev) => ({
-              ...prev,
+            setWhisperxOptionsDeferred(setWhisperxOptions, {
               analysisIncludeNonspeech: e.currentTarget.checked,
-            }))
+            })
           }
         />
         Inclure non-speech
@@ -139,12 +138,11 @@ export function AnalysisTimingOptionsForm({
         Preset post-traitement
         <select
           value={whisperxOptions.analysisSpeakerTurnPostprocessPreset}
-          onChange={(e) => {
-            const analysisSpeakerTurnPostprocessPreset = e.currentTarget.value;
-            startTransition(() => {
-              setWhisperxOptions((prev) => ({ ...prev, analysisSpeakerTurnPostprocessPreset }));
-            });
-          }}
+          onChange={(e) =>
+            setWhisperxOptionsDeferred(setWhisperxOptions, {
+              analysisSpeakerTurnPostprocessPreset: e.currentTarget.value,
+            })
+          }
         >
           <option value="">(défaut)</option>
           <option value="sport_duo">sport_duo</option>
@@ -189,13 +187,12 @@ export function AnalysisTimingOptionsForm({
         Mode stabilisation
         <select
           value={whisperxOptions.analysisWordTimestampStabilizeMode}
-          onChange={(e) => {
-            const analysisWordTimestampStabilizeMode = e.currentTarget
-              .value as UiWhisperxOptions["analysisWordTimestampStabilizeMode"];
-            startTransition(() => {
-              setWhisperxOptions((prev) => ({ ...prev, analysisWordTimestampStabilizeMode }));
-            });
-          }}
+          onChange={(e) =>
+            setWhisperxOptionsDeferred(setWhisperxOptions, {
+              analysisWordTimestampStabilizeMode: e.currentTarget
+                .value as UiWhisperxOptions["analysisWordTimestampStabilizeMode"],
+            })
+          }
         >
           <option value="off">off</option>
           <option value="detect">detect</option>

@@ -44,6 +44,7 @@ export function HomeCreatePanel({
     refreshJobs,
     runtimeReady,
     runtimeCoreReady,
+    onJobCreated: () => setActiveView("workspace"),
   });
 
   useEffect(() => {

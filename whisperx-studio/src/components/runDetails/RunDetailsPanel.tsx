@@ -1,11 +1,13 @@
 import { forwardRef, useEffect, useState } from "react";
 import type { Job, JobLogEvent } from "../../types";
+import { WorkerErrorMessage } from "../../WorkerErrorMessage";
 import { TabListBar, TabPanel } from "../ui";
 import {
   AlignmentWorkspacePanel,
   type AlignmentWorkspacePanelProps,
 } from "./AlignmentWorkspacePanel";
 import { JobTimelineLogs } from "./JobTimelineLogs";
+import { JobRunPipelineStrip } from "./JobRunPipelineStrip";
 import { RunDetailsMetaSection } from "./RunDetailsMetaSection";
 import { RunDetailsOutputFiles } from "./RunDetailsOutputFiles";
 import { RunDetailsPreview, type RunDetailsPreviewProps } from "./RunDetailsPreview";
@@ -56,13 +58,34 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
     const [tab, setTab] = useState<RunDetailsTabId>("meta");
 
     useEffect(() => {
+      if (!selectedJob) {
+        setTab("meta");
+        return;
+      }
+      if (selectedJob.status === "error") {
+        setTab("meta");
+        return;
+      }
+      if (transcriptEditor) {
+        setTab("transcript");
+        return;
+      }
+      if (selectedJobHasJsonOutput) {
+        setTab("fichiers");
+        return;
+      }
       setTab("meta");
-    }, [selectedJob?.id]);
+    }, [selectedJob, selectedJobHasJsonOutput, transcriptEditor]);
+
+    const panelClass =
+      selectedJob?.status === "error"
+        ? "panel panel--run-workspace panel--job-error"
+        : "panel panel--run-workspace";
 
     return (
-      <section className="panel" ref={ref}>
+      <section className={panelClass} ref={ref}>
         <header className="panel-header">
-          <h2>Détails du run</h2>
+          <h2>Détail du run</h2>
           {selectedJob ? (
             <span
               className="job-count-pill job-count-pill--active panel-header-job-id"
@@ -80,13 +103,26 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
             <div className="empty-state-card-icon empty-state-card-icon--muted" aria-hidden />
             <h3 className="empty-state-card-title">Sélectionne un job</h3>
             <p className="empty-state-card-text">
-              Clique sur « Voir détails » dans la liste des jobs ci-dessus pour afficher les
-              fichiers de sortie, la waveform, les logs et l&apos;éditeur de transcript.
+              Clique sur « Voir détails » dans l&apos;historique (colonne de droite dans Studio) ou
+              lance un job depuis l&apos;accueil : tu seras placé ici sur le détail du run, puis le
+              transcript dès qu&apos;un JSON est disponible.
             </p>
           </div>
         ) : (
-          <div className="details-layout">
+          <div className="details-layout details-layout--stacked">
+            {selectedJob.status === "error" && selectedJob.error ? (
+              <div className="run-details-error-hero" role="alert" aria-live="assertive">
+                <h3 className="run-details-error-hero__title">Le run a échoué</h3>
+                <p className="run-details-error-hero__lead">
+                  Le message technique ci-dessous inclut souvent des blocs « [Aide …] » (HF, SSL,
+                  GPU…). Suis-les puis relance un job depuis l&apos;accueil, ou annule ce run dans
+                  l&apos;historique.
+                </p>
+                <WorkerErrorMessage text={selectedJob.error} />
+              </div>
+            ) : null}
             <div className="details-column">
+              <JobRunPipelineStrip job={selectedJob} logs={selectedJobLogs} />
               <TabListBar
                 tabs={RUN_DETAILS_TABS}
                 value={tab}
