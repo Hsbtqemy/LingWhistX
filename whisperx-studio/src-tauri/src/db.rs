@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::{params, Connection, Row};
 use tauri::{AppHandle, Manager};
 
-use crate::models::{Job, WhisperxOptions};
+use crate::models::{Job, LiveTranscriptSegment, WhisperxOptions};
 
 /// Taille d’une page de jobs (démarrage + « charger plus »).
 pub(crate) const JOBS_PAGE_SIZE: i64 = 200;
@@ -19,6 +19,11 @@ fn map_job_row(row: &Row<'_>) -> Result<Job, rusqlite::Error> {
     let whisperx_options =
         whisperx_options_json.and_then(|json| serde_json::from_str::<WhisperxOptions>(&json).ok());
 
+    let live_transcript_json: String = row.get(12)?;
+    let live_transcript_segments =
+        serde_json::from_str::<Vec<LiveTranscriptSegment>>(&live_transcript_json)
+            .unwrap_or_default();
+
     Ok(Job {
         id: row.get(0)?,
         input_path: row.get(1)?,
@@ -32,6 +37,7 @@ fn map_job_row(row: &Row<'_>) -> Result<Job, rusqlite::Error> {
         error: row.get(9)?,
         output_files,
         whisperx_options,
+        live_transcript_segments,
     })
 }
 
@@ -70,13 +76,30 @@ pub(crate) fn init_database(path: &Path) -> Result<(), String> {
           updated_at_ms INTEGER NOT NULL,
           error TEXT,
           output_files TEXT NOT NULL,
-          whisperx_options TEXT
+          whisperx_options TEXT,
+          live_transcript_segments TEXT NOT NULL DEFAULT '[]'
         );
         ",
     )
     .map_err(|err| format!("DB init failed: {err}"))?;
     migrate_schema(&conn)?;
     Ok(())
+}
+
+fn jobs_table_has_column(conn: &Connection, column: &str) -> Result<bool, String> {
+    let mut stmt = conn
+        .prepare("PRAGMA table_info(jobs)")
+        .map_err(|err| format!("PRAGMA table_info failed: {err}"))?;
+    let mut rows = stmt
+        .query([])
+        .map_err(|err| format!("table_info query failed: {err}"))?;
+    while let Some(row) = rows.next().map_err(|err| format!("table_info row: {err}"))? {
+        let name: String = row.get(1).map_err(|err| format!("table_info name: {err}"))?;
+        if name == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// Versionnement du schéma via `PRAGMA user_version` (SQLite).
@@ -88,6 +111,18 @@ fn migrate_schema(conn: &Connection) -> Result<(), String> {
 
     if version < 1 {
         conn.pragma_update(None, "user_version", 1)
+            .map_err(|err| format!("Set schema version failed: {err}"))?;
+    }
+
+    if version < 2 {
+        if !jobs_table_has_column(conn, "live_transcript_segments")? {
+            conn.execute(
+                "ALTER TABLE jobs ADD COLUMN live_transcript_segments TEXT NOT NULL DEFAULT '[]'",
+                [],
+            )
+            .map_err(|err| format!("Migrate v2 (live_transcript_segments) failed: {err}"))?;
+        }
+        conn.pragma_update(None, "user_version", 2)
             .map_err(|err| format!("Set schema version failed: {err}"))?;
     }
 
@@ -169,7 +204,7 @@ pub(crate) fn load_jobs_page(db_path: &Path, offset: i64, limit: i64) -> Result<
             "
             SELECT id, input_path, output_dir, mode, status, progress,
                    message, created_at_ms, updated_at_ms, error,
-                   output_files, whisperx_options
+                   output_files, whisperx_options, live_transcript_segments
             FROM jobs
             ORDER BY created_at_ms DESC
             LIMIT ?1 OFFSET ?2

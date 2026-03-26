@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 from pyannote.audio import Pipeline
@@ -111,7 +112,28 @@ class DiarizationPipeline:
             device = torch.device(device)
         model_config = model_name or "pyannote/speaker-diarization-community-1"
         logger.info(f"Loading diarization model: {model_config}")
-        self.model = Pipeline.from_pretrained(model_config, token=token, cache_dir=cache_dir).to(device)
+        if token is None:
+            token = (
+                os.getenv("WHISPERX_HF_TOKEN")
+                or os.getenv("HF_TOKEN")
+                or os.getenv("HUGGINGFACE_TOKEN")
+            )
+            if isinstance(token, str):
+                token = token.strip() or None
+        try:
+            self.model = Pipeline.from_pretrained(
+                model_config, token=token, cache_dir=cache_dir
+            ).to(device)
+        except Exception as exc:
+            # huggingface_hub.GatedRepoError (401) — token manquant/invalide ou conditions HF non acceptées
+            if "GatedRepo" in type(exc).__name__ or "gated" in str(exc).lower():
+                raise RuntimeError(
+                    "Accès refusé au modèle pyannote (dépôt gated Hugging Face). "
+                    f"1) Ouvre https://huggingface.co/{model_config} et accepte les conditions d’utilisation. "
+                    "2) Crée un token avec droit de lecture : https://huggingface.co/settings/tokens "
+                    "3) Passe --hf_token ou définis WHISPERX_HF_TOKEN / HF_TOKEN dans l’environnement."
+                ) from exc
+            raise
 
     def __call__(
         self,

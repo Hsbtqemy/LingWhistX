@@ -34,7 +34,7 @@ export function JobsHistoryPanel({
         : null;
 
   return (
-    <section className="panel">
+    <section className="panel jobs-history-panel">
       <header className="panel-header">
         <h2>Historique des jobs</h2>
         <span
@@ -59,7 +59,8 @@ export function JobsHistoryPanel({
         </div>
       ) : null}
 
-      <div className="jobs-grid">
+      <div className="jobs-history-panel__scroll">
+        <div className="jobs-grid">
         {jobs.length === 0 ? (
           <div className="empty-state-card" role="status">
             <div className="empty-state-card-icon" aria-hidden />
@@ -127,6 +128,7 @@ export function JobsHistoryPanel({
             );
           })
         )}
+        </div>
       </div>
     </section>
   );

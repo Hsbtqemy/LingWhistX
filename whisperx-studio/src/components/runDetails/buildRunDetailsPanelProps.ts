@@ -1,4 +1,4 @@
-import type { Job, JobLogEvent } from "../../types";
+import type { Job, JobLogEvent, LiveTranscriptSegment } from "../../types";
 import type { AlignmentWorkspacePanelProps } from "./AlignmentWorkspacePanel";
 import type { RunDetailsPanelProps } from "./RunDetailsPanel";
 import type { TranscriptEditorPanelProps } from "./TranscriptEditorPanel";
@@ -162,6 +162,7 @@ export function buildTranscriptEditorPanelProps(
 export type BuildRunDetailsPanelPropsInput = {
   selectedJob: Job | null;
   selectedJobLogs: JobLogEvent[];
+  liveTranscriptSegments: LiveTranscriptSegment[];
   selectedJobHasJsonOutput: boolean;
   openLocalPath: RunDetailsPanelProps["openLocalPath"];
   selectedMediaSrc: string;
@@ -181,6 +182,7 @@ export function buildRunDetailsPanelProps(
   const {
     selectedJob,
     selectedJobLogs,
+    liveTranscriptSegments,
     selectedJobHasJsonOutput,
     openLocalPath,
     selectedMediaSrc,
@@ -197,6 +199,7 @@ export function buildRunDetailsPanelProps(
   return {
     selectedJob,
     selectedJobLogs,
+    liveTranscriptSegments,
     selectedJobHasJsonOutput,
     openLocalPath,
     alignment: selectedJob

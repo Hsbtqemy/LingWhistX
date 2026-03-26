@@ -40,7 +40,12 @@ export function JobRunPipelineStrip({ job, logs }: JobRunPipelineStripProps) {
   );
 
   return (
-    <div className="job-pipeline-strip" role="region" aria-label="Pipeline du job">
+    <div
+      className="job-pipeline-strip"
+      data-job-status={job.status}
+      role="region"
+      aria-label="Pipeline du job"
+    >
       <div className="job-pipeline-strip__head">
         <div className="job-pipeline-strip__meta">
           <span className="job-pipeline-strip__mode">{jobModeLabel(job.mode)}</span>

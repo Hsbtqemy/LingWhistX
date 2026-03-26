@@ -320,6 +320,7 @@ def test_transcribe_forwards_force_n_speakers_to_diarization(tmp_path, monkeypat
         no_align=True,
         diarize=True,
         force_n_speakers=2,
+        hf_token="hf_test_dummy",
     )
     transcribe_mod.transcribe_task(args, parser)
 

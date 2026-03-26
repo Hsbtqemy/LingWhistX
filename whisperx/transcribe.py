@@ -865,6 +865,13 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
         min_speakers is not None or max_speakers is not None
     ):
         parser.error("--force_n_speakers cannot be combined with --min_speakers/--max_speakers")
+    if diarize and hf_token is None:
+        parser.error(
+            "Diarization requires a Hugging Face token: use --hf_token or set "
+            "WHISPERX_HF_TOKEN / HF_TOKEN. Create a read token at "
+            "https://huggingface.co/settings/tokens and accept model terms at "
+            "https://huggingface.co/pyannote/speaker-diarization-community-1",
+        )
     if analysis_pause_min < 0:
         parser.error("--analysis_pause_min must be >= 0")
     if analysis_pause_ignore_below < 0:

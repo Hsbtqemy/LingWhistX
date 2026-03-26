@@ -44,6 +44,11 @@ describe("useJobsList — loadMoreJobs", () => {
 
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      localStorage.clear();
+    } catch {
+      /* ignore */
+    }
     setError.mockClear();
     onInvalid.mockClear();
     vi.mocked(invoke).mockReset();

@@ -99,6 +99,19 @@ export type UiWhisperxOptions = {
   audioPipelineSegmentsJson: string;
 };
 
+/** Segment ASR émis en direct (stage `wx_live_transcript`, message JSON côté worker). */
+export type LiveTranscriptSegment = {
+  start: number;
+  end: number;
+  text: string;
+};
+
+/** Bannière « Restaurer la session précédente » (dernier job consulté, localStorage). */
+export type SessionRestorePrompt = {
+  jobId: string;
+  label: string;
+};
+
 export type Job = {
   id: string;
   inputPath: string;
@@ -112,6 +125,8 @@ export type Job = {
   error?: string | null;
   outputFiles: string[];
   whisperxOptions?: WhisperxOptions | null;
+  /** Segments ASR persistés (SQLite) — rechargés au démarrage / liste jobs. */
+  liveTranscriptSegments?: LiveTranscriptSegment[];
 };
 
 export type JobsPaginationInfo = {

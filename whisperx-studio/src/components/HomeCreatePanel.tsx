@@ -55,20 +55,25 @@ export function HomeCreatePanel({
   }, [jobForm.setWhisperxOptions, whisperxSetterRef]);
 
   return (
-    <>
-      <StudioOpenRunSection
-        setError={setError}
-        setActiveView={setActiveView}
-        setSelectedJobId={setSelectedJobId}
-        onOpenPlayer={onOpenPlayer}
-      />
-      <StudioNewJobSection
-        runningJobs={runningJobs}
-        errors={errors}
-        refreshJobs={refreshJobs}
-        jobForm={jobForm}
-        runtime={runtime}
-      />
-    </>
+    <div className="home-create-layout">
+      <div className="home-new-job-column">
+        <StudioNewJobSection
+          setError={setError}
+          runningJobs={runningJobs}
+          errors={errors}
+          refreshJobs={refreshJobs}
+          jobForm={jobForm}
+          runtime={runtime}
+        />
+      </div>
+      <aside className="home-open-run-aside" aria-label="Ouvrir un run existant">
+        <StudioOpenRunSection
+          setError={setError}
+          setActiveView={setActiveView}
+          setSelectedJobId={setSelectedJobId}
+          onOpenPlayer={onOpenPlayer}
+        />
+      </aside>
+    </div>
   );
 }

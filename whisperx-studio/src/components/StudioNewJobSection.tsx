@@ -1,15 +1,19 @@
 import { memo } from "react";
+import { fileBasename } from "../appUtils";
 import { runInTransition } from "../whisperxOptionsTransitions";
 import { AnalysisTimingOptionsForm } from "./AnalysisTimingOptionsForm";
 import { ErrorBanner } from "./ErrorBanner";
 import { NewJobMediaPreview } from "./NewJobMediaPreview";
 import { LocalRuntimePanel, type LocalRuntimePanelProps } from "./LocalRuntimePanel";
 import { HfTokenQuickCard } from "./HfTokenQuickCard";
+import { RunHfRequirementsSummary } from "./RunHfRequirementsSummary";
+import { NewJobDropZone } from "./NewJobDropZone";
 import { StudioAdvancedJobSection } from "./StudioAdvancedJobSection";
 import { WhisperxOptionsForm } from "./WhisperxOptionsForm";
 import type { NewJobFormApi } from "../hooks/useNewJobForm";
 
 export type StudioNewJobSectionProps = {
+  setError: (message: string) => void;
   runningJobs: number;
   errors: string[];
   runtime: LocalRuntimePanelProps;
@@ -48,6 +52,7 @@ const JobPanelTop = memo(function JobPanelTop({
 });
 
 export function StudioNewJobSection({
+  setError,
   runningJobs,
   errors,
   runtime,
@@ -76,11 +81,15 @@ export function StudioNewJobSection({
   } = jobForm;
 
   return (
-    <section id="home-new-job" className="panel panel--home">
+    <section id="home-new-job" className="panel panel--home panel--home-primary">
       <JobPanelTop runningJobs={runningJobs} inputPath={inputPath} runtime={runtime} />
 
       <form className="job-form" onSubmit={submitJob}>
-        <HfTokenQuickCard whisperxOptions={whisperxOptions} setWhisperxOptions={setWhisperxOptions} />
+        <HfTokenQuickCard
+          mode={mode}
+          whisperxOptions={whisperxOptions}
+          setWhisperxOptions={setWhisperxOptions}
+        />
 
         <div className="job-stepper">
           <button
@@ -101,6 +110,17 @@ export function StudioNewJobSection({
 
         {jobFormStep === "import" ? (
           <>
+            <NewJobDropZone
+              selectedLabel={inputPath.trim() ? fileBasename(inputPath) : undefined}
+              disabled={isSubmitting}
+              onPath={(path: string) => {
+                setInputPath(path);
+                setError("");
+                setJobFormStep("configure");
+              }}
+              onError={setError}
+            />
+
             <label>
               Chemin media local
               <div className="path-input-row">
@@ -223,6 +243,10 @@ export function StudioNewJobSection({
             ) : null}
 
             <StudioAdvancedJobSection jobForm={jobForm} />
+
+            {mode === "whisperx" ? (
+              <RunHfRequirementsSummary whisperxOptions={whisperxOptions} />
+            ) : null}
 
             <div className="actions">
               <button type="submit" disabled={isSubmitting}>

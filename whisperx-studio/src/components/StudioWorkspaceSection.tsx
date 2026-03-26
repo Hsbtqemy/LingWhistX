@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import type { RefObject } from "react";
 import type { StudioExplorerModel } from "../hooks/useStudioExplorer";
 import { JobsHistoryPanel, type JobsHistoryPanelProps } from "./JobsHistoryPanel";
 import { RunDetailsPanel, type RunDetailsPanelProps } from "./runDetails/RunDetailsPanel";
+import { SessionRestoreBanner } from "./SessionRestoreBanner";
+import type { SessionRestoreBannerProps } from "./SessionRestoreBanner";
 import { StudioExplorerSidePanels, StudioExplorerTopBar } from "./StudioExplorerChrome";
 
 export type StudioWorkspaceSectionProps = {
@@ -10,6 +12,7 @@ export type StudioWorkspaceSectionProps = {
   runDetailsRef: RefObject<HTMLElement | null>;
   runDetails: RunDetailsPanelProps;
   explorer: StudioExplorerModel;
+  sessionRestore: Pick<SessionRestoreBannerProps, "prompt" | "onRestore" | "onDismiss">;
 };
 
 export function StudioWorkspaceSection({
@@ -17,27 +20,29 @@ export function StudioWorkspaceSection({
   runDetailsRef,
   runDetails,
   explorer,
+  sessionRestore,
 }: StudioWorkspaceSectionProps) {
-  const selectedJob = useMemo(
-    () => jobsHistory.jobs.find((j) => j.id === jobsHistory.selectedJobId) ?? null,
-    [jobsHistory.jobs, jobsHistory.selectedJobId],
-  );
-
+  /** Replié par défaut : le détail du run reste prioritaire visuellement. */
   const [explorerParamsOpen, setExplorerParamsOpen] = useState(false);
-  useEffect(() => {
-    setExplorerParamsOpen(!selectedJob);
-  }, [selectedJob]);
 
   return (
     <div className="studio-workspace-layout">
+      <SessionRestoreBanner
+        prompt={sessionRestore.prompt}
+        onRestore={sessionRestore.onRestore}
+        onDismiss={sessionRestore.onDismiss}
+      />
       <StudioExplorerTopBar explorer={explorer} />
       <div className="studio-workspace-body studio-workspace-body--run-primary">
-        <div className="studio-workspace-primary" aria-label="Détail du run et transcript">
+        <div
+          className="studio-workspace-primary studio-workspace-primary--surface"
+          aria-label="Détail du run et transcript"
+        >
           <RunDetailsPanel ref={runDetailsRef} {...runDetails} />
         </div>
         <div className="studio-workspace-secondary" aria-label="Historique des jobs et paramètres">
           <div className="studio-workspace-secondary-stack">
-            <div className="studio-jobs-rail">
+            <div className="studio-jobs-rail studio-workspace-rail-card">
               <JobsHistoryPanel {...jobsHistory} />
             </div>
             <details

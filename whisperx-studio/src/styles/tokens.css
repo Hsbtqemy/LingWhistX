@@ -19,6 +19,22 @@
   --lx-accent-secondary: #0aa07a;
   --lx-danger: #b42318;
   --lx-warning: #8a4b16;
+  /* Jobs / pipeline — même sémantique partout (cartes, pills, barres) */
+  --lx-status-queued-bg: #edf3f4;
+  --lx-status-queued-fg: #456772;
+  --lx-status-queued-border: rgba(69, 103, 114, 0.35);
+  --lx-status-running-bg: #daf4f3;
+  --lx-status-running-fg: #0e7680;
+  --lx-status-running-border: rgba(9, 139, 156, 0.45);
+  --lx-status-done-bg: #dcf3e5;
+  --lx-status-done-fg: #1b7d5b;
+  --lx-status-done-border: rgba(35, 154, 121, 0.45);
+  --lx-status-error-bg: #ffe3de;
+  --lx-status-error-fg: #a1352d;
+  --lx-status-error-border: rgba(171, 60, 45, 0.48);
+  --lx-status-cancelled-bg: #f3e9e7;
+  --lx-status-cancelled-fg: #7d4f4a;
+  --lx-status-cancelled-border: rgba(125, 79, 74, 0.35);
   /* Typographie */
   --lx-font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Bahnschrift", "Trebuchet MS", sans-serif;

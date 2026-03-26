@@ -13,6 +13,7 @@ mod embedded_resources;
 mod ffmpeg_install;
 mod ffmpeg_install_commands;
 mod ffmpeg_tools;
+mod hf_token_commands;
 mod job_commands;
 mod jobs;
 mod local_fs_commands;
@@ -78,7 +79,8 @@ pub fn run() {
             run_events::query_run_events_window,
             run_events_recalc::recalc_pauses_ipu,
             audio_preview::extract_audio_wav_window,
-            audio_preview::export_audio_wav_segment
+            audio_preview::export_audio_wav_segment,
+            hf_token_commands::validate_hf_token
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

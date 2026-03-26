@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useState } from "react";
-import type { Job, JobLogEvent } from "../../types";
+import { fileBasename } from "../../appUtils";
+import type { Job, JobLogEvent, LiveTranscriptSegment } from "../../types";
 import { WorkerErrorMessage } from "../../WorkerErrorMessage";
 import { TabListBar, TabPanel } from "../ui";
 import {
@@ -8,6 +9,7 @@ import {
 } from "./AlignmentWorkspacePanel";
 import { JobTimelineLogs } from "./JobTimelineLogs";
 import { JobRunPipelineStrip } from "./JobRunPipelineStrip";
+import { LiveTranscriptFeed } from "./LiveTranscriptFeed";
 import { RunDetailsMetaSection } from "./RunDetailsMetaSection";
 import { RunDetailsOutputFiles } from "./RunDetailsOutputFiles";
 import { RunDetailsPreview, type RunDetailsPreviewProps } from "./RunDetailsPreview";
@@ -16,6 +18,7 @@ import { TranscriptEditorPanel, type TranscriptEditorPanelProps } from "./Transc
 export type RunDetailsPanelProps = {
   selectedJob: Job | null;
   selectedJobLogs: JobLogEvent[];
+  liveTranscriptSegments: LiveTranscriptSegment[];
   selectedJobHasJsonOutput: boolean;
   openLocalPath: (path: string) => void;
   alignment: AlignmentWorkspacePanelProps | undefined;
@@ -43,6 +46,7 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
     {
       selectedJob,
       selectedJobLogs,
+      liveTranscriptSegments,
       selectedJobHasJsonOutput,
       openLocalPath,
       alignment,
@@ -98,6 +102,19 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
           )}
         </header>
 
+        {selectedJob ? (
+          <div
+            className="run-details-context"
+            data-job-status={selectedJob.status}
+            aria-label="Fichier source et état du run"
+          >
+            <span className="run-details-context__file" title={selectedJob.inputPath}>
+              {fileBasename(selectedJob.inputPath) || selectedJob.id}
+            </span>
+            <span className={`status-pill ${selectedJob.status}`}>{selectedJob.status}</span>
+          </div>
+        ) : null}
+
         {!selectedJob ? (
           <div className="empty-state-card empty-state-card--compact" role="status">
             <div className="empty-state-card-icon empty-state-card-icon--muted" aria-hidden />
@@ -123,6 +140,7 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
             ) : null}
             <div className="details-column">
               <JobRunPipelineStrip job={selectedJob} logs={selectedJobLogs} />
+              <LiveTranscriptFeed job={selectedJob} segments={liveTranscriptSegments} />
               <TabListBar
                 tabs={RUN_DETAILS_TABS}
                 value={tab}
@@ -197,7 +215,7 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
               </TabPanel>
             </div>
 
-            <JobTimelineLogs logs={selectedJobLogs} />
+            <JobTimelineLogs job={selectedJob} logs={selectedJobLogs} />
           </div>
         )}
       </section>

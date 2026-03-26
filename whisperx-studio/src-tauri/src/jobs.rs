@@ -17,7 +17,7 @@ use crate::app_events::{emit_job_log, emit_job_update};
 use crate::db::persist_job;
 use crate::embedded_resources::resolve_worker_path;
 use crate::ffmpeg_tools::{prepend_path_env, resolve_ffmpeg_tools};
-use crate::models::{Job, JobLogEvent, WhisperxOptions, WorkerLog, WorkerResult};
+use crate::models::{Job, JobLogEvent, LiveTranscriptSegment, WhisperxOptions, WorkerLog, WorkerResult};
 use crate::python_runtime::resolve_python_command;
 use crate::time_utils::now_ms;
 
@@ -60,6 +60,51 @@ pub(crate) fn mutate_job<F>(
     }
 }
 
+/// Met à jour le job en mémoire + SQLite sans `job-updated` (évite un spam d’événements par segment ASR).
+pub(crate) fn mutate_job_without_emit<F>(
+    db_path: &Path,
+    jobs: &Arc<Mutex<HashMap<String, Job>>>,
+    job_id: &str,
+    mutate: F,
+) where
+    F: FnOnce(&mut Job),
+{
+    let mut updated_job = None;
+
+    if let Ok(mut lock) = jobs.lock() {
+        if let Some(job) = lock.get_mut(job_id) {
+            mutate(job);
+            job.updated_at_ms = now_ms();
+            updated_job = Some(job.clone());
+        }
+    }
+
+    if let Some(job) = updated_job {
+        if let Err(err) = persist_job(db_path, &job) {
+            eprintln!("[persist] {err}");
+        }
+    }
+}
+
+const LIVE_TRANSCRIPT_MAX_SEGMENTS: usize = 8000;
+
+fn append_live_transcript_segment(
+    db_path: &Path,
+    jobs: &Arc<Mutex<HashMap<String, Job>>>,
+    job_id: &str,
+    message: &str,
+) {
+    let segment: LiveTranscriptSegment = match serde_json::from_str(message) {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+    mutate_job_without_emit(db_path, jobs, job_id, |job| {
+        if job.live_transcript_segments.len() < LIVE_TRANSCRIPT_MAX_SEGMENTS {
+            job.live_transcript_segments.push(segment);
+        }
+    });
+}
+
 pub(crate) fn set_job_error(
     app: &AppHandle,
     db_path: &Path,
@@ -92,6 +137,10 @@ fn process_worker_line(
     if let Some(json_payload) = line.strip_prefix(LOG_PREFIX) {
         match serde_json::from_str::<WorkerLog>(json_payload) {
             Ok(worker_log) => {
+                if worker_log.stage.as_deref() == Some("wx_live_transcript") {
+                    append_live_transcript_segment(db_path, jobs, job_id, &worker_log.message);
+                }
+
                 let level = worker_log.level.unwrap_or_else(|| {
                     if stream == "stderr" {
                         "error".into()

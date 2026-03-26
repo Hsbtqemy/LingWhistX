@@ -1,9 +1,16 @@
 import type { RefObject } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { upsertJobInList } from "../appUtils";
-import type { Job, JobLogEvent, JobsPaginationInfo } from "../types";
+import { fileBasename, upsertJobInList } from "../appUtils";
+import type {
+  Job,
+  JobLogEvent,
+  JobsPaginationInfo,
+  LiveTranscriptSegment,
+  SessionRestorePrompt,
+} from "../types";
+import { parseLiveTranscriptPayload } from "../utils/liveTranscript";
 
 /** Rafraîchissement liste jobs quand au moins un job est `queued` ou `running`. */
 const JOBS_REFRESH_MS_ACTIVE = 1500;
@@ -11,6 +18,11 @@ const JOBS_REFRESH_MS_ACTIVE = 1500;
 const JOBS_REFRESH_MS_IDLE = 20_000;
 
 const SELECTED_JOB_STORAGE_KEY = "lx-studio-selected-job-id";
+/** Dernier job consulté — survit à la fermeture de l’app (proposition « Restaurer la session »). */
+const LOCAL_LAST_SESSION_JOB_KEY = "lx-studio-last-session-job-id";
+
+/** Limite de segments ASR en mémoire par job (fichiers très longs). */
+const LIVE_TRANSCRIPT_MAX_SEGMENTS = 8000;
 
 export type UseJobsListOptions = {
   runDetailsRef: RefObject<HTMLElement | null>;
@@ -25,6 +37,9 @@ export function useJobsList({
 }: UseJobsListOptions) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobLogs, setJobLogs] = useState<Record<string, JobLogEvent[]>>({});
+  const [liveTranscriptByJob, setLiveTranscriptByJob] = useState<
+    Record<string, LiveTranscriptSegment[]>
+  >({});
   const [selectedJobId, setSelectedJobId] = useState(() => {
     try {
       return sessionStorage.getItem(SELECTED_JOB_STORAGE_KEY) ?? "";
@@ -34,6 +49,10 @@ export function useJobsList({
   });
   const [jobsPagination, setJobsPagination] = useState<JobsPaginationInfo | null>(null);
   const [loadMoreJobsLoading, setLoadMoreJobsLoading] = useState(false);
+  const [sessionRestorePrompt, setSessionRestorePrompt] = useState<SessionRestorePrompt | null>(
+    null,
+  );
+  const sessionRestoreOfferedRef = useRef(false);
 
   const refreshJobs = useCallback(async () => {
     try {
@@ -73,6 +92,36 @@ export function useJobsList({
   }, [selectedJobId]);
 
   useEffect(() => {
+    if (!selectedJobId) {
+      return;
+    }
+    try {
+      localStorage.setItem(LOCAL_LAST_SESSION_JOB_KEY, selectedJobId);
+    } catch {
+      /* ignore */
+    }
+  }, [selectedJobId]);
+
+  useEffect(() => {
+    if (jobs.length === 0 || sessionRestoreOfferedRef.current) {
+      return;
+    }
+    let lastId: string;
+    try {
+      lastId = localStorage.getItem(LOCAL_LAST_SESSION_JOB_KEY) ?? "";
+    } catch {
+      return;
+    }
+    if (!lastId || !jobs.some((j) => j.id === lastId) || lastId === selectedJobId) {
+      return;
+    }
+    sessionRestoreOfferedRef.current = true;
+    const job = jobs.find((j) => j.id === lastId);
+    const label = job ? fileBasename(job.inputPath) || job.id : lastId;
+    setSessionRestorePrompt({ jobId: lastId, label });
+  }, [jobs, selectedJobId]);
+
+  useEffect(() => {
     void refreshJobs();
     const intervalMs = runningJobs > 0 ? JOBS_REFRESH_MS_ACTIVE : JOBS_REFRESH_MS_IDLE;
     const timer = window.setInterval(() => {
@@ -94,15 +143,39 @@ export function useJobsList({
 
   useEffect(() => {
     const unlistenJobPromise = listen<Job>("job-updated", (event) => {
-      setJobs((current) => upsertJobInList(current, event.payload));
+      const payload = event.payload;
+      setJobs((current) => upsertJobInList(current, payload));
+      const segs = payload.liveTranscriptSegments;
+      if (segs?.length) {
+        setLiveTranscriptByJob((prev) => {
+          const existing = prev[payload.id] ?? [];
+          if (segs.length < existing.length) {
+            return prev;
+          }
+          return { ...prev, [payload.id]: segs };
+        });
+      }
     });
 
     const unlistenLogPromise = listen<JobLogEvent>("job-log", (event) => {
+      const payload = event.payload;
       setJobLogs((current) => {
-        const existing = current[event.payload.jobId] ?? [];
-        const nextLogs = [...existing, event.payload].slice(-600);
-        return { ...current, [event.payload.jobId]: nextLogs };
+        const existing = current[payload.jobId] ?? [];
+        const nextLogs = [...existing, payload].slice(-600);
+        return { ...current, [payload.jobId]: nextLogs };
       });
+      if (payload.stage === "wx_live_transcript") {
+        const seg = parseLiveTranscriptPayload(payload.message);
+        if (seg) {
+          setLiveTranscriptByJob((prev) => {
+            const list = prev[payload.jobId] ?? [];
+            if (list.length >= LIVE_TRANSCRIPT_MAX_SEGMENTS) {
+              return prev;
+            }
+            return { ...prev, [payload.jobId]: [...list, seg] };
+          });
+        }
+      }
     });
 
     return () => {
@@ -134,6 +207,18 @@ export function useJobsList({
     return jobLogs[selectedJob.id] ?? [];
   }, [selectedJob, jobLogs]);
 
+  const selectedLiveTranscript = useMemo((): LiveTranscriptSegment[] => {
+    if (!selectedJob) {
+      return [];
+    }
+    const fromSession = liveTranscriptByJob[selectedJob.id] ?? [];
+    const fromDb = selectedJob.liveTranscriptSegments ?? [];
+    if (fromSession.length >= fromDb.length) {
+      return fromSession;
+    }
+    return fromDb;
+  }, [selectedJob, liveTranscriptByJob]);
+
   const selectedJobHasJsonOutput = useMemo(() => {
     if (!selectedJob) {
       return false;
@@ -164,6 +249,24 @@ export function useJobsList({
     [refreshJobs, setError],
   );
 
+  const restoreSession = useCallback(() => {
+    if (!sessionRestorePrompt) {
+      return;
+    }
+    const { jobId } = sessionRestorePrompt;
+    setSessionRestorePrompt(null);
+    focusJobDetails(jobId);
+  }, [sessionRestorePrompt, focusJobDetails]);
+
+  const dismissSessionRestore = useCallback(() => {
+    setSessionRestorePrompt(null);
+    try {
+      localStorage.removeItem(LOCAL_LAST_SESSION_JOB_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   return {
     jobs,
     jobLogs,
@@ -177,7 +280,11 @@ export function useJobsList({
     focusJobDetails,
     selectedJob,
     selectedJobLogs,
+    selectedLiveTranscript,
     selectedJobHasJsonOutput,
     runningJobs,
+    sessionRestorePrompt,
+    restoreSession,
+    dismissSessionRestore,
   };
 }

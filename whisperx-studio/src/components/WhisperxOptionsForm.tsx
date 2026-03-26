@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { profilePresets } from "../constants";
 import type { ProfilePreset, UiWhisperxOptions } from "../types";
 import { runInTransition, setWhisperxOptionsDeferred } from "../whisperxOptionsTransitions";
+import { HfScopeBadge } from "./HfScopeBadge";
 
 export type WhisperxOptionsFormProps = {
   whisperxOptions: UiWhisperxOptions;
@@ -83,6 +84,10 @@ export function WhisperxOptionsForm({
       <details className="advanced-job-panel job-form-whisperx-advanced">
         <summary className="advanced-job-summary">
           Options WhisperX avancées (device, chunks, diarize, alignement…)
+          <span className="advanced-job-summary__hint">
+            Le token Hugging Face ne concerne que la <strong>diarization</strong> (pas la
+            retranscription seule).
+          </span>
         </summary>
         <div className="advanced-job-body">
           <p className="small job-form-advanced-lead">
@@ -203,10 +208,14 @@ export function WhisperxOptionsForm({
                 <option value="pyannote">pyannote (precision)</option>
                 <option value="silero">silero (leger/rapide)</option>
               </select>
-              <p className="field-help">Decoupe les zones de parole avant transcription.</p>
+              <p className="field-help">
+                Découpe les zones de parole avant transcription. Avec l’implémentation Studio,
+                pyannote/silero fonctionnent en général <strong>sans</strong> token HF pour le VAD
+                seul ; le <strong>token HF</strong> est exigé pour la diarization (voir ci-dessous).
+              </p>
             </label>
 
-            <label className="checkbox-row">
+            <label className="checkbox-row checkbox-row--diarize">
               <input
                 type="checkbox"
                 checked={whisperxOptions.diarize}
@@ -214,7 +223,10 @@ export function WhisperxOptionsForm({
                   setWhisperxOptionsDeferred(setWhisperxOptions, { diarize: e.currentTarget.checked })
                 }
               />
-              Diarization (qui parle ?)
+              <span className="checkbox-row__label-with-badge">
+                Diarization (qui parle ?)
+                <HfScopeBadge variant="hf_required" />
+              </span>
             </label>
             <p className="field-help full-width">
               La diarization repose sur les modèles <strong>pyannote</strong> (Hugging Face) : un

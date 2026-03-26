@@ -48,6 +48,26 @@ SUPPORTED_OUTPUT_FORMATS = {"all", "json", "srt", "vtt", "txt", "tsv", "aud"}
 # whisperx/asr.py et whisperx/alignment.py : print(f"Progress: {percent_complete:.2f}%...")
 WHISPERX_PROGRESS_RE = re.compile(r"Progress:\s*([\d.]+)\s*%", re.IGNORECASE)
 
+# whisperx/asr.py (verbose) : print(f"Transcript: [{start} --> {end}] {text}")
+LIVE_TRANSCRIPT_RE = re.compile(
+    r"Transcript:\s*\[([\d.]+)\s*-->\s*([\d.]+)\]\s*(.*)$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def parse_live_transcript_line(line: str) -> tuple[float, float, str] | None:
+    """Extrait (start, end, text) si la ligne est une sortie « Transcript: » du pipeline ASR."""
+    m = LIVE_TRANSCRIPT_RE.search(line.strip())
+    if not m:
+        return None
+    try:
+        start_f = float(m.group(1))
+        end_f = float(m.group(2))
+        text = (m.group(3) or "").strip()
+        return (start_f, end_f, text)
+    except ValueError:
+        return None
+
 
 def parse_whisperx_progress_line(line: str) -> float | None:
     """Extrait le pourcentage WhisperX (0–100) si la ligne est une ligne Progress."""
@@ -66,14 +86,49 @@ def infer_whisperx_stdout_stage(line: str) -> str | None:
     Les libellés correspondent aux logger.info courants de whisperx/transcribe.py.
     """
     low = line.lower()
+
+    if "failed to align segment" in low:
+        return "wx_align"
+    if "performing alignment" in low:
+        return "wx_align"
+    if "new language found" in low and "alignment model" in low:
+        return "wx_align"
+
+    if "loading diarization model" in low:
+        return "wx_diarize"
+    if "performing diarization" in low:
+        return "wx_diarize"
+    if "using model:" in low and "pyannote" in low:
+        return "wx_diarize"
+
+    if "performing voice activity detection" in low:
+        return "wx_transcribe"
     if "performing transcription" in low:
+        return "wx_transcribe"
+    if "using media chunking" in low:
         return "wx_transcribe"
     if "transcribed chunk #" in low:
         return "wx_transcribe"
-    if "performing alignment" in low:
+    if "resuming chunk #" in low:
+        return "wx_transcribe"
+    if "transcript:" in low and "-->" in line:
+        return "wx_transcribe"
+    if "detected language:" in low and "first 30s" in low:
+        return "wx_transcribe"
+    if "compute type not specified" in low:
+        return "wx_transcribe"
+    if "no language specified, language will be detected" in low:
+        return "wx_transcribe"
+    if "suppressing numeral and symbol tokens" in low:
+        return "wx_transcribe"
+    if "use manually assigned vad_model" in low:
+        return "wx_transcribe"
+
+    if "applied external word timings" in low:
         return "wx_align"
-    if "performing diarization" in low:
-        return "wx_diarize"
+    if "analyze-only completed" in low:
+        return "wx_analyze"
+
     return None
 
 
@@ -573,6 +628,8 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
     # Toujours activer côté sous-processus : le worker parse `Progress: …` pour l’UI (option UI
     # printProgress reste disponible pour d’autres usages futurs).
     command.extend(["--print_progress", "True"])
+    # Lignes « Transcript: [t0 --> t1] … » sur stdout (asr.py) — nécessaire pour la retranscription en direct dans l’UI.
+    command.extend(["--verbose", "True"])
 
     visible_parts: list[str] = []
     hide_next = False
@@ -607,6 +664,18 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         if not clean:
             continue
         whisperx_tail.append(clean)
+
+        live_seg = parse_live_transcript_line(clean)
+        if live_seg is not None:
+            start_f, end_f, text = live_seg
+            payload = json.dumps(
+                {"start": start_f, "end": end_f, "text": text},
+                ensure_ascii=False,
+            )
+            emit_log("info", "wx_live_transcript", payload)
+            last_wx_stage = "wx_transcribe"
+            continue
+
         inferred = infer_whisperx_stdout_stage(clean)
         if inferred is not None:
             last_wx_stage = inferred

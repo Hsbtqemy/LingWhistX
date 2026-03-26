@@ -50,6 +50,15 @@ pub(crate) struct WhisperxOptions {
     pub(crate) audio_pipeline_segments: Option<serde_json::Value>,
 }
 
+/// Segment ASR issu du flux `wx_live_transcript` (persisté en SQLite pour rechargement UI).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LiveTranscriptSegment {
+    pub(crate) start: f64,
+    pub(crate) end: f64,
+    pub(crate) text: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Job {
@@ -65,6 +74,8 @@ pub(crate) struct Job {
     pub(crate) error: Option<String>,
     pub(crate) output_files: Vec<String>,
     pub(crate) whisperx_options: Option<WhisperxOptions>,
+    #[serde(default)]
+    pub(crate) live_transcript_segments: Vec<LiveTranscriptSegment>,
 }
 
 #[derive(Debug, Deserialize)]

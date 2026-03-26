@@ -86,6 +86,7 @@ pub fn create_job(
         error: None,
         output_files: vec![],
         whisperx_options: whisperx_options_for_storage,
+        live_transcript_segments: vec![],
     };
 
     {

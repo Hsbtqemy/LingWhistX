@@ -56,6 +56,9 @@ function resolveWhisperxLikeFromLogs(logs: JobLogEvent[]): string | null {
     if (st === "wx_analyze") {
       return "analyze";
     }
+    if (st === "wx_live_transcript") {
+      return "transcribe";
+    }
     if (st === "wx_transcribe") {
       return "transcribe";
     }

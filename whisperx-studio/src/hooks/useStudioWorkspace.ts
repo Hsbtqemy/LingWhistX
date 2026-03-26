@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import type { JobsHistoryPanelProps } from "../components/JobsHistoryPanel";
 import { buildRunDetailsPanelProps } from "../components/runDetails/buildRunDetailsPanelProps";
 import type { RunDetailsPanelProps } from "../components/runDetails/RunDetailsPanel";
-import type { RuntimeStatus } from "../types";
+import type { RuntimeStatus, SessionRestorePrompt } from "../types";
 import { useJobsList } from "./useJobsList";
 import { useOpenLocalPath } from "./useOpenLocalPath";
 import { usePreviewOutput } from "./usePreviewOutput";
@@ -30,6 +30,11 @@ export type StudioWorkspaceModel = {
   refreshJobs: () => Promise<void>;
   setSelectedJobId: (id: string) => void;
   explorer: ReturnType<typeof useStudioExplorer>;
+  sessionRestore: {
+    prompt: SessionRestorePrompt | null;
+    onRestore: () => void;
+    onDismiss: () => void;
+  };
 };
 
 export function useStudioWorkspace({
@@ -61,8 +66,12 @@ export function useStudioWorkspace({
     focusJobDetails,
     selectedJob,
     selectedJobLogs,
+    selectedLiveTranscript,
     selectedJobHasJsonOutput,
     runningJobs,
+    sessionRestorePrompt,
+    restoreSession,
+    dismissSessionRestore,
   } = useJobsList({
     runDetailsRef,
     setError,
@@ -99,6 +108,7 @@ export function useStudioWorkspace({
       buildRunDetailsPanelProps({
         selectedJob,
         selectedJobLogs,
+        liveTranscriptSegments: selectedLiveTranscript,
         selectedJobHasJsonOutput,
         openLocalPath,
         selectedMediaSrc,
@@ -119,6 +129,7 @@ export function useStudioWorkspace({
     [
       selectedJob,
       selectedJobLogs,
+      selectedLiveTranscript,
       selectedJobHasJsonOutput,
       openLocalPath,
       selectedMediaSrc,
@@ -168,5 +179,10 @@ export function useStudioWorkspace({
     refreshJobs,
     setSelectedJobId,
     explorer,
+    sessionRestore: {
+      prompt: sessionRestorePrompt,
+      onRestore: restoreSession,
+      onDismiss: dismissSessionRestore,
+    },
   };
 }
