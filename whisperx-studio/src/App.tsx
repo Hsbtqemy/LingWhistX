@@ -1,22 +1,22 @@
+import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 
+import { HomeCreatePanel } from "./components/HomeCreatePanel";
 import { StudioAboutView } from "./components/StudioAboutView";
 import { StudioHero } from "./components/StudioHero";
 import { STUDIO_PANEL_IDS, STUDIO_TAB_IDS, StudioNav } from "./components/StudioNav";
-import { StudioNewJobSection } from "./components/StudioNewJobSection";
-import { StudioOpenRunSection } from "./components/StudioOpenRunSection";
 import { PlayerWorkspaceSection } from "./components/player/PlayerWorkspaceSection";
 import { StudioWorkspaceSection } from "./components/StudioWorkspaceSection";
 import { useAppErrorStack } from "./hooks/useAppErrorStack";
-import { useNewJobForm } from "./hooks/useNewJobForm";
 import { useRuntimeDiagnostics } from "./hooks/useRuntimeDiagnostics";
 import { useStudioWorkspace } from "./hooks/useStudioWorkspace";
-import type { StudioView } from "./types";
+import type { StudioView, UiWhisperxOptions } from "./types";
 
 function App() {
   const runDetailsRef = useRef<HTMLElement | null>(null);
   const injectAudioPipelineSegmentsJsonRef = useRef<(json: string) => void>(() => {});
+  const whisperxSetterRef = useRef<Dispatch<SetStateAction<UiWhisperxOptions>> | null>(null);
   /** Erreurs shell (max 5) — rendu `ErrorBanner` / tokens `--lx-danger` (WX-634). */
   const { errors: appErrors, setError } = useAppErrorStack();
   const [activeView, setActiveView] = useState<StudioView>("create");
@@ -59,6 +59,12 @@ function App() {
     injectAudioPipelineSegmentsJsonRef.current(json);
   }, []);
 
+  useEffect(() => {
+    injectAudioPipelineSegmentsJsonRef.current = (json: string) => {
+      whisperxSetterRef.current?.((prev) => ({ ...prev, audioPipelineSegmentsJson: json }));
+    };
+  }, []);
+
   const { jobsHistory, runDetails, runningJobs, refreshJobs, setSelectedJobId, explorer } =
     useStudioWorkspace({
       runDetailsRef,
@@ -68,20 +74,6 @@ function App() {
       runtimeStatus,
       injectAudioPipelineSegmentsJson,
     });
-
-  const jobForm = useNewJobForm({
-    setError,
-    setSelectedJobId,
-    refreshJobs,
-    runtimeReady,
-    runtimeCoreReady,
-  });
-
-  useEffect(() => {
-    injectAudioPipelineSegmentsJsonRef.current = (json: string) => {
-      jobForm.setWhisperxOptions((prev) => ({ ...prev, audioPipelineSegmentsJson: json }));
-    };
-  }, [jobForm.setWhisperxOptions]);
 
   const onExitEditorFocus = useCallback(() => {
     setEditorFocusMode(false);
@@ -116,18 +108,18 @@ function App() {
                 role="region"
                 aria-label="Fichiers et traitements"
               >
-                <StudioOpenRunSection
+                <HomeCreatePanel
                   setError={setError}
                   setActiveView={setActiveView}
                   setSelectedJobId={setSelectedJobId}
                   onOpenPlayer={handleOpenPlayer}
-                />
-                <StudioNewJobSection
+                  refreshJobs={refreshJobs}
+                  runtimeReady={runtimeReady}
+                  runtimeCoreReady={runtimeCoreReady}
                   runningJobs={runningJobs}
                   errors={appErrors}
-                  refreshJobs={refreshJobs}
-                  jobForm={jobForm}
                   runtime={localRuntimePanelProps}
+                  whisperxSetterRef={whisperxSetterRef}
                 />
               </div>
             </div>

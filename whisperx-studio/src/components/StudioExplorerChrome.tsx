@@ -215,10 +215,10 @@ export function StudioExplorerSidePanels({ explorer: ex }: { explorer: StudioExp
         </p>
         <p className="small explorer-card-hint">
           <strong>IPU</strong> (unité inter-pausale) : bloc de parole continu entre deux pauses
-          détectées. Les mots restent dans le même IPU tant qu’aucun silence entre deux mots
-          n’atteint la durée « Pause min » ; au-delà, une ligne pause est créée et l’IPU suivant
-          commence. Les écarts très courts peuvent être ignorés (« Ignorer sous ») ou ramenés
-          (« Pause max »).
+          détectées. Les mots restent dans le même IPU tant qu&apos;aucun silence entre deux mots
+          n&apos;atteint la durée &quot;Pause min&quot; ; au-delà, une ligne pause est créée et
+          l&apos;IPU suivant commence. Les écarts très courts peuvent être ignorés
+          (&quot;Ignorer sous&quot;) ou ramenés (&quot;Pause max&quot;).
         </p>
         <div className="explorer-recalc-grid">
           <label>
