@@ -213,6 +213,13 @@ export function StudioExplorerSidePanels({ explorer: ex }: { explorer: StudioExp
           Recalcul rapide depuis <code>words</code> — aucun WhisperX. Aperçu automatique ; bouton
           pour écrire <code>pauses</code> / <code>ipus</code> dans SQLite.
         </p>
+        <p className="small explorer-card-hint">
+          <strong>IPU</strong> (unité inter-pausale) : bloc de parole continu entre deux pauses
+          détectées. Les mots restent dans le même IPU tant qu’aucun silence entre deux mots
+          n’atteint la durée « Pause min » ; au-delà, une ligne pause est créée et l’IPU suivant
+          commence. Les écarts très courts peuvent être ignorés (« Ignorer sous ») ou ramenés
+          (« Pause max »).
+        </p>
         <div className="explorer-recalc-grid">
           <label>
             Pause min (s)
