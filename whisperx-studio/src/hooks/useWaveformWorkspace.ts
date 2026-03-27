@@ -717,7 +717,13 @@ export function useWaveformWorkspace({
 
   /** Après génération des peaks, construire la pyramide WXENV pour l’overview (hero + Alignement). */
   useEffect(() => {
-    if (!waveform || waveform.durationSec <= 0 || waveformPyramid || isPyramidBuilding || pyramidError) {
+    if (
+      !waveform ||
+      waveform.durationSec <= 0 ||
+      waveformPyramid ||
+      isPyramidBuilding ||
+      pyramidError
+    ) {
       return;
     }
     void buildWaveformPyramid();

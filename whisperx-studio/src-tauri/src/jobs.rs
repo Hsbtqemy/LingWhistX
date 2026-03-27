@@ -17,7 +17,9 @@ use crate::app_events::{emit_job_log, emit_job_update};
 use crate::db::persist_job;
 use crate::embedded_resources::resolve_worker_path;
 use crate::ffmpeg_tools::{prepend_path_env, resolve_ffmpeg_tools};
-use crate::models::{Job, JobLogEvent, LiveTranscriptSegment, WhisperxOptions, WorkerLog, WorkerResult};
+use crate::models::{
+    Job, JobLogEvent, LiveTranscriptSegment, WhisperxOptions, WorkerLog, WorkerResult,
+};
 use crate::python_runtime::resolve_python_command;
 use crate::time_utils::now_ms;
 

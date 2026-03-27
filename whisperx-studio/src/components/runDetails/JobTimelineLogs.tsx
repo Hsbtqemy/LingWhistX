@@ -50,7 +50,11 @@ export function JobTimelineLogs({ job, logs }: JobTimelineLogsProps) {
       <div className="job-timeline-logs__head">
         <h3>Journal d&apos;exécution</h3>
         {logs.length > 0 ? (
-          <div className="job-timeline-logs__toolbar" role="group" aria-label="Mode d'affichage du journal">
+          <div
+            className="job-timeline-logs__toolbar"
+            role="group"
+            aria-label="Mode d'affichage du journal"
+          >
             <button
               type="button"
               className={`ghost small job-timeline-logs__mode-btn${viewMode === "grouped" ? " job-timeline-logs__mode-btn--on" : ""}`}

@@ -15,11 +15,7 @@ export function SessionRestoreBanner({ prompt, onRestore, onDismiss }: SessionRe
   }
 
   return (
-    <div
-      className="session-restore-banner"
-      role="region"
-      aria-label="Restauration de session"
-    >
+    <div className="session-restore-banner" role="region" aria-label="Restauration de session">
       <p className="session-restore-banner__text">
         Restaurer la session précédente ? Fichier : <strong>{prompt.label}</strong>
       </p>

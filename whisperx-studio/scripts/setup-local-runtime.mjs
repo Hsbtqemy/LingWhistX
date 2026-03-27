@@ -21,8 +21,7 @@ function shouldInstallForkFromRepo() {
   }
   const root = monorepoWhisperxRoot();
   return (
-    existsSync(join(root, "pyproject.toml")) &&
-    existsSync(join(root, "whisperx", "__init__.py"))
+    existsSync(join(root, "pyproject.toml")) && existsSync(join(root, "whisperx", "__init__.py"))
   );
 }
 

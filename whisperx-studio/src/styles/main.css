@@ -131,11 +131,7 @@ body {
   padding: clamp(20px, 3.5vw, 28px) clamp(16px, 2.5vw, 22px);
   border-radius: var(--lx-radius-md);
   border: 2px dashed rgba(15, 138, 148, 0.35);
-  background: linear-gradient(
-    165deg,
-    rgba(232, 244, 241, 0.55) 0%,
-    rgba(255, 255, 255, 0.65) 100%
-  );
+  background: linear-gradient(165deg, rgba(232, 244, 241, 0.55) 0%, rgba(255, 255, 255, 0.65) 100%);
   text-align: center;
   transition:
     border-color 0.18s ease,
@@ -146,11 +142,7 @@ body {
 .new-job-drop-zone--active {
   border-color: var(--lx-accent);
   border-style: solid;
-  background: linear-gradient(
-    165deg,
-    rgba(232, 244, 241, 0.95) 0%,
-    rgba(255, 255, 255, 0.88) 100%
-  );
+  background: linear-gradient(165deg, rgba(232, 244, 241, 0.95) 0%, rgba(255, 255, 255, 0.88) 100%);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--lx-accent) 22%, transparent);
 }
 

@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 pytest.importorskip("torch")
@@ -98,6 +99,8 @@ def _base_args(tmp_path: Path, **overrides):
         "export_annotation_rttm": False,
         "export_annotation_textgrid": False,
         "export_annotation_eaf": False,
+        "export_word_ctm": True,
+        "export_parquet_dataset": False,
         "analyze_only_from": None,
     }
     args.update(overrides)
@@ -224,7 +227,7 @@ def test_transcribe_merges_pipeline_chunks_with_global_offsets(tmp_path, monkeyp
     def fake_load_audio(_path, sr=16000, start_time=None, duration=None):
         calls.append((sr, start_time, duration))
         marker = 0.0 if start_time is None else float(start_time)
-        return [marker]
+        return np.array([marker], dtype=np.float32)
 
     class _ChunkModel:
         def transcribe(self, audio, *_args, **_kwargs):
@@ -254,10 +257,11 @@ def test_transcribe_merges_pipeline_chunks_with_global_offsets(tmp_path, monkeyp
 
     result = writes[0][0]
     starts = [segment["start"] for segment in result["segments"]]
-    assert starts == [0.0, 1.5, 3.0, 4.5]
+    # 5 s de média, fenêtres 2 s avec pas 1,5 s → trois fenêtres (0, 1,5, 3,0 s).
+    assert starts == [0.0, 1.5, 3.0]
     assert result["language"] == "fr"
-    assert result["timeline"]["segments"][3]["start"] == 4.5
-    assert len(calls) == 4
+    assert result["timeline"]["segments"][2]["start"] == 3.0
+    assert len(calls) == 3
 
 
 def test_transcribe_rejects_force_n_with_min_max(tmp_path, monkeypatch):

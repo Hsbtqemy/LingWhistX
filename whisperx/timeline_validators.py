@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 from typing import Any, Mapping
 
-from whisperx.schema import AlignmentStatus, CanonicalTimelineSegment, CanonicalTimelineSpeakerTurn
+from whisperx.schema import CanonicalTimelineSegment, CanonicalTimelineSpeakerTurn
 
 DEFAULT_SEGMENT_TOLERANCE_SEC = 0.05
 

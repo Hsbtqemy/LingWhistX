@@ -194,9 +194,7 @@ export function StudioExplorerSidePanels({ explorer: ex }: { explorer: StudioExp
                   <input
                     type="checkbox"
                     checked={row.visible}
-                    onChange={() =>
-                      runInTransition(() => ex.toggleSpeakerVisible(row.id))
-                    }
+                    onChange={() => runInTransition(() => ex.toggleSpeakerVisible(row.id))}
                   />
                   Vis.
                 </label>
@@ -226,8 +224,8 @@ export function StudioExplorerSidePanels({ explorer: ex }: { explorer: StudioExp
           <strong>IPU</strong> (unité inter-pausale) : bloc de parole continu entre deux pauses
           détectées. Les mots restent dans le même IPU tant qu&apos;aucun silence entre deux mots
           n&apos;atteint la durée &quot;Pause min&quot; ; au-delà, une ligne pause est créée et
-          l&apos;IPU suivant commence. Les écarts très courts peuvent être ignorés
-          (&quot;Ignorer sous&quot;) ou ramenés (&quot;Pause max&quot;).
+          l&apos;IPU suivant commence. Les écarts très courts peuvent être ignorés (&quot;Ignorer
+          sous&quot;) ou ramenés (&quot;Pause max&quot;).
         </p>
         <div className="explorer-recalc-grid">
           <label>

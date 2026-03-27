@@ -8,54 +8,54 @@ Voir aussi `audit/wrapper-feasibility.md` (stades 0–6) pour une vue ingestion 
 
 ## A — Prétraitement audio (avant ASR / diarisation)
 
-| # | Rôle | Clés JSON (exemple) | Sortie typique |
-|---|------|---------------------|----------------|
-| 1 | Normalisation (resample mono 16 kHz, loudness ffmpeg `loudnorm`) — **implémenté** | `preNormalize` | `studio_audio_pipeline/normalized.wav` + `normalized_meta.json` |
-| 2 | Band-limiting (HPF / LPF, encoche 50/60 Hz optionnelle) — **implémenté** | `bandLimit` | `studio_audio_pipeline/band_limited.wav` + `band_limit_meta.json` |
-| 3 | Réduction de bruit légère (ffmpeg `afftdn`) — **implémenté** | `spectralDenoise` | `studio_audio_pipeline/denoised.wav` + `spectral_denoise_meta.json` |
-| 4 | Stéréo → mono (mid / L / R) — **implémenté** | `stereoMidSide` | `studio_audio_pipeline/stereo_mix.wav` + `stereo_mix_meta.json` |
-| 4b | Choix canal L/R (niveau moyen) — **implémenté** (2.0 seulement) | `bestChannel` | `best_channel.wav` + `best_channel_meta.json` |
+| #   | Rôle                                                                              | Clés JSON (exemple) | Sortie typique                                                      |
+| --- | --------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------- |
+| 1   | Normalisation (resample mono 16 kHz, loudness ffmpeg `loudnorm`) — **implémenté** | `preNormalize`      | `studio_audio_pipeline/normalized.wav` + `normalized_meta.json`     |
+| 2   | Band-limiting (HPF / LPF, encoche 50/60 Hz optionnelle) — **implémenté**          | `bandLimit`         | `studio_audio_pipeline/band_limited.wav` + `band_limit_meta.json`   |
+| 3   | Réduction de bruit légère (ffmpeg `afftdn`) — **implémenté**                      | `spectralDenoise`   | `studio_audio_pipeline/denoised.wav` + `spectral_denoise_meta.json` |
+| 4   | Stéréo → mono (mid / L / R) — **implémenté**                                      | `stereoMidSide`     | `studio_audio_pipeline/stereo_mix.wav` + `stereo_mix_meta.json`     |
+| 4b  | Choix canal L/R (niveau moyen) — **implémenté** (2.0 seulement)                   | `bestChannel`       | `best_channel.wav` + `best_channel_meta.json`                       |
 
 ## B — Segmentation parole / non-parole (VAD)
 
-| # | Rôle | Clés JSON | Usage |
-|---|------|-----------|--------|
-| 5 | VAD énergie / heuristique — **implémenté** (silences, pas les locuteurs) | `vadEnergy` | `vad_energy.json` (média inchangé pour WhisperX) |
-| 6 | VAD modèle — **implémenté** (Silero via WhisperX ; `pyannote` réservé) | `vadModel` | `vad_model.json` (média inchangé) |
+| #   | Rôle                                                                     | Clés JSON   | Usage                                            |
+| --- | ------------------------------------------------------------------------ | ----------- | ------------------------------------------------ |
+| 5   | VAD énergie / heuristique — **implémenté** (silences, pas les locuteurs) | `vadEnergy` | `vad_energy.json` (média inchangé pour WhisperX) |
+| 6   | VAD modèle — **implémenté** (Silero via WhisperX ; `pyannote` réservé)   | `vadModel`  | `vad_model.json` (média inchangé)                |
 
 ## C — Aides diarisation (sans remplacer pyannote)
 
-| # | Rôle | Clés JSON | Sortie typique |
-|---|------|-----------|----------------|
-| 7 | Chunking aligné sur frontières VAD — **implémenté** | `vadAlignedChunking` | `vad_aligned_chunking.json` (média inchangé) |
-| 8 | Post-traitement tours (fusion de segments VAD, analogue merge WX-605) — **implémenté** (pré-ASR) | `speakerTurnPostprocess` | `speaker_turn_postprocess.json` (média inchangé) |
-| 9 | Recoupements entre segments VAD / tours fusionnés — **implémenté** | `overlapDetection` | `overlap_detection.json` (média inchangé) |
+| #   | Rôle                                                                                             | Clés JSON                | Sortie typique                                   |
+| --- | ------------------------------------------------------------------------------------------------ | ------------------------ | ------------------------------------------------ |
+| 7   | Chunking aligné sur frontières VAD — **implémenté**                                              | `vadAlignedChunking`     | `vad_aligned_chunking.json` (média inchangé)     |
+| 8   | Post-traitement tours (fusion de segments VAD, analogue merge WX-605) — **implémenté** (pré-ASR) | `speakerTurnPostprocess` | `speaker_turn_postprocess.json` (média inchangé) |
+| 9   | Recoupements entre segments VAD / tours fusionnés — **implémenté**                               | `overlapDetection`       | `overlap_detection.json` (média inchangé)        |
 
 ## D — Features QC / diagnostic
 
-| # | Rôle | Clés JSON | Sortie typique |
-|---|------|-----------|----------------|
-| 10 | Pitch / F0 (QC global, fenêtres) — **implémenté** | `qcPitch` | `qc_pitch.json` (média inchangé) |
-| 11 | QC stats globales (ffmpeg `astats`) — **implémenté** | `qcSpectral` | `qc_spectral.json` (média inchangé) |
-| 12 | Sélection automatique de canal « speechiness » | `bestChannel` (voir ligne A4 du tableau) | (voir A) |
+| #   | Rôle                                                 | Clés JSON                                | Sortie typique                      |
+| --- | ---------------------------------------------------- | ---------------------------------------- | ----------------------------------- |
+| 10  | Pitch / F0 (QC global, fenêtres) — **implémenté**    | `qcPitch`                                | `qc_pitch.json` (média inchangé)    |
+| 11  | QC stats globales (ffmpeg `astats`) — **implémenté** | `qcSpectral`                             | `qc_spectral.json` (média inchangé) |
+| 12  | Sélection automatique de canal « speechiness »       | `bestChannel` (voir ligne A4 du tableau) | (voir A)                            |
 
 ## E — Analytique (déjà en grande partie dans le pipeline mots / IPU)
 
-| # | Rôle | Remarque |
-|---|------|----------|
-| 13 | Pauses / IPU / transitions / overlap (mots alignés + speaker) | Cœur métier existant |
-| 14 | Pauses « acoustiques » (VAD) — **implémenté** (`silencedetect`, défauts -45 dB / 1,0 s) | Complément pour silences longs / pubs ; `acoustic_pauses.json` (média inchangé) |
+| #   | Rôle                                                                                    | Remarque                                                                        |
+| --- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 13  | Pauses / IPU / transitions / overlap (mots alignés + speaker)                           | Cœur métier existant                                                            |
+| 14  | Pauses « acoustiques » (VAD) — **implémenté** (`silencedetect`, défauts -45 dB / 1,0 s) | Complément pour silences longs / pubs ; `acoustic_pauses.json` (média inchangé) |
 
 ## Composition recommandée (logique, pas un preset produit)
 
-1. Si stéréo : mid-side et/ou meilleur canal (A4 / D12) — **dans le worker**, `stereoMidSide` est exécuté **avant** `preNormalize` pour éviter un downmix mono générique qui détruirait l’intérêt du mid.  
-2. Normalisation (A1)  
-3. Band-limiting (A2) et/ou débruitage spectral (A3) selon besoin  
+1. Si stéréo : mid-side et/ou meilleur canal (A4 / D12) — **dans le worker**, `stereoMidSide` est exécuté **avant** `preNormalize` pour éviter un downmix mono générique qui détruirait l’intérêt du mid.
+2. Normalisation (A1)
+3. Band-limiting (A2) et/ou débruitage spectral (A3) selon besoin
 4. VAD modèle (B6, Silero) pour métadonnées / QC (optionnel)  
-4b. Chunking indicatif aligné VAD (C7) après `vadModel` / `vadEnergy` (optionnel)  
-5. WhisperX (ASR + align + diarize)  
-6. Post-traitement tours + overlap (C8–C9)  
-7. Pauses / IPU sur mots (E13), VAD acoustique en option (E14)  
+   4b. Chunking indicatif aligné VAD (C7) après `vadModel` / `vadEnergy` (optionnel)
+5. WhisperX (ASR + align + diarize)
+6. Post-traitement tours + overlap (C8–C9)
+7. Pauses / IPU sur mots (E13), VAD acoustique en option (E14)
 8. Features QC pitch / spectral en option (D10–D11)
 
 ## Intégration technique (Studio)

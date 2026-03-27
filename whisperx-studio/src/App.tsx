@@ -41,7 +41,7 @@ function App() {
   const onToggleEditorFocusMode = useCallback(() => {
     setEditorFocusMode((prev) => {
       const next = !prev;
-          if (next) {
+      if (next) {
         setActiveView("workspace");
       }
       return next;
@@ -96,13 +96,13 @@ function App() {
     explorer,
     sessionRestore,
   } = useStudioWorkspace({
-      runDetailsRef,
-      setError,
-      editorFocusMode,
-      onToggleEditorFocusMode,
-      runtimeStatus,
-      injectAudioPipelineSegmentsJson,
-    });
+    runDetailsRef,
+    setError,
+    editorFocusMode,
+    onToggleEditorFocusMode,
+    runtimeStatus,
+    injectAudioPipelineSegmentsJson,
+  });
 
   const onExitEditorFocus = useCallback(() => {
     setEditorFocusMode(false);
@@ -152,10 +152,10 @@ function App() {
                   runtime={localRuntimePanelProps}
                   whisperxSetterRef={whisperxSetterRef}
                 />
-                  </div>
-                </div>
-              ) : null}
               </div>
+            </div>
+          ) : null}
+        </div>
 
         <div
           id={STUDIO_PANEL_IDS.about}
@@ -164,7 +164,7 @@ function App() {
           hidden={!showAboutPanel}
         >
           {showAboutPanel ? <StudioAboutView runtime={localRuntimePanelProps} /> : null}
-                    </div>
+        </div>
 
         <div
           id={STUDIO_PANEL_IDS.player}
@@ -178,8 +178,8 @@ function App() {
               runLabel={playerRunLabel}
               onBack={handlePlayerBack}
             />
-                  ) : null}
-                  </div>
+          ) : null}
+        </div>
 
         <div
           id={STUDIO_PANEL_IDS.workspace}
@@ -196,9 +196,9 @@ function App() {
               explorer={explorer}
               sessionRestore={sessionRestore}
             />
-                  ) : null}
-                </div>
-            </div>
+          ) : null}
+        </div>
+      </div>
     </main>
   );
 }

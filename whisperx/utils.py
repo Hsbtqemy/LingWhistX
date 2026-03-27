@@ -4,9 +4,9 @@ import os
 import re
 import sys
 import zlib
-from typing import Any, Callable, Optional, TextIO
+from typing import Callable, Optional, TextIO
 
-from whisperx.numeric import as_float
+from whisperx.numeric import as_float  # noqa: F401 — réexport (timeline, chunk_merge, etc.)
 
 LANGUAGES = {
     "en": "english",

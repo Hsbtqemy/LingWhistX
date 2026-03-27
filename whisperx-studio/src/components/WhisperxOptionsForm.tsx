@@ -117,10 +117,11 @@ export function WhisperxOptionsForm({
                   <option value="cpu">cpu</option>
                 </select>
                 <p className="field-help">
-                  <code>cuda</code> si GPU NVIDIA (CUDA). <code>auto</code> : défaut WhisperX (CUDA si dispo, sinon
-                  CPU). Sur <strong>macOS</strong> sans NVIDIA, <code>auto</code> équivaut en pratique à{" "}
-                  <strong>cpu</strong> pour transcription <em>et</em> diarisation — le moteur faster-whisper ne
-                  pilote pas le GPU Apple (MPS) ; la diarisation peut donc être longue même sur des fichiers courts.
+                  <code>cuda</code> si GPU NVIDIA (CUDA). <code>auto</code> : défaut WhisperX (CUDA
+                  si dispo, sinon CPU). Sur <strong>macOS</strong> sans NVIDIA, <code>auto</code>{" "}
+                  équivaut en pratique à <strong>cpu</strong> pour transcription <em>et</em>{" "}
+                  diarisation — le moteur faster-whisper ne pilote pas le GPU Apple (MPS) ; la
+                  diarisation peut donc être longue même sur des fichiers courts.
                 </p>
               </label>
 
@@ -212,10 +213,10 @@ export function WhisperxOptionsForm({
                 </select>
                 <p className="field-help">
                   Découpe les zones de parole avant transcription. <strong>Silero</strong> évite en
-                  pratique le Hub. <strong>Pyannote</strong> charge des modèles depuis Hugging Face :
-                  le même mécanisme que la diarization (variable <code>HF_TOKEN</code> côté worker)
-                  peut être nécessaire au <strong>premier</strong> téléchargement si le modèle est
-                  restreint — l’app n’exige le token dans l’UI que pour la{" "}
+                  pratique le Hub. <strong>Pyannote</strong> charge des modèles depuis Hugging Face
+                  : le même mécanisme que la diarization (variable <code>HF_TOKEN</code> côté
+                  worker) peut être nécessaire au <strong>premier</strong> téléchargement si le
+                  modèle est restreint — l’app n’exige le token dans l’UI que pour la{" "}
                   <strong>diarization</strong> ; en cas d’erreur 401 sur le VAD pyannote, renseigne
                   aussi un token (stocké localement) ou accepte le modèle sur huggingface.co.
                 </p>
@@ -383,8 +384,8 @@ export function WhisperxOptionsForm({
                   <option value="aud">aud</option>
                 </select>
                 <p className="field-help">
-                  `all` exporte tous les formats utiles. Pour garder l&apos;éditeur transcript actif,
-                  Studio conserve toujours un JSON (même si tu choisis `srt`/`vtt`/`txt`).
+                  `all` exporte tous les formats utiles. Pour garder l&apos;éditeur transcript
+                  actif, Studio conserve toujours un JSON (même si tu choisis `srt`/`vtt`/`txt`).
                 </p>
               </label>
             </div>
@@ -408,7 +409,11 @@ export function WhisperxOptionsForm({
                   placeholder='{"preNormalize": true, "vadEnergy": true}'
                   spellCheck={false}
                   autoComplete="off"
-                  style={{ width: "100%", fontFamily: "ui-monospace, monospace", fontSize: "0.9em" }}
+                  style={{
+                    width: "100%",
+                    fontFamily: "ui-monospace, monospace",
+                    fontSize: "0.9em",
+                  }}
                 />
                 <p className="field-help">
                   Objet JSON avec les clés canoniques (
@@ -433,12 +438,16 @@ export function WhisperxOptionsForm({
                   placeholder={`[\n  { "startSec": 0, "endSec": 12.5, "audioPipelineModules": { "preNormalize": true } }\n]`}
                   spellCheck={false}
                   autoComplete="off"
-                  style={{ width: "100%", fontFamily: "ui-monospace, monospace", fontSize: "0.9em" }}
+                  style={{
+                    width: "100%",
+                    fontFamily: "ui-monospace, monospace",
+                    fontSize: "0.9em",
+                  }}
                 />
                 <p className="field-help">
                   Tableau non vide de plages <code>startSec</code>/<code>endSec</code> (secondes),
-                  modules optionnels par plage via <code>audioPipelineModules</code> (sinon repli sur
-                  le champ « Modules pipeline » ci-dessus) — détail{" "}
+                  modules optionnels par plage via <code>audioPipelineModules</code> (sinon repli
+                  sur le champ « Modules pipeline » ci-dessus) — détail{" "}
                   <a href={PIPELINE_MODULES_DOC_URL} target="_blank" rel="noreferrer">
                     WX-623 dans la même doc
                   </a>

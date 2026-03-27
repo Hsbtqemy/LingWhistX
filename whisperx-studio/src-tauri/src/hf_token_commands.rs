@@ -49,9 +49,7 @@ pub async fn validate_hf_token(token: String) -> Result<HfTokenValidationResult,
         let short = body_hint.chars().take(200).collect::<String>();
         return Ok(HfTokenValidationResult {
             ok: false,
-            message: format!(
-                "Réponse Hugging Face inattendue ({status}). {short}",
-            ),
+            message: format!("Réponse Hugging Face inattendue ({status}). {short}",),
             username: None,
         });
     }
@@ -65,12 +63,7 @@ pub async fn validate_hf_token(token: String) -> Result<HfTokenValidationResult,
         .get("name")
         .and_then(|v| v.as_str())
         .map(str::to_string)
-        .or_else(|| {
-            value
-                .get("id")
-                .and_then(|v| v.as_str())
-                .map(str::to_string)
-        });
+        .or_else(|| value.get("id").and_then(|v| v.as_str()).map(str::to_string));
 
     let name_display = username.as_deref().unwrap_or("(compte inconnu)");
 

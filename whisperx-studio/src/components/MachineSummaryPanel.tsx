@@ -46,8 +46,8 @@ export function MachineSummaryPanel({ runtimeStatus }: MachineSummaryPanelProps)
         </>
       ) : (
         <p className="small about-machine-hint">
-          Lance <strong>Vérifier le runtime</strong> dans le panneau ci-dessous pour afficher PyTorch,
-          CUDA/MPS et la commande Python utilisée par l&apos;app.
+          Lance <strong>Vérifier le runtime</strong> dans le panneau ci-dessous pour afficher
+          PyTorch, CUDA/MPS et la commande Python utilisée par l&apos;app.
         </p>
       )}
     </section>

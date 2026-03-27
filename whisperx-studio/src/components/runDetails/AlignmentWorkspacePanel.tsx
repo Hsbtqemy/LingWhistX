@@ -386,9 +386,7 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                 <input
                   type="checkbox"
                   checked={snapEnabled}
-                  onChange={(e) =>
-                    runInTransition(() => setSnapEnabled(e.currentTarget.checked))
-                  }
+                  onChange={(e) => runInTransition(() => setSnapEnabled(e.currentTarget.checked))}
                 />
                 Snap
               </label>
@@ -602,9 +600,7 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                     type="checkbox"
                     checked={previewWaveBypassEffects}
                     onChange={(e) =>
-                      runInTransition(() =>
-                        setPreviewWaveBypassEffects(e.currentTarget.checked),
-                      )
+                      runInTransition(() => setPreviewWaveBypassEffects(e.currentTarget.checked))
                     }
                   />
                   Bypass effets (chaîne neutre)

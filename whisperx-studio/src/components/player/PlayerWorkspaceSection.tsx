@@ -547,9 +547,7 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
               <input
                 type="checkbox"
                 checked={wordsWindowEnabled}
-                onChange={(e) =>
-                  runInTransition(() => setWordsWindowEnabled(e.target.checked))
-                }
+                onChange={(e) => runInTransition(() => setWordsWindowEnabled(e.target.checked))}
               />
               Fenêtre mots (30s) + requête words
             </label>
@@ -645,9 +643,7 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
               <select
                 value={alertListFilter}
                 onChange={(e) =>
-                  runInTransition(() =>
-                    setAlertListFilter(e.target.value as AlertListFilter),
-                  )
+                  runInTransition(() => setAlertListFilter(e.target.value as AlertListFilter))
                 }
                 aria-label="Filtrer le type d’alertes dans la liste"
               >

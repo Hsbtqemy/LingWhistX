@@ -99,10 +99,7 @@ function LocalRuntimePanelComponent({
               {runtimeStatus.torchMpsAvailable ? "oui" : "non"} · défaut WhisperX :{" "}
               <strong>{runtimeStatus.whisperxDefaultDevice ?? "?"}</strong>
               {runtimeStatus.pythonPlatform === "darwin" && !runtimeStatus.torchCudaAvailable ? (
-                <>
-                  {" "}
-                  (sur Mac, faster-whisper reste CPU ; la diarisation aussi sans CUDA.)
-                </>
+                <> (sur Mac, faster-whisper reste CPU ; la diarisation aussi sans CUDA.)</>
               ) : null}
             </p>
           ) : null}

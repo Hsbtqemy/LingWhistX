@@ -1,6 +1,6 @@
 """Acceptance WX-503 : pauses typées, transitions, IPU word_ids."""
 
-from whisperx.analysis import build_pauses, build_ipus, build_transitions
+from whisperx.analysis import build_pauses
 from whisperx.timeline import build_canonical_timeline
 
 

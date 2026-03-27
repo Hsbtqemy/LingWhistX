@@ -28,8 +28,7 @@ export function adaptiveProfilePresets(rs: RuntimeStatus | null): ProfilePreset[
     !cuda && isMac
       ? " Sur ce Mac (pas de CUDA), tout le pipeline reste sur CPU ; la diarisation peut être longue."
       : "";
-  const genericCpuHint =
-    !cuda && !isMac ? " Pas de GPU NVIDIA détecté : exécution CPU." : "";
+  const genericCpuHint = !cuda && !isMac ? " Pas de GPU NVIDIA détecté : exécution CPU." : "";
 
   return profilePresets.map((p) => {
     const o = { ...p.options };

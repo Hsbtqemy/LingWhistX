@@ -93,8 +93,13 @@ fn jobs_table_has_column(conn: &Connection, column: &str) -> Result<bool, String
     let mut rows = stmt
         .query([])
         .map_err(|err| format!("table_info query failed: {err}"))?;
-    while let Some(row) = rows.next().map_err(|err| format!("table_info row: {err}"))? {
-        let name: String = row.get(1).map_err(|err| format!("table_info name: {err}"))?;
+    while let Some(row) = rows
+        .next()
+        .map_err(|err| format!("table_info row: {err}"))?
+    {
+        let name: String = row
+            .get(1)
+            .map_err(|err| format!("table_info name: {err}"))?;
         if name == column {
             return Ok(true);
         }

@@ -15,7 +15,9 @@ export type JobRunPipelineStripProps = {
 const RECENT_LOGS = 6;
 
 function scrollToFullLogs() {
-  document.getElementById("job-timeline-logs")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  document
+    .getElementById("job-timeline-logs")
+    ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 /**
@@ -34,10 +36,7 @@ export function JobRunPipelineStrip({ job, logs }: JobRunPipelineStripProps) {
   const isRunning = job.status === "running";
 
   /** Derniers messages, plus récent en tête (comme le journal complet). */
-  const recent = useMemo(
-    () => [...logs].slice(-RECENT_LOGS).reverse(),
-    [logs],
-  );
+  const recent = useMemo(() => [...logs].slice(-RECENT_LOGS).reverse(), [logs]);
 
   return (
     <div
@@ -56,7 +55,9 @@ export function JobRunPipelineStrip({ job, logs }: JobRunPipelineStripProps) {
           ) : null}
         </div>
         {isQueued ? (
-          <p className="job-pipeline-strip__banner">En file d&apos;attente — le worker démarrera sous peu.</p>
+          <p className="job-pipeline-strip__banner">
+            En file d&apos;attente — le worker démarrera sous peu.
+          </p>
         ) : null}
       </div>
 
@@ -94,10 +95,7 @@ export function JobRunPipelineStrip({ job, logs }: JobRunPipelineStripProps) {
       {isRunning ? (
         <div className="job-pipeline-strip__progress-wrap">
           <div className="progress-track job-pipeline-strip__track">
-            <div
-              className="progress-value"
-              style={{ width: `${Math.max(4, job.progress)}%` }}
-            />
+            <div className="progress-value" style={{ width: `${Math.max(4, job.progress)}%` }} />
           </div>
           <span className="job-pipeline-strip__pct mono">{job.progress}%</span>
         </div>
@@ -105,12 +103,11 @@ export function JobRunPipelineStrip({ job, logs }: JobRunPipelineStripProps) {
 
       {isError && job.error ? (
         <p className="job-pipeline-strip__hint small">
-          Échec : voir le détail dans Méta ou la ligne d&apos;erreur ci-dessous dans l&apos;historique.
+          Échec : voir le détail dans Méta ou la ligne d&apos;erreur ci-dessous dans
+          l&apos;historique.
         </p>
       ) : null}
-      {isCancelled ? (
-        <p className="job-pipeline-strip__hint small">Job annulé.</p>
-      ) : null}
+      {isCancelled ? <p className="job-pipeline-strip__hint small">Job annulé.</p> : null}
 
       {logs.length > 0 ? (
         <details className="job-pipeline-strip__activity">
@@ -131,12 +128,18 @@ export function JobRunPipelineStrip({ job, logs }: JobRunPipelineStripProps) {
               </li>
             ))}
           </ul>
-          <button type="button" className="ghost job-pipeline-strip__logs-link" onClick={scrollToFullLogs}>
+          <button
+            type="button"
+            className="ghost job-pipeline-strip__logs-link"
+            onClick={scrollToFullLogs}
+          >
             Voir le journal d&apos;exécution complet
           </button>
         </details>
       ) : (
-        <p className="job-pipeline-strip__hint small">Aucun message du worker pour l&apos;instant.</p>
+        <p className="job-pipeline-strip__hint small">
+          Aucun message du worker pour l&apos;instant.
+        </p>
       )}
     </div>
   );

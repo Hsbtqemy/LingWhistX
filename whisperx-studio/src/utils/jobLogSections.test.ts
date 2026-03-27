@@ -20,7 +20,7 @@ describe("stageToSectionId", () => {
 
 describe("inferSectionFromMessage", () => {
   it("aligne les motifs sur le worker Python", () => {
-    expect(inferSectionFromMessage("Failed to align segment (\"x\"): no")).toBe("align");
+    expect(inferSectionFromMessage('Failed to align segment ("x"): no')).toBe("align");
     expect(inferSectionFromMessage("Loading diarization model: pyannote/x")).toBe("diarize");
     expect(inferSectionFromMessage("Using model: pyannote/foo")).toBe("diarize");
     expect(inferSectionFromMessage("Using media chunking: duration=10s")).toBe("transcribe");

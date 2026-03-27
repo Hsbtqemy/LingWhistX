@@ -7,7 +7,13 @@ import { normalizeWhisperxOptions } from "../appUtils";
 import { readStoredHfToken, writeStoredHfToken } from "../hfTokenStorage";
 import { STUDIO_PREFS_CHANGED_EVENT } from "../studioPreferences";
 import { adaptiveProfilePresets } from "../runtimeAdaptivePresets";
-import type { CreateJobRequest, Job, JobFormStep, RuntimeStatus, UiWhisperxOptions } from "../types";
+import type {
+  CreateJobRequest,
+  Job,
+  JobFormStep,
+  RuntimeStatus,
+  UiWhisperxOptions,
+} from "../types";
 
 export type UseNewJobFormOptions = {
   setError: (message: string) => void;
@@ -81,12 +87,7 @@ export function useNewJobForm({
       }
       return { ...profile.options, hfToken: prev.hfToken };
     });
-  }, [
-    runtimeCoreReady,
-    runtimeStatus?.whisperxOk,
-    profilePresetsResolved,
-    selectedProfileId,
-  ]);
+  }, [runtimeCoreReady, runtimeStatus?.whisperxOk, profilePresetsResolved, selectedProfileId]);
 
   async function pickInputPath() {
     const selected = await open({

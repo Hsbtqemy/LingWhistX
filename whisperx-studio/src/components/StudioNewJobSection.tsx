@@ -166,8 +166,8 @@ export function StudioNewJobSection({
                 </p>
               ) : (
                 <p className="small import-summary-preview-hint">
-                  L&apos;aperçu du média (lecture + ondeforme) est affiché <strong>plus haut</strong>{" "}
-                  dans ce panneau, au-dessus du formulaire.
+                  L&apos;aperçu du média (lecture + ondeforme) est affiché{" "}
+                  <strong>plus haut</strong> dans ce panneau, au-dessus du formulaire.
                 </p>
               )}
               <p className="small">

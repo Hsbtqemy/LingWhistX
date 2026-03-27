@@ -17,7 +17,11 @@ export type HfTokenQuickCardProps = {
 /**
  * Zone dédiée en tête du formulaire — plus visible que le champ dans les options WhisperX avancées.
  */
-export function HfTokenQuickCard({ whisperxOptions, setWhisperxOptions, mode }: HfTokenQuickCardProps) {
+export function HfTokenQuickCard({
+  whisperxOptions,
+  setWhisperxOptions,
+  mode,
+}: HfTokenQuickCardProps) {
   const [validating, setValidating] = useState(false);
   const [validation, setValidation] = useState<HfValidationState>(null);
 
@@ -166,11 +170,11 @@ export function HfTokenQuickCard({ whisperxOptions, setWhisperxOptions, mode }: 
 
       <div className="hf-token-card__credits-note">
         <p className="hf-token-card__credits-lead">
-          <strong>Crédits / solde</strong> : Hugging Face ne fournit pas d’API publique et stable pour
-          afficher le montant exact restant dans une app externe (le tableau de bord web reste la
-          référence). Par ailleurs, <strong>WhisperX en local</strong> ne consomme pas les crédits
-          « Inference Providers » comme une API cloud : tu télécharges les poids une fois ; la
-          transcription ne débite pas ce compteur à la minute.
+          <strong>Crédits / solde</strong> : Hugging Face ne fournit pas d’API publique et stable
+          pour afficher le montant exact restant dans une app externe (le tableau de bord web reste
+          la référence). Par ailleurs, <strong>WhisperX en local</strong> ne consomme pas les
+          crédits « Inference Providers » comme une API cloud : tu télécharges les poids une fois ;
+          la transcription ne débite pas ce compteur à la minute.
         </p>
         <div className="hf-token-card__credits-actions">
           <button

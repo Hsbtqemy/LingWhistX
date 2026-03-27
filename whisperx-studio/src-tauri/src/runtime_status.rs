@@ -68,11 +68,16 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
                         whisperx_default_device = Some(probe.whisperx_default_device.clone());
                         details.push(format!(
                             "torch probe: platform={} cuda={} mps={} whisperx_default={}",
-                            probe.platform, probe.torch_cuda, probe.torch_mps, probe.whisperx_default_device
+                            probe.platform,
+                            probe.torch_cuda,
+                            probe.torch_mps,
+                            probe.whisperx_default_device
                         ));
                     }
                     Err(err) => {
-                        details.push(format!("torch probe parse error: {err} (output: {trimmed})"));
+                        details.push(format!(
+                            "torch probe parse error: {err} (output: {trimmed})"
+                        ));
                     }
                 }
             }

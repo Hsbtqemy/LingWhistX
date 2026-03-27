@@ -20,7 +20,11 @@ describe("recommendedWhisperDevice", () => {
   it("retourne cuda si CUDA dispo", () => {
     expect(
       recommendedWhisperDevice(
-        baseRs({ torchCudaAvailable: true, whisperxDefaultDevice: "cuda", pythonPlatform: "linux" }),
+        baseRs({
+          torchCudaAvailable: true,
+          whisperxDefaultDevice: "cuda",
+          pythonPlatform: "linux",
+        }),
       ),
     ).toBe("cuda");
   });

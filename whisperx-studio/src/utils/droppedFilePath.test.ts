@@ -9,10 +9,7 @@ function fileListFrom(files: File[]): FileList {
   } as FileList;
 }
 
-function mockDragEvent(dt: {
-  files: FileList;
-  getData: (type: string) => string;
-}): DragEvent {
+function mockDragEvent(dt: { files: FileList; getData: (type: string) => string }): DragEvent {
   return { dataTransfer: dt as unknown as DataTransfer } as DragEvent;
 }
 
