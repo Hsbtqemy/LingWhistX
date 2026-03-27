@@ -146,6 +146,7 @@ function App() {
                   refreshJobs={refreshJobs}
                   runtimeReady={runtimeReady}
                   runtimeCoreReady={runtimeCoreReady}
+                  runtimeStatus={runtimeStatus}
                   runningJobs={runningJobs}
                   errors={appErrors}
                   runtime={localRuntimePanelProps}

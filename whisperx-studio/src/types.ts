@@ -159,6 +159,12 @@ export type RuntimeStatus = {
   ffmpegOk: boolean;
   whisperxVersion?: string | null;
   details: string[];
+  /** `sys.platform` côté Python (darwin, win32, linux, …). */
+  pythonPlatform?: string | null;
+  torchCudaAvailable?: boolean;
+  torchMpsAvailable?: boolean;
+  /** Défaut identique au CLI WhisperX : cuda ou cpu (faster-whisper n’utilise pas MPS). */
+  whisperxDefaultDevice?: string | null;
 };
 
 export type RuntimeSetupStatus = {

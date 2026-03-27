@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { profilePresets } from "../constants";
+import { profilePresets as defaultProfilePresets } from "../constants";
 import { PIPELINE_MODULES_DOC_URL } from "../docUrls";
 import type { ProfilePreset, UiWhisperxOptions } from "../types";
 import { runInTransition, setWhisperxOptionsDeferred } from "../whisperxOptionsTransitions";
@@ -13,6 +13,8 @@ export type WhisperxOptionsFormProps = {
   selectedProfileId: string;
   onProfileChange: (profileId: string) => void;
   selectedProfile: ProfilePreset | undefined;
+  /** Préréglages (souvent adaptés au runtime détecté). */
+  profilePresets?: ProfilePreset[];
 };
 
 export function WhisperxOptionsForm({
@@ -21,6 +23,7 @@ export function WhisperxOptionsForm({
   selectedProfileId,
   onProfileChange,
   selectedProfile,
+  profilePresets = defaultProfilePresets,
 }: WhisperxOptionsFormProps) {
   const patchWhisperx = useCallback(
     (partial: Partial<UiWhisperxOptions>) => {
@@ -113,7 +116,12 @@ export function WhisperxOptionsForm({
                   <option value="cuda">cuda (GPU)</option>
                   <option value="cpu">cpu</option>
                 </select>
-                <p className="field-help">`cuda` si carte NVIDIA disponible, sinon `cpu`.</p>
+                <p className="field-help">
+                  <code>cuda</code> si GPU NVIDIA (CUDA). <code>auto</code> : défaut WhisperX (CUDA si dispo, sinon
+                  CPU). Sur <strong>macOS</strong> sans NVIDIA, <code>auto</code> équivaut en pratique à{" "}
+                  <strong>cpu</strong> pour transcription <em>et</em> diarisation — le moteur faster-whisper ne
+                  pilote pas le GPU Apple (MPS) ; la diarisation peut donc être longue même sur des fichiers courts.
+                </p>
               </label>
 
               <label>

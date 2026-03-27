@@ -4,7 +4,7 @@ import { LocalRuntimePanel, type LocalRuntimePanelProps } from "./LocalRuntimePa
 import { StudioNewJobSection } from "./StudioNewJobSection";
 import { StudioOpenRunSection } from "./StudioOpenRunSection";
 import { useNewJobForm } from "../hooks/useNewJobForm";
-import type { StudioView, UiWhisperxOptions } from "../types";
+import type { RuntimeStatus, StudioView, UiWhisperxOptions } from "../types";
 
 export type HomeCreatePanelProps = {
   setError: (message: string) => void;
@@ -14,6 +14,7 @@ export type HomeCreatePanelProps = {
   refreshJobs: () => Promise<void>;
   runtimeReady: boolean;
   runtimeCoreReady: boolean;
+  runtimeStatus: RuntimeStatus | null;
   runningJobs: number;
   errors: string[];
   runtime: LocalRuntimePanelProps;
@@ -33,6 +34,7 @@ export function HomeCreatePanel({
   refreshJobs,
   runtimeReady,
   runtimeCoreReady,
+  runtimeStatus,
   runningJobs,
   errors,
   runtime,
@@ -44,6 +46,7 @@ export function HomeCreatePanel({
     refreshJobs,
     runtimeReady,
     runtimeCoreReady,
+    runtimeStatus,
     onJobCreated: () => setActiveView("workspace"),
   });
 

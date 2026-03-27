@@ -210,6 +210,7 @@ export function StudioNewJobSection({
                 selectedProfileId={selectedProfileId}
                 onProfileChange={applyProfile}
                 selectedProfile={selectedProfile}
+                profilePresets={jobForm.profilePresets}
               />
             ) : null}
 

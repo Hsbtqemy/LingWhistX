@@ -23,6 +23,7 @@ import {
   shouldDrawSegmentOverlays,
 } from "../waveformWxenv";
 import { WebAudioWindowPlayer } from "../webAudioPlayback";
+import { readWebAudioDefault, STUDIO_PREFS_CHANGED_EVENT } from "../studioPreferences";
 
 export type UseWaveformWorkspaceOptions = {
   selectedJob: Job | null;
@@ -54,8 +55,10 @@ export function useWaveformWorkspace({
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
 
   const waveformTaskIdRef = useRef("");
+  /** Dernier job pour lequel on a reset l’ondeforme — évite les resets en double (ex. Strict Mode). */
+  const lastWaveformResetJobIdRef = useRef<string | undefined>(undefined);
   const webAudioPlayerRef = useRef<WebAudioWindowPlayer | null>(null);
-  const [webAudioMode, setWebAudioMode] = useState(false);
+  const [webAudioMode, setWebAudioMode] = useState(() => readWebAudioDefault());
   const [webAudioError, setWebAudioError] = useState("");
   /** WX-622 — plage [t0,t1] sur la timeline (audio / ondeforme). */
   const [previewRangeSec, setPreviewRangeSec] = useState<{ start: number; end: number } | null>(
@@ -550,17 +553,11 @@ export function useWaveformWorkspace({
   }, []);
 
   useEffect(() => {
-    waveformTaskIdRef.current = waveformTaskId;
-  }, [waveformTaskId]);
-
-  useEffect(() => {
-    return () => {
-      const taskId = waveformTaskIdRef.current;
-      if (!taskId) {
-        return;
-      }
-      void invoke<boolean>("cancel_waveform_generation", { taskId });
+    const onPrefs = () => {
+      setWebAudioMode(readWebAudioDefault());
     };
+    window.addEventListener(STUDIO_PREFS_CHANGED_EVENT, onPrefs);
+    return () => window.removeEventListener(STUDIO_PREFS_CHANGED_EVENT, onPrefs);
   }, []);
 
   useEffect(() => {
@@ -683,6 +680,11 @@ export function useWaveformWorkspace({
   }, []);
 
   useEffect(() => {
+    if (lastWaveformResetJobIdRef.current === selectedJobId) {
+      return;
+    }
+    lastWaveformResetJobIdRef.current = selectedJobId;
+
     if (waveformTaskIdRef.current) {
       void requestCancelWaveformGeneration(waveformTaskIdRef.current);
     }
@@ -712,6 +714,14 @@ export function useWaveformWorkspace({
     setPreviewWaveBalance(0);
     setPreviewWaveBypassEffects(false);
   }, [selectedJobId, requestCancelWaveformGeneration]);
+
+  /** Après génération des peaks, construire la pyramide WXENV pour l’overview (hero + Alignement). */
+  useEffect(() => {
+    if (!waveform || waveform.durationSec <= 0 || waveformPyramid || isPyramidBuilding || pyramidError) {
+      return;
+    }
+    void buildWaveformPyramid();
+  }, [buildWaveformPyramid, isPyramidBuilding, pyramidError, waveform, waveformPyramid]);
 
   useEffect(() => {
     if (!waveformPyramid) {

@@ -93,6 +93,19 @@ function LocalRuntimePanelComponent({
             {runtimeStatus.whisperxOk ? "ok" : "ko"} | ffmpeg:{" "}
             {runtimeStatus.ffmpegOk ? "ok" : "ko"}
           </p>
+          {runtimeStatus.whisperxOk ? (
+            <p className="small runtime-torch-hint">
+              PyTorch : CUDA {runtimeStatus.torchCudaAvailable ? "oui" : "non"} · MPS{" "}
+              {runtimeStatus.torchMpsAvailable ? "oui" : "non"} · défaut WhisperX :{" "}
+              <strong>{runtimeStatus.whisperxDefaultDevice ?? "?"}</strong>
+              {runtimeStatus.pythonPlatform === "darwin" && !runtimeStatus.torchCudaAvailable ? (
+                <>
+                  {" "}
+                  (sur Mac, faster-whisper reste CPU ; la diarisation aussi sans CUDA.)
+                </>
+              ) : null}
+            </p>
+          ) : null}
           {!runtimeStatus.ffmpegOk ? (
             <div className="runtime-ffmpeg-hint">
               <p className="small">

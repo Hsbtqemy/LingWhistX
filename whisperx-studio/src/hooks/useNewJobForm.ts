@@ -1,11 +1,13 @@
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { defaultWhisperxOptions, profilePresets } from "../constants";
+import { defaultWhisperxOptions } from "../constants";
 import { normalizeWhisperxOptions } from "../appUtils";
 import { readStoredHfToken, writeStoredHfToken } from "../hfTokenStorage";
-import type { CreateJobRequest, Job, JobFormStep, UiWhisperxOptions } from "../types";
+import { STUDIO_PREFS_CHANGED_EVENT } from "../studioPreferences";
+import { adaptiveProfilePresets } from "../runtimeAdaptivePresets";
+import type { CreateJobRequest, Job, JobFormStep, RuntimeStatus, UiWhisperxOptions } from "../types";
 
 export type UseNewJobFormOptions = {
   setError: (message: string) => void;
@@ -13,6 +15,8 @@ export type UseNewJobFormOptions = {
   refreshJobs: () => Promise<void>;
   runtimeReady: boolean;
   runtimeCoreReady: boolean;
+  /** Diagnostic runtime (sonde PyTorch pour préréglages device). */
+  runtimeStatus: RuntimeStatus | null;
   /** Après création réussie d’un job (ex. basculer vers l’onglet Studio). */
   onJobCreated?: () => void;
 };
@@ -23,6 +27,7 @@ export function useNewJobForm({
   refreshJobs,
   runtimeReady,
   runtimeCoreReady,
+  runtimeStatus,
   onJobCreated,
 }: UseNewJobFormOptions) {
   const [inputPath, setInputPath] = useState("");
@@ -37,13 +42,51 @@ export function useNewJobForm({
   useEffect(() => {
     writeStoredHfToken(whisperxOptions.hfToken);
   }, [whisperxOptions.hfToken]);
+
+  useEffect(() => {
+    const onPrefs = () => {
+      setWhisperxOptions((prev) => ({ ...prev, hfToken: readStoredHfToken() }));
+    };
+    window.addEventListener(STUDIO_PREFS_CHANGED_EVENT, onPrefs);
+    return () => window.removeEventListener(STUDIO_PREFS_CHANGED_EVENT, onPrefs);
+  }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [jobFormStep, setJobFormStep] = useState<JobFormStep>("import");
 
-  const selectedProfile = useMemo(
-    () => profilePresets.find((preset) => preset.id === selectedProfileId),
-    [selectedProfileId],
+  const profilePresetsResolved = useMemo(
+    () => adaptiveProfilePresets(runtimeStatus),
+    [runtimeStatus],
   );
+
+  const selectedProfile = useMemo(
+    () => profilePresetsResolved.find((preset) => preset.id === selectedProfileId),
+    [profilePresetsResolved, selectedProfileId],
+  );
+
+  const runtimePresetSyncedRef = useRef(false);
+
+  /** Une fois le runtime WhisperX + sonde torch connus, applique le profil sélectionné (device adapté). */
+  useEffect(() => {
+    if (!runtimeCoreReady || !runtimeStatus?.whisperxOk || runtimePresetSyncedRef.current) {
+      return;
+    }
+    runtimePresetSyncedRef.current = true;
+    const profile = profilePresetsResolved.find((preset) => preset.id === selectedProfileId);
+    if (!profile) {
+      return;
+    }
+    setWhisperxOptions((prev) => {
+      if (prev.device !== defaultWhisperxOptions.device) {
+        return prev;
+      }
+      return { ...profile.options, hfToken: prev.hfToken };
+    });
+  }, [
+    runtimeCoreReady,
+    runtimeStatus?.whisperxOk,
+    profilePresetsResolved,
+    selectedProfileId,
+  ]);
 
   async function pickInputPath() {
     const selected = await open({
@@ -310,7 +353,7 @@ export function useNewJobForm({
 
   function applyProfile(profileId: string) {
     setSelectedProfileId(profileId);
-    const profile = profilePresets.find((preset) => preset.id === profileId);
+    const profile = profilePresetsResolved.find((preset) => preset.id === profileId);
     if (profile) {
       setWhisperxOptions((prev) => ({ ...profile.options, hfToken: prev.hfToken }));
     }
@@ -353,6 +396,7 @@ export function useNewJobForm({
     submitJob,
     applyProfile,
     applyAdvancedPreset,
+    profilePresets: profilePresetsResolved,
   };
 }
 

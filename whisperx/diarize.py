@@ -1,4 +1,5 @@
 import os
+import warnings
 import numpy as np
 import pandas as pd
 from pyannote.audio import Pipeline
@@ -186,13 +187,20 @@ class DiarizationPipeline:
                         last_pct[0] = pct
                         progress_callback(pct)
 
-        output = self.model(
-            audio_data,
-            num_speakers=num_speakers,
-            min_speakers=min_speakers,
-            max_speakers=max_speakers,
-            **({"hook": hook} if hook is not None else {}),
-        )
+        # Bruit PyTorch/pyannote (std sur batch dégénéré) — sans effet sur le résultat.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*degrees of freedom.*",
+                category=UserWarning,
+            )
+            output = self.model(
+                audio_data,
+                num_speakers=num_speakers,
+                min_speakers=min_speakers,
+                max_speakers=max_speakers,
+                **({"hook": hook} if hook is not None else {}),
+            )
 
         if progress_callback is not None:
             progress_callback(100.0)

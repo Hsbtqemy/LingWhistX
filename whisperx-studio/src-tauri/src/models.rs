@@ -288,6 +288,15 @@ pub(crate) struct WaveformTaskState {
     pub(crate) cancelled_task_ids: Arc<Mutex<HashSet<String>>>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TorchProbeResult {
+    pub(crate) platform: String,
+    pub(crate) torch_cuda: bool,
+    pub(crate) torch_mps: bool,
+    pub(crate) whisperx_default_device: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct RuntimeStatus {
@@ -297,6 +306,12 @@ pub(crate) struct RuntimeStatus {
     pub(crate) ffmpeg_ok: bool,
     pub(crate) whisperx_version: Option<String>,
     pub(crate) details: Vec<String>,
+    /// `sys.platform` côté Python (ex. darwin, win32, linux).
+    pub(crate) python_platform: Option<String>,
+    pub(crate) torch_cuda_available: bool,
+    pub(crate) torch_mps_available: bool,
+    /// Comme le défaut CLI WhisperX : `cuda` si CUDA dispo, sinon `cpu` (faster-whisper n’utilise pas MPS).
+    pub(crate) whisperx_default_device: Option<String>,
 }
 
 #[derive(Debug, Clone)]

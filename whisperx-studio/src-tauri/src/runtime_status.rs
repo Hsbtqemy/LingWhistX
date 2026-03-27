@@ -3,8 +3,11 @@
 use tauri::AppHandle;
 
 use crate::ffmpeg_tools::{resolve_ffmpeg_tools, run_probe};
-use crate::models::RuntimeStatus;
+use crate::models::{RuntimeStatus, TorchProbeResult};
 use crate::python_runtime::resolve_python_command;
+
+/// Sondage torch (CUDA / MPS / défaut identique au CLI WhisperX).
+const TORCH_PROBE_PY: &str = r#"import json,sys;import torch;cuda=torch.cuda.is_available();mps=getattr(torch.backends,"mps",None)is not None and torch.backends.mps.is_available();print(json.dumps({"platform":sys.platform,"torchCuda":cuda,"torchMps":mps,"whisperxDefaultDevice":("cuda" if cuda else "cpu")}))"#;
 
 fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
     let python_command = resolve_python_command(&app);
@@ -14,6 +17,10 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
     let mut ffmpeg_ok = false;
     let mut whisperx_version: Option<String> = None;
     let mut details: Vec<String> = Vec::new();
+    let mut python_platform: Option<String> = None;
+    let mut torch_cuda_available = false;
+    let mut torch_mps_available = false;
+    let mut whisperx_default_device: Option<String> = None;
 
     match run_probe(
         &python_command,
@@ -49,6 +56,32 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
         }
     }
 
+    if whisperx_ok {
+        match run_probe(&python_command, &["-c", TORCH_PROBE_PY], None) {
+            Ok(line) => {
+                let trimmed = line.trim();
+                match serde_json::from_str::<TorchProbeResult>(trimmed) {
+                    Ok(probe) => {
+                        python_platform = Some(probe.platform.clone());
+                        torch_cuda_available = probe.torch_cuda;
+                        torch_mps_available = probe.torch_mps;
+                        whisperx_default_device = Some(probe.whisperx_default_device.clone());
+                        details.push(format!(
+                            "torch probe: platform={} cuda={} mps={} whisperx_default={}",
+                            probe.platform, probe.torch_cuda, probe.torch_mps, probe.whisperx_default_device
+                        ));
+                    }
+                    Err(err) => {
+                        details.push(format!("torch probe parse error: {err} (output: {trimmed})"));
+                    }
+                }
+            }
+            Err(err) => {
+                details.push(format!("torch probe error: {err}"));
+            }
+        }
+    }
+
     if let Some(dir) = ffmpeg_tools.ffmpeg_dir.as_deref() {
         details.push(format!("ffmpeg dir: {}", dir.to_string_lossy()));
     }
@@ -74,6 +107,10 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
         ffmpeg_ok,
         whisperx_version,
         details,
+        python_platform,
+        torch_cuda_available,
+        torch_mps_available,
+        whisperx_default_device,
     }
 }
 

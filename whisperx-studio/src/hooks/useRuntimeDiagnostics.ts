@@ -155,6 +155,14 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
         if (status.whisperxVersion) {
           lines.push(`WhisperX version: ${status.whisperxVersion}`);
         }
+        if (status.pythonPlatform) {
+          lines.push(`Python platform: ${status.pythonPlatform}`);
+        }
+        if (status.whisperxOk) {
+          lines.push(
+            `PyTorch: CUDA=${String(status.torchCudaAvailable)} MPS=${String(status.torchMpsAvailable)} default_whisperx_device=${status.whisperxDefaultDevice ?? "?"}`,
+          );
+        }
         lines.push("Details:");
         for (const detail of status.details) {
           lines.push(`- ${detail}`);

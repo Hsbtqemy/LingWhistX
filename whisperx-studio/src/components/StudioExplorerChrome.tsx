@@ -77,7 +77,12 @@ export function StudioExplorerTopBar({ explorer: ex }: { explorer: StudioExplore
           </button>
         </div>
         <span className="explorer-topbar-sep explorer-topbar-sep--wide" aria-hidden="true" />
-        <span className="explorer-device" title="Device job / runtime local">
+        <span
+          className="explorer-device"
+          title={
+            "Device enregistré pour le job (whisperxOptions). « auto » sans valeur explicite : défaut WhisperX — sur macOS sans CUDA, en pratique CPU pour tout le pipeline (faster-whisper n’utilise pas MPS)."
+          }
+        >
           Device: <strong>{ex.deviceLabel}</strong>
           <span className="explorer-runtime-badges">
             {" "}

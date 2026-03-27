@@ -78,8 +78,18 @@ export function useStudioExplorer({
     if (dev) {
       return dev;
     }
-    return "auto";
-  }, [selectedJob?.whisperxOptions?.device]);
+    const rs = runtimeStatus;
+    if (!rs?.whisperxOk) {
+      return "auto";
+    }
+    if (rs.torchCudaAvailable === true || rs.whisperxDefaultDevice === "cuda") {
+      return "auto → cuda";
+    }
+    if (rs.pythonPlatform === "darwin") {
+      return "auto → cpu (Mac)";
+    }
+    return "auto → cpu";
+  }, [selectedJob?.whisperxOptions?.device, runtimeStatus]);
 
   const runtimeBadges = useMemo(() => {
     const rs = runtimeStatus;

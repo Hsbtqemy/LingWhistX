@@ -607,6 +607,7 @@ def _run_full_pipeline_diarize(
     min_speakers: int | None,
     max_speakers: int | None,
     return_speaker_embeddings: bool,
+    print_progress: bool,
 ) -> list[tuple[TranscriptionResult, str]]:
     if not diarize:
         return results
@@ -621,6 +622,17 @@ def _run_full_pipeline_diarize(
     diarize_model = DiarizationPipeline(
         model_name=diarize_model_name, token=hf_token, device=device, cache_dir=model_dir
     )
+
+    def _diarize_progress(pct: float) -> None:
+        if print_progress:
+            print(f"Progress: {pct:.2f}%...")
+
+    if print_progress:
+        logger.info(
+            "Diarisation pyannote : peut durer plusieurs minutes (CPU, fichier long). "
+            "Les lignes « Progress: … » reflètent la progression interne du modèle lorsqu’elle est disponible."
+        )
+
     for result, input_audio_path in tmp_results:
         diarize_result = diarize_model(
             input_audio_path,
@@ -628,6 +640,7 @@ def _run_full_pipeline_diarize(
             min_speakers=min_speakers,
             max_speakers=max_speakers,
             return_embeddings=return_speaker_embeddings,
+            progress_callback=_diarize_progress if print_progress else None,
         )
 
         if return_speaker_embeddings:
@@ -1143,6 +1156,7 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
         min_speakers=min_speakers,
         max_speakers=max_speakers,
         return_speaker_embeddings=return_speaker_embeddings,
+        print_progress=print_progress,
     )
 
     _run_full_pipeline_write_outputs(

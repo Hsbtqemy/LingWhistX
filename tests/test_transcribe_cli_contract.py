@@ -327,6 +327,19 @@ def test_transcribe_forwards_force_n_speakers_to_diarization(tmp_path, monkeypat
     assert captured["call"]["num_speakers"] == 2
     assert captured["call"]["min_speakers"] is None
     assert captured["call"]["max_speakers"] is None
+    assert captured["call"]["progress_callback"] is None
+
+    captured.clear()
+    args_progress = _base_args(
+        tmp_path,
+        no_align=True,
+        diarize=True,
+        force_n_speakers=2,
+        hf_token="hf_test_dummy",
+        print_progress=True,
+    )
+    transcribe_mod.transcribe_task(args_progress, parser)
+    assert callable(captured["call"]["progress_callback"])
 
 
 def test_transcribe_emits_data_science_exports(tmp_path, monkeypatch):

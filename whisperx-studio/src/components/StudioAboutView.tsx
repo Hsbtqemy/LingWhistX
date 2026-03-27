@@ -1,5 +1,7 @@
 import type { LocalRuntimePanelProps } from "./LocalRuntimePanel";
 import { LocalRuntimePanel } from "./LocalRuntimePanel";
+import { MachineSummaryPanel } from "./MachineSummaryPanel";
+import { StudioPreferencesPanel } from "./StudioPreferencesPanel";
 import { APP_VERSION } from "../appVersion";
 
 export type StudioAboutViewProps = {
@@ -11,7 +13,7 @@ export function StudioAboutView({ runtime }: StudioAboutViewProps) {
     <div className="about-view">
       <section className="panel about-intro">
         <div className="tagline">LingWhistX Studio</div>
-        <h2>À propos</h2>
+        <h2>À propos &amp; diagnostic</h2>
         <p className="subtitle">
           Application desktop local-first pour orchestrer WhisperX, éditer les transcripts et
           exporter vers plusieurs formats.
@@ -25,7 +27,11 @@ export function StudioAboutView({ runtime }: StudioAboutViewProps) {
         </p>
       </section>
 
-      <section className="panel">
+      <StudioPreferencesPanel />
+
+      <MachineSummaryPanel runtimeStatus={runtime.runtimeStatus} />
+
+      <section className="panel about-runtime-section">
         <LocalRuntimePanel {...runtime} />
       </section>
     </div>

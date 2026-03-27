@@ -226,7 +226,10 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
               />
             ) : (
               <>
-                <label className="checkbox-row web-audio-toggle">
+                <label
+                  className="checkbox-row web-audio-toggle"
+                  title="Lecture via Web Audio API : extrait WAV mono 16 kHz (ffmpeg), fenêtre d’environ ±10 s autour du playhead (WX-619)."
+                >
                   <input
                     type="checkbox"
                     checked={webAudioMode}
@@ -234,8 +237,7 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                       runInTransition(() => setWebAudioMode(e.currentTarget.checked))
                     }
                   />
-                  Lecture Web Audio (WX-619) — fenêtre WAV dérivée (ffmpeg), ±10 s autour du
-                  playhead
+                  Lecture Web Audio
                 </label>
                 {webAudioError ? (
                   <ErrorBanner>

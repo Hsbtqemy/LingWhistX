@@ -556,6 +556,15 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
     device = options.get("device")
     if isinstance(device, str) and device.strip():
         command.extend(["--device", device.strip()])
+    elif sys.platform == "darwin":
+        # Aligné sur whisperx/cli.py : défaut cuda si dispo, sinon cpu — jamais mps (faster-whisper/CTranslate2).
+        emit_log(
+            "info",
+            "whisperx",
+            "Device « auto » : aucun --device — WhisperX applique le défaut CLI (cpu sur macOS sans CUDA NVIDIA). "
+            "La transcription et la diarisation pyannote restent sur CPU ; le GPU Apple (MPS) n’est pas utilisé par faster-whisper.",
+            11,
+        )
 
     compute_type = options.get("computeType")
     if isinstance(compute_type, str) and compute_type.strip():
