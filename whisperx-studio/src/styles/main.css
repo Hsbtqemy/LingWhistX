@@ -74,6 +74,9 @@ body {
 
 .home-open-run-aside {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 2vw, 18px);
 }
 
 @media (min-width: 1060px) {
@@ -182,7 +185,7 @@ body {
   box-shadow: 0 10px 28px rgba(6, 39, 44, 0.05);
 }
 
-/* Carte HF Token — visible dès l’étape 1 / 2 du formulaire nouveau job */
+/* Carte HF Token — uniquement si WhisperX + diarization (étape Paramètres) */
 .hf-token-card {
   margin-bottom: clamp(12px, 2vw, 18px);
   padding: 14px 16px;
@@ -1531,6 +1534,31 @@ button.lx-btn--danger:hover:not(:disabled) {
   border-top: 1px solid rgba(11, 76, 84, 0.12);
 }
 
+.advanced-job-body--whisperx-sections {
+  gap: clamp(14px, 2vw, 18px);
+}
+
+.whisperx-adv-section {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.whisperx-adv-section__title {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--lx-text-0);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(11, 76, 84, 0.16);
+}
+
+.whisperx-adv-section .option-grid {
+  margin-bottom: 0;
+}
+
 .advanced-job-lead {
   margin: 0;
 }
@@ -2710,6 +2738,112 @@ button.lx-btn--danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--lx-status-cancelled-bg) 30%, var(--lx-surface-0));
 }
 
+/* Carte « média source » — détail run (fichier + ondeforme overview) */
+.run-source-media-hero {
+  margin: -2px 0 16px;
+  padding: 14px 16px;
+  border-radius: var(--lx-radius-md);
+  border: 1px solid var(--lx-border);
+  background: var(--lx-surface-0);
+  min-width: 0;
+}
+
+.run-source-media-hero[data-job-status="queued"] {
+  border-left: 3px solid var(--lx-status-queued-fg);
+  background: color-mix(in srgb, var(--lx-status-queued-bg) 35%, var(--lx-surface-0));
+}
+
+.run-source-media-hero[data-job-status="running"] {
+  border-left: 3px solid var(--lx-status-running-fg);
+  background: color-mix(in srgb, var(--lx-status-running-bg) 38%, var(--lx-surface-0));
+}
+
+.run-source-media-hero[data-job-status="done"] {
+  border-left: 3px solid var(--lx-status-done-fg);
+  background: color-mix(in srgb, var(--lx-status-done-bg) 32%, var(--lx-surface-0));
+}
+
+.run-source-media-hero[data-job-status="error"] {
+  border-left: 3px solid var(--lx-status-error-fg);
+  background: color-mix(in srgb, var(--lx-status-error-bg) 28%, var(--lx-surface-0));
+}
+
+.run-source-media-hero[data-job-status="cancelled"] {
+  border-left: 3px solid var(--lx-status-cancelled-fg);
+  background: color-mix(in srgb, var(--lx-status-cancelled-bg) 30%, var(--lx-surface-0));
+}
+
+.run-source-media-hero__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.run-source-media-hero__filename {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: var(--lx-text-0);
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.run-source-media-hero__path {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  color: var(--lx-text-1);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.run-source-media-hero__chip {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lx-accent) 12%, var(--lx-surface-1));
+  color: var(--lx-text-0);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.run-source-media-hero__chip--muted {
+  background: var(--lx-surface-2);
+  font-weight: 500;
+  color: var(--lx-text-1);
+}
+
+.run-source-media-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.run-source-media-hero__wave {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--lx-border);
+}
+
+.run-source-media-hero__wave-meta {
+  margin: 8px 0 0;
+  color: var(--lx-text-1);
+}
+
+.run-source-media-hero__wave-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.run-source-media-hero__wave-err {
+  margin: 0;
+  color: var(--lx-danger);
+}
+
 .panel-header-job-id {
   max-width: min(100%, 280px);
   overflow: hidden;
@@ -2966,6 +3100,62 @@ button.lx-btn--danger:hover:not(:disabled) {
 .studio-explorer-params__body {
   padding: 0 var(--lx-space-3) var(--lx-space-3);
   border-top: 1px solid rgba(9, 69, 76, 0.1);
+}
+
+/* Barre explorateur (WX-628) — repliée par défaut pour ne pas noyer le premier contact Studio */
+.studio-explorer-topbar-details {
+  margin: 0 0 var(--lx-space-3);
+  border-radius: var(--lx-radius-md);
+  border: 1px solid var(--lx-border);
+  background: var(--lx-surface-1);
+  box-shadow: var(--lx-shadow-card);
+  overflow: hidden;
+}
+
+.studio-explorer-topbar-details__summary {
+  cursor: pointer;
+  list-style: none;
+  padding: var(--lx-space-3) var(--lx-space-4);
+  font-size: var(--lx-text-sm);
+  font-weight: 700;
+  color: var(--lx-text-0);
+  background: rgba(9, 69, 76, 0.05);
+}
+
+.studio-explorer-topbar-details__summary::-webkit-details-marker {
+  display: none;
+}
+
+.studio-explorer-topbar-details__summary::before {
+  content: "▸ ";
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 0.15s ease;
+}
+
+.studio-explorer-topbar-details[open] .studio-explorer-topbar-details__summary::before {
+  transform: rotate(90deg);
+}
+
+.studio-explorer-topbar-details__body {
+  padding: 0 var(--lx-space-4) var(--lx-space-3);
+  border-top: 1px solid rgba(9, 69, 76, 0.1);
+}
+
+.studio-explorer-topbar-details__lead {
+  margin: var(--lx-space-3) 0 var(--lx-space-2);
+  color: var(--lx-text-1);
+  line-height: 1.5;
+  max-width: 92ch;
+}
+
+.studio-explorer-topbar-details .explorer-topbar {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 0;
 }
 
 .explorer-workspace-inner {

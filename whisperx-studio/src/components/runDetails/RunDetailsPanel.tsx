@@ -13,6 +13,7 @@ import { LiveTranscriptFeed } from "./LiveTranscriptFeed";
 import { RunDetailsMetaSection } from "./RunDetailsMetaSection";
 import { RunDetailsOutputFiles } from "./RunDetailsOutputFiles";
 import { RunDetailsPreview, type RunDetailsPreviewProps } from "./RunDetailsPreview";
+import { RunSourceMediaHero } from "./RunSourceMediaHero";
 import { TranscriptEditorPanel, type TranscriptEditorPanelProps } from "./TranscriptEditorPanel";
 
 export type RunDetailsPanelProps = {
@@ -102,7 +103,13 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
           )}
         </header>
 
-        {selectedJob ? (
+        {selectedJob && alignment ? (
+          <RunSourceMediaHero
+            alignment={alignment}
+            onOpenSource={() => openLocalPath(selectedJob.inputPath)}
+            onGoAlignment={() => setTab("alignement")}
+          />
+        ) : selectedJob ? (
           <div
             className="run-details-context"
             data-job-status={selectedJob.status}

@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { profilePresets } from "../constants";
+import { PIPELINE_MODULES_DOC_URL } from "../docUrls";
 import type { ProfilePreset, UiWhisperxOptions } from "../types";
 import { runInTransition, setWhisperxOptionsDeferred } from "../whisperxOptionsTransitions";
 import { HfScopeBadge } from "./HfScopeBadge";
@@ -46,9 +47,7 @@ export function WhisperxOptionsForm({
         Profil rapide
         <select
           value={selectedProfileId}
-          onChange={(e) =>
-            runInTransition(() => onProfileChange(e.currentTarget.value))
-          }
+          onChange={(e) => runInTransition(() => onProfileChange(e.currentTarget.value))}
         >
           {profilePresets.map((preset) => (
             <option key={preset.id} value={preset.id}>
@@ -83,317 +82,384 @@ export function WhisperxOptionsForm({
 
       <details className="advanced-job-panel job-form-whisperx-advanced">
         <summary className="advanced-job-summary">
-          Options WhisperX avancées (device, chunks, diarize, alignement…)
+          Options WhisperX avancées
           <span className="advanced-job-summary__hint">
-            Le token Hugging Face ne concerne que la <strong>diarization</strong> (pas la
-            retranscription seule).
+            Regroupées par thème : calcul, découpage média, VAD, locuteurs, alignement, exports,
+            pipeline JSON.
           </span>
         </summary>
-        <div className="advanced-job-body">
+        <div className="advanced-job-body advanced-job-body--whisperx-sections">
           <p className="small job-form-advanced-lead">
-            Device, découpage média, diarization et exports détaillés — les valeurs restent celles
-            du profil tant que tu ne modifies pas ces champs.
+            Les valeurs suivent le profil tant que tu ne modifies pas ces champs. Le token Hugging
+            Face n’est demandé dans l’interface que si la <strong>diarization</strong> est activée.
           </p>
-          <div className="option-grid">
-            <label>
-              Device
-              <select
-                value={whisperxOptions.device}
-                onChange={(e) =>
-                  setWhisperxOptionsDeferred(setWhisperxOptions, {
-                    device: e.currentTarget.value as UiWhisperxOptions["device"],
-                  })
-                }
-              >
-                <option value="auto">auto</option>
-                <option value="cuda">cuda (GPU)</option>
-                <option value="cpu">cpu</option>
-              </select>
-              <p className="field-help">`cuda` si carte NVIDIA disponible, sinon `cpu`.</p>
-            </label>
 
-            <label>
-              Compute Type
-              <select
-                value={whisperxOptions.computeType}
-                onChange={(e) =>
-                  setWhisperxOptionsDeferred(setWhisperxOptions, {
-                    computeType: e.currentTarget.value as UiWhisperxOptions["computeType"],
-                  })
-                }
-              >
-                <option value="default">default</option>
-                <option value="float16">float16 (GPU rapide)</option>
-                <option value="float32">float32 (precision)</option>
-                <option value="int8">int8 (memoire reduite)</option>
-              </select>
-            </label>
-
-            <label>
-              Batch Size
-              <input
-                value={whisperxOptions.batchSize}
-                onChange={(e) => patchWhisperx({ batchSize: e.currentTarget.value })}
-                placeholder="8"
-              />
-              <p className="field-help">Plus haut = plus rapide, mais plus de VRAM/RAM.</p>
-            </label>
-
-            <label>
-              Chunk media (s)
-              <input
-                value={whisperxOptions.pipelineChunkSeconds}
-                onChange={(e) =>
-                  patchWhisperx({
-                    pipelineChunkSeconds: e.currentTarget.value,
-                  })
-                }
-                placeholder="vide = desactive"
-              />
-              <p className="field-help">
-                Decoupe les medias longs en fenetres globales (ex: 600 pour 10 min).
-              </p>
-            </label>
-
-            <label>
-              Overlap chunk (s)
-              <input
-                value={whisperxOptions.pipelineChunkOverlapSeconds}
-                onChange={(e) =>
-                  patchWhisperx({
-                    pipelineChunkOverlapSeconds: e.currentTarget.value,
-                  })
-                }
-                placeholder="0"
-              />
-              <p className="field-help">
-                Recouvrement entre chunks (doit rester inferieur a Chunk media).
-              </p>
-            </label>
-
-            <label>
-              Output Format
-              <select
-                value={whisperxOptions.outputFormat}
-                onChange={(e) =>
-                  setWhisperxOptionsDeferred(setWhisperxOptions, {
-                    outputFormat: e.currentTarget.value as UiWhisperxOptions["outputFormat"],
-                  })
-                }
-              >
-                <option value="all">all</option>
-                <option value="json">json</option>
-                <option value="srt">srt</option>
-                <option value="vtt">vtt</option>
-                <option value="txt">txt</option>
-                <option value="tsv">tsv</option>
-                <option value="aud">aud</option>
-              </select>
-              <p className="field-help">
-                `all` exporte tous les formats utiles. Pour garder l'editeur transcript actif,
-                Studio conserve toujours un JSON (meme si tu choisis `srt`/`vtt`/`txt`).
-              </p>
-            </label>
-
-            <label>
-              VAD Method
-              <select
-                value={whisperxOptions.vadMethod}
-                onChange={(e) =>
-                  setWhisperxOptionsDeferred(setWhisperxOptions, {
-                    vadMethod: e.currentTarget.value as UiWhisperxOptions["vadMethod"],
-                  })
-                }
-              >
-                <option value="pyannote">pyannote (precision)</option>
-                <option value="silero">silero (leger/rapide)</option>
-              </select>
-              <p className="field-help">
-                Découpe les zones de parole avant transcription. Avec l’implémentation Studio,
-                pyannote/silero fonctionnent en général <strong>sans</strong> token HF pour le VAD
-                seul ; le <strong>token HF</strong> est exigé pour la diarization (voir ci-dessous).
-              </p>
-            </label>
-
-            <label className="checkbox-row checkbox-row--diarize">
-              <input
-                type="checkbox"
-                checked={whisperxOptions.diarize}
-                onChange={(e) =>
-                  setWhisperxOptionsDeferred(setWhisperxOptions, { diarize: e.currentTarget.checked })
-                }
-              />
-              <span className="checkbox-row__label-with-badge">
-                Diarization (qui parle ?)
-                <HfScopeBadge variant="hf_required" />
-              </span>
-            </label>
-            <p className="field-help full-width">
-              La diarization repose sur les modèles <strong>pyannote</strong> (Hugging Face) : un
-              token de lecture valide est <strong>obligatoire</strong> — renseignez la carte « Token
-              Hugging Face » en haut du formulaire (accords d&apos;utilisation des modèles sur
-              huggingface.co).
-            </p>
-
-            <label>
-              Min speakers
-              <input
-                value={whisperxOptions.minSpeakers}
-                onChange={(e) =>
-                  setWhisperxOptions((prev) => ({
-                    ...prev,
-                    minSpeakers: e.currentTarget.value,
-                  }))
-                }
-                placeholder="vide = auto"
-                disabled={!whisperxOptions.diarize}
-              />
-              <p className="field-help">Optionnel: borne basse pour diarization.</p>
-            </label>
-
-            <label>
-              Max speakers
-              <input
-                value={whisperxOptions.maxSpeakers}
-                onChange={(e) =>
-                  patchWhisperx({
-                    maxSpeakers: e.currentTarget.value,
-                  })
-                }
-                placeholder="vide = auto"
-                disabled={!whisperxOptions.diarize}
-              />
-              <p className="field-help">Optionnel: borne haute pour diarization.</p>
-            </label>
-
-            <label>
-              Force N speakers
-              <input
-                value={whisperxOptions.forceNSpeakers}
-                onChange={(e) =>
-                  patchWhisperx({
-                    forceNSpeakers: e.currentTarget.value,
-                  })
-                }
-                placeholder="vide = desactive"
-                disabled={!whisperxOptions.diarize}
-              />
-              <p className="field-help">Exact speaker count. Exclusif avec Min/Max speakers.</p>
-            </label>
-
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={whisperxOptions.noAlign}
-                onChange={(e) =>
-                  setWhisperxOptionsDeferred(setWhisperxOptions, {
-                    noAlign: e.currentTarget.checked,
-                  })
-                }
-              />
-              No Align (plus rapide, horodatage moins fin)
-            </label>
-
-            <label className="full-width">
-              <div className="actions" style={{ marginBottom: 6 }}>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  Timings mots externes (JSON v1, WX-607)
-                </span>
-                <button
-                  type="button"
-                  className="ghost inline"
-                  onClick={() => void pickExternalWordTimingsJson()}
+          <section className="whisperx-adv-section" aria-labelledby="whisperx-adv-compute-title">
+            <h4 id="whisperx-adv-compute-title" className="whisperx-adv-section__title">
+              Calcul & mémoire
+            </h4>
+            <div className="option-grid">
+              <label>
+                Device
+                <select
+                  value={whisperxOptions.device}
+                  onChange={(e) =>
+                    setWhisperxOptionsDeferred(setWhisperxOptions, {
+                      device: e.currentTarget.value as UiWhisperxOptions["device"],
+                    })
+                  }
                 >
-                  Parcourir…
-                </button>
-              </div>
-              <input
-                value={whisperxOptions.externalWordTimingsJson}
-                onChange={(e) =>
-                  patchWhisperx({
-                    externalWordTimingsJson: e.currentTarget.value,
-                  })
-                }
-                placeholder="Chemin absolu vers le JSON (vide = desactive)"
-              />
-              <p className="field-help">
-                Remplace les start/end des mots apres alignement WhisperX (meme ordre et nombre de
-                mots que la transcription). Un seul fichier media en entree. Incompatible avec No
-                Align.
+                  <option value="auto">auto</option>
+                  <option value="cuda">cuda (GPU)</option>
+                  <option value="cpu">cpu</option>
+                </select>
+                <p className="field-help">`cuda` si carte NVIDIA disponible, sinon `cpu`.</p>
+              </label>
+
+              <label>
+                Compute Type
+                <select
+                  value={whisperxOptions.computeType}
+                  onChange={(e) =>
+                    setWhisperxOptionsDeferred(setWhisperxOptions, {
+                      computeType: e.currentTarget.value as UiWhisperxOptions["computeType"],
+                    })
+                  }
+                >
+                  <option value="default">default</option>
+                  <option value="float16">float16 (GPU rapide)</option>
+                  <option value="float32">float32 (precision)</option>
+                  <option value="int8">int8 (memoire reduite)</option>
+                </select>
+              </label>
+
+              <label>
+                Batch Size
+                <input
+                  value={whisperxOptions.batchSize}
+                  onChange={(e) => patchWhisperx({ batchSize: e.currentTarget.value })}
+                  placeholder="8"
+                />
+                <p className="field-help">Plus haut = plus rapide, mais plus de VRAM/RAM.</p>
+              </label>
+            </div>
+          </section>
+
+          <section className="whisperx-adv-section" aria-labelledby="whisperx-adv-chunk-title">
+            <h4 id="whisperx-adv-chunk-title" className="whisperx-adv-section__title">
+              Longs médias (fenêtres pipeline)
+            </h4>
+            <div className="option-grid">
+              <label>
+                Chunk media (s)
+                <input
+                  value={whisperxOptions.pipelineChunkSeconds}
+                  onChange={(e) =>
+                    patchWhisperx({
+                      pipelineChunkSeconds: e.currentTarget.value,
+                    })
+                  }
+                  placeholder="vide = desactive"
+                />
+                <p className="field-help">
+                  Découpe les médias longs en fenêtres globales (ex. 600 pour 10 min).
+                </p>
+              </label>
+
+              <label>
+                Overlap chunk (s)
+                <input
+                  value={whisperxOptions.pipelineChunkOverlapSeconds}
+                  onChange={(e) =>
+                    patchWhisperx({
+                      pipelineChunkOverlapSeconds: e.currentTarget.value,
+                    })
+                  }
+                  placeholder="0"
+                />
+                <p className="field-help">
+                  Recouvrement entre chunks (doit rester inférieur à Chunk média).
+                </p>
+              </label>
+            </div>
+          </section>
+
+          <section className="whisperx-adv-section" aria-labelledby="whisperx-adv-vad-title">
+            <h4 id="whisperx-adv-vad-title" className="whisperx-adv-section__title">
+              Détection de parole (VAD)
+            </h4>
+            <div className="option-grid">
+              <label className="full-width">
+                VAD Method
+                <select
+                  value={whisperxOptions.vadMethod}
+                  onChange={(e) =>
+                    setWhisperxOptionsDeferred(setWhisperxOptions, {
+                      vadMethod: e.currentTarget.value as UiWhisperxOptions["vadMethod"],
+                    })
+                  }
+                >
+                  <option value="pyannote">pyannote (precision)</option>
+                  <option value="silero">silero (leger/rapide)</option>
+                </select>
+                <p className="field-help">
+                  Découpe les zones de parole avant transcription. <strong>Silero</strong> évite en
+                  pratique le Hub. <strong>Pyannote</strong> charge des modèles depuis Hugging Face :
+                  le même mécanisme que la diarization (variable <code>HF_TOKEN</code> côté worker)
+                  peut être nécessaire au <strong>premier</strong> téléchargement si le modèle est
+                  restreint — l’app n’exige le token dans l’UI que pour la{" "}
+                  <strong>diarization</strong> ; en cas d’erreur 401 sur le VAD pyannote, renseigne
+                  aussi un token (stocké localement) ou accepte le modèle sur huggingface.co.
+                </p>
+              </label>
+            </div>
+          </section>
+
+          <section className="whisperx-adv-section" aria-labelledby="whisperx-adv-diar-title">
+            <h4 id="whisperx-adv-diar-title" className="whisperx-adv-section__title">
+              Diarization (locuteurs)
+            </h4>
+            <div className="option-grid">
+              <label className="checkbox-row checkbox-row--diarize full-width">
+                <input
+                  type="checkbox"
+                  checked={whisperxOptions.diarize}
+                  onChange={(e) =>
+                    setWhisperxOptionsDeferred(setWhisperxOptions, {
+                      diarize: e.currentTarget.checked,
+                    })
+                  }
+                />
+                <span className="checkbox-row__label-with-badge">
+                  Activer la diarization (qui parle ?)
+                  <HfScopeBadge variant="hf_required" />
+                </span>
+              </label>
+              <p className="field-help full-width">
+                Modèles <strong>pyannote</strong> sur Hugging Face : un token de lecture valide est
+                <strong> obligatoire</strong> quand cette case est cochée — la carte « Token Hugging
+                Face » apparaît alors sous ces options (accords des modèles sur huggingface.co).
               </p>
-            </label>
 
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={whisperxOptions.externalWordTimingsStrict}
-                onChange={(e) =>
-                  setWhisperxOptionsDeferred(setWhisperxOptions, {
-                    externalWordTimingsStrict: e.currentTarget.checked,
-                  })
-                }
-              />
-              Strict: verifier la correspondance des tokens avec le JSON
-            </label>
+              <label>
+                Min speakers
+                <input
+                  value={whisperxOptions.minSpeakers}
+                  onChange={(e) =>
+                    setWhisperxOptions((prev) => ({
+                      ...prev,
+                      minSpeakers: e.currentTarget.value,
+                    }))
+                  }
+                  placeholder="vide = auto"
+                  disabled={!whisperxOptions.diarize}
+                />
+                <p className="field-help">Optionnel : borne basse pour diarization.</p>
+              </label>
 
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={whisperxOptions.printProgress}
-                onChange={(e) =>
-                  setWhisperxOptionsDeferred(setWhisperxOptions, {
-                    printProgress: e.currentTarget.checked,
-                  })
-                }
-              />
-              Print Progress (logs plus verbeux)
-            </label>
+              <label>
+                Max speakers
+                <input
+                  value={whisperxOptions.maxSpeakers}
+                  onChange={(e) =>
+                    patchWhisperx({
+                      maxSpeakers: e.currentTarget.value,
+                    })
+                  }
+                  placeholder="vide = auto"
+                  disabled={!whisperxOptions.diarize}
+                />
+                <p className="field-help">Optionnel : borne haute pour diarization.</p>
+              </label>
 
-            <label className="full-width">
-              Modules pipeline audio (JSON optionnel)
-              <textarea
-                rows={4}
-                value={whisperxOptions.audioPipelineModulesJson}
-                onChange={(e) =>
-                  patchWhisperx({
-                    audioPipelineModulesJson: e.currentTarget.value,
-                  })
-                }
-                placeholder='{"preNormalize": true, "vadEnergy": true}'
-                spellCheck={false}
-                autoComplete="off"
-                style={{ width: "100%", fontFamily: "ui-monospace, monospace", fontSize: "0.9em" }}
-              />
-              <p className="field-help">
-                Objet JSON avec les clés canoniques (voir audit/pipeline-modules-multi-speaker.md).
-                Si ce champ est rempli avec un JSON valide non vide, il remplace tout objet
-                `audioPipelineModules` injecté ailleurs. Laisser vide pour désactiver.
-              </p>
-            </label>
+              <label>
+                Force N speakers
+                <input
+                  value={whisperxOptions.forceNSpeakers}
+                  onChange={(e) =>
+                    patchWhisperx({
+                      forceNSpeakers: e.currentTarget.value,
+                    })
+                  }
+                  placeholder="vide = desactive"
+                  disabled={!whisperxOptions.diarize}
+                />
+                <p className="field-help">Nombre exact de locuteurs. Exclusif avec Min/Max.</p>
+              </label>
+            </div>
+          </section>
 
-            <label className="full-width">
-              Plages pipeline (JSON, WX-623)
-              <textarea
-                rows={5}
-                value={whisperxOptions.audioPipelineSegmentsJson}
-                onChange={(e) =>
-                  patchWhisperx({
-                    audioPipelineSegmentsJson: e.currentTarget.value,
-                  })
-                }
-                placeholder={`[\n  { "startSec": 0, "endSec": 12.5, "audioPipelineModules": { "preNormalize": true } }\n]`}
-                spellCheck={false}
-                autoComplete="off"
-                style={{ width: "100%", fontFamily: "ui-monospace, monospace", fontSize: "0.9em" }}
-              />
-              <p className="field-help">
-                Tableau non vide de plages <code>startSec</code>/<code>endSec</code> (secondes),
-                modules optionnels par plage via <code>audioPipelineModules</code> (sinon repli sur
-                le champ « Modules pipeline » ci-dessus). Depuis l’Alignment, « Injecter plage »
-                peut préremplir ce champ. Laisser vide pour désactiver le mode par plages.
-              </p>
-            </label>
-          </div>
+          <section className="whisperx-adv-section" aria-labelledby="whisperx-adv-align-title">
+            <h4 id="whisperx-adv-align-title" className="whisperx-adv-section__title">
+              Alignement & horodatage des mots
+            </h4>
+            <div className="option-grid">
+              <label className="checkbox-row full-width">
+                <input
+                  type="checkbox"
+                  checked={whisperxOptions.noAlign}
+                  onChange={(e) =>
+                    setWhisperxOptionsDeferred(setWhisperxOptions, {
+                      noAlign: e.currentTarget.checked,
+                    })
+                  }
+                />
+                No Align (plus rapide, horodatage moins fin)
+              </label>
+
+              <label className="full-width">
+                <div className="actions" style={{ marginBottom: 6 }}>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    Timings mots externes (JSON v1, WX-607)
+                  </span>
+                  <button
+                    type="button"
+                    className="ghost inline"
+                    onClick={() => void pickExternalWordTimingsJson()}
+                  >
+                    Parcourir…
+                  </button>
+                </div>
+                <input
+                  value={whisperxOptions.externalWordTimingsJson}
+                  onChange={(e) =>
+                    patchWhisperx({
+                      externalWordTimingsJson: e.currentTarget.value,
+                    })
+                  }
+                  placeholder="Chemin absolu vers le JSON (vide = desactive)"
+                />
+                <p className="field-help">
+                  Remplace les start/end des mots après alignement WhisperX (même ordre et nombre de
+                  mots que la transcription). Un seul fichier média en entrée. Incompatible avec No
+                  Align.
+                </p>
+              </label>
+
+              <label className="checkbox-row full-width">
+                <input
+                  type="checkbox"
+                  checked={whisperxOptions.externalWordTimingsStrict}
+                  onChange={(e) =>
+                    setWhisperxOptionsDeferred(setWhisperxOptions, {
+                      externalWordTimingsStrict: e.currentTarget.checked,
+                    })
+                  }
+                />
+                Strict : vérifier la correspondance des tokens avec le JSON
+              </label>
+            </div>
+          </section>
+
+          <section className="whisperx-adv-section" aria-labelledby="whisperx-adv-out-title">
+            <h4 id="whisperx-adv-out-title" className="whisperx-adv-section__title">
+              Formats de sortie
+            </h4>
+            <div className="option-grid">
+              <label className="full-width">
+                Output Format
+                <select
+                  value={whisperxOptions.outputFormat}
+                  onChange={(e) =>
+                    setWhisperxOptionsDeferred(setWhisperxOptions, {
+                      outputFormat: e.currentTarget.value as UiWhisperxOptions["outputFormat"],
+                    })
+                  }
+                >
+                  <option value="all">all</option>
+                  <option value="json">json</option>
+                  <option value="srt">srt</option>
+                  <option value="vtt">vtt</option>
+                  <option value="txt">txt</option>
+                  <option value="tsv">tsv</option>
+                  <option value="aud">aud</option>
+                </select>
+                <p className="field-help">
+                  `all` exporte tous les formats utiles. Pour garder l&apos;éditeur transcript actif,
+                  Studio conserve toujours un JSON (même si tu choisis `srt`/`vtt`/`txt`).
+                </p>
+              </label>
+            </div>
+          </section>
+
+          <section className="whisperx-adv-section" aria-labelledby="whisperx-adv-pipe-title">
+            <h4 id="whisperx-adv-pipe-title" className="whisperx-adv-section__title">
+              Pipeline audio (JSON)
+            </h4>
+            <div className="option-grid">
+              <label className="full-width">
+                Modules pipeline audio (JSON optionnel)
+                <textarea
+                  rows={4}
+                  value={whisperxOptions.audioPipelineModulesJson}
+                  onChange={(e) =>
+                    patchWhisperx({
+                      audioPipelineModulesJson: e.currentTarget.value,
+                    })
+                  }
+                  placeholder='{"preNormalize": true, "vadEnergy": true}'
+                  spellCheck={false}
+                  autoComplete="off"
+                  style={{ width: "100%", fontFamily: "ui-monospace, monospace", fontSize: "0.9em" }}
+                />
+                <p className="field-help">
+                  Objet JSON avec les clés canoniques (
+                  <a href={PIPELINE_MODULES_DOC_URL} target="_blank" rel="noreferrer">
+                    documentation modules pipeline
+                  </a>
+                  ). Si ce champ est rempli avec un JSON valide non vide, il remplace tout objet
+                  `audioPipelineModules` injecté ailleurs. Laisser vide pour désactiver.
+                </p>
+              </label>
+
+              <label className="full-width">
+                Plages pipeline (JSON, WX-623)
+                <textarea
+                  rows={5}
+                  value={whisperxOptions.audioPipelineSegmentsJson}
+                  onChange={(e) =>
+                    patchWhisperx({
+                      audioPipelineSegmentsJson: e.currentTarget.value,
+                    })
+                  }
+                  placeholder={`[\n  { "startSec": 0, "endSec": 12.5, "audioPipelineModules": { "preNormalize": true } }\n]`}
+                  spellCheck={false}
+                  autoComplete="off"
+                  style={{ width: "100%", fontFamily: "ui-monospace, monospace", fontSize: "0.9em" }}
+                />
+                <p className="field-help">
+                  Tableau non vide de plages <code>startSec</code>/<code>endSec</code> (secondes),
+                  modules optionnels par plage via <code>audioPipelineModules</code> (sinon repli sur
+                  le champ « Modules pipeline » ci-dessus) — détail{" "}
+                  <a href={PIPELINE_MODULES_DOC_URL} target="_blank" rel="noreferrer">
+                    WX-623 dans la même doc
+                  </a>
+                  . Depuis l&apos;Alignment, « Injecter plage » peut préremplir ce champ. Laisser
+                  vide pour désactiver le mode par plages.
+                </p>
+              </label>
+            </div>
+          </section>
+
+          <section className="whisperx-adv-section" aria-labelledby="whisperx-adv-log-title">
+            <h4 id="whisperx-adv-log-title" className="whisperx-adv-section__title">
+              Journaux
+            </h4>
+            <div className="option-grid">
+              <label className="checkbox-row full-width">
+                <input
+                  type="checkbox"
+                  checked={whisperxOptions.printProgress}
+                  onChange={(e) =>
+                    setWhisperxOptionsDeferred(setWhisperxOptions, {
+                      printProgress: e.currentTarget.checked,
+                    })
+                  }
+                />
+                Print Progress (logs plus verbeux)
+              </label>
+            </div>
+          </section>
         </div>
       </details>
     </>

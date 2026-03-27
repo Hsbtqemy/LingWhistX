@@ -4,7 +4,6 @@ import { runInTransition } from "../whisperxOptionsTransitions";
 import { AnalysisTimingOptionsForm } from "./AnalysisTimingOptionsForm";
 import { ErrorBanner } from "./ErrorBanner";
 import { NewJobMediaPreview } from "./NewJobMediaPreview";
-import { LocalRuntimePanel, type LocalRuntimePanelProps } from "./LocalRuntimePanel";
 import { HfTokenQuickCard } from "./HfTokenQuickCard";
 import { RunHfRequirementsSummary } from "./RunHfRequirementsSummary";
 import { NewJobDropZone } from "./NewJobDropZone";
@@ -16,20 +15,17 @@ export type StudioNewJobSectionProps = {
   setError: (message: string) => void;
   runningJobs: number;
   errors: string[];
-  runtime: LocalRuntimePanelProps;
   jobForm: NewJobFormApi;
   refreshJobs: () => Promise<void>;
 };
 
-/** Header + runtime + aperçu média : isolé pour ne pas se re-rendre avec chaque changement d’option WhisperX. */
+/** Header + aperçu média : isolé pour ne pas se re-rendre avec chaque changement d’option WhisperX. */
 const JobPanelTop = memo(function JobPanelTop({
   runningJobs,
   inputPath,
-  runtime,
 }: {
   runningJobs: number;
   inputPath: string;
-  runtime: LocalRuntimePanelProps;
 }) {
   return (
     <>
@@ -44,8 +40,6 @@ const JobPanelTop = memo(function JobPanelTop({
         </span>
       </header>
 
-      <LocalRuntimePanel {...runtime} />
-
       {inputPath.trim() ? <NewJobMediaPreview inputPath={inputPath} /> : null}
     </>
   );
@@ -55,7 +49,6 @@ export function StudioNewJobSection({
   setError,
   runningJobs,
   errors,
-  runtime,
   jobForm,
   refreshJobs,
 }: StudioNewJobSectionProps) {
@@ -82,15 +75,9 @@ export function StudioNewJobSection({
 
   return (
     <section id="home-new-job" className="panel panel--home panel--home-primary">
-      <JobPanelTop runningJobs={runningJobs} inputPath={inputPath} runtime={runtime} />
+      <JobPanelTop runningJobs={runningJobs} inputPath={inputPath} />
 
       <form className="job-form" onSubmit={submitJob}>
-        <HfTokenQuickCard
-          mode={mode}
-          whisperxOptions={whisperxOptions}
-          setWhisperxOptions={setWhisperxOptions}
-        />
-
         <div className="job-stepper">
           <button
             type="button"
@@ -177,7 +164,12 @@ export function StudioNewJobSection({
                   <strong>Aucun média</strong> — les options ci-dessous sont consultables ; indique
                   un fichier à l&apos;étape 1 (ou ci-dessous) avant de lancer un job.
                 </p>
-              ) : null}
+              ) : (
+                <p className="small import-summary-preview-hint">
+                  L&apos;aperçu du média (lecture + ondeforme) est affiché <strong>plus haut</strong>{" "}
+                  dans ce panneau, au-dessus du formulaire.
+                </p>
+              )}
               <p className="small">
                 <strong>Media:</strong>
               </p>
@@ -218,6 +210,14 @@ export function StudioNewJobSection({
                 selectedProfileId={selectedProfileId}
                 onProfileChange={applyProfile}
                 selectedProfile={selectedProfile}
+              />
+            ) : null}
+
+            {mode === "whisperx" && whisperxOptions.diarize ? (
+              <HfTokenQuickCard
+                mode="whisperx"
+                whisperxOptions={whisperxOptions}
+                setWhisperxOptions={setWhisperxOptions}
               />
             ) : null}
 

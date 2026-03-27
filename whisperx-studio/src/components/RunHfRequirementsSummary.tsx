@@ -25,7 +25,9 @@ export function RunHfRequirementsSummary({ whisperxOptions }: RunHfRequirementsS
           {diarize ? (
             <>
               <span className="run-hf-requirements__warn">token HF obligatoire</span>
-              {hasToken ? " — token renseigné dans la carte ci-dessus." : " — renseigne le token dans la carte en haut du formulaire."}
+              {hasToken
+                ? " — token renseigné dans la section ci-dessus."
+                : " — renseigne le token dans la section Hugging Face ci-dessus."}
             </>
           ) : (
             <>

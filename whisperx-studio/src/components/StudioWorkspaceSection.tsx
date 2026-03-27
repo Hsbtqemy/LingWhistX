@@ -32,7 +32,24 @@ export function StudioWorkspaceSection({
         onRestore={sessionRestore.onRestore}
         onDismiss={sessionRestore.onDismiss}
       />
-      <StudioExplorerTopBar explorer={explorer} />
+      <details className="studio-explorer-topbar-details">
+        <summary
+          className="studio-explorer-topbar-details__summary"
+          title="Outils avancés : autre run sur disque, index SQLite, navigation par pauses"
+        >
+          Explorateur avancé — run sur disque, index, navigation temps
+        </summary>
+        <div className="studio-explorer-topbar-details__body">
+          <p className="small studio-explorer-topbar-details__lead">
+            Ces commandes ciblent un <strong>dossier de run déjà produit</strong> (souvent un autre
+            chemin que le job sélectionné dans l&apos;historique) : ouvrir ce dossier, indexer les
+            événements dans <code className="mono">events.sqlite</code> pour activer les sauts
+            «&nbsp;pause suivante&nbsp;» et les calques, exporter un pack timing. Pour un premier
+            job, l&apos;onglet <strong>Créer</strong> suffit — tu peux laisser ce panneau replié.
+          </p>
+          <StudioExplorerTopBar explorer={explorer} />
+        </div>
+      </details>
       <div className="studio-workspace-body studio-workspace-body--run-primary">
         <div
           className="studio-workspace-primary studio-workspace-primary--surface"

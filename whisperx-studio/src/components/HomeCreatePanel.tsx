@@ -1,6 +1,6 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { useEffect } from "react";
-import type { LocalRuntimePanelProps } from "./LocalRuntimePanel";
+import { LocalRuntimePanel, type LocalRuntimePanelProps } from "./LocalRuntimePanel";
 import { StudioNewJobSection } from "./StudioNewJobSection";
 import { StudioOpenRunSection } from "./StudioOpenRunSection";
 import { useNewJobForm } from "../hooks/useNewJobForm";
@@ -63,10 +63,10 @@ export function HomeCreatePanel({
           errors={errors}
           refreshJobs={refreshJobs}
           jobForm={jobForm}
-          runtime={runtime}
         />
       </div>
-      <aside className="home-open-run-aside" aria-label="Ouvrir un run existant">
+      <aside className="home-open-run-aside" aria-label="Runtime local et ouvrir un run">
+        <LocalRuntimePanel {...runtime} />
         <StudioOpenRunSection
           setError={setError}
           setActiveView={setActiveView}

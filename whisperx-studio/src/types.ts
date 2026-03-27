@@ -43,7 +43,8 @@ export type WhisperxOptions = {
   analysisWordTsNeighborRatioHigh?: number;
   analysisWordTsSmoothMaxSec?: number;
   /**
-   * Modules pipeline audio optionnels (combinables). Clés canoniques : voir `audit/pipeline-modules-multi-speaker.md`.
+   * Modules pipeline audio optionnels (combinables). Clés canoniques : doc dans l’app
+   * `/docs/pipeline-modules-multi-speaker.md` (copie de `audit/pipeline-modules-multi-speaker.md`).
    */
   audioPipelineModules?: Record<string, unknown>;
   /**
@@ -90,11 +91,11 @@ export type UiWhisperxOptions = {
   audioPipelineModules?: Record<string, unknown>;
   /**
    * Objet JSON texte (prioritaire sur `audioPipelineModules` si non vide et parse valide).
-   * Voir `audit/pipeline-modules-multi-speaker.md`.
+   * Voir `/docs/pipeline-modules-multi-speaker.md` dans l’app (source `audit/…` dans le dépôt).
    */
   audioPipelineModulesJson: string;
   /**
-   * JSON tableau (prioritaire) : plages pipeline — voir audit/pipeline-modules-multi-speaker.md (WX-623).
+   * JSON tableau (prioritaire) : plages pipeline (WX-623) — même doc que ci-dessus.
    */
   audioPipelineSegmentsJson: string;
 };
