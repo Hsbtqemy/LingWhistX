@@ -1,7 +1,6 @@
 //! Installation guidée de ffmpeg (Homebrew / Linuxbrew, winget ou Chocolatey).
 
 use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 
@@ -9,6 +8,9 @@ use tauri::AppHandle;
 
 use crate::app_events::{emit_ffmpeg_install_finished, emit_ffmpeg_install_log};
 use crate::ffmpeg_tools::{resolve_ffmpeg_tools, run_probe};
+
+#[cfg(not(target_os = "windows"))]
+use std::path::PathBuf;
 
 #[cfg(not(target_os = "windows"))]
 fn find_homebrew() -> Option<PathBuf> {
