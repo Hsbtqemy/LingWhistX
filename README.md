@@ -1,350 +1,136 @@
-<h1 align="center">WhisperX</h1>
+# LingWhistX
 
-## Recall.ai - Meeting Transcription API
+**LingWhistX** est un dépôt qui combine :
 
-If you’re looking for a transcription API for meetings, consider checking out [Recall.ai's Meeting Transcription API](https://www.recall.ai/product/meeting-transcription-api?utm_source=github&utm_medium=sponsorship&utm_campaign=mbain-whisperx), an API that works with Zoom, Google Meet, Microsoft Teams, and more. Recall.ai diarizes by pulling the speaker data and separate audio streams from the meeting platforms, which means 100% accurate speaker diarization with actual speaker names.
+1. **Un fork de [WhisperX](https://github.com/m-bain/whisperX)** — reconnaissance vocale précise dans le temps (Whisper + alignement + diarisation, etc.), avec **extensions CLI**, exports analytiques et intégrations documentées dans ce repo.
+2. **[WhisperX Studio](whisperx-studio/README.md)** — application **desktop** (Tauri + React + Rust) pour lancer des jobs en local, historiser les runs, éditer les transcriptions et diagnostiquer le runtime (Python, WhisperX, ffmpeg).
 
+Le paquet Python publié s’appelle toujours **`whisperx`** (compatibilité outils / imports) ; la distribution « produit » autour du fork est désignée ici **LingWhistX**.
 
 <p align="center">
-  <a href="https://github.com/m-bain/whisperX/stargazers">
-    <img src="https://img.shields.io/github/stars/m-bain/whisperX.svg?colorA=orange&colorB=orange&logo=github"
-         alt="GitHub stars">
-  </a>
-  <a href="https://github.com/m-bain/whisperX/issues">
-        <img src="https://img.shields.io/github/issues/m-bain/whisperx.svg"
-             alt="GitHub issues">
-  </a>
-  <a href="https://github.com/m-bain/whisperX/blob/master/LICENSE">
-        <img src="https://img.shields.io/github/license/m-bain/whisperX.svg"
-             alt="GitHub license">
-  </a>
-  <a href="https://arxiv.org/abs/2303.00747">
-        <img src="http://img.shields.io/badge/Arxiv-2303.00747-B31B1B.svg"
-             alt="ArXiv paper">
-  </a>
-  <a href="https://twitter.com/intent/tweet?text=&url=https%3A%2F%2Fgithub.com%2Fm-bain%2FwhisperX">
-  <img src="https://img.shields.io/twitter/url/https/github.com/m-bain/whisperX.svg?style=social" alt="Twitter">
-  </a>      
+  <a href="https://github.com/m-bain/whisperX/blob/master/LICENSE"><img src="https://img.shields.io/github/license/m-bain/whisperX.svg" alt="Licence"></a>
+  <a href="https://arxiv.org/abs/2303.00747"><img src="https://img.shields.io/badge/WhisperX-ArXiv_2303.00747-B31B1B.svg" alt="Article WhisperX"></a>
 </p>
 
-<img width="1216" align="center" alt="whisperx-arch" src="https://raw.githubusercontent.com/m-bain/whisperX/refs/heads/main/figures/pipeline.png">
+<p align="center">
+  <img width="800" alt="Pipeline WhisperX (amont)" src="https://raw.githubusercontent.com/m-bain/whisperX/refs/heads/main/figures/pipeline.png">
+</p>
 
-<!-- <p align="left">Whisper-Based Automatic Speech Recognition (ASR) with improved timestamp accuracy + quality via forced phoneme alignment and voice-activity based batching for fast inference.</p> -->
+## Table des matières
 
-<!-- <h2 align="left", id="what-is-it">What is it 🔎</h2> -->
+- [Ce que fait WhisperX (amont)](#ce-que-fait-whisperx-amont)
+- [Structure du dépôt](#structure-du-dépôt)
+- [Installation développeur (Python)](#installation-développeur-python)
+- [WhisperX Studio (application desktop)](#whisperx-studio-application-desktop)
+- [Extensions LingWhistX (CLI & pipeline)](#extensions-lingwhistx-cli--pipeline)
+- [Utilisation CLI rapide](#utilisation-cli-rapide)
+- [Utilisation Python](#utilisation-python)
+- [Projet amont, citation et remerciements](#projet-amont-citation-et-remerciements)
 
-This repository provides fast automatic speech recognition (70x realtime with large-v2) with word-level timestamps and speaker diarization.
+## Ce que fait WhisperX (amont)
 
-- ⚡️ Batched inference for 70x realtime transcription using whisper large-v2
-- 🪶 [faster-whisper](https://github.com/guillaumekln/faster-whisper) backend, requires <8GB gpu memory for large-v2 with beam_size=5
-- 🎯 Accurate word-level timestamps using wav2vec2 alignment
-- 👯‍♂️ Multispeaker ASR using speaker diarization from [pyannote-audio](https://github.com/pyannote/pyannote-audio) (speaker ID labels)
-- 🗣️ VAD preprocessing, reduces hallucination & batching with no WER degradation
+[WhisperX](https://github.com/m-bain/whisperX) fournit une ASR rapide avec **timestamps au mot**, **alignement forcé** (wav2vec2) et **diarisation multi-locuteurs** (pyannote), backend [faster-whisper](https://github.com/guillaumekln/faster-whisper), VAD, etc. Détails, démos Replicate et discussion technique : voir le README du [dépôt upstream](https://github.com/m-bain/whisperX).
 
-**Whisper** is an ASR model [developed by OpenAI](https://github.com/openai/whisper), trained on a large dataset of diverse audio. Whilst it does produces highly accurate transcriptions, the corresponding timestamps are at the utterance-level, not per word, and can be inaccurate by several seconds. OpenAI's whisper does not natively support batching.
+## Structure du dépôt
 
-**Phoneme-Based ASR** A suite of models finetuned to recognise the smallest unit of speech distinguishing one word from another, e.g. the element p in "tap". A popular example model is [wav2vec2.0](https://huggingface.co/facebook/wav2vec2-large-960h-lv60-self).
+| Chemin | Rôle |
+|--------|------|
+| `whisperx/` | Paquet Python (CLI `whisperx`, pipeline, schémas, exports) |
+| `whisperx-studio/` | Application **WhisperX Studio** (Tauri) — [README dédié](whisperx-studio/README.md) |
+| `tests/` | Tests pytest du paquet Python |
+| `docs/` | Documentation complémentaire (datasets, fixtures, etc.) |
+| `.github/workflows/` | CI (Python, Studio multi-OS, sécurité, etc.) |
 
-**Forced Alignment** refers to the process by which orthographic transcriptions are aligned to audio recordings to automatically generate phone level segmentation.
+## Installation développeur (Python)
 
-**Voice Activity Detection (VAD)** is the detection of the presence or absence of human speech.
+Prérequis typiques : **Python 3.10+**, **ffmpeg** sur le `PATH`, GPU optionnel (CUDA selon plateforme).
 
-**Speaker Diarization** is the process of partitioning an audio stream containing human speech into homogeneous segments according to the identity of each speaker.
-
-<h2 align="left", id="highlights">New🚨</h2>
-
-- 1st place at [Ego4d transcription challenge](https://eval.ai/web/challenges/challenge-page/1637/leaderboard/3931/WER) 🏆
-- _WhisperX_ accepted at INTERSPEECH 2023
-- v3 transcript segment-per-sentence: using nltk sent_tokenize for better subtitlting & better diarization
-- v3 released, 70x speed-up open-sourced. Using batched whisper with [faster-whisper](https://github.com/guillaumekln/faster-whisper) backend!
-- v2 released, code cleanup, imports whisper library VAD filtering is now turned on by default, as in the paper.
-- Paper drop🎓👨‍🏫! Please see our [ArxiV preprint](https://arxiv.org/abs/2303.00747) for benchmarking and details of WhisperX. We also introduce more efficient batch inference resulting in large-v2 with \*60-70x REAL TIME speed.
-
-<h2 align="left" id="setup">Setup ⚙️</h2>
-
-### 0. CUDA Installation
-
-To use WhisperX with GPU acceleration, install the CUDA toolkit 12.8 before WhisperX. Skip this step if using only the CPU.
-
-- For **Linux** users, install the CUDA toolkit 12.8 following this guide:
-  [CUDA Installation Guide for Linux](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/).
-- For **Windows** users, download and install the CUDA toolkit 12.8:
-  [CUDA Downloads](https://developer.nvidia.com/cuda-12-8-1-download-archive).
-
-### 1. Simple Installation (Recommended)
-
-The easiest way to install WhisperX is through PyPi:
+Avec **[uv](https://docs.astral.sh/uv/)** (recommandé dans ce repo) :
 
 ```bash
-pip install whisperx
+git clone https://github.com/Hsbtqemy/LingWhistX.git
+cd LingWhistX
+uv sync --all-extras
+uv run whisperx --help
 ```
 
-Or if using [uvx](https://docs.astral.sh/uv/guides/tools/#running-tools):
+Sans uv : créer un venv, puis `pip install -e .` à la racine du clone.
+
+## WhisperX Studio (application desktop)
+
+L’UI locale vit dans **`whisperx-studio/`** (Node, Rust, worker Python). Installation du runtime (venv + fork en éditable), modes `mock` / `whisperx` / `analyze_only`, ffmpeg, prérequis : tout est décrit ici :
+
+→ **[whisperx-studio/README.md](whisperx-studio/README.md)**
+
+Documentation utilisateur / flux : [whisperx-studio/docs/studio-user-flow.md](whisperx-studio/docs/studio-user-flow.md).
+
+## Extensions LingWhistX (CLI & pipeline)
+
+Ce fork ajoute notamment :
+
+- Découpage média : `--pipeline_chunk_seconds`, `--pipeline_chunk_overlap_seconds` ; persistance reprise long format (`--chunk_state_dir`, `--chunk_resume`, `--chunk_jsonl_per_chunk`).
+- Diarisation : `--force_n_speakers` (exclusif avec min/max).
+- Réglages d’analyse timeline : `--analysis_pause_*`, `--analysis_ipu_*`, `--analysis_preset`, calibration, post-traitement locuteurs, stabilisation timestamps mots, etc.
+- Exports data-science par défaut (`--export_data_science`) : `run.json`, `timeline.json`, CSV (mots, pauses, IPU), CTM (`--export_word_ctm`), option Parquet (`--export_parquet_dataset`).
+- Mode **analyze-only** : `--analyze_only_from` pour recalculer les métriques sans relancer l’ASR.
+- Orchestrateur : sous-commandes `run`, `transcribe`, `align`, `diarize`, `analyze`, `export` ; options `--config`, `--immutable-run`, `--runs-root`.
+- Exports annotation : RTTM, TextGrid, ELAN (`--export_annotation_*`).
+- Alignement externe (WX-607) : `--external_word_timings_json`, etc.
+
+Liste détaillée des flags et scénarios E2E : voir les sections déjà maintenues dans l’historique Git ou les docstrings CLI ; les tests d’acceptation couvrent une grande partie (`tests/test_wx*.py`).
+
+## Utilisation CLI rapide
+
+Exemple minimal (après installation du paquet) :
 
 ```bash
-uvx whisperx
+whisperx chemin/vers/audio.wav
 ```
 
-### 2. Advanced Installation Options
-
-These installation methods are for developers or users with specific needs. If you're not sure, stick with the simple installation above.
-
-#### Option A: Install from GitHub
-
-To install directly from the GitHub repository:
+Modèle large, diarisation, sur CPU (ex. macOS) :
 
 ```bash
-uvx git+https://github.com/m-bain/whisperX.git
+whisperx chemin/vers/audio.wav --model large-v2 --diarize --compute_type int8 --device cpu
 ```
 
-#### Option B: Developer Installation
+Autres langues et exemples : [EXAMPLES.md](EXAMPLES.md) (hérité de l’écosystème WhisperX).
 
-If you want to modify the code or contribute to the project:
+## Utilisation Python
 
-```bash
-git clone https://github.com/m-bain/whisperX.git
-cd whisperX
-uv sync --all-extras --dev
-```
-
-> **Note**: The development version may contain experimental features and bugs. Use the stable PyPI release for production environments.
-
-You may also need to install ffmpeg, rust etc. Follow openAI instructions here https://github.com/openai/whisper#setup.
-
-### Speaker Diarization
-
-To **enable Speaker Diarization**, include your Hugging Face access token (read) that you can generate from [Here](https://huggingface.co/settings/tokens) after the `--hf_token` argument and accept the user agreement for the [speaker-diarization-community-1](https://huggingface.co/pyannote/speaker-diarization-community-1) model.
-
-<h2 align="left" id="example">Usage 💬 (command line)</h2>
-
-### LingWhistX additions
-
-This repository includes additional CLI capabilities used by LingWhistX Studio:
-
-- `--pipeline_chunk_seconds` and `--pipeline_chunk_overlap_seconds` for media-level chunked transcription with global offset merge.
-- Long media (WX-604): `--chunk_state_dir <base>` writes `chunk_manifest.json` plus one `chunk_NNNN.raw.json` per window under `<base>/<audio_stem>/` for **resume** after failure (`--chunk_resume True` skips chunks already marked `done`). Optional `--chunk_jsonl_per_chunk True` emits `<stem>.chunk_NNNN.jsonl` (one JSON object per word) after each window. Each window still loads the corresponding audio slice into RAM; very long files need enough disk for raw chunk JSON and exports.
-- `--force_n_speakers` (exclusive with `--min_speakers/--max_speakers`) for explicit diarization cardinality control.
-- Timeline analytics tuning flags:
-  - `--analysis_pause_min`
-  - `--analysis_pause_ignore_below`
-  - `--analysis_pause_max`
-  - `--analysis_include_nonspeech`
-  - `--analysis_nonspeech_min_duration`
-  - `--analysis_ipu_min_words`
-  - `--analysis_ipu_min_duration`
-  - `--analysis_ipu_bridge_short_gaps_under`
-- Data-science exports enabled by default (`--export_data_science True`):
-  - `<basename>.run.json`
-  - `<basename>.timeline.json`
-  - `<basename>.words.csv`
-  - `<basename>.pauses.csv`
-  - `<basename>.ipu.csv`
-  - `<basename>.words.ctm` — NIST-style **word timings** (CTM) for ASR/scoring interop (`--export_word_ctm True`, default on; WX-608).
-  - Optional **`dataset/`** folder: `README.md` plus `words.parquet` / `pauses.parquet` / `ipus.parquet` when `--export_parquet_dataset True` (requires `pandas` + `pyarrow`; see `docs/dataset_open_science.md`).
-- Analyze-only mode:
-  - `--analyze_only_from <existing-json>` recomputes analysis metrics from an existing JSON/timeline without rerunning ASR/alignment/diarization.
-- Orchestrator CLI: subcommands `run`, `transcribe`, `align`, `diarize`, `analyze`, `export` (bare `whisperx audio.wav` is normalized to `whisperx run audio.wav`). Options `--config` (YAML/TOML, merged then overridden by CLI flags), `--immutable-run` and `--runs-root` to write outputs under `runs/<UTC-timestamp>_<id>/` with a `manifest.json` snapshot.
-- Optional annotation exports (from `timeline.speaker_turns` or per-segment `speaker`), written next to other outputs when enabled:
-  - `--export_annotation_rttm True` → `<stem>.rttm` (NIST-style `SPEAKER` lines; file id = media stem).
-  - `--export_annotation_textgrid True` → `<stem>.TextGrid` (Praat long format, tier `Speaker`).
-  - `--export_annotation_eaf True` → `<stem>.eaf` (ELAN 3.0 XML, tier `speaker`, times in ms).
-- External alignment import (WX-607, optional): `--external_word_timings_json <path.json>` replaces word `start`/`end` in segment `words` from a **v1 JSON** file (same word count and order as the WhisperX transcript). Requires **exactly one** audio input, **no** `--no_align`, and alignment enabled. Metadata is stored in `external_alignment` on the result; each updated word gets flag `external_alignment`. MFA (or any tool) is **not** bundled: produce the JSON offline. Example:
-  ```json
-  {"schema_version": 1, "alignment_source": "mfa", "words": [{"token": "hello", "start": 0.1, "end": 0.35}]}
-  ```
-  Use `--external_word_timings_strict True` to require matching token text between transcript and file.
-
-**Audio E2E / long-format regression (optional, slow):**
-
-- `WHISPERX_RUN_AUDIO_E2E=1` — runs `tests/test_pipeline_e2e_real_audio.py::test_pipeline_e2e_real_audio` (real WAV, tiny model, full ASR+align).
-- `WHISPERX_RUN_CHUNK_MERGE_E2E=1` plus `WHISPERX_E2E_PIPELINE_CHUNK_SECONDS` / `WHISPERX_E2E_PIPELINE_CHUNK_OVERLAP` — runs `test_pipeline_e2e_media_chunking` to exercise media-level chunking and global offset merge (skips if the sample is shorter than the chunk window).
-- Optional caps: `WHISPERX_E2E_MAX_WALL_SECONDS`, `WHISPERX_E2E_CHUNK_MAX_WALL_SECONDS` (fail if wall time exceeds).
-- Fast regression without models: `tests/test_chunk_merge_regression.py` (pure merge helpers, no torch).
-- **WX-610** — scénario synthétique « plateau sportif » (deux locuteurs, overlap, métriques `stats` / `stats_clean`) : `tests/test_wx610_integration_sport.py` ; la suite `pytest -m integration` inclut le test marqué. Fixtures audio optionnelles et comparaison sport vs interview : `docs/fixtures.md`.
-- **WX-609** — lanceur graphique **Tkinter** (sans Studio Tauri) : `python -m whisperx.gui_tk` — choix du média, préréglage modèle (small / base / large-v2), dossier de sortie, journal stdout, ouverture du dossier de sortie. Si `tkinter` est absent, message d’aide d’installation sur stderr (code 2). `python -m whisperx.gui_tk --help`.
-
-### English
-
-Run whisper on example segment (using default params, whisper small) add `--highlight_words True` to visualise word timings in the .srt file.
-
-    whisperx path/to/audio.wav
-
-Result using _WhisperX_ with forced alignment to wav2vec2.0 large:
-
-https://user-images.githubusercontent.com/36994049/208253969-7e35fe2a-7541-434a-ae91-8e919540555d.mp4
-
-Compare this to original whisper out the box, where many transcriptions are out of sync:
-
-https://user-images.githubusercontent.com/36994049/207743923-b4f0d537-29ae-4be2-b404-bb941db73652.mov
-
-For increased timestamp accuracy, at the cost of higher gpu mem, use bigger models (bigger alignment model not found to be that helpful, see paper) e.g.
-
-    whisperx path/to/audio.wav --model large-v2 --align_model WAV2VEC2_ASR_LARGE_LV60K_960H --batch_size 4
-
-To label the transcript with speaker ID's (set number of speakers if known e.g. `--min_speakers 2` `--max_speakers 2`):
-
-    whisperx path/to/audio.wav --model large-v2 --diarize --highlight_words True
-
-To run on CPU instead of GPU (and for running on Mac OS X):
-
-    whisperx path/to/audio.wav --compute_type int8 --device cpu
-
-### Other languages
-
-The phoneme ASR alignment model is _language-specific_, for tested languages these models are [automatically picked from torchaudio pipelines or huggingface](https://github.com/m-bain/whisperX/blob/f2da2f858e99e4211fe4f64b5f2938b007827e17/whisperx/alignment.py#L24-L58).
-Just pass in the `--language` code, and use the whisper `--model large`.
-
-Currently default models provided for `{en, fr, de, es, it}` via torchaudio pipelines and many other languages via Hugging Face. Please find the list of currently supported languages under `DEFAULT_ALIGN_MODELS_HF` on [alignment.py](https://github.com/m-bain/whisperX/blob/main/whisperx/alignment.py). If the detected language is not in this list, you need to find a phoneme-based ASR model from [huggingface model hub](https://huggingface.co/models) and test it on your data.
-
-#### E.g. German
-
-    whisperx --model large-v2 --language de path/to/audio.wav
-
-https://user-images.githubusercontent.com/36994049/208298811-e36002ba-3698-4731-97d4-0aebd07e0eb3.mov
-
-See more examples in other languages [here](EXAMPLES.md).
-
-## Python usage 🐍
+Exemple simplifié (transcription → alignement → diarisation) :
 
 ```python
 import whisperx
 import gc
-from whisperx.diarize import DiarizationPipeline
 
 device = "cuda"
 audio_file = "audio.mp3"
-batch_size = 16 # reduce if low on GPU mem
-compute_type = "float16" # change to "int8" if low on GPU mem (may reduce accuracy)
+batch_size = 16
+compute_type = "float16"
 
-# 1. Transcribe with original whisper (batched)
 model = whisperx.load_model("large-v2", device, compute_type=compute_type)
-
-# save model to local path (optional)
-# model_dir = "/path/"
-# model = whisperx.load_model("large-v2", device, compute_type=compute_type, download_root=model_dir)
-
 audio = whisperx.load_audio(audio_file)
 result = model.transcribe(audio, batch_size=batch_size)
-print(result["segments"]) # before alignment
 
-# delete model if low on GPU resources
-# import gc; import torch; gc.collect(); torch.cuda.empty_cache(); del model
+model_a, metadata = whisperx.load_align_model(
+    language_code=result["language"], device=device
+)
+result = whisperx.align(
+    result["segments"], model_a, metadata, audio, device, return_char_alignments=False
+)
 
-# 2. Align whisper output
-model_a, metadata = whisperx.load_align_model(language_code=result["language"], device=device)
-result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+from whisperx.diarize import DiarizationPipeline
 
-print(result["segments"]) # after alignment
-
-# delete model if low on GPU resources
-# import gc; import torch; gc.collect(); torch.cuda.empty_cache(); del model_a
-
-# 3. Assign speaker labels
 diarize_model = DiarizationPipeline(token=YOUR_HF_TOKEN, device=device)
-
-# add min/max number of speakers if known
 diarize_segments = diarize_model(audio)
-# diarize_model(audio, min_speakers=min_speakers, max_speakers=max_speakers)
-
 result = whisperx.assign_word_speakers(diarize_segments, result)
-print(diarize_segments)
-print(result["segments"]) # segments are now assigned speaker IDs
 ```
 
-## Demos 🚀
+Jeton Hugging Face et conditions d’usage des modèles pyannote : voir la documentation WhisperX amont.
 
-[![Replicate (large-v3](https://img.shields.io/static/v1?label=Replicate+WhisperX+large-v3&message=Demo+%26+Cloud+API&color=blue)](https://replicate.com/victor-upmeet/whisperx)
-[![Replicate (large-v2](https://img.shields.io/static/v1?label=Replicate+WhisperX+large-v2&message=Demo+%26+Cloud+API&color=blue)](https://replicate.com/daanelson/whisperx)
-[![Replicate (medium)](https://img.shields.io/static/v1?label=Replicate+WhisperX+medium&message=Demo+%26+Cloud+API&color=blue)](https://replicate.com/carnifexer/whisperx)
+## Projet amont, citation et remerciements
 
-If you don't have access to your own GPUs, use the links above to try out WhisperX.
-
-<h2 align="left" id="whisper-mod">Technical Details 👷‍♂️</h2>
-
-For specific details on the batching and alignment, the effect of VAD, as well as the chosen alignment model, see the preprint [paper](https://www.robots.ox.ac.uk/~vgg/publications/2023/Bain23/bain23.pdf).
-
-To reduce GPU memory requirements, try any of the following (2. & 3. can affect quality):
-
-1.  reduce batch size, e.g. `--batch_size 4`
-2.  use a smaller ASR model `--model base`
-3.  Use lighter compute type `--compute_type int8`
-
-Transcription differences from openai's whisper:
-
-1. Transcription without timestamps. To enable single pass batching, whisper inference is performed `--without_timestamps True`, this ensures 1 forward pass per sample in the batch. However, this can cause discrepancies the default whisper output.
-2. VAD-based segment transcription, unlike the buffered transcription of openai's. In the WhisperX paper we show this reduces WER, and enables accurate batched inference
-3. `--condition_on_prev_text` is set to `False` by default (reduces hallucination)
-
-<h2 align="left" id="limitations">Limitations ⚠️</h2>
-
-- Transcript words which do not contain characters in the alignment models dictionary e.g. "2014." or "£13.60" cannot be aligned and therefore are not given a timing.
-- Overlapping speech is not handled particularly well by whisper nor whisperx
-- Diarization is far from perfect
-- Language specific wav2vec2 model is needed
-
-<h2 align="left" id="contribute">Contribute 🧑‍🏫</h2>
-
-If you are multilingual, a major way you can contribute to this project is to find phoneme models on huggingface (or train your own) and test them on speech for the target language. If the results look good send a pull request and some examples showing its success.
-
-Bug finding and pull requests are also highly appreciated to keep this project going, since it's already diverging from the original research scope.
-
-<h2 align="left" id="coming-soon">TODO 🗓</h2>
-
-- [x] Multilingual init
-
-- [x] Automatic align model selection based on language detection
-
-- [x] Python usage
-
-- [x] Incorporating speaker diarization
-
-- [x] Model flush, for low gpu mem resources
-
-- [x] Faster-whisper backend
-
-- [x] Add max-line etc. see (openai's whisper utils.py)
-
-- [x] Sentence-level segments (nltk toolbox)
-
-- [x] Improve alignment logic
-
-- [ ] update examples with diarization and word highlighting
-
-- [ ] Subtitle .ass output <- bring this back (removed in v3)
-
-- [ ] Add benchmarking code (TEDLIUM for spd/WER & word segmentation)
-
-- [x] Allow silero-vad as alternative VAD option
-
-- [ ] Improve diarization (word level). _Harder than first thought..._
-
-<h2 align="left" id="contact">Contact/Support 📇</h2>
-
-Contact maxhbain@gmail.com for queries.
-
-<a href="https://www.buymeacoffee.com/maxhbain" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
-
-<h2 align="left" id="acks">Acknowledgements 🙏</h2>
-
-This work, and my PhD, is supported by the [VGG (Visual Geometry Group)](https://www.robots.ox.ac.uk/~vgg/) and the University of Oxford.
-
-Of course, this is builds on [openAI's whisper](https://github.com/openai/whisper).
-Borrows important alignment code from [PyTorch tutorial on forced alignment](https://pytorch.org/tutorials/intermediate/forced_alignment_with_torchaudio_tutorial.html)
-And uses the wonderful pyannote VAD / Diarization https://github.com/pyannote/pyannote-audio
-
-Valuable VAD & Diarization Models from:
-
-- [pyannote-audio](https://github.com/pyannote/pyannote-audio) — Speaker diarization powered by the [speaker-diarization-community-1](https://huggingface.co/pyannote/speaker-diarization-community-1) model, licensed under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/) by [pyannoteAI](https://www.pyannote.ai)
-- [silero-vad](https://github.com/snakers4/silero-vad)
-
-Great backend from [faster-whisper](https://github.com/guillaumekln/faster-whisper) and [CTranslate2](https://github.com/OpenNMT/CTranslate2)
-
-Those who have [supported this work financially](https://www.buymeacoffee.com/maxhbain) 🙏
-
-Finally, thanks to the OS [contributors](https://github.com/m-bain/whisperX/graphs/contributors) of this project, keeping it going and identifying bugs.
-
-<h2 align="left" id="cite">Citation</h2>
-If you use this in your research, please cite the paper:
+LingWhistX **s’appuie sur** le projet WhisperX et les travaux de Max Bain et collaborateurs (VGG, Oxford). Pour citer l’article :
 
 ```bibtex
 @article{bain2022whisperx,
@@ -354,3 +140,9 @@ If you use this in your research, please cite the paper:
   year={2023}
 }
 ```
+
+Logiciels et modèles : OpenAI Whisper, faster-whisper, CTranslate2, pyannote-audio, torchaudio, etc. — voir les remerciements du [README upstream](https://github.com/m-bain/whisperX#readme).
+
+---
+
+*README orienté dépôt LingWhistX. Pour le produit « WhisperX » original et ses annonces, consulter [m-bain/whisperX](https://github.com/m-bain/whisperX).*
