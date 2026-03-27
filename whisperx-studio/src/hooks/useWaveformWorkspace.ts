@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { MAX_WAVEFORM_ZOOM, MIN_WAVEFORM_ZOOM } from "../constants";
 import { clampNumber } from "../appUtils";
+import { parsePausesCsv, type PauseIntervalSec } from "../utils/pausesCsv";
 import type {
   Job,
   WaveformCancelledEvent,
@@ -73,6 +74,11 @@ export function useWaveformWorkspace({
   const [previewWaveEqLowDb, setPreviewWaveEqLowDb] = useState(0);
   const [previewWaveBalance, setPreviewWaveBalance] = useState(0);
   const [previewWaveBypassEffects, setPreviewWaveBypassEffects] = useState(false);
+  /** Superposition des pauses (CSV sortie WhisperX) sur l’ondeforme. */
+  const [pauseOverlayIntervals, setPauseOverlayIntervals] = useState<PauseIntervalSec[]>([]);
+  const [pauseOverlayVisible, setPauseOverlayVisible] = useState(false);
+  const [pauseOverlaySourcePath, setPauseOverlaySourcePath] = useState<string | null>(null);
+  const [pauseOverlayLoadError, setPauseOverlayLoadError] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -176,6 +182,45 @@ export function useWaveformWorkspace({
     },
     [],
   );
+
+  const loadPauseOverlayFromCsvPath = useCallback(async (path: string) => {
+    const trimmed = path.trim();
+    setPauseOverlayLoadError("");
+    if (!trimmed) {
+      setPauseOverlayIntervals([]);
+      setPauseOverlaySourcePath(null);
+      return;
+    }
+    try {
+      const text = await invoke<string>("read_text_preview", {
+        path: trimmed,
+        maxBytes: 2_000_000,
+      });
+      const intervals = parsePausesCsv(text);
+      if (intervals.length === 0) {
+        setPauseOverlayLoadError(
+          "Aucune pause valide : en-tête avec colonnes « start » et « end » (secondes) attendu.",
+        );
+        setPauseOverlayIntervals([]);
+        setPauseOverlaySourcePath(null);
+        return;
+      }
+      setPauseOverlayIntervals(intervals);
+      setPauseOverlaySourcePath(trimmed);
+      setPauseOverlayVisible(true);
+    } catch (e) {
+      setPauseOverlayLoadError(String(e));
+      setPauseOverlayIntervals([]);
+      setPauseOverlaySourcePath(null);
+    }
+  }, []);
+
+  const clearPauseOverlay = useCallback(() => {
+    setPauseOverlayIntervals([]);
+    setPauseOverlaySourcePath(null);
+    setPauseOverlayLoadError("");
+    setPauseOverlayVisible(false);
+  }, []);
 
   const setWaveformZoomAround = useCallback(
     (nextZoomRaw: number, anchorSec: number, anchorRatio = 0.5) => {
@@ -438,7 +483,7 @@ export function useWaveformWorkspace({
     }
 
     setWaveformError("");
-    setWaveformProgressMessage("Initialisation generation waveform...");
+    setWaveformProgressMessage("Préparation de l'ondeforme…");
     setWaveformProgress(1);
     setWaveform(null);
     setIsWaveformLoading(true);
@@ -509,7 +554,9 @@ export function useWaveformWorkspace({
       setWaveformError("");
       setWaveformProgress(100);
       setWaveformProgressMessage(
-        event.payload.peaks.cached ? "Waveform chargee (cache)." : "Waveform generee.",
+        event.payload.peaks.cached
+          ? "Ondeforme chargée depuis le cache."
+          : "Ondeforme générée.",
       );
       setWaveformZoom(1);
       setWaveformViewStartSec(0);
@@ -526,7 +573,7 @@ export function useWaveformWorkspace({
       setWaveformTaskId("");
       waveformTaskIdRef.current = "";
       setWaveformError(event.payload.error);
-      setWaveformProgressMessage("Generation waveform en erreur.");
+      setWaveformProgressMessage("Échec de la génération de l'ondeforme.");
       setIsWaveformLoading(false);
     });
 
@@ -887,6 +934,13 @@ export function useWaveformWorkspace({
     previewWaveBypassEffects,
     setPreviewWaveBypassEffects,
     resetPreviewWaveEffects,
+    pauseOverlayIntervals,
+    pauseOverlayVisible,
+    setPauseOverlayVisible,
+    pauseOverlaySourcePath,
+    pauseOverlayLoadError,
+    loadPauseOverlayFromCsvPath,
+    clearPauseOverlay,
   };
 }
 

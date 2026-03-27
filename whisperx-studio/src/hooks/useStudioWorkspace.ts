@@ -21,6 +21,8 @@ export type UseStudioWorkspaceOptions = {
   runtimeStatus: RuntimeStatus | null;
   /** WX-623 — injecte le JSON des plages dans le formulaire « Nouveau job ». */
   injectAudioPipelineSegmentsJson?: (json: string) => void;
+  /** Ouvre le dossier de sortie du job dans l’onglet Player. */
+  onOpenPlayerRun?: (outputDir: string, label?: string | null) => void;
 };
 
 export type StudioWorkspaceModel = {
@@ -44,6 +46,7 @@ export function useStudioWorkspace({
   onToggleEditorFocusMode,
   runtimeStatus,
   injectAudioPipelineSegmentsJson,
+  onOpenPlayerRun,
 }: UseStudioWorkspaceOptions): StudioWorkspaceModel {
   const {
     selectedPreviewPath,
@@ -110,6 +113,7 @@ export function useStudioWorkspace({
         selectedJobLogs,
         liveTranscriptSegments: selectedLiveTranscript,
         selectedJobHasJsonOutput,
+        onCancelJob: cancelJob,
         openLocalPath,
         selectedMediaSrc,
         selectedIsVideo,
@@ -125,12 +129,14 @@ export function useStudioWorkspace({
         editorFocusMode,
         onToggleEditorFocusMode,
         injectAudioPipelineSegmentsJson,
+        onOpenPlayerRun,
       }),
     [
       selectedJob,
       selectedJobLogs,
       selectedLiveTranscript,
       selectedJobHasJsonOutput,
+      cancelJob,
       openLocalPath,
       selectedMediaSrc,
       selectedIsVideo,
@@ -144,6 +150,7 @@ export function useStudioWorkspace({
       editorFocusMode,
       onToggleEditorFocusMode,
       injectAudioPipelineSegmentsJson,
+      onOpenPlayerRun,
     ],
   );
 

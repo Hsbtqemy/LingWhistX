@@ -151,11 +151,11 @@ fn build_waveform_peaks_internal(
         let mut cached: WaveformPeaks =
             serde_json::from_str(&raw).map_err(|err| format!("Invalid waveform cache: {err}"))?;
         cached.cached = true;
-        emit_progress_for_task(100, "Waveform charge depuis le cache.");
+        emit_progress_for_task(100, "Ondeforme chargée depuis le cache.");
         return Ok(cached);
     }
 
-    emit_progress_for_task(1, "Generation waveform: decodage audio...");
+    emit_progress_for_task(1, "Ondeforme : décodage audio…");
 
     let ffmpeg_tools = resolve_ffmpeg_tools(app);
     let duration_hint = probe_duration_seconds(&source_path_string, &ffmpeg_tools);
@@ -229,6 +229,8 @@ fn build_waveform_peaks_internal(
     let mut generation_error: Option<String> = None;
     let mut cancelled = false;
     let mut last_progress: u8 = 1;
+    // Sans durée estimée (ffprobe indisponible), on fait progresser l’UI par volume d’échantillons décodés.
+    let mut last_pulse_samples: u64 = 0;
 
     let mut carry: Vec<u8> = Vec::new();
     let mut chunk = [0u8; 64 * 1024];
@@ -294,7 +296,19 @@ fn build_waveform_peaks_internal(
             let next_progress = ((ratio * 95.0).floor() as u8).clamp(1, 95);
             if next_progress > last_progress {
                 last_progress = next_progress;
-                emit_progress_for_task(next_progress, "Generation waveform: decodage audio...");
+                emit_progress_for_task(next_progress, "Ondeforme : décodage audio…");
+            }
+        } else {
+            const FALLBACK_SAMPLES_PER_PULSE: u64 = 2_500_000;
+            if total_samples.saturating_sub(last_pulse_samples) >= FALLBACK_SAMPLES_PER_PULSE {
+                last_pulse_samples = total_samples;
+                if last_progress < 90 {
+                    last_progress = (last_progress + 2).min(90);
+                    emit_progress_for_task(
+                        last_progress,
+                        "Ondeforme : décodage audio… (durée du fichier inconnue)",
+                    );
+                }
             }
         }
     }
@@ -342,7 +356,7 @@ fn build_waveform_peaks_internal(
         return Err("No audio data decoded for waveform".into());
     }
 
-    emit_progress_for_task(97, "Generation waveform: finalisation...");
+    emit_progress_for_task(97, "Ondeforme : finalisation…");
 
     let duration_from_decode = total_samples as f64 / sample_rate as f64;
     let duration_sec = duration_hint.unwrap_or(duration_from_decode);
@@ -362,7 +376,7 @@ fn build_waveform_peaks_internal(
     std::fs::write(&cache_file, serialized)
         .map_err(|err| format!("Unable to write waveform cache file: {err}"))?;
 
-    emit_progress_for_task(100, "Waveform generee.");
+    emit_progress_for_task(100, "Ondeforme générée.");
 
     if let (Some(task_id), Some(cancelled_task_ids)) = (task_id, cancelled_task_ids) {
         clear_waveform_task_cancellation(cancelled_task_ids, task_id);
@@ -408,6 +422,8 @@ pub fn start_waveform_generation(
     let path_for_thread = trimmed_path.clone();
 
     std::thread::spawn(move || {
+        // Laisse le temps au front d’enregistrer le `taskId` avant les événements IPC (cache très rapide).
+        std::thread::sleep(std::time::Duration::from_millis(32));
         match build_waveform_peaks_internal(
             &app_for_thread,
             &path_for_thread,
@@ -434,7 +450,7 @@ pub fn start_waveform_generation(
                         &WaveformCancelledEvent {
                             task_id: task_id_for_thread.clone(),
                             path: path_for_thread.clone(),
-                            message: "Generation waveform annulee.".into(),
+                            message: "Génération de l'ondeforme annulée.".into(),
                         },
                     );
                 } else {

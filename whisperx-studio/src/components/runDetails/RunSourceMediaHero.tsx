@@ -6,6 +6,8 @@ export type RunSourceMediaHeroProps = {
   alignment: AlignmentWorkspacePanelProps;
   onOpenSource: () => void;
   onGoAlignment: () => void;
+  /** Vue combinée média + ondeforme + transcript (onglet Vérification). */
+  onGoVerification?: () => void;
 };
 
 /**
@@ -16,6 +18,7 @@ export function RunSourceMediaHero({
   alignment,
   onOpenSource,
   onGoAlignment,
+  onGoVerification,
 }: RunSourceMediaHeroProps) {
   const job = alignment.selectedJob;
   const waveform = alignment.waveform;
@@ -50,6 +53,11 @@ export function RunSourceMediaHero({
           <button type="button" className="ghost" onClick={onGoAlignment}>
             Alignement &amp; ondeforme
           </button>
+          {onGoVerification ? (
+            <button type="button" className="ghost" onClick={onGoVerification}>
+              Vérification (texte + média)
+            </button>
+          ) : null}
         </div>
       </header>
 

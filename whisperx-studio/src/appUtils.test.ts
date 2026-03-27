@@ -4,6 +4,7 @@ import {
   clampNumber,
   fileBasename,
   formatTimestamp,
+  joinPathSegments,
   parsePlayerTimecodeToSeconds,
   normalizeWhisperxOptions,
   parseAudioPipelineModulesFromUi,
@@ -27,6 +28,13 @@ describe("fileBasename", () => {
     expect(fileBasename("/a/b/c.wav")).toBe("c.wav");
     expect(fileBasename("C:\\foo\\bar.mp3")).toBe("bar.mp3");
     expect(fileBasename("solo")).toBe("solo");
+  });
+});
+
+describe("joinPathSegments", () => {
+  it("joint avec le séparateur du répertoire de base", () => {
+    expect(joinPathSegments("/run/out", "a", "b.json")).toBe("/run/out/a/b.json");
+    expect(joinPathSegments("C:\\run\\out", "x.pauses.csv")).toBe("C:\\run\\out\\x.pauses.csv");
   });
 });
 

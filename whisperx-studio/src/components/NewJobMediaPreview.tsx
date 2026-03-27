@@ -161,7 +161,7 @@ function NewJobMediaPreviewComponent({ inputPath }: NewJobMediaPreviewProps) {
                 onClick={wf.loadWaveformForSelectedJob}
                 disabled={wf.isWaveformLoading}
               >
-                {wf.isWaveformLoading ? "Generation waveform..." : "Charger waveform"}
+                {wf.isWaveformLoading ? "Génération de l'ondeforme…" : "Charger l'ondeforme"}
               </button>
               <button
                 type="button"
@@ -178,7 +178,7 @@ function NewJobMediaPreviewComponent({ inputPath }: NewJobMediaPreviewProps) {
                 onClick={() => void wf.requestCancelWaveformGeneration()}
                 disabled={!wf.isWaveformLoading || !wf.waveformTaskId}
               >
-                Annuler waveform
+                Annuler
               </button>
               <label>
                 Zoom timeline
@@ -281,7 +281,7 @@ function NewJobMediaPreviewComponent({ inputPath }: NewJobMediaPreviewProps) {
                   />
                 </div>
                 <p className="small">
-                  Waveform: {wf.waveformProgress}% {wf.waveformProgressMessage}
+                  Ondeforme : {wf.waveformProgress}% — {wf.waveformProgressMessage}
                 </p>
               </div>
             ) : null}
@@ -303,7 +303,7 @@ function NewJobMediaPreviewComponent({ inputPath }: NewJobMediaPreviewProps) {
             ) : null}
             {!wf.waveform ? (
               <p className="small">
-                Charge le waveform pour activer le seek précis sur la timeline.
+                Charge l&apos;ondeforme pour activer le seek précis sur la timeline.
               </p>
             ) : (
               <>

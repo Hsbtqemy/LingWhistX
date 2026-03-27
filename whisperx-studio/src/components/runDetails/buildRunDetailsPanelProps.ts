@@ -89,6 +89,12 @@ export function buildAlignmentWorkspaceProps(
     previewWaveBypassEffects: wf.previewWaveBypassEffects,
     setPreviewWaveBypassEffects: wf.setPreviewWaveBypassEffects,
     resetPreviewWaveEffects: wf.resetPreviewWaveEffects,
+    pauseOverlayVisible: wf.pauseOverlayVisible,
+    setPauseOverlayVisible: wf.setPauseOverlayVisible,
+    pauseOverlaySourcePath: wf.pauseOverlaySourcePath,
+    pauseOverlayLoadError: wf.pauseOverlayLoadError,
+    loadPauseOverlayFromCsvPath: wf.loadPauseOverlayFromCsvPath,
+    clearPauseOverlay: wf.clearPauseOverlay,
   };
 }
 
@@ -164,6 +170,7 @@ export type BuildRunDetailsPanelPropsInput = {
   selectedJobLogs: JobLogEvent[];
   liveTranscriptSegments: LiveTranscriptSegment[];
   selectedJobHasJsonOutput: boolean;
+  onCancelJob: RunDetailsPanelProps["onCancelJob"];
   openLocalPath: RunDetailsPanelProps["openLocalPath"];
   selectedMediaSrc: string;
   selectedIsVideo: boolean;
@@ -174,6 +181,7 @@ export type BuildRunDetailsPanelPropsInput = {
   editorFocusMode: boolean;
   onToggleEditorFocusMode: () => void;
   injectAudioPipelineSegmentsJson?: (json: string) => void;
+  onOpenPlayerRun?: RunDetailsPanelProps["onOpenPlayerRun"];
 };
 
 export function buildRunDetailsPanelProps(
@@ -184,6 +192,7 @@ export function buildRunDetailsPanelProps(
     selectedJobLogs,
     liveTranscriptSegments,
     selectedJobHasJsonOutput,
+    onCancelJob,
     openLocalPath,
     selectedMediaSrc,
     selectedIsVideo,
@@ -194,6 +203,7 @@ export function buildRunDetailsPanelProps(
     editorFocusMode,
     onToggleEditorFocusMode,
     injectAudioPipelineSegmentsJson,
+    onOpenPlayerRun,
   } = input;
 
   return {
@@ -201,6 +211,7 @@ export function buildRunDetailsPanelProps(
     selectedJobLogs,
     liveTranscriptSegments,
     selectedJobHasJsonOutput,
+    onCancelJob,
     openLocalPath,
     alignment: selectedJob
       ? buildAlignmentWorkspaceProps(
@@ -220,5 +231,6 @@ export function buildRunDetailsPanelProps(
       : null,
     editorFocusMode,
     onToggleEditorFocusMode,
+    onOpenPlayerRun,
   };
 }

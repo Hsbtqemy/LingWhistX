@@ -21,17 +21,20 @@ function LogLine({ log }: { log: JobLogEvent }) {
 }
 
 /**
- * Journal du worker : vue « par étapes » (regroupe les `stage` wx_* et heuristiques sur le texte)
- * ou liste chronologique inverse (comportement historique).
+ * Journal du worker : par défaut les entrées les plus récentes en haut (flux continu).
+ * Vue « par étapes » : sections ordonnées de la plus récente à la plus ancienne, lignes idem dans chaque bloc.
  */
 export function JobTimelineLogs({ job, logs }: JobTimelineLogsProps) {
-  const [viewMode, setViewMode] = useState<"grouped" | "flat">("grouped");
+  const [viewMode, setViewMode] = useState<"grouped" | "flat">("flat");
 
-  const sections = useMemo(() => {
+  const sectionsNewestFirst = useMemo(() => {
     if (!job || logs.length === 0) {
       return [];
     }
-    return groupJobLogsIntoSections(logs, job);
+    const base = groupJobLogsIntoSections(logs, job);
+    return [...base]
+      .reverse()
+      .map((sec) => ({ ...sec, logs: [...sec.logs].reverse() }));
   }, [job, logs]);
 
   const flatNewestFirst = useMemo(() => [...logs].reverse(), [logs]);
@@ -57,17 +60,17 @@ export function JobTimelineLogs({ job, logs }: JobTimelineLogsProps) {
           >
             <button
               type="button"
-              className={`ghost small job-timeline-logs__mode-btn${viewMode === "grouped" ? " job-timeline-logs__mode-btn--on" : ""}`}
-              onClick={() => setViewMode("grouped")}
-            >
-              Par étapes
-            </button>
-            <button
-              type="button"
               className={`ghost small job-timeline-logs__mode-btn${viewMode === "flat" ? " job-timeline-logs__mode-btn--on" : ""}`}
               onClick={() => setViewMode("flat")}
             >
               Flux continu
+            </button>
+            <button
+              type="button"
+              className={`ghost small job-timeline-logs__mode-btn${viewMode === "grouped" ? " job-timeline-logs__mode-btn--on" : ""}`}
+              onClick={() => setViewMode("grouped")}
+            >
+              Par étapes
             </button>
           </div>
         ) : null}
@@ -81,9 +84,9 @@ export function JobTimelineLogs({ job, logs }: JobTimelineLogsProps) {
 
       {logs.length === 0 ? (
         <p className="small">Aucun log reçu pour ce job.</p>
-      ) : viewMode === "grouped" && job && sections.length > 0 ? (
+      ) : viewMode === "grouped" && job && sectionsNewestFirst.length > 0 ? (
         <div className="job-timeline-sections">
-          {sections.map((sec, idx) => (
+          {sectionsNewestFirst.map((sec, idx) => (
             <section
               key={`${sec.id}-${idx}`}
               className="timeline-section"

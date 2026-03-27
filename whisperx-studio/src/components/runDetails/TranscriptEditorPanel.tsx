@@ -139,18 +139,29 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
     previewOutput,
   } = props;
 
+  const hasBlockingAlerts = Boolean(editorError || editorAutosaveError);
+
   return (
     <div className="editor-panel">
-      <p className="mono">{editorSourcePath}</p>
-      <label>
-        Langue
-        <input
-          value={editorLanguage}
-          onChange={(e) => updateEditorLanguage(e.currentTarget.value)}
-          placeholder="fr, en..."
-        />
-      </label>
+      <section className="transcript-editor-section" aria-labelledby="transcript-editor-file-title">
+        <h3 id="transcript-editor-file-title" className="transcript-editor-section__title">
+          Fichier source
+        </h3>
+        <p className="mono">{editorSourcePath}</p>
+        <label>
+          Langue
+          <input
+            value={editorLanguage}
+            onChange={(e) => updateEditorLanguage(e.currentTarget.value)}
+            placeholder="fr, en..."
+          />
+        </label>
+      </section>
 
+      <section className="transcript-editor-section" aria-labelledby="transcript-editor-actions-title">
+        <h3 id="transcript-editor-actions-title" className="transcript-editor-section__title">
+          Commandes
+        </h3>
       <div className="editor-toolbar">
         <button
           type="button"
@@ -248,7 +259,34 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
           Export JSON
         </button>
       </div>
+      </section>
 
+      {hasBlockingAlerts ? (
+        <section
+          className="transcript-editor-section transcript-editor-section--alerts"
+          role="region"
+          aria-labelledby="transcript-editor-alerts-title"
+        >
+          <h3 id="transcript-editor-alerts-title" className="transcript-editor-section__title">
+            Alertes
+          </h3>
+          {editorAutosaveError ? (
+            <ErrorBanner>
+              <p className="error-banner-text">{editorAutosaveError}</p>
+            </ErrorBanner>
+          ) : null}
+          {editorError ? (
+            <ErrorBanner>
+              <p className="error-banner-text">{editorError}</p>
+            </ErrorBanner>
+          ) : null}
+        </section>
+      ) : null}
+
+      <section className="transcript-editor-section" aria-labelledby="transcript-editor-export-title">
+        <h3 id="transcript-editor-export-title" className="transcript-editor-section__title">
+          Export
+        </h3>
       <div className="export-rules-grid">
         <label>
           Min Duration (s)
@@ -316,7 +354,12 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
           </ul>
         </div>
       ) : null}
+      </section>
 
+      <section className="transcript-editor-section" aria-labelledby="transcript-editor-qa-title">
+        <h3 id="transcript-editor-qa-title" className="transcript-editor-section__title">
+          Contrôle qualité (QA)
+        </h3>
       <div className="qa-panel">
         <div className="qa-toolbar">
           <label>
@@ -396,34 +439,31 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
           </ul>
         )}
       </div>
+      </section>
 
-      <p className="small">
-        Segments: {editorSegments.length} | Affiches: {displayedEditorSegments.length}
-        {editorDirty ? " | Modifications non sauvegardees" : ""} | Undo/Redo:{" "}
-        {editorUndoStack.length}/{editorRedoStack.length} (max {editorHistoryLimit})
-      </p>
-      <p className="small">
-        Autosave brouillon: toutes les {draftAutosaveSec}s |{" "}
-        {isAutosavingDraft
-          ? "en cours..."
-          : editorDraftUpdatedAtMs
-            ? `dernier ${new Date(editorDraftUpdatedAtMs).toLocaleString()}`
-            : "aucun brouillon"}
-      </p>
-      {editorDraftPath ? <p className="small mono">{editorDraftPath}</p> : null}
-      {editorAutosaveMessage ? <p className="small">{editorAutosaveMessage}</p> : null}
-      {editorAutosaveError ? (
-        <ErrorBanner>
-          <p className="error-banner-text">{editorAutosaveError}</p>
-        </ErrorBanner>
-      ) : null}
-      {isEditorLoading ? <p className="small">Chargement de l&apos;éditeur…</p> : null}
-      {editorStatus ? <p className="small">{editorStatus}</p> : null}
-      {editorError ? (
-        <ErrorBanner>
-          <p className="error-banner-text">{editorError}</p>
-        </ErrorBanner>
-      ) : null}
+      <details className="transcript-editor-details">
+        <summary>État technique (autosave, chargement, statistiques)</summary>
+        <div className="transcript-editor-details__body">
+          <p className="small">
+            Segments: {editorSegments.length} | Affiches: {displayedEditorSegments.length}
+            {editorDirty ? " | Modifications non sauvegardees" : ""} | Undo/Redo:{" "}
+            {editorUndoStack.length}/{editorRedoStack.length} (max {editorHistoryLimit})
+          </p>
+          <p className="small">
+            Autosave brouillon: toutes les {draftAutosaveSec}s |{" "}
+            {isAutosavingDraft
+              ? "en cours..."
+              : editorDraftUpdatedAtMs
+                ? `dernier ${new Date(editorDraftUpdatedAtMs).toLocaleString()}`
+                : "aucun brouillon"}
+          </p>
+          {editorDraftPath ? <p className="small mono">{editorDraftPath}</p> : null}
+          {editorAutosaveMessage ? <p className="small">{editorAutosaveMessage}</p> : null}
+          {isEditorLoading ? <p className="small">Chargement de l&apos;éditeur…</p> : null}
+          {editorStatus ? <p className="small">{editorStatus}</p> : null}
+        </div>
+      </details>
+
       {editorLastOutputPath ? (
         <div className="editor-last-output">
           <p className="mono">{editorLastOutputPath}</p>
@@ -448,6 +488,10 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
         </div>
       ) : null}
 
+      <section className="transcript-editor-section" aria-labelledby="transcript-editor-segments-title">
+        <h3 id="transcript-editor-segments-title" className="transcript-editor-section__title">
+          Segments
+        </h3>
       <div className="editor-segments">
         {displayedEditorSegments.map((segment, index) => (
           <div
@@ -500,6 +544,7 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
           </div>
         ))}
       </div>
+      </section>
 
       {hasMoreEditorSegments ? (
         <button

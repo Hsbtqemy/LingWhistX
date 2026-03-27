@@ -12,6 +12,7 @@ import type { ExportRunTimingPackResponse, StudioView } from "../../types";
 import { PlayerRunWindowViews, type PlayerViewportMode } from "./PlayerRunWindowViews";
 import { PlayerJumpPanel } from "./PlayerJumpPanel";
 import { PlayerTopBar } from "./PlayerTopBar";
+import { PlayerRunArtifactsStrip } from "./PlayerRunArtifactsStrip";
 import { Button } from "../ui";
 
 export type PlayerWorkspaceSectionProps = {
@@ -401,52 +402,57 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
       aria-label="Lecteur multi-vues"
       onKeyDown={onKeyDown}
     >
-      <PlayerTopBar
-        onBack={() => onBack("create")}
-        runLabel={runLabel ?? "Player"}
-        runDir={runDir}
-        mediaPath={mediaPath}
-        shortcutsHelpOpen={shortcutsHelpOpen}
-        onToggleShortcutsHelp={() => setShortcutsHelpOpen((v) => !v)}
-        transportDisabled={transportDisabled}
-        playing={playing}
-        onTogglePlayPause={togglePlayPause}
-        onStop={stop}
-        onSeekRelative={seekRelative}
-        posLabel={posLabel}
-        durLabel={durLabel}
-        copyPositionHint={copyPositionHint}
-        onCopyPlayhead={copyPlayheadToClipboard}
-        playbackRate={playbackRate}
-        onNudgePlaybackRate={nudgePlaybackRate}
-        volume={volume}
-        muted={muted}
-        onVolumeChange={(v) => {
-          setVolume(v);
-          if (v > 0) {
-            setMuted(false);
-          }
-        }}
-        onToggleMute={toggleMute}
-        isVideo={isVideo}
-        videoFullscreen={videoFullscreen}
-        onToggleVideoFullscreen={toggleVideoFullscreen}
-        followPlayhead={followPlayhead}
-        onToggleFollowPlayhead={() => setFollowPlayhead((v) => !v)}
-        loopHint={loopHint}
-        onMarkLoopA={markLoopA}
-        onMarkLoopB={markLoopB}
-        onClearLoop={clearLoop}
-        loopAsec={loopAsec}
-        loopBsec={loopBsec}
-        qcSummary={qcSummary}
-        exportFolderError={exportFolderError}
-        exportPackError={exportPackError}
-        exportPackHint={exportPackHint}
-        exportPackBusy={exportPackBusy}
-        onOpenRunFolder={openRunFolder}
-        onExportRunTimingPack={exportRunTimingPack}
-      />
+      <div className="player-workspace-top">
+        <PlayerTopBar
+          onBack={() => onBack("create")}
+          runLabel={runLabel ?? "Player"}
+          runDir={runDir}
+          mediaPath={mediaPath}
+          shortcutsHelpOpen={shortcutsHelpOpen}
+          onToggleShortcutsHelp={() => setShortcutsHelpOpen((v) => !v)}
+          transportDisabled={transportDisabled}
+          playing={playing}
+          onTogglePlayPause={togglePlayPause}
+          onStop={stop}
+          onSeekRelative={seekRelative}
+          posLabel={posLabel}
+          durLabel={durLabel}
+          copyPositionHint={copyPositionHint}
+          onCopyPlayhead={copyPlayheadToClipboard}
+          playbackRate={playbackRate}
+          onNudgePlaybackRate={nudgePlaybackRate}
+          volume={volume}
+          muted={muted}
+          onVolumeChange={(v) => {
+            setVolume(v);
+            if (v > 0) {
+              setMuted(false);
+            }
+          }}
+          onToggleMute={toggleMute}
+          isVideo={isVideo}
+          videoFullscreen={videoFullscreen}
+          onToggleVideoFullscreen={toggleVideoFullscreen}
+          followPlayhead={followPlayhead}
+          onToggleFollowPlayhead={() => setFollowPlayhead((v) => !v)}
+          loopHint={loopHint}
+          onMarkLoopA={markLoopA}
+          onMarkLoopB={markLoopB}
+          onClearLoop={clearLoop}
+          loopAsec={loopAsec}
+          loopBsec={loopBsec}
+          qcSummary={qcSummary}
+          exportFolderError={exportFolderError}
+          exportPackError={exportPackError}
+          exportPackHint={exportPackHint}
+          exportPackBusy={exportPackBusy}
+          onOpenRunFolder={openRunFolder}
+          onExportRunTimingPack={exportRunTimingPack}
+        />
+        {runDir && summary && summary.artifactKeys.length > 0 ? (
+          <PlayerRunArtifactsStrip runDir={runDir} artifactKeys={summary.artifactKeys} />
+        ) : null}
+      </div>
 
       {!runDir ? (
         <div className="player-empty player-empty--no-run">

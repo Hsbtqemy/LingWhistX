@@ -27,6 +27,8 @@ export function useWaveformCanvas(
     showSegmentOverlaysOnWaveform,
     previewRangeSec,
     rangeDragPreviewSec,
+    pauseOverlayIntervals,
+    pauseOverlayVisible,
   } = wf;
 
   useEffect(() => {
@@ -59,6 +61,26 @@ export function useWaveformCanvas(
     const viewStart = clampWaveformViewStart(waveformViewStartSec, totalDuration, visibleDuration);
     const viewEnd = viewStart + visibleDuration;
     const toX = (seconds: number): number => ((seconds - viewStart) / visibleDuration) * widthCss;
+
+    if (pauseOverlayVisible && pauseOverlayIntervals.length > 0) {
+      ctx.fillStyle = "rgba(110, 75, 155, 0.13)";
+      const maxBands = Math.min(pauseOverlayIntervals.length, 8000);
+      for (let i = 0; i < maxBands; i += 1) {
+        const { start, end } = pauseOverlayIntervals[i];
+        if (end < viewStart || start > viewEnd) {
+          continue;
+        }
+        const visibleStart = Math.max(start, viewStart);
+        const visibleEnd = Math.min(end, viewEnd);
+        const xStart = Math.floor(toX(visibleStart));
+        const xEnd = Math.ceil(toX(visibleEnd));
+        if (xEnd <= 0 || xStart >= widthCss) {
+          continue;
+        }
+        const w = Math.max(1, xEnd - xStart);
+        ctx.fillRect(Math.max(0, xStart), 0, w, heightCss);
+      }
+    }
 
     if (editorSegments.length > 0) {
       ctx.fillStyle = "rgba(19, 111, 126, 0.14)";
@@ -246,5 +268,7 @@ export function useWaveformCanvas(
     showSegmentOverlaysOnWaveform,
     previewRangeSec,
     rangeDragPreviewSec,
+    pauseOverlayIntervals,
+    pauseOverlayVisible,
   ]);
 }

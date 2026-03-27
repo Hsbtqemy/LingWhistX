@@ -102,6 +102,7 @@ function App() {
     onToggleEditorFocusMode,
     runtimeStatus,
     injectAudioPipelineSegmentsJson,
+    onOpenPlayerRun: handleOpenPlayer,
   });
 
   const onExitEditorFocus = useCallback(() => {

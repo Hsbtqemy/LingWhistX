@@ -1,9 +1,9 @@
-import { useState, type MouseEvent, type RefObject, type WheelEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent, type RefObject, type WheelEvent } from "react";
 import { runInTransition } from "../../whisperxOptionsTransitions";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { MAX_WAVEFORM_ZOOM, MIN_WAVEFORM_ZOOM } from "../../constants";
-import { clampNumber, formatClockSeconds, parseFiniteNumberInput } from "../../appUtils";
+import { clampNumber, fileBasename, formatClockSeconds, parseFiniteNumberInput } from "../../appUtils";
 import type { FocusedSegmentInfo, Job, WaveformOverviewEnvelope, WaveformPeaks } from "../../types";
 import { wordLabelsLimitedToDenseView } from "../../waveformWxenv";
 import { ErrorBanner } from "../ErrorBanner";
@@ -83,6 +83,12 @@ export type AlignmentWorkspacePanelProps = {
   previewWaveBypassEffects: boolean;
   setPreviewWaveBypassEffects: (v: boolean) => void;
   resetPreviewWaveEffects: () => void;
+  pauseOverlayVisible: boolean;
+  setPauseOverlayVisible: (v: boolean) => void;
+  pauseOverlaySourcePath: string | null;
+  pauseOverlayLoadError: string;
+  loadPauseOverlayFromCsvPath: (path: string) => Promise<void>;
+  clearPauseOverlay: () => void;
 };
 
 export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
@@ -159,9 +165,26 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
     previewWaveBypassEffects,
     setPreviewWaveBypassEffects,
     resetPreviewWaveEffects,
+    pauseOverlayVisible,
+    setPauseOverlayVisible,
+    pauseOverlaySourcePath,
+    pauseOverlayLoadError,
+    loadPauseOverlayFromCsvPath,
+    clearPauseOverlay,
   } = props;
 
   const [wx623Hint, setWx623Hint] = useState<string | null>(null);
+
+  const pauseCsvPaths = useMemo(
+    () => selectedJob.outputFiles.filter((p) => p.toLowerCase().endsWith(".pauses.csv")),
+    [selectedJob.outputFiles],
+  );
+
+  const [selectedPauseCsvPath, setSelectedPauseCsvPath] = useState("");
+
+  useEffect(() => {
+    setSelectedPauseCsvPath(pauseCsvPaths[0] ?? "");
+  }, [pauseCsvPaths]);
 
   function injectPipelineJsonFromRange() {
     if (!previewRangeSec || !injectAudioPipelineSegmentsJson) {
@@ -302,7 +325,7 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                 onClick={loadWaveformForSelectedJob}
                 disabled={isWaveformLoading}
               >
-                {isWaveformLoading ? "Generation waveform..." : "Charger waveform"}
+                {isWaveformLoading ? "Génération de l'ondeforme…" : "Charger l'ondeforme"}
               </button>
               <button
                 type="button"
@@ -319,7 +342,7 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                 onClick={() => void requestCancelWaveformGeneration()}
                 disabled={!isWaveformLoading || !waveformTaskId}
               >
-                Annuler waveform
+                Annuler
               </button>
               <label>
                 Zoom timeline
@@ -416,7 +439,7 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                   />
                 </div>
                 <p className="small">
-                  Waveform: {waveformProgress}% {waveformProgressMessage}
+                  Ondeforme : {waveformProgress}% — {waveformProgressMessage}
                 </p>
               </div>
             ) : null}
@@ -618,9 +641,71 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                 <p className="error-banner-text">{pyramidError}</p>
               </ErrorBanner>
             ) : null}
+            <div className="alignment-pause-csv">
+              <p className="small">
+                <strong>Pauses CSV</strong> — bandes violettes sur l&apos;ondeforme (fichiers{" "}
+                <code>*.pauses.csv</code> dans les sorties du job).
+              </p>
+              {pauseCsvPaths.length === 0 ? (
+                <p className="small">
+                  Aucun <code>*.pauses.csv</code> listé pour ce job (généré après analyse des
+                  silences).
+                </p>
+              ) : (
+                <div className="alignment-pause-csv__row">
+                  <label className="alignment-pause-csv__select">
+                    <span className="small">Fichier</span>
+                    <select
+                      value={selectedPauseCsvPath}
+                      onChange={(e) => setSelectedPauseCsvPath(e.currentTarget.value)}
+                    >
+                      {pauseCsvPaths.map((p) => (
+                        <option key={p} value={p}>
+                          {fileBasename(p)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="file-actions">
+                    <button
+                      type="button"
+                      className="ghost"
+                      disabled={!selectedPauseCsvPath}
+                      onClick={() => void loadPauseOverlayFromCsvPath(selectedPauseCsvPath)}
+                    >
+                      Charger
+                    </button>
+                    <button type="button" className="ghost" onClick={() => clearPauseOverlay()}>
+                      Effacer
+                    </button>
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={pauseOverlayVisible}
+                        onChange={(e) =>
+                          runInTransition(() => setPauseOverlayVisible(e.currentTarget.checked))
+                        }
+                      />
+                      Afficher
+                    </label>
+                  </div>
+                </div>
+              )}
+              {pauseOverlaySourcePath ? (
+                <p className="small mono" title={pauseOverlaySourcePath}>
+                  Source : {fileBasename(pauseOverlaySourcePath)} ·{" "}
+                  {pauseOverlayVisible ? "visible" : "masqué"}
+                </p>
+              ) : null}
+              {pauseOverlayLoadError ? (
+                <p className="small" role="alert">
+                  {pauseOverlayLoadError}
+                </p>
+              ) : null}
+            </div>
             {!waveform ? (
               <p className="small">
-                Charge le waveform pour activer le seek précis sur la timeline.
+                Charge l&apos;ondeforme pour activer le seek précis sur la timeline.
               </p>
             ) : (
               <>

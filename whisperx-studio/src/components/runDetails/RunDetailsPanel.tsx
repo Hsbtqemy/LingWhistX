@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { fileBasename } from "../../appUtils";
 import type { Job, JobLogEvent, LiveTranscriptSegment } from "../../types";
 import { WorkerErrorMessage } from "../../WorkerErrorMessage";
@@ -21,6 +21,8 @@ export type RunDetailsPanelProps = {
   selectedJobLogs: JobLogEvent[];
   liveTranscriptSegments: LiveTranscriptSegment[];
   selectedJobHasJsonOutput: boolean;
+  /** Annule un job en file ou en cours (IPC `cancel_job`). */
+  onCancelJob: (jobId: string) => void;
   openLocalPath: (path: string) => void;
   alignment: AlignmentWorkspacePanelProps | undefined;
   preview: RunDetailsPreviewProps;
@@ -29,12 +31,15 @@ export type RunDetailsPanelProps = {
   transcriptEditor: TranscriptEditorPanelProps | null;
   editorFocusMode: boolean;
   onToggleEditorFocusMode: () => void;
+  /** Ouvre le dossier de sortie dans le Player (onglet Player). */
+  onOpenPlayerRun?: (outputDir: string, label?: string | null) => void;
 };
 
 const RUN_DETAILS_TABS = [
   { id: "meta", label: "Méta" },
   { id: "fichiers", label: "Fichiers" },
   { id: "alignement", label: "Alignement" },
+  { id: "verification", label: "Vérification" },
   { id: "transcript", label: "Transcript" },
 ] as const;
 
@@ -49,6 +54,7 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
       selectedJobLogs,
       liveTranscriptSegments,
       selectedJobHasJsonOutput,
+      onCancelJob,
       openLocalPath,
       alignment,
       preview,
@@ -57,29 +63,52 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
       transcriptEditor,
       editorFocusMode,
       onToggleEditorFocusMode,
+      onOpenPlayerRun,
     },
     ref,
   ) {
     const [tab, setTab] = useState<RunDetailsTabId>("meta");
+    /** Évite de forcer l’onglet à chaque rendu : `transcriptEditor` est un nouvel objet à chaque render parent. */
+    const prevJobIdRef = useRef<string | null>(null);
+    const hadTranscriptOnJobRef = useRef(false);
+
+    const canCancelJob =
+      selectedJob &&
+      (selectedJob.status === "queued" || selectedJob.status === "running");
 
     useEffect(() => {
       if (!selectedJob) {
         setTab("meta");
+        prevJobIdRef.current = null;
+        hadTranscriptOnJobRef.current = false;
         return;
       }
       if (selectedJob.status === "error") {
         setTab("meta");
         return;
       }
-      if (transcriptEditor) {
+
+      const jobId = selectedJob.id;
+      const jobChanged = prevJobIdRef.current !== jobId;
+      const hasTranscriptEditor = transcriptEditor != null;
+
+      if (jobChanged) {
+        prevJobIdRef.current = jobId;
+        hadTranscriptOnJobRef.current = hasTranscriptEditor;
+        if (hasTranscriptEditor) {
+          setTab("transcript");
+        } else if (selectedJobHasJsonOutput) {
+          setTab("fichiers");
+        } else {
+          setTab("meta");
+        }
+        return;
+      }
+
+      if (!hadTranscriptOnJobRef.current && hasTranscriptEditor) {
         setTab("transcript");
-        return;
       }
-      if (selectedJobHasJsonOutput) {
-        setTab("fichiers");
-        return;
-      }
-      setTab("meta");
+      hadTranscriptOnJobRef.current = hasTranscriptEditor;
     }, [selectedJob, selectedJobHasJsonOutput, transcriptEditor]);
 
     const panelClass =
@@ -92,12 +121,23 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
         <header className="panel-header">
           <h2>Détail du run</h2>
           {selectedJob ? (
-            <span
-              className="job-count-pill job-count-pill--active panel-header-job-id"
-              title="Identifiant du job"
-            >
-              {selectedJob.id}
-            </span>
+            <div className="run-details-panel__header-actions">
+              <span
+                className="job-count-pill job-count-pill--active panel-header-job-id"
+                title="Identifiant du job"
+              >
+                {selectedJob.id}
+              </span>
+              {canCancelJob ? (
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => void onCancelJob(selectedJob.id)}
+                >
+                  Arrêter le job
+                </button>
+              ) : null}
+            </div>
           ) : (
             <span className="job-count-pill">Aucune sélection</span>
           )}
@@ -108,6 +148,7 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
             alignment={alignment}
             onOpenSource={() => openLocalPath(selectedJob.inputPath)}
             onGoAlignment={() => setTab("alignement")}
+            onGoVerification={() => setTab("verification")}
           />
         ) : selectedJob ? (
           <div
@@ -139,8 +180,7 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                 <h3 className="run-details-error-hero__title">Le run a échoué</h3>
                 <p className="run-details-error-hero__lead">
                   Le message technique ci-dessous inclut souvent des blocs « [Aide …] » (HF, SSL,
-                  GPU…). Suis-les puis relance un job depuis l&apos;accueil, ou annule ce run dans
-                  l&apos;historique.
+                  GPU…). Suis-les puis relance un job depuis l&apos;accueil.
                 </p>
                 <WorkerErrorMessage text={selectedJob.error} />
               </div>
@@ -175,6 +215,7 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                   onOpenPath={openLocalPath}
                   onPreview={onPreviewOutput}
                   onLoadTranscript={onLoadTranscriptEditor}
+                  onOpenPlayerRun={onOpenPlayerRun}
                 />
                 <RunDetailsPreview {...preview} />
               </TabPanel>
@@ -195,12 +236,68 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
               </TabPanel>
 
               <TabPanel
+                tabId="verification"
+                idPrefix={RUN_DETAILS_TAB_PREFIX}
+                hidden={tab !== "verification"}
+              >
+                <div className="run-details-verification">
+                  <header className="run-details-verification__intro">
+                    <h3>Vue vérification</h3>
+                    <p className="small">
+                      Même session que les onglets <strong>Alignement</strong> et{" "}
+                      <strong>Transcript</strong> : le curseur, la lecture et les segments sont
+                      liés. Cliquer sur l&apos;ondeforme sélectionne le segment ; modifier le texte
+                      ou les bornes met à jour le JSON exportable. Raccourcis : Alt+J / K / L
+                      (reculer / pause / avancer), Alt+Shift+J / L (segment précédent / suivant).
+                    </p>
+                    {transcriptEditor ? (
+                      <button
+                        type="button"
+                        className={editorFocusMode ? "primary" : "ghost"}
+                        onClick={onToggleEditorFocusMode}
+                      >
+                        {editorFocusMode ? "Quitter le mode focus" : "Mode focus éditeur"}
+                      </button>
+                    ) : null}
+                  </header>
+                  <div className="run-details-verification__grid">
+                    <div className="run-details-verification__pane">
+                      {alignment ? (
+                        <AlignmentWorkspacePanel {...alignment} />
+                      ) : (
+                        <p className="small run-details-tab-empty">
+                          Panneau d&apos;alignement indisponible pour ce contexte.
+                        </p>
+                      )}
+                    </div>
+                    <div className="run-details-verification__pane run-details-verification__pane--transcript">
+                      {!transcriptEditor ? (
+                        <p className="small">
+                          Charge un fichier <code>.json</code> de sortie (onglet Fichiers) pour
+                          éditer le texte et les timings ici.
+                        </p>
+                      ) : (
+                        <TranscriptEditorPanel {...transcriptEditor} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </TabPanel>
+
+              <TabPanel
                 tabId="transcript"
                 idPrefix={RUN_DETAILS_TAB_PREFIX}
                 hidden={tab !== "transcript"}
               >
                 <div className="transcript-section-header">
-                  <h3>Transcript Editor</h3>
+                  <div>
+                    <h3>Transcript</h3>
+                    <p className="small transcript-section-hint">
+                      Édition segment par segment et contrôle qualité. Pour tout voir d&apos;un
+                      coup (média + ondeforme + liste), utilise l&apos;onglet{" "}
+                      <strong>Vérification</strong>.
+                    </p>
+                  </div>
                   {transcriptEditor ? (
                     <button
                       type="button"

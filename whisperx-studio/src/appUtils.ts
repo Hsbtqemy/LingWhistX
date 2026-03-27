@@ -18,6 +18,21 @@ export function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/**
+ * Joint un répertoire de base et des segments relatifs (chemins locaux Windows ou POSIX).
+ */
+export function joinPathSegments(base: string, ...segments: string[]): string {
+  const sep = base.includes("\\") ? "\\" : "/";
+  let out = base.replace(/[/\\]+$/, "");
+  for (const seg of segments) {
+    const s = seg.replace(/^[/\\]+/, "");
+    if (s) {
+      out += sep + s;
+    }
+  }
+  return out;
+}
+
 export function parseFiniteNumberInput(raw: string): number | null {
   if (raw.trim() === "") {
     return null;
