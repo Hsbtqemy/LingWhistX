@@ -10,6 +10,7 @@ use tauri::AppHandle;
 use crate::app_events::{emit_ffmpeg_install_finished, emit_ffmpeg_install_log};
 use crate::ffmpeg_tools::{resolve_ffmpeg_tools, run_probe};
 
+#[cfg(not(target_os = "windows"))]
 fn find_homebrew() -> Option<PathBuf> {
     let candidates = [
         "/opt/homebrew/bin/brew",
