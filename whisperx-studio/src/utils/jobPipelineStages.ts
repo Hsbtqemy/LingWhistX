@@ -6,29 +6,40 @@ export type PipelineStep = {
   hint?: string;
 };
 
+const RUNTIME_STEP: PipelineStep = {
+  id: "runtime",
+  label: "Runtime",
+  hint: "Worker, fichier",
+};
+
+function prependRuntime(steps: PipelineStep[]): PipelineStep[] {
+  return [RUNTIME_STEP, ...steps];
+}
+
 /**
  * Étapes affichées dans le bandeau pipeline (cohérentes avec les options du job).
+ * La première étape est toujours « Runtime » (file / démarrage worker).
  */
 export function buildPipelineSteps(job: Job): PipelineStep[] {
   if (job.mode === "mock") {
-    return [
-      { id: "prep", label: "Calibration", hint: "Mode mock" },
+    return prependRuntime([
+      { id: "prep", label: "Préparation", hint: "Calibration mock" },
       { id: "transcribe", label: "Transcription" },
       { id: "align", label: "Alignement" },
       { id: "diarize", label: "Diarisation" },
       { id: "finalize", label: "Export" },
-    ];
+    ]);
   }
   if (job.mode === "analyze_only") {
-    return [
+    return prependRuntime([
       { id: "prep", label: "Préparation" },
       { id: "analyze", label: "Analyse", hint: "Métriques sur JSON" },
       { id: "finalize", label: "Écriture" },
-    ];
+    ]);
   }
   const o = job.whisperxOptions;
   const steps: PipelineStep[] = [
-    { id: "prep", label: "Préparation", hint: "Runtime, commande" },
+    { id: "prep", label: "Préparation", hint: "Commande, média" },
     { id: "transcribe", label: "Transcription", hint: "ASR" },
   ];
   if (!o?.noAlign) {
@@ -38,7 +49,7 @@ export function buildPipelineSteps(job: Job): PipelineStep[] {
     steps.push({ id: "diarize", label: "Diarisation", hint: "Locuteurs" });
   }
   steps.push({ id: "finalize", label: "Export", hint: "Fichiers" });
-  return steps;
+  return prependRuntime(steps);
 }
 
 function resolveWhisperxLikeFromLogs(logs: JobLogEvent[]): string | null {
@@ -90,7 +101,7 @@ function clampStepIdToPipeline(steps: PipelineStep[], id: string): string {
  */
 export function resolveActivePipelineStepId(job: Job, logs: JobLogEvent[]): string {
   if (job.status === "queued") {
-    return "queue";
+    return "runtime";
   }
   if (job.mode === "mock") {
     const last = [...logs].reverse().find((l) => l.stage);
@@ -113,6 +124,9 @@ export function resolveActivePipelineStepId(job: Job, logs: JobLogEvent[]): stri
     if (job.progress >= 96) {
       return "finalize";
     }
+    if (job.progress < 8) {
+      return "runtime";
+    }
     if (job.progress < 12) {
       return "prep";
     }
@@ -128,6 +142,9 @@ export function resolveActivePipelineStepId(job: Job, logs: JobLogEvent[]): stri
     if (job.progress >= 96) {
       return "finalize";
     }
+    if (job.progress < 8) {
+      return "runtime";
+    }
     if (job.progress < 22) {
       return "prep";
     }
@@ -142,6 +159,9 @@ export function resolveActivePipelineStepId(job: Job, logs: JobLogEvent[]): stri
   if (job.status === "running") {
     if (job.progress >= 96) {
       return "finalize";
+    }
+    if (job.progress < 10) {
+      return "runtime";
     }
     if (job.progress < 28) {
       return "prep";
@@ -167,13 +187,15 @@ export function resolveActiveStepIndex(
   activeId: string,
 ): { activeIndex: number; allComplete: boolean; isQueued: boolean } {
   if (job.status === "queued") {
-    return { activeIndex: -1, allComplete: false, isQueued: true };
+    const runtimeIdx = steps.findIndex((s) => s.id === "runtime");
+    return {
+      activeIndex: runtimeIdx >= 0 ? runtimeIdx : 0,
+      allComplete: false,
+      isQueued: true,
+    };
   }
   if (job.status === "done") {
     return { activeIndex: -1, allComplete: true, isQueued: false };
-  }
-  if (activeId === "queue") {
-    return { activeIndex: -1, allComplete: false, isQueued: true };
   }
   const activeIndex = steps.findIndex((s) => s.id === activeId);
   return {

@@ -7,6 +7,7 @@ import { StudioAboutView } from "./components/StudioAboutView";
 import { StudioHero } from "./components/StudioHero";
 import { STUDIO_PANEL_IDS, STUDIO_TAB_IDS, StudioNav } from "./components/StudioNav";
 import { PlayerWorkspaceSection } from "./components/player/PlayerWorkspaceSection";
+import { StudioJobsSection } from "./components/StudioJobsSection";
 import { StudioWorkspaceSection } from "./components/StudioWorkspaceSection";
 import { useAppErrorStack } from "./hooks/useAppErrorStack";
 import { useRuntimeDiagnostics } from "./hooks/useRuntimeDiagnostics";
@@ -18,7 +19,7 @@ const VIEW_STORAGE_KEY = "lx-studio-view";
 function readStoredView(): StudioView {
   try {
     const v = sessionStorage.getItem(VIEW_STORAGE_KEY);
-    if (v === "create" || v === "workspace" || v === "player" || v === "about") {
+    if (v === "create" || v === "workspace" || v === "jobs" || v === "player" || v === "about") {
       return v;
     }
   } catch {
@@ -111,6 +112,7 @@ function App() {
 
   const showCreatePanel = !editorFocusMode && activeView === "create";
   const showAboutPanel = !editorFocusMode && activeView === "about";
+  const showJobsPanel = !editorFocusMode && activeView === "jobs";
   const showPlayerPanel = !editorFocusMode && activeView === "player";
   const showWorkspacePanel = editorFocusMode || activeView === "workspace";
 
@@ -168,6 +170,15 @@ function App() {
         </div>
 
         <div
+          id={STUDIO_PANEL_IDS.jobs}
+          role="tabpanel"
+          aria-labelledby={STUDIO_TAB_IDS.jobs}
+          hidden={!showJobsPanel}
+        >
+          {showJobsPanel ? <StudioJobsSection jobsHistory={jobsHistory} /> : null}
+        </div>
+
+        <div
           id={STUDIO_PANEL_IDS.player}
           role="tabpanel"
           aria-labelledby={STUDIO_TAB_IDS.player}
@@ -191,7 +202,6 @@ function App() {
         >
           {showWorkspacePanel ? (
             <StudioWorkspaceSection
-              jobsHistory={jobsHistory}
               runDetailsRef={runDetailsRef}
               runDetails={runDetails}
               explorer={explorer}

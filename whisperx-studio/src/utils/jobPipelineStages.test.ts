@@ -39,6 +39,7 @@ describe("jobPipelineStages", () => {
       },
     });
     const ids = buildPipelineSteps(withAll).map((s) => s.id);
+    expect(ids[0]).toBe("runtime");
     expect(ids).toContain("align");
     expect(ids).toContain("diarize");
 
@@ -67,6 +68,11 @@ describe("jobPipelineStages", () => {
       },
     ];
     expect(resolveActivePipelineStepId(job, logs)).toBe("align");
+  });
+
+  it("resolveActivePipelineStepId en file pointe sur runtime", () => {
+    const job = baseJob({ status: "queued", progress: 0 });
+    expect(resolveActivePipelineStepId(job, [])).toBe("runtime");
   });
 
   it("resolveActiveStepIndex marque terminé quand job done", () => {

@@ -23,8 +23,7 @@ body {
   max-width: 100%;
   margin: clamp(12px, 2.2vw, var(--lx-space-5)) auto var(--lx-space-shell-bottom);
   display: grid;
-  /* Colonne nav fluide avec la largeur de fenêtre (200–260px) */
-  grid-template-columns: clamp(200px, 24vw, 260px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(14px, 2.2vw, 24px);
   align-items: start;
 }
@@ -562,6 +561,43 @@ body {
   box-shadow: 0 8px 20px rgba(6, 39, 44, 0.06);
 }
 
+/* Barre d’onglets pleine largeur sous le header */
+.studio-nav.studio-nav--topbar {
+  position: sticky;
+  top: clamp(8px, 1.2vw, 14px);
+  z-index: 20;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  align-self: stretch;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  gap: 10px 12px;
+  padding: 12px 16px;
+}
+
+.studio-nav.studio-nav--topbar .studio-nav-tab {
+  width: auto;
+  justify-content: center;
+  min-height: 44px;
+  padding-inline: 14px 16px;
+}
+
+.studio-nav.studio-nav--topbar .studio-nav-tab-inner {
+  justify-content: center;
+  width: auto;
+}
+
+.studio-nav.studio-nav--topbar .studio-nav-tab-slot {
+  width: auto;
+}
+
+.studio-nav.studio-nav--topbar .studio-nav-tab-slot .studio-nav-tab {
+  width: auto;
+}
+
 .studio-nav.studio-nav--sidebar {
   position: sticky;
   top: var(--lx-space-4);
@@ -658,6 +694,10 @@ body {
 
 .studio-nav.studio-nav--sidebar .studio-nav-tab-inner {
   justify-content: flex-start;
+}
+
+.studio-nav.studio-nav--topbar .studio-nav-tab-slot .studio-nav-activity-dot {
+  right: 6px;
 }
 
 .studio-nav-tab-inner svg {
@@ -2339,6 +2379,11 @@ button.lx-btn--danger:hover:not(:disabled) {
   }
 }
 
+/* Ancre scroll (boutons hero « Alignement » / « Vérification ») */
+.run-details-tabs-anchor {
+  scroll-margin-top: 12px;
+}
+
 /* RunDetailsPanel — onglets (WX-629) */
 .lx-tablist {
   display: flex;
@@ -2404,6 +2449,58 @@ button.lx-btn--danger:hover:not(:disabled) {
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 8px;
+}
+
+.alignment-workspace-lead {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: var(--lx-radius-md);
+  border: 1px solid rgba(12, 95, 105, 0.2);
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.alignment-workspace-lead p {
+  margin: 0 0 10px;
+}
+
+.alignment-workspace-lead p:last-child {
+  margin-bottom: 0;
+}
+
+.alignment-waveform-nav-hints {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--lx-radius-sm);
+  border: 1px dashed rgba(12, 95, 105, 0.35);
+  background: rgba(240, 252, 250, 0.65);
+}
+
+.alignment-waveform-nav-hints p {
+  margin: 0 0 8px;
+}
+
+.alignment-waveform-nav-hints p:last-child {
+  margin-bottom: 0;
+}
+
+.alignment-live-transcript-preview {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--lx-radius-sm);
+  border: 1px solid rgba(12, 95, 105, 0.18);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.alignment-live-transcript-preview__label {
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: var(--lx-text-2);
+}
+
+.alignment-live-transcript-preview__text {
+  margin: 0;
+  line-height: 1.45;
+  color: var(--lx-text-0);
 }
 
 .alignment-panel {
@@ -3539,20 +3636,18 @@ button.lx-btn--danger:hover:not(:disabled) {
 }
 
 /*
- * Workspace Studio : la colonne principale (détail du run / transcript) domine (~65–72 %).
+ * Workspace Studio : détail du run pleine largeur ; explorateur en dessous.
  */
 .studio-workspace-body--run-primary {
   display: grid;
-  grid-template-columns: minmax(0, 1.85fr) minmax(232px, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(16px, 2.2vw, 24px);
   align-items: start;
   min-width: 0;
 }
 
-@media (max-width: 900px) {
-  .studio-workspace-body--run-primary {
-    grid-template-columns: 1fr;
-  }
+.studio-workspace-explorer {
+  min-width: 0;
 }
 
 .studio-workspace-primary--surface > .panel--run-workspace {
@@ -3593,6 +3688,19 @@ button.lx-btn--danger:hover:not(:disabled) {
 
 .studio-jobs-rail {
   min-width: 0;
+}
+
+.studio-jobs-page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: calc(100vh - 140px);
+}
+
+.studio-jobs-page .jobs-history-panel {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 
 .jobs-history-panel {
@@ -3831,11 +3939,21 @@ button.lx-btn--danger:hover:not(:disabled) {
   color: var(--lx-text-1);
 }
 
+/* Grille : étapes (colonne) | dernier message worker */
+.job-pipeline-strip__layout {
+  display: grid;
+  grid-template-columns: minmax(140px, min(32%, 220px)) minmax(0, 1fr);
+  gap: clamp(14px, 2vw, 22px);
+  align-items: stretch;
+  min-width: 0;
+}
+
 .job-pipeline-strip__rail {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--lx-space-2) var(--lx-space-3);
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3850,6 +3968,14 @@ button.lx-btn--danger:hover:not(:disabled) {
   font-weight: 600;
   color: var(--lx-text-2);
   max-width: 100%;
+  padding: 8px 10px;
+  margin: 0;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .job-pipeline-strip__step-body {
@@ -3869,8 +3995,30 @@ button.lx-btn--danger:hover:not(:disabled) {
   color: var(--lx-text-0);
 }
 
+.job-pipeline-strip__step--pending {
+  color: var(--lx-text-2);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--lx-status-queued-bg) 55%, white);
+  border-color: color-mix(in srgb, var(--lx-status-queued-border) 70%, transparent);
+  animation: job-pipeline-step-pulse 2.4s ease-in-out infinite;
+}
+
 .job-pipeline-strip__step--current {
   color: var(--lx-accent, #0e7a86);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--lx-status-running-bg) 50%, white);
+  border-color: color-mix(in srgb, var(--lx-accent), transparent 55%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--lx-accent), transparent 70%);
+}
+
+@keyframes job-pipeline-step-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(15, 138, 148, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(15, 138, 148, 0.2);
+  }
 }
 
 .job-pipeline-strip__step--error .job-pipeline-strip__label {
@@ -3940,40 +4088,148 @@ button.lx-btn--danger:hover:not(:disabled) {
   color: var(--lx-text-2);
 }
 
-.job-pipeline-strip__activity {
-  margin: 0;
-  padding: var(--lx-space-2) 0 0;
-  border-top: 1px solid rgba(9, 69, 76, 0.12);
+.job-pipeline-strip__journal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 7rem;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(9, 69, 76, 0.14);
+  background: rgba(255, 255, 255, 0.65);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
-.job-pipeline-strip__activity summary {
-  cursor: pointer;
-  font-size: var(--lx-text-sm);
-  font-weight: 600;
-  color: var(--lx-text-0);
-  list-style: none;
+.job-pipeline-strip__journal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
 }
 
-.job-pipeline-strip__activity summary::-webkit-details-marker {
-  display: none;
-}
-
-.job-pipeline-strip__activity-count {
-  margin-left: 6px;
+.job-pipeline-strip__journal-title {
   font-size: var(--lx-text-xs);
-  font-weight: 600;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--lx-text-2);
 }
 
-.job-pipeline-strip__activity-list {
-  margin: var(--lx-space-2) 0 var(--lx-space-2);
-  padding: 0;
-  list-style: none;
+.job-pipeline-strip__journal-count {
+  font-size: var(--lx-text-xs);
+  font-weight: 600;
+  color: var(--lx-text-2);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(15, 126, 138, 0.1);
+}
+
+.job-pipeline-strip__journal-body {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
   max-height: 12rem;
   overflow: auto;
+  overscroll-behavior: contain;
+  animation: job-pipeline-feed-in 0.22s ease;
+}
+
+@keyframes job-pipeline-feed-in {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.job-pipeline-strip__journal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: var(--lx-text-xs);
+  color: var(--lx-text-2);
+}
+
+.job-pipeline-strip__journal-meta time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.job-pipeline-strip__journal-stage {
+  color: var(--lx-accent, #0e7a86);
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-pipeline-strip__journal-msg {
+  margin: 0;
+  font-size: var(--lx-text-sm);
+  line-height: 1.45;
+  color: var(--lx-text-0);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.job-pipeline-strip__journal-placeholder {
+  margin: 0;
+  font-size: var(--lx-text-sm);
+  line-height: 1.45;
+  color: var(--lx-text-2);
+  font-style: italic;
+}
+
+/* Historique court repliable (bandeau) — complète le journal complet plus bas dans la page */
+.job-pipeline-strip__journal .job-pipeline-strip__activity {
+  margin: 0;
+  padding-top: 4px;
+  border-top: 1px solid rgba(9, 69, 76, 0.1);
+}
+
+.job-pipeline-strip__journal .job-pipeline-strip__activity summary {
+  cursor: pointer;
+  font-size: var(--lx-text-xs);
+  font-weight: 600;
+  color: var(--lx-text-1);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.job-pipeline-strip__journal .job-pipeline-strip__activity summary::-webkit-details-marker {
+  display: none;
+}
+
+.job-pipeline-strip__activity-count {
+  margin-left: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--lx-text-2);
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(15, 126, 138, 0.1);
+}
+
+.job-pipeline-strip__activity-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 10rem;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .job-pipeline-strip__activity-list li {
@@ -4007,7 +4263,8 @@ button.lx-btn--danger:hover:not(:disabled) {
 }
 
 .job-pipeline-strip__logs-link {
-  margin-top: var(--lx-space-1);
+  margin-top: auto;
+  align-self: flex-start;
 }
 
 .explorer-topbar {

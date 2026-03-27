@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { defaultWhisperxOptions } from "./constants";
 import {
   clampNumber,
+  normalizeLocalFilePathForTauri,
   fileBasename,
   formatTimestamp,
   joinPathSegments,
@@ -14,6 +15,18 @@ import {
   upsertJobInList,
 } from "./appUtils";
 import type { Job } from "./types";
+
+describe("normalizeLocalFilePathForTauri", () => {
+  it("retire file:// Windows", () => {
+    expect(normalizeLocalFilePathForTauri("file:///C:/Users/x/out.pauses.csv")).toBe(
+      "C:/Users/x/out.pauses.csv",
+    );
+  });
+
+  it("laisse les chemins déjà natifs", () => {
+    expect(normalizeLocalFilePathForTauri("/tmp/a.csv")).toBe("/tmp/a.csv");
+  });
+});
 
 describe("clampNumber", () => {
   it("borne la valeur entre min et max", () => {

@@ -5,6 +5,7 @@ import { Badge, Button } from "./ui";
 export const STUDIO_TAB_IDS: Record<StudioView, string> = {
   create: "studio-tab-create",
   workspace: "studio-tab-workspace",
+  jobs: "studio-tab-jobs",
   player: "studio-tab-player",
   about: "studio-tab-about",
 };
@@ -12,6 +13,7 @@ export const STUDIO_TAB_IDS: Record<StudioView, string> = {
 export const STUDIO_PANEL_IDS: Record<StudioView, string> = {
   create: "studio-panel-create",
   workspace: "studio-panel-workspace",
+  jobs: "studio-panel-jobs",
   player: "studio-panel-player",
   about: "studio-panel-about",
 };
@@ -66,6 +68,15 @@ function NavIconAbout() {
   );
 }
 
+function NavIconHistory() {
+  return (
+    <svg {...navIconProps}>
+      <path d="M12 8v4l3 2" />
+      <circle cx="12" cy="12" r="9" />
+    </svg>
+  );
+}
+
 export type StudioNavProps = {
   activeView: StudioView;
   onViewChange: (view: StudioView) => void;
@@ -99,7 +110,7 @@ export function StudioNav({
   }
 
   return (
-    <nav className="studio-nav studio-nav--sidebar" role="tablist" aria-label="Sections du studio">
+    <nav className="studio-nav studio-nav--topbar" role="tablist" aria-label="Sections du studio">
       <Button
         id={STUDIO_TAB_IDS.create}
         variant="navTab"
@@ -137,6 +148,21 @@ export function StudioNav({
           <span className="studio-nav-activity-dot" title="Traitement en cours" />
         ) : null}
       </div>
+      <Button
+        id={STUDIO_TAB_IDS.jobs}
+        variant="navTab"
+        type="button"
+        role="tab"
+        aria-selected={activeView === "jobs"}
+        aria-controls={STUDIO_PANEL_IDS.jobs}
+        active={activeView === "jobs"}
+        onClick={() => onViewChange("jobs")}
+      >
+        <span className="studio-nav-tab-inner">
+          <NavIconHistory />
+          <span>Historique</span>
+        </span>
+      </Button>
       <Button
         id={STUDIO_TAB_IDS.player}
         variant="navTab"

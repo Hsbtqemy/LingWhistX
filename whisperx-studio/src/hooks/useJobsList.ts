@@ -28,12 +28,15 @@ export type UseJobsListOptions = {
   runDetailsRef: RefObject<HTMLElement | null>;
   setError: (message: string) => void;
   onSelectedJobBecameInvalid: () => void;
+  /** Ex. basculer vers l’onglet Studio après sélection depuis l’historique (onglet séparé). */
+  onAfterFocusJobDetails?: () => void;
 };
 
 export function useJobsList({
   runDetailsRef,
   setError,
   onSelectedJobBecameInvalid,
+  onAfterFocusJobDetails,
 }: UseJobsListOptions) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobLogs, setJobLogs] = useState<Record<string, JobLogEvent[]>>({});
@@ -229,11 +232,12 @@ export function useJobsList({
   const focusJobDetails = useCallback(
     (jobId: string) => {
       setSelectedJobId(jobId);
+      onAfterFocusJobDetails?.();
       window.setTimeout(() => {
         runDetailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 0);
     },
-    [runDetailsRef],
+    [runDetailsRef, onAfterFocusJobDetails],
   );
 
   const cancelJob = useCallback(

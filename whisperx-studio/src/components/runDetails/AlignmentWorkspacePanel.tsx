@@ -89,6 +89,8 @@ export type AlignmentWorkspacePanelProps = {
   pauseOverlayLoadError: string;
   loadPauseOverlayFromCsvPath: (path: string) => Promise<void>;
   clearPauseOverlay: () => void;
+  /** Dernier extrait ASR temps réel (flux au-dessus du détail run) — lecture seule. */
+  liveTranscriptPreview?: string | null;
 };
 
 export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
@@ -171,6 +173,7 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
     pauseOverlayLoadError,
     loadPauseOverlayFromCsvPath,
     clearPauseOverlay,
+    liveTranscriptPreview,
   } = props;
 
   const [wx623Hint, setWx623Hint] = useState<string | null>(null);
@@ -231,7 +234,44 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
 
   return (
     <>
-      <h3>Alignment Workspace</h3>
+      <h3>Espace média &amp; ondeforme</h3>
+      <div className="alignment-workspace-lead" role="note">
+        <p className="small">
+          L&apos;<strong>alignement mot à mot</strong> (Whisper + aligneur du pipeline) est déjà
+          calculé lors du job : il est matérialisé dans les fichiers JSON de sortie. Cet onglet ne
+          relance <strong>pas</strong> WhisperX : il sert à <strong>lire le média</strong>, afficher
+          l&apos;ondeforme et déplacer la tête de lecture en restant synchronisé avec le transcript
+          (bornes des segments à modifier dans <strong>Transcript</strong> ou{" "}
+          <strong>Vérification</strong>).
+        </p>
+        <p className="small">
+          Les réglages qui ressemblent à de l&apos;<strong>audio</strong> ici (résolution de la
+          courbe, lecture Web Audio, plage WX-622, gain / EQ de préécoute) ne changent que la{" "}
+          <strong>visualisation et l&apos;écoute locale</strong> — pas les timings déjà produits.
+          Les actions <strong>WX-623</strong> (injecter une plage vers le JSON pipeline) visent un{" "}
+          <strong>futur</strong> job sur l&apos;accueil, pas une réécriture du run affiché.
+        </p>
+      </div>
+      <div className="alignment-waveform-nav-hints" role="region" aria-label="Aide navigation ondeforme">
+        <p className="small">
+          <strong>Navigation</strong> —{" "}
+          <strong>Clic</strong> sur la courbe : place le curseur et la lecture (seek).{" "}
+          <strong>Ctrl</strong> ou <strong>Cmd</strong> + molette sur la courbe : zoom horizontal. Bande
+          du haut (aperçu) : clic pour centrer la fenêtre, glisser le rectangle pour déplacer la
+          fenêtre.
+        </p>
+        <p className="small">
+          Le <strong>texte éditable</strong> (segments JSON) est dans les onglets{" "}
+          <strong>Transcript</strong> et <strong>Vérification</strong> ; ici tu vois le média et le
+          curseur alignés avec ces segments.
+        </p>
+      </div>
+      {liveTranscriptPreview ? (
+        <div className="alignment-live-transcript-preview" aria-live="polite">
+          <p className="small alignment-live-transcript-preview__label">ASR en direct (dernier extrait)</p>
+          <p className="small alignment-live-transcript-preview__text">{liveTranscriptPreview}</p>
+        </div>
+      ) : null}
       <div className="alignment-panel">
         <div
           className={`alignment-media-split ${selectedIsVideo ? "alignment-media-split--video" : "alignment-media-split--audio"}`}
@@ -453,7 +493,8 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
             <p className="small">
               Raccourcis: <code>Alt+J</code>/<code>Alt+L</code> seek +/-1s, <code>Alt+K</code>{" "}
               play/pause, <code>Alt+Shift+J</code>/<code>Alt+Shift+L</code> segment
-              precedent/suivant.
+              precedent/suivant. Sur la courbe : <strong>Ctrl</strong> ou <strong>Cmd</strong> +
+              molette pour zoomer.
             </p>
 
             <p className="small mono">{selectedJob.inputPath}</p>
@@ -712,7 +753,9 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
             </div>
             {!waveform ? (
               <p className="small">
-                Charge l&apos;ondeforme pour activer le seek précis sur la timeline.
+                {isWaveformLoading
+                  ? "Génération de l’ondeforme en cours… (chargement automatique à l’ouverture du job)."
+                  : "L’ondeforme se charge automatiquement à la sélection du job ; tu peux aussi utiliser « Charger l’ondeforme » si besoin."}
               </p>
             ) : (
               <>

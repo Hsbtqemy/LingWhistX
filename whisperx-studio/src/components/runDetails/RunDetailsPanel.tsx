@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fileBasename } from "../../appUtils";
 import type { Job, JobLogEvent, LiveTranscriptSegment } from "../../types";
 import { WorkerErrorMessage } from "../../WorkerErrorMessage";
@@ -7,7 +7,6 @@ import {
   AlignmentWorkspacePanel,
   type AlignmentWorkspacePanelProps,
 } from "./AlignmentWorkspacePanel";
-import { JobTimelineLogs } from "./JobTimelineLogs";
 import { JobRunPipelineStrip } from "./JobRunPipelineStrip";
 import { LiveTranscriptFeed } from "./LiveTranscriptFeed";
 import { RunDetailsMetaSection } from "./RunDetailsMetaSection";
@@ -76,15 +75,29 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
       selectedJob &&
       (selectedJob.status === "queued" || selectedJob.status === "running");
 
+    const liveTranscriptPreview = useMemo(() => {
+      if (!liveTranscriptSegments.length) {
+        return null;
+      }
+      const last = liveTranscriptSegments[liveTranscriptSegments.length - 1];
+      const t = last.text?.trim();
+      return t || null;
+    }, [liveTranscriptSegments]);
+
+    const scrollRunDetailsTabsAnchor = useCallback(() => {
+      requestAnimationFrame(() => {
+        document.getElementById("run-details-tabs-anchor")?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      });
+    }, []);
+
     useEffect(() => {
       if (!selectedJob) {
         setTab("meta");
         prevJobIdRef.current = null;
         hadTranscriptOnJobRef.current = false;
-        return;
-      }
-      if (selectedJob.status === "error") {
-        setTab("meta");
         return;
       }
 
@@ -95,7 +108,9 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
       if (jobChanged) {
         prevJobIdRef.current = jobId;
         hadTranscriptOnJobRef.current = hasTranscriptEditor;
-        if (hasTranscriptEditor) {
+        if (selectedJob.status === "error") {
+          setTab("meta");
+        } else if (hasTranscriptEditor) {
           setTab("transcript");
         } else if (selectedJobHasJsonOutput) {
           setTab("fichiers");
@@ -105,8 +120,9 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
         return;
       }
 
+      /* Transcript disponible après coup : ne pas écraser Alignement / Vérification / etc. */
       if (!hadTranscriptOnJobRef.current && hasTranscriptEditor) {
-        setTab("transcript");
+        setTab((prev) => (prev === "meta" ? "transcript" : prev));
       }
       hadTranscriptOnJobRef.current = hasTranscriptEditor;
     }, [selectedJob, selectedJobHasJsonOutput, transcriptEditor]);
@@ -147,8 +163,14 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
           <RunSourceMediaHero
             alignment={alignment}
             onOpenSource={() => openLocalPath(selectedJob.inputPath)}
-            onGoAlignment={() => setTab("alignement")}
-            onGoVerification={() => setTab("verification")}
+            onGoAlignment={() => {
+              setTab("alignement");
+              scrollRunDetailsTabsAnchor();
+            }}
+            onGoVerification={() => {
+              setTab("verification");
+              scrollRunDetailsTabsAnchor();
+            }}
           />
         ) : selectedJob ? (
           <div
@@ -188,13 +210,15 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
             <div className="details-column">
               <JobRunPipelineStrip job={selectedJob} logs={selectedJobLogs} />
               <LiveTranscriptFeed job={selectedJob} segments={liveTranscriptSegments} />
-              <TabListBar
-                tabs={RUN_DETAILS_TABS}
-                value={tab}
-                onValueChange={(id) => setTab(id as RunDetailsTabId)}
-                idPrefix={RUN_DETAILS_TAB_PREFIX}
-                aria-label="Sections des détails du run"
-              />
+              <div id="run-details-tabs-anchor" className="run-details-tabs-anchor">
+                <TabListBar
+                  tabs={RUN_DETAILS_TABS}
+                  value={tab}
+                  onValueChange={(id) => setTab(id as RunDetailsTabId)}
+                  idPrefix={RUN_DETAILS_TAB_PREFIX}
+                  aria-label="Sections des détails du run"
+                />
+              </div>
 
               <TabPanel tabId="meta" idPrefix={RUN_DETAILS_TAB_PREFIX} hidden={tab !== "meta"}>
                 <RunDetailsMetaSection
@@ -226,7 +250,10 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                 hidden={tab !== "alignement"}
               >
                 {alignment ? (
-                  <AlignmentWorkspacePanel {...alignment} />
+                  <AlignmentWorkspacePanel
+                    {...alignment}
+                    liveTranscriptPreview={liveTranscriptPreview}
+                  />
                 ) : (
                   <p className="small run-details-tab-empty">
                     Aucun panneau d&apos;alignement pour ce contexte. Charge un fichier JSON de
@@ -263,7 +290,10 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                   <div className="run-details-verification__grid">
                     <div className="run-details-verification__pane">
                       {alignment ? (
-                        <AlignmentWorkspacePanel {...alignment} />
+                        <AlignmentWorkspacePanel
+                          {...alignment}
+                          liveTranscriptPreview={liveTranscriptPreview}
+                        />
                       ) : (
                         <p className="small run-details-tab-empty">
                           Panneau d&apos;alignement indisponible pour ce contexte.
@@ -318,8 +348,6 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                 )}
               </TabPanel>
             </div>
-
-            <JobTimelineLogs job={selectedJob} logs={selectedJobLogs} />
           </div>
         )}
       </section>

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { MAX_WAVEFORM_ZOOM, MIN_WAVEFORM_ZOOM } from "../constants";
-import { clampNumber } from "../appUtils";
+import { clampNumber, isTauriRuntime, normalizeLocalFilePathForTauri } from "../appUtils";
 import { parsePausesCsv, type PauseIntervalSec } from "../utils/pausesCsv";
 import type {
   Job,
@@ -58,6 +58,7 @@ export function useWaveformWorkspace({
   const waveformTaskIdRef = useRef("");
   /** Dernier job pour lequel on a reset l’ondeforme — évite les resets en double (ex. Strict Mode). */
   const lastWaveformResetJobIdRef = useRef<string | undefined>(undefined);
+  const autoWaveformLoadJobIdRef = useRef<string | null>(null);
   const webAudioPlayerRef = useRef<WebAudioWindowPlayer | null>(null);
   const [webAudioMode, setWebAudioMode] = useState(() => readWebAudioDefault());
   const [webAudioError, setWebAudioError] = useState("");
@@ -184,9 +185,18 @@ export function useWaveformWorkspace({
   );
 
   const loadPauseOverlayFromCsvPath = useCallback(async (path: string) => {
-    const trimmed = path.trim();
+    const normalized = normalizeLocalFilePathForTauri(path);
+    const trimmed = normalized.trim();
     setPauseOverlayLoadError("");
     if (!trimmed) {
+      setPauseOverlayIntervals([]);
+      setPauseOverlaySourcePath(null);
+      return;
+    }
+    if (!isTauriRuntime()) {
+      setPauseOverlayLoadError(
+        "Lecture fichier impossible : shell Tauri absent (lance l’app avec « npm run tauri dev », pas seulement « npm run dev »).",
+      );
       setPauseOverlayIntervals([]);
       setPauseOverlaySourcePath(null);
       return;
@@ -209,7 +219,12 @@ export function useWaveformWorkspace({
       setPauseOverlaySourcePath(trimmed);
       setPauseOverlayVisible(true);
     } catch (e) {
-      setPauseOverlayLoadError(String(e));
+      const base = e instanceof Error ? e.message : String(e);
+      const hint =
+        base.includes("Load failed") || base.includes("TypeError")
+          ? " Vérifie que le fichier existe encore à cet emplacement et que l’app tourne dans Tauri (pas le navigateur seul)."
+          : "";
+      setPauseOverlayLoadError(`Lecture du CSV impossible : ${base}.${hint}`);
       setPauseOverlayIntervals([]);
       setPauseOverlaySourcePath(null);
     }
@@ -507,7 +522,8 @@ export function useWaveformWorkspace({
 
   const onWaveformWheel = useCallback(
     (event: WheelEvent<HTMLCanvasElement>) => {
-      if (!waveform || waveform.durationSec <= 0 || !event.ctrlKey) {
+      const zoomModifier = event.ctrlKey || event.metaKey;
+      if (!waveform || waveform.durationSec <= 0 || !zoomModifier) {
         return;
       }
       event.preventDefault();
@@ -761,6 +777,18 @@ export function useWaveformWorkspace({
     setPreviewWaveBalance(0);
     setPreviewWaveBypassEffects(false);
   }, [selectedJobId, requestCancelWaveformGeneration]);
+
+  /** Chargement automatique de l’ondeforme à la sélection d’un job (pas en aperçu « Nouveau job » sans job). */
+  useEffect(() => {
+    if (!selectedJob || !effectiveMediaPath.trim()) {
+      return;
+    }
+    if (autoWaveformLoadJobIdRef.current === selectedJobId) {
+      return;
+    }
+    autoWaveformLoadJobIdRef.current = selectedJobId;
+    void loadWaveformForSelectedJob();
+  }, [selectedJob, selectedJobId, effectiveMediaPath, loadWaveformForSelectedJob]);
 
   /** Après génération des peaks, construire la pyramide WXENV pour l’overview (hero + Alignement). */
   useEffect(() => {

@@ -23,6 +23,8 @@ export type UseStudioWorkspaceOptions = {
   injectAudioPipelineSegmentsJson?: (json: string) => void;
   /** Ouvre le dossier de sortie du job dans l’onglet Player. */
   onOpenPlayerRun?: (outputDir: string, label?: string | null) => void;
+  /** Après « Voir détails » depuis l’onglet Historique : afficher le détail dans Studio. */
+  onNavigateToWorkspace?: () => void;
 };
 
 export type StudioWorkspaceModel = {
@@ -47,6 +49,7 @@ export function useStudioWorkspace({
   runtimeStatus,
   injectAudioPipelineSegmentsJson,
   onOpenPlayerRun,
+  onNavigateToWorkspace,
 }: UseStudioWorkspaceOptions): StudioWorkspaceModel {
   const {
     selectedPreviewPath,
@@ -79,6 +82,7 @@ export function useStudioWorkspace({
     runDetailsRef,
     setError,
     onSelectedJobBecameInvalid: clearPreview,
+    onAfterFocusJobDetails: onNavigateToWorkspace,
   });
 
   const { selectedMediaSrc, selectedIsVideo } = useSelectedJobMedia(selectedJob);

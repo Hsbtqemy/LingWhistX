@@ -18,6 +18,34 @@ export function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/** Présence du bridge Tauri (les `invoke` échouent dans le navigateur sans shell Tauri). */
+export function isTauriRuntime(): boolean {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+/**
+ * Normalise un chemin fichier pour IPC (`read_text_preview`, etc.) : retire `file://`, décode l’URL.
+ */
+export function normalizeLocalFilePathForTauri(raw: string): string {
+  const t = raw.trim();
+  if (!t) {
+    return "";
+  }
+  if (!t.toLowerCase().startsWith("file:")) {
+    return t;
+  }
+  try {
+    const url = new URL(t);
+    let p = url.pathname;
+    if (/^\/[A-Za-z]:/.test(p)) {
+      p = p.slice(1);
+    }
+    return decodeURIComponent(p);
+  } catch {
+    return t.replace(/^file:\/\//i, "");
+  }
+}
+
 /**
  * Joint un répertoire de base et des segments relatifs (chemins locaux Windows ou POSIX).
  */

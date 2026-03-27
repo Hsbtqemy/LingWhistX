@@ -2,7 +2,7 @@ export type JobStatus = "queued" | "running" | "done" | "error" | "cancelled";
 export type JobFormStep = "import" | "configure";
 
 /** Vues principales de l’application (navigation par onglets) */
-export type StudioView = "create" | "workspace" | "player" | "about";
+export type StudioView = "create" | "workspace" | "jobs" | "player" | "about";
 
 export type WhisperxOptions = {
   model?: string;
