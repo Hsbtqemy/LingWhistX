@@ -137,21 +137,42 @@ class WhisperxProgressMapper:
     WhisperX répète souvent 0–100 % par phase (transcription, alignement, chunks).
     Phase 0 : 30–65 % (transcription / premier passage). Phases suivantes : le reliquat jusqu’à 95 %
     par paliers (reset = baisse brutale du % WhisperX, ex. fin transcription → alignement).
+
+    Étape wx_diarize : un seul 0–100 % monotone (segmentation + embeddings pyannote) ; on mappe
+    linéairement le reliquat job jusqu’à 95 % sans traiter la diarisation comme un « reset » de phase.
     """
 
-    __slots__ = ("_last_emitted", "_last_wx", "_phase")
+    __slots__ = ("_last_emitted", "_last_wx", "_phase", "_diarize_start_emitted")
 
     def __init__(self) -> None:
         self._last_wx = -1.0
         self._last_emitted = 30
         self._phase = 0
+        self._diarize_start_emitted: int | None = None
 
-    def feed(self, wx_pct: float) -> int | None:
+    def feed(self, wx_pct: float, stage: str | None = None) -> int | None:
         """Retourne un nouveau pourcentage job (31–95) si la barre doit avancer, sinon None."""
         wx_pct = max(0.0, min(100.0, wx_pct))
-        last_wx = self._last_wx
         last_emitted = self._last_emitted
 
+        if stage == "wx_diarize":
+            if self._diarize_start_emitted is None:
+                self._diarize_start_emitted = last_emitted
+            span = 95 - self._diarize_start_emitted
+            if span <= 0:
+                self._last_wx = wx_pct
+                return None
+            candidate = self._diarize_start_emitted + int((wx_pct / 100.0) * span)
+            candidate = max(last_emitted, min(95, candidate))
+            self._last_wx = wx_pct
+            if candidate > last_emitted:
+                self._last_emitted = candidate
+                return candidate
+            return None
+
+        self._diarize_start_emitted = None
+
+        last_wx = self._last_wx
         if last_wx >= 0.0 and wx_pct < last_wx - 20.0 and last_wx > 55.0:
             self._phase += 1
 
@@ -690,7 +711,7 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
             last_wx_stage = inferred
         wx_pct = parse_whisperx_progress_line(clean)
         if wx_pct is not None:
-            job_pct = wx_progress.feed(wx_pct)
+            job_pct = wx_progress.feed(wx_pct, last_wx_stage)
             if job_pct is not None:
                 emit_log("info", last_wx_stage, clean, job_pct)
                 continue

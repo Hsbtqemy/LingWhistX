@@ -37,6 +37,13 @@ class TestWhisperxProgressMapper(unittest.TestCase):
         self.assertIsNone(m.feed(0.0))
         self.assertEqual(m.feed(100.0), 95)
 
+    def test_diarize_linear_mapping(self) -> None:
+        """0–100 % WhisperX diarisation → reliquat job jusqu’à 95 % (sans reset de phase)."""
+        m = WhisperxProgressMapper()
+        self.assertEqual(m.feed(100.0), 65)
+        self.assertEqual(m.feed(50.0, "wx_diarize"), 80)
+        self.assertEqual(m.feed(100.0, "wx_diarize"), 95)
+
 
 if __name__ == "__main__":
     unittest.main()

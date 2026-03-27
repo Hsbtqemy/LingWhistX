@@ -171,9 +171,8 @@ class DiarizationPipeline:
 
         hook = None
         if progress_callback is not None:
-            # pyannote's diarization has two progress-trackable steps, each with
-            # its own completed/total counter that resets between steps. Map each
-            # step into a sub-range so progress is monotonic and meaningful.
+            # pyannote : deux étapes internes (completed/total), pas un temps réel.
+            # Plage globale 0–99 % : segmentation → 0–50 %, embeddings → 50–99 % (monotone).
             _STEP_RANGES = {
                 "segmentation": (0.0, 50.0),
                 "embeddings": (50.0, 99.0),

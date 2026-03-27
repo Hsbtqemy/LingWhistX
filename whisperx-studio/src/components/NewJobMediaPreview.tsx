@@ -274,14 +274,21 @@ function NewJobMediaPreviewComponent({ inputPath }: NewJobMediaPreviewProps) {
             </div>
             {wf.isWaveformLoading ? (
               <div>
-                <div className="progress-track">
+                <div className="progress-track progress-track--active">
                   <div
-                    className="progress-value"
+                    className="progress-value progress-value--active"
                     style={{ width: `${Math.max(2, wf.waveformProgress)}%` }}
                   />
                 </div>
-                <p className="small">
-                  Ondeforme : {wf.waveformProgress}% — {wf.waveformProgressMessage}
+                <p className="small job-card__progress-line">
+                  <span
+                    className="lx-spinner lx-spinner--sm"
+                    role="status"
+                    aria-label="Génération de l’ondeforme en cours"
+                  />
+                  <span>
+                    Ondeforme : {wf.waveformProgress}% — {wf.waveformProgressMessage}
+                  </span>
                 </p>
               </div>
             ) : null}

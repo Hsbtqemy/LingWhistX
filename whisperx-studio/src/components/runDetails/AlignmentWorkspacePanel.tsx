@@ -432,14 +432,21 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
             </div>
             {isWaveformLoading ? (
               <div>
-                <div className="progress-track">
+                <div className="progress-track progress-track--active">
                   <div
-                    className="progress-value"
+                    className="progress-value progress-value--active"
                     style={{ width: `${Math.max(2, waveformProgress)}%` }}
                   />
                 </div>
-                <p className="small">
-                  Ondeforme : {waveformProgress}% — {waveformProgressMessage}
+                <p className="small job-card__progress-line">
+                  <span
+                    className="lx-spinner lx-spinner--sm"
+                    role="status"
+                    aria-label="Génération de l’ondeforme en cours"
+                  />
+                  <span>
+                    Ondeforme : {waveformProgress}% — {waveformProgressMessage}
+                  </span>
                 </p>
               </div>
             ) : null}

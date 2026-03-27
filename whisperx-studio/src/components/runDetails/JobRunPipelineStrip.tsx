@@ -94,10 +94,21 @@ export function JobRunPipelineStrip({ job, logs }: JobRunPipelineStripProps) {
 
       {isRunning ? (
         <div className="job-pipeline-strip__progress-wrap">
-          <div className="progress-track job-pipeline-strip__track">
-            <div className="progress-value" style={{ width: `${Math.max(4, job.progress)}%` }} />
+          <div className="progress-track progress-track--active job-pipeline-strip__track">
+            <div
+              className="progress-value progress-value--active"
+              style={{ width: `${Math.max(4, job.progress)}%` }}
+            />
           </div>
-          <span className="job-pipeline-strip__pct mono">{job.progress}%</span>
+          <div className="job-pipeline-strip__pct-row">
+            <span
+              className="lx-spinner"
+              role="status"
+              aria-label="Traitement en cours"
+              title="Traitement en cours — le pourcentage peut stagner pendant une étape longue (ex. diarisation)."
+            />
+            <span className="job-pipeline-strip__pct mono">{job.progress}%</span>
+          </div>
         </div>
       ) : null}
 

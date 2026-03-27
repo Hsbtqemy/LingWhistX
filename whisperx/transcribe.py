@@ -625,12 +625,16 @@ def _run_full_pipeline_diarize(
 
     def _diarize_progress(pct: float) -> None:
         if print_progress:
-            print(f"Progress: {pct:.2f}%...")
+            # flush : stdout peut être en bloc lorsque le sous-processus n’est pas un TTY (worker).
+            print(f"Progress: {pct:.2f}%...", flush=True)
 
     if print_progress:
         logger.info(
-            "Diarisation pyannote : peut durer plusieurs minutes (CPU, fichier long). "
-            "Les lignes « Progress: … » reflètent la progression interne du modèle lorsqu’elle est disponible."
+            "Diarisation pyannote (appareil: %s) : sur CPU, le temps de calcul dépasse souvent "
+            "la durée du fichier (typiquement ~1–2× ou plus, selon la machine) ; avec CUDA ou Apple MPS "
+            "c’est en général beaucoup plus rapide. Les lignes « Progress: … » reflètent la progression "
+            "interne du modèle lorsqu’elle est disponible.",
+            device,
         )
 
     for result, input_audio_path in tmp_results:

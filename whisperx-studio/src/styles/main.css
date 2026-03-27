@@ -2129,6 +2129,100 @@ button.lx-btn--danger:hover:not(:disabled) {
   );
 }
 
+/* Barre de progression « vivante » (job ou ondeforme en cours) — shimmer + piste légèrement pulsée */
+.progress-track--active {
+  position: relative;
+  overflow: hidden;
+  animation: lx-progress-track-breathe 2.4s ease-in-out infinite;
+}
+
+.progress-value--active {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-value--active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.42) 45%,
+    transparent 90%
+  );
+  width: 55%;
+  animation: lx-progress-shimmer 1.35s ease-in-out infinite;
+}
+
+@keyframes lx-progress-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+@keyframes lx-progress-track-breathe {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(0.97);
+  }
+}
+
+/** Petit indicateur de rotation — traitement toujours actif (évite l’impression de gel UI). */
+.lx-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(14, 122, 134, 0.22);
+  border-top-color: var(--lx-accent, #0e7a86);
+  border-radius: 50%;
+  animation: lx-spin 0.72s linear infinite;
+  flex-shrink: 0;
+  vertical-align: -2px;
+}
+
+.lx-spinner--sm {
+  width: 11px;
+  height: 11px;
+  border-width: 1.5px;
+  vertical-align: -1px;
+}
+
+@keyframes lx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.job-card__progress-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-track--active {
+    animation: none;
+  }
+
+  .progress-value--active::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  .lx-spinner {
+    animation: none;
+    border-color: rgba(14, 122, 134, 0.45);
+    border-top-color: var(--lx-accent, #0e7a86);
+  }
+}
+
 .small {
   margin: 0;
   font-size: 0.75rem;
@@ -3829,8 +3923,14 @@ button.lx-btn--danger:hover:not(:disabled) {
   min-width: 0;
 }
 
-.job-pipeline-strip__pct {
+.job-pipeline-strip__pct-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   flex: 0 0 auto;
+}
+
+.job-pipeline-strip__pct {
   font-size: var(--lx-text-xs);
   color: var(--lx-text-1);
 }

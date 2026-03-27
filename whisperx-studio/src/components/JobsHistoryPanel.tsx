@@ -92,13 +92,24 @@ export function JobsHistoryPanel({
                     <p className="small">Modele: {job.whisperxOptions.model}</p>
                   ) : null}
 
-                  <div className="progress-track">
+                  <div
+                    className={`progress-track ${job.status === "running" ? "progress-track--active" : ""}`}
+                  >
                     <div
-                      className="progress-value"
+                      className={`progress-value ${job.status === "running" ? "progress-value--active" : ""}`}
                       style={{ width: `${Math.max(4, job.progress)}%` }}
                     />
                   </div>
-                  <p className="small">{job.progress}%</p>
+                  <p className={`small ${job.status === "running" ? "job-card__progress-line" : ""}`}>
+                    {job.status === "running" ? (
+                      <span
+                        className="lx-spinner lx-spinner--sm"
+                        role="status"
+                        aria-label="Traitement en cours"
+                      />
+                    ) : null}
+                    <span>{job.progress}%</span>
+                  </p>
 
                   <div className="job-actions">
                     <button
