@@ -1,5 +1,26 @@
 import type { ExportTimingRules, ProfilePreset, UiWhisperxOptions } from "./types";
 
+/**
+ * Modèles ASR faster-whisper / WhisperX (`--model`).
+ * Valeurs alignées sur le paquet faster-whisper (voir doc du projet).
+ */
+export const WHISPER_MODEL_CHOICES: readonly { value: string; label: string }[] = [
+  { value: "tiny", label: "tiny — très rapide, précision limitée" },
+  { value: "tiny.en", label: "tiny.en — idem, anglais uniquement" },
+  { value: "base", label: "base — léger" },
+  { value: "base.en", label: "base.en — idem, anglais uniquement" },
+  { value: "small", label: "small — bon compromis (défaut Studio)" },
+  { value: "small.en", label: "small.en — idem, anglais uniquement" },
+  { value: "medium", label: "medium — plus précis, plus lent" },
+  { value: "medium.en", label: "medium.en — idem, anglais uniquement" },
+  { value: "large-v1", label: "large-v1 — grande taille (v1)" },
+  { value: "large-v2", label: "large-v2 — grande taille (v2)" },
+  { value: "large-v3", label: "large-v3 — grande taille (v3), souvent le meilleur" },
+  { value: "large", label: "large — alias selon la version faster-whisper" },
+  { value: "distil-large-v2", label: "distil-large-v2 — distillé, rapide" },
+  { value: "distil-large-v3", label: "distil-large-v3 — distillé, rapide (v3)" },
+];
+
 export const defaultWhisperxOptions: UiWhisperxOptions = {
   model: "small",
   language: "",

@@ -1,11 +1,35 @@
 import type { Dispatch, SetStateAction } from "react";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { profilePresets as defaultProfilePresets } from "../constants";
+import { profilePresets as defaultProfilePresets, WHISPER_MODEL_CHOICES } from "../constants";
 import { PIPELINE_MODULES_DOC_URL } from "../docUrls";
 import type { ProfilePreset, UiWhisperxOptions } from "../types";
 import { runInTransition, setWhisperxOptionsDeferred } from "../whisperxOptionsTransitions";
 import { HfScopeBadge } from "./HfScopeBadge";
+
+const OUTPUT_FORMAT_ORDER = ["json", "srt", "vtt", "txt", "tsv", "aud"] as const;
+
+function parseCustomOutputFormats(s: string): Set<string> {
+  if (s === "all") {
+    return new Set(OUTPUT_FORMAT_ORDER);
+  }
+  const parts = s
+    .split(",")
+    .map((x) => x.trim().toLowerCase())
+    .filter(Boolean);
+  const set = new Set<string>();
+  for (const p of parts) {
+    if ((OUTPUT_FORMAT_ORDER as readonly string[]).includes(p)) {
+      set.add(p);
+    }
+  }
+  set.add("json");
+  return set;
+}
+
+function joinCustomOutputFormats(set: Set<string>): string {
+  return OUTPUT_FORMAT_ORDER.filter((f) => set.has(f)).join(",");
+}
 
 export type WhisperxOptionsFormProps = {
   whisperxOptions: UiWhisperxOptions;
@@ -25,6 +49,18 @@ export function WhisperxOptionsForm({
   selectedProfile,
   profilePresets = defaultProfilePresets,
 }: WhisperxOptionsFormProps) {
+  const useAllOutputFormats = whisperxOptions.outputFormat === "all";
+  const customOutputFormats = useMemo(
+    () => parseCustomOutputFormats(whisperxOptions.outputFormat),
+    [whisperxOptions.outputFormat],
+  );
+
+  const modelValue = whisperxOptions.model.trim() || "small";
+  const modelIsListed = useMemo(
+    () => WHISPER_MODEL_CHOICES.some((c) => c.value === modelValue),
+    [modelValue],
+  );
+
   const patchWhisperx = useCallback(
     (partial: Partial<UiWhisperxOptions>) => {
       setWhisperxOptions((prev) => ({ ...prev, ...partial }));
@@ -64,12 +100,25 @@ export function WhisperxOptionsForm({
       <div className="option-grid job-form-whisperx-basic">
         <label>
           Modele Whisper
-          <input
-            value={whisperxOptions.model}
+          <select
+            value={modelValue}
             onChange={(e) => patchWhisperx({ model: e.currentTarget.value })}
-            placeholder="small / medium / large-v3"
-          />
-          <p className="field-help">Plus le modele est grand, plus la precision augmente.</p>
+          >
+            {!modelIsListed ? (
+              <option value={modelValue}>
+                {modelValue} (valeur actuelle, hors liste)
+              </option>
+            ) : null}
+            {WHISPER_MODEL_CHOICES.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
+          </select>
+          <p className="field-help">
+            Liste des noms faster-whisper acceptés par WhisperX. Plus le modèle est grand, plus la
+            précision augmente (temps et mémoire aussi).
+          </p>
         </label>
 
         <label>
@@ -365,29 +414,71 @@ export function WhisperxOptionsForm({
               Formats de sortie
             </h4>
             <div className="option-grid">
-              <label className="full-width">
-                Output Format
-                <select
-                  value={whisperxOptions.outputFormat}
-                  onChange={(e) =>
-                    setWhisperxOptionsDeferred(setWhisperxOptions, {
-                      outputFormat: e.currentTarget.value as UiWhisperxOptions["outputFormat"],
-                    })
-                  }
-                >
-                  <option value="all">all</option>
-                  <option value="json">json</option>
-                  <option value="srt">srt</option>
-                  <option value="vtt">vtt</option>
-                  <option value="txt">txt</option>
-                  <option value="tsv">tsv</option>
-                  <option value="aud">aud</option>
-                </select>
+              <fieldset
+                className="full-width output-format-fieldset"
+                aria-label="Formats d'export WhisperX"
+              >
+                <label className="radio-row full-width">
+                  <input
+                    type="radio"
+                    name="lx-output-format-mode"
+                    checked={useAllOutputFormats}
+                    onChange={() =>
+                      setWhisperxOptionsDeferred(setWhisperxOptions, { outputFormat: "all" })
+                    }
+                  />
+                  Tous les formats (équivalent CLI <code className="mono">--output_format all</code>)
+                </label>
+                <label className="radio-row full-width">
+                  <input
+                    type="radio"
+                    name="lx-output-format-mode"
+                    checked={!useAllOutputFormats}
+                    onChange={() =>
+                      setWhisperxOptionsDeferred(setWhisperxOptions, {
+                        outputFormat: "json,srt,vtt",
+                      })
+                    }
+                  />
+                  Choisir plusieurs formats
+                </label>
+                {!useAllOutputFormats ? (
+                  <div
+                    className="output-format-checkboxes"
+                    role="group"
+                    aria-label="Formats sélectionnés"
+                  >
+                    {OUTPUT_FORMAT_ORDER.map((fmt) => (
+                      <label key={fmt} className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={customOutputFormats.has(fmt)}
+                          disabled={fmt === "json"}
+                          onChange={(e) => {
+                            const next = new Set(customOutputFormats);
+                            if (e.currentTarget.checked) {
+                              next.add(fmt);
+                            } else if (fmt !== "json") {
+                              next.delete(fmt);
+                            }
+                            setWhisperxOptionsDeferred(setWhisperxOptions, {
+                              outputFormat: joinCustomOutputFormats(next),
+                            });
+                          }}
+                        />
+                        <span className="mono">{fmt}</span>
+                        {fmt === "json" ? (
+                          <span className="field-help"> (toujours inclus pour Studio)</span>
+                        ) : null}
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
                 <p className="field-help">
-                  `all` exporte tous les formats utiles. Pour garder l&apos;éditeur transcript
-                  actif, Studio conserve toujours un JSON (même si tu choisis `srt`/`vtt`/`txt`).
+                  En mode sélection, tu peux combiner plusieurs extensions ; le JSON transcript est
+                  toujours demandé côté Studio (ajouté automatiquement côté worker si besoin).
                 </p>
-              </label>
+              </fieldset>
             </div>
           </section>
 
