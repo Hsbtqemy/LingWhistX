@@ -249,7 +249,7 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
           courbe, lecture Web Audio, plage WX-622, gain / EQ de préécoute) ne changent que la{" "}
           <strong>visualisation et l&apos;écoute locale</strong> — pas les timings déjà produits.
           Les actions <strong>WX-623</strong> (injecter une plage vers le JSON pipeline) visent un{" "}
-          <strong>futur</strong> job sur l&apos;accueil, pas une réécriture du run affiché.
+          <strong>futur</strong> job lancé depuis le Studio, pas une réécriture du run affiché.
         </p>
       </div>
       <div className="alignment-waveform-nav-hints" role="region" aria-label="Aide navigation ondeforme">

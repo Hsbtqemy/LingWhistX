@@ -66,8 +66,9 @@ export function JobsHistoryPanel({
               <div className="empty-state-card-icon" aria-hidden />
               <h3 className="empty-state-card-title">Aucun job pour le moment</h3>
               <p className="empty-state-card-text">
-                Va sur l&apos;onglet « Accueil », importe un média puis configure WhisperX. Les runs
-                apparaîtront ici ; tu peux aussi suivre leur progression depuis l&apos;onglet Studio.
+                Va sur l&apos;onglet <strong>Studio</strong>, importe un média dans{" "}
+                <strong>Nouveau job</strong> puis configure WhisperX. Les runs apparaîtront ici ; tu
+                peux suivre la progression dans le même onglet.
               </p>
             </div>
           ) : (

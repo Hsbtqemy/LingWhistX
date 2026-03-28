@@ -5,6 +5,7 @@ import { buildRunDetailsPanelProps } from "../components/runDetails/buildRunDeta
 import type { RunDetailsPanelProps } from "../components/runDetails/RunDetailsPanel";
 import type { RuntimeStatus, SessionRestorePrompt } from "../types";
 import { useJobsList } from "./useJobsList";
+import { useNewJobForm, type NewJobFormApi } from "./useNewJobForm";
 import { useOpenLocalPath } from "./useOpenLocalPath";
 import { usePreviewOutput } from "./usePreviewOutput";
 import { useSelectedJobMedia } from "./useSelectedJobMedia";
@@ -16,9 +17,11 @@ import { useWaveformWorkspace } from "./useWaveformWorkspace";
 export type UseStudioWorkspaceOptions = {
   runDetailsRef: RefObject<HTMLElement | null>;
   setError: (message: string) => void;
-  editorFocusMode: boolean;
-  onToggleEditorFocusMode: () => void;
+  runtimeReady: boolean;
+  runtimeCoreReady: boolean;
   runtimeStatus: RuntimeStatus | null;
+  /** Après création d’un job depuis le formulaire Studio. */
+  onJobCreated?: () => void;
   /** WX-623 — injecte le JSON des plages dans le formulaire « Nouveau job ». */
   injectAudioPipelineSegmentsJson?: (json: string) => void;
   /** Ouvre le dossier de sortie du job dans l’onglet Player. */
@@ -33,6 +36,7 @@ export type StudioWorkspaceModel = {
   runningJobs: number;
   refreshJobs: () => Promise<void>;
   setSelectedJobId: (id: string) => void;
+  jobForm: NewJobFormApi;
   explorer: ReturnType<typeof useStudioExplorer>;
   sessionRestore: {
     prompt: SessionRestorePrompt | null;
@@ -44,9 +48,10 @@ export type StudioWorkspaceModel = {
 export function useStudioWorkspace({
   runDetailsRef,
   setError,
-  editorFocusMode,
-  onToggleEditorFocusMode,
+  runtimeReady,
+  runtimeCoreReady,
   runtimeStatus,
+  onJobCreated,
   injectAudioPipelineSegmentsJson,
   onOpenPlayerRun,
   onNavigateToWorkspace,
@@ -83,6 +88,16 @@ export function useStudioWorkspace({
     setError,
     onSelectedJobBecameInvalid: clearPreview,
     onAfterFocusJobDetails: onNavigateToWorkspace,
+  });
+
+  const jobForm = useNewJobForm({
+    setError,
+    setSelectedJobId,
+    refreshJobs,
+    runtimeReady,
+    runtimeCoreReady,
+    runtimeStatus,
+    onJobCreated,
   });
 
   const { selectedMediaSrc, selectedIsVideo } = useSelectedJobMedia(selectedJob);
@@ -130,8 +145,6 @@ export function useStudioWorkspace({
           previewContent,
         },
         onPreviewOutput: previewOutput,
-        editorFocusMode,
-        onToggleEditorFocusMode,
         injectAudioPipelineSegmentsJson,
         onOpenPlayerRun,
       }),
@@ -151,8 +164,6 @@ export function useStudioWorkspace({
       previewError,
       previewContent,
       previewOutput,
-      editorFocusMode,
-      onToggleEditorFocusMode,
       injectAudioPipelineSegmentsJson,
       onOpenPlayerRun,
     ],
@@ -189,6 +200,7 @@ export function useStudioWorkspace({
     runningJobs,
     refreshJobs,
     setSelectedJobId,
+    jobForm,
     explorer,
     sessionRestore: {
       prompt: sessionRestorePrompt,

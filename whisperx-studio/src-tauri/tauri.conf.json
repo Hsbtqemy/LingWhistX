@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "WhisperX Studio",
+        "title": "LingWhistX Studio",
         "width": 1180,
         "height": 820,
         "minWidth": 960,

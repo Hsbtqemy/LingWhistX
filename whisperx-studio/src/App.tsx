@@ -2,9 +2,8 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 
-import { HomeCreatePanel } from "./components/HomeCreatePanel";
+import { HomeHub } from "./components/HomeHub";
 import { StudioAboutView } from "./components/StudioAboutView";
-import { StudioHero } from "./components/StudioHero";
 import { STUDIO_PANEL_IDS, STUDIO_TAB_IDS, StudioNav } from "./components/StudioNav";
 import { PlayerWorkspaceSection } from "./components/player/PlayerWorkspaceSection";
 import { StudioJobsSection } from "./components/StudioJobsSection";
@@ -25,7 +24,7 @@ function readStoredView(): StudioView {
   } catch {
     /* ignore */
   }
-  return "create";
+  return "workspace";
 }
 
 function App() {
@@ -35,31 +34,14 @@ function App() {
   /** Erreurs shell (max 5) — rendu `ErrorBanner` / tokens `--lx-danger` (WX-634). */
   const { errors: appErrors, setError } = useAppErrorStack();
   const [activeView, setActiveView] = useState<StudioView>(readStoredView);
-  const [editorFocusMode, setEditorFocusMode] = useState(false);
   const [playerRunDir, setPlayerRunDir] = useState<string | null>(null);
   const [playerRunLabel, setPlayerRunLabel] = useState<string | null>(null);
-
-  const onToggleEditorFocusMode = useCallback(() => {
-    setEditorFocusMode((prev) => {
-      const next = !prev;
-      if (next) {
-        setActiveView("workspace");
-      }
-      return next;
-    });
-  }, []);
 
   useEffect(() => {
     try {
       sessionStorage.setItem(VIEW_STORAGE_KEY, activeView);
     } catch {
       /* ignore */
-    }
-  }, [activeView]);
-
-  useEffect(() => {
-    if (activeView !== "workspace") {
-      setEditorFocusMode(false);
     }
   }, [activeView]);
 
@@ -94,68 +76,62 @@ function App() {
     runningJobs,
     refreshJobs,
     setSelectedJobId,
+    jobForm,
     explorer,
     sessionRestore,
   } = useStudioWorkspace({
     runDetailsRef,
     setError,
-    editorFocusMode,
-    onToggleEditorFocusMode,
+    runtimeReady,
+    runtimeCoreReady,
     runtimeStatus,
+    onJobCreated: () => setActiveView("workspace"),
     injectAudioPipelineSegmentsJson,
     onOpenPlayerRun: handleOpenPlayer,
+    onNavigateToWorkspace: () => setActiveView("workspace"),
   });
 
-  const onExitEditorFocus = useCallback(() => {
-    setEditorFocusMode(false);
-  }, []);
+  useEffect(() => {
+    whisperxSetterRef.current = jobForm.setWhisperxOptions;
+    return () => {
+      whisperxSetterRef.current = null;
+    };
+  }, [jobForm.setWhisperxOptions]);
 
-  const showCreatePanel = !editorFocusMode && activeView === "create";
-  const showAboutPanel = !editorFocusMode && activeView === "about";
-  const showJobsPanel = !editorFocusMode && activeView === "jobs";
-  const showPlayerPanel = !editorFocusMode && activeView === "player";
-  const showWorkspacePanel = editorFocusMode || activeView === "workspace";
+  const showCreatePanel = activeView === "create";
+  const showAboutPanel = activeView === "about";
+  const showJobsPanel = activeView === "jobs";
+  const showPlayerPanel = activeView === "player";
+  const showWorkspacePanel = activeView === "workspace";
+  /** Barre d’onglets masquée sur l’accueil (cartes = navigation), affichée ailleurs. */
+  const showStudioNav = activeView !== "create";
 
   return (
-    <main className={`studio-shell ${editorFocusMode ? "studio-shell--editor-focus" : ""}`.trim()}>
-      <StudioNav
-        activeView={activeView}
-        onViewChange={setActiveView}
-        editorFocusMode={editorFocusMode}
-        onExitEditorFocus={onExitEditorFocus}
-        workspaceHasActiveJobs={runningJobs > 0}
-      />
+    <main className="studio-shell">
+      {showStudioNav ? (
+        <StudioNav
+          activeView={activeView}
+          onViewChange={setActiveView}
+          workspaceHasActiveJobs={runningJobs > 0}
+        />
+      ) : null}
 
       <div className="studio-shell__main">
         <div
           id={STUDIO_PANEL_IDS.create}
           role="tabpanel"
-          aria-labelledby={STUDIO_TAB_IDS.create}
+          aria-labelledby={
+            showCreatePanel ? "hero-title" : STUDIO_TAB_IDS.create
+          }
           hidden={!showCreatePanel}
         >
           {showCreatePanel ? (
-            <div className="home-page">
-              <StudioHero />
-              <div
-                className="home-page__content"
-                role="region"
-                aria-label="Fichiers et traitements"
-              >
-                <HomeCreatePanel
-                  setError={setError}
-                  setActiveView={setActiveView}
-                  setSelectedJobId={setSelectedJobId}
-                  onOpenPlayer={handleOpenPlayer}
-                  refreshJobs={refreshJobs}
-                  runtimeReady={runtimeReady}
-                  runtimeCoreReady={runtimeCoreReady}
-                  runtimeStatus={runtimeStatus}
-                  runningJobs={runningJobs}
-                  errors={appErrors}
-                  runtime={localRuntimePanelProps}
-                  whisperxSetterRef={whisperxSetterRef}
-                />
-              </div>
+            <div className="home-page home-page--minimal">
+              <HomeHub
+                setActiveView={setActiveView}
+                runtimeReady={runtimeReady}
+                runtimeStatus={runtimeStatus}
+              />
             </div>
           ) : null}
         </div>
@@ -195,9 +171,8 @@ function App() {
 
         <div
           id={STUDIO_PANEL_IDS.workspace}
-          role={editorFocusMode ? "region" : "tabpanel"}
-          aria-labelledby={editorFocusMode ? undefined : STUDIO_TAB_IDS.workspace}
-          aria-label={editorFocusMode ? "Workspace — mode focus éditeur" : undefined}
+          role="tabpanel"
+          aria-labelledby={STUDIO_TAB_IDS.workspace}
           hidden={!showWorkspacePanel}
         >
           {showWorkspacePanel ? (
@@ -206,6 +181,14 @@ function App() {
               runDetails={runDetails}
               explorer={explorer}
               sessionRestore={sessionRestore}
+              setError={setError}
+              setActiveView={setActiveView}
+              setSelectedJobId={setSelectedJobId}
+              onOpenPlayer={handleOpenPlayer}
+              runningJobs={runningJobs}
+              errors={appErrors}
+              refreshJobs={refreshJobs}
+              jobForm={jobForm}
             />
           ) : null}
         </div>

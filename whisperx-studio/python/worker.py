@@ -296,6 +296,42 @@ def ensure_output_dir(path: str) -> Path:
     return out_dir
 
 
+# Artefacts intermédiaires (reprise pipeline par chunks) — les exclure évite un scan de milliers
+# de fichiers et une liste inutilisable dans l’UI (voir whisperx/chunk_merge.py).
+_CHUNK_RAW_ARTIFACT_RE = re.compile(r"^chunk_\d{4}\.raw\.json$", re.IGNORECASE)
+_CHUNK_WORDS_JSONL_RE = re.compile(r"\.chunk_\d{4}\.jsonl$", re.IGNORECASE)
+_SKIP_OUTPUT_DIR_NAMES = frozenset(
+    {"__pycache__", ".git", ".hg", ".svn", "node_modules", ".cache", ".pytest_cache"},
+)
+
+
+def _skip_intermediate_chunk_artifact(path: Path) -> bool:
+    name = path.name
+    if _CHUNK_RAW_ARTIFACT_RE.match(name):
+        return True
+    return bool(_CHUNK_WORDS_JSONL_RE.search(name))
+
+
+def collect_output_files(out_dir: Path) -> list[str]:
+    """Liste les fichiers sous `out_dir` pour le résultat job (hors caches et artefacts chunk ASR)."""
+    root = out_dir.resolve()
+    collected: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_OUTPUT_DIR_NAMES]
+        for fn in filenames:
+            p = Path(dirpath) / fn
+            try:
+                if not p.is_file():
+                    continue
+            except OSError:
+                continue
+            if _skip_intermediate_chunk_artifact(p):
+                continue
+            collected.append(str(p))
+    collected.sort()
+    return collected
+
+
 def run_mock(job_id: str, input_path: str, out_dir: Path) -> list[str]:
     stages = [
         ("calibration", "Calibration audio", 12),
@@ -771,7 +807,7 @@ def run_analyze_only(input_path: str, out_dir: Path, options: dict[str, object])
         raise RuntimeError(f"analyze-only command failed with exit code {return_code}")
 
     emit_log("info", "wx_finalize", "Analyse-only terminée — collecte des fichiers…", 96)
-    return [str(path) for path in sorted(out_dir.rglob("*")) if path.is_file()]
+    return collect_output_files(out_dir)
 
 
 def main() -> int:

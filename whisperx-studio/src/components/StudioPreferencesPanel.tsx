@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { readStoredHfToken, writeStoredHfToken } from "../hfTokenStorage";
 import {
+  LX_THEME_CHANGED_EVENT,
+  readStoredThemePreference,
+  setThemePreference as persistThemePreference,
+  type LxThemePreference,
+} from "../theme/applyStoredTheme";
+import {
   notifyStudioPreferencesChanged,
   readWebAudioDefault,
   STUDIO_PREFS_CHANGED_EVENT,
@@ -12,6 +18,7 @@ import {
  * À placer dans l’onglet À propos / diagnostic.
  */
 export function StudioPreferencesPanel() {
+  const [themePreference, setThemePreferenceState] = useState(readStoredThemePreference);
   const [webAudioDefault, setWebAudioDefault] = useState(readWebAudioDefault);
   const [hfToken, setHfToken] = useState(readStoredHfToken);
   const [hfSavedHint, setHfSavedHint] = useState(false);
@@ -23,6 +30,19 @@ export function StudioPreferencesPanel() {
     };
     window.addEventListener(STUDIO_PREFS_CHANGED_EVENT, onExternal);
     return () => window.removeEventListener(STUDIO_PREFS_CHANGED_EVENT, onExternal);
+  }, []);
+
+  useEffect(() => {
+    const onThemeExternal = () => {
+      setThemePreferenceState(readStoredThemePreference());
+    };
+    window.addEventListener(LX_THEME_CHANGED_EVENT, onThemeExternal);
+    return () => window.removeEventListener(LX_THEME_CHANGED_EVENT, onThemeExternal);
+  }, []);
+
+  const onThemeChange = useCallback((pref: LxThemePreference) => {
+    setThemePreferenceState(pref);
+    persistThemePreference(pref);
   }, []);
 
   const onWebAudioChange = useCallback((checked: boolean) => {
@@ -44,6 +64,34 @@ export function StudioPreferencesPanel() {
         Ces réglages sont enregistrés sur cette machine (navigateur / WebView). Ils complètent les
         options par job et le diagnostic runtime ci-dessous.
       </p>
+
+      <fieldset className="about-prefs-row about-prefs-theme">
+        <legend className="about-prefs-theme-legend">Apparence</legend>
+        <p className="small about-prefs-theme-hint">
+          Thème de l&apos;interface : <strong>Système</strong> suit le réglage du navigateur ou de
+          l&apos;OS ; <strong>Clair</strong> ou <strong>Sombre</strong> force l&apos;affichage.
+        </p>
+        <div className="about-prefs-theme-radios" role="radiogroup" aria-label="Thème">
+          {(
+            [
+              ["system", "Système"],
+              ["light", "Clair"],
+              ["dark", "Sombre"],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={value} className="about-prefs-theme-option">
+              <input
+                type="radio"
+                name="lx-theme-pref"
+                value={value}
+                checked={themePreference === value}
+                onChange={() => onThemeChange(value)}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <label className="checkbox-row about-prefs-row">
         <input

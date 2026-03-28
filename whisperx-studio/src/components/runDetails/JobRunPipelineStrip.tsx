@@ -10,6 +10,8 @@ import {
 export type JobRunPipelineStripProps = {
   job: Job;
   logs: JobLogEvent[];
+  /** Annulation (même action que l’en-tête « Arrêter le job ») — affiché pendant file / exécution. */
+  onCancelJob?: () => void;
 };
 
 const RECENT_LOGS = 6;
@@ -17,7 +19,7 @@ const RECENT_LOGS = 6;
 /**
  * Pipeline : étapes à gauche (surlignage actif / en attente) ; dernier message du worker à droite.
  */
-export function JobRunPipelineStrip({ job, logs }: JobRunPipelineStripProps) {
+export function JobRunPipelineStrip({ job, logs, onCancelJob }: JobRunPipelineStripProps) {
   const steps = useMemo(() => buildPipelineSteps(job), [job]);
   const activeId = useMemo(() => resolveActivePipelineStepId(job, logs), [job, logs]);
   const { activeIndex, allComplete, isQueued } = useMemo(
@@ -28,6 +30,8 @@ export function JobRunPipelineStrip({ job, logs }: JobRunPipelineStripProps) {
   const isError = job.status === "error";
   const isCancelled = job.status === "cancelled";
   const isRunning = job.status === "running";
+  const canCancelHere =
+    Boolean(onCancelJob) && (job.status === "queued" || job.status === "running");
 
   const latestLog = useMemo(
     () => (logs.length > 0 ? logs[logs.length - 1] : null),
@@ -47,12 +51,23 @@ export function JobRunPipelineStrip({ job, logs }: JobRunPipelineStripProps) {
       aria-label="Pipeline du job"
     >
       <div className="job-pipeline-strip__head">
-        <div className="job-pipeline-strip__meta">
-          <span className="job-pipeline-strip__mode">{jobModeLabel(job.mode)}</span>
-          {job.message ? (
-            <span className="job-pipeline-strip__message" title={job.message}>
-              {job.message}
-            </span>
+        <div className="job-pipeline-strip__head-top">
+          <div className="job-pipeline-strip__meta">
+            <span className="job-pipeline-strip__mode">{jobModeLabel(job.mode)}</span>
+            {job.message ? (
+              <span className="job-pipeline-strip__message" title={job.message}>
+                {job.message}
+              </span>
+            ) : null}
+          </div>
+          {canCancelHere ? (
+            <button
+              type="button"
+              className="danger job-pipeline-strip__cancel"
+              onClick={() => onCancelJob?.()}
+            >
+              Annuler le run
+            </button>
           ) : null}
         </div>
         {isQueued ? (

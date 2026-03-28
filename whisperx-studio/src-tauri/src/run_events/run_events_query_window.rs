@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::path_guard::validate_path_string;
 
-use super::{open_events_connection, EVENTS_DB_FILE};
+use super::{ensure_events_sqlite_imported, open_events_connection, EVENTS_DB_FILE};
 
 /// Plafond documenté par couche (WX-613) — le front ne doit pas monter au-delà sans accord produit.
 pub const DEFAULT_MAX_WORDS_PER_WINDOW: u32 = 5000;
@@ -386,13 +386,8 @@ pub fn query_run_events_window_inner(
     let run_dir = PathBuf::from(request.run_dir.trim())
         .canonicalize()
         .map_err(|e| format!("run_dir: {e}"))?;
+    ensure_events_sqlite_imported(&run_dir)?;
     let db_path = run_dir.join(EVENTS_DB_FILE);
-    if !db_path.is_file() {
-        return Err(format!(
-            "events.sqlite introuvable. Lance import_run_events d abord: {}",
-            db_path.display()
-        ));
-    }
 
     let conn = open_events_connection(&db_path)?;
     let t0 = request.t0_ms;

@@ -413,6 +413,18 @@ pub fn import_run_events_inner(run_dir: &Path) -> Result<RunEventsImportResult, 
     })
 }
 
+/// Si `events.sqlite` est absent, importe depuis `timeline_json` du manifest (WX-612 lazy).
+pub(crate) fn ensure_events_sqlite_imported(run_dir: &Path) -> Result<(), String> {
+    let run_dir = run_dir
+        .canonicalize()
+        .map_err(|e| format!("run_dir: {e}"))?;
+    let db_path = run_dir.join(EVENTS_DB_FILE);
+    if db_path.is_file() {
+        return Ok(());
+    }
+    import_run_events_inner(&run_dir).map(|_| ())
+}
+
 #[tauri::command]
 pub fn import_run_events(run_dir: String) -> Result<RunEventsImportResult, String> {
     validate_path_string(&run_dir)?;
@@ -427,13 +439,8 @@ pub fn list_run_speakers(run_dir: String) -> Result<Vec<String>, String> {
     let run_dir = PathBuf::from(run_dir.trim())
         .canonicalize()
         .map_err(|e| format!("run_dir: {e}"))?;
+    ensure_events_sqlite_imported(&run_dir)?;
     let db_path = run_dir.join(EVENTS_DB_FILE);
-    if !db_path.is_file() {
-        return Err(format!(
-            "events.sqlite introuvable. Lance import_run_events ({}).",
-            db_path.display()
-        ));
-    }
     let conn = open_events_connection(&db_path)?;
     let mut stmt = conn
         .prepare(

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::path_guard::validate_path_string;
 
 use crate::run_events::open_events_connection;
-use crate::run_events::EVENTS_DB_FILE;
+use crate::run_events::{ensure_events_sqlite_imported, EVENTS_DB_FILE};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -263,10 +263,8 @@ pub fn recalc_pauses_ipu_inner(
     let run_dir = run_dir
         .canonicalize()
         .map_err(|e| format!("run_dir: {e}"))?;
+    ensure_events_sqlite_imported(&run_dir)?;
     let db_path = run_dir.join(EVENTS_DB_FILE);
-    if !db_path.is_file() {
-        return Err(format!("events.sqlite introuvable: {}", db_path.display()));
-    }
 
     if !cfg.min_pause_sec.is_finite() || cfg.min_pause_sec < 0.0 {
         return Err("min_pause_sec invalide.".into());

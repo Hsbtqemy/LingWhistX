@@ -178,8 +178,6 @@ export type BuildRunDetailsPanelPropsInput = {
   te: TranscriptEditorApi;
   preview: RunDetailsPanelProps["preview"];
   onPreviewOutput: RunDetailsPanelProps["onPreviewOutput"];
-  editorFocusMode: boolean;
-  onToggleEditorFocusMode: () => void;
   injectAudioPipelineSegmentsJson?: (json: string) => void;
   onOpenPlayerRun?: RunDetailsPanelProps["onOpenPlayerRun"];
 };
@@ -200,8 +198,6 @@ export function buildRunDetailsPanelProps(
     te,
     preview,
     onPreviewOutput,
-    editorFocusMode,
-    onToggleEditorFocusMode,
     injectAudioPipelineSegmentsJson,
     onOpenPlayerRun,
   } = input;
@@ -229,8 +225,6 @@ export function buildRunDetailsPanelProps(
     transcriptEditor: te.editorSourcePath
       ? buildTranscriptEditorPanelProps(te, openLocalPath, onPreviewOutput)
       : null,
-    editorFocusMode,
-    onToggleEditorFocusMode,
     onOpenPlayerRun,
   };
 }

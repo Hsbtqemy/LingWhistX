@@ -1,7 +1,9 @@
+import { Fragment } from "react";
 import type { StudioView } from "../types";
-import { Badge, Button } from "./ui";
+import { STUDIO_HUB_CARDS, type HubCardId } from "../config/studioHubSections";
+import { Button } from "./ui";
 
-/** Préfixe ids DOM — panneaux dans App.tsx (`studio-panel-*`). Vue « create » : libellé « Accueil » (UI shell colonne gauche). Workspace : « Studio » (WX-637, `docs/workspace-tab-label.md`). */
+/** Préfixe ids DOM — panneaux dans App.tsx (`studio-panel-*`). Vue « create » : hub d’entrée (cartes). */
 export const STUDIO_TAB_IDS: Record<StudioView, string> = {
   create: "studio-tab-create",
   workspace: "studio-tab-workspace",
@@ -39,49 +41,46 @@ function NavIconHome() {
   );
 }
 
-function NavIconStudio() {
-  return (
-    <svg {...navIconProps}>
-      <rect x="3" y="3" width="7" height="9" rx="1" />
-      <rect x="14" y="3" width="7" height="5" rx="1" />
-      <rect x="14" y="12" width="7" height="9" rx="1" />
-      <rect x="3" y="16" width="7" height="5" rx="1" />
-    </svg>
-  );
-}
-
-function NavIconPlayer() {
-  return (
-    <svg {...navIconProps}>
-      <polygon points="5 3 19 12 5 21 5 3" />
-    </svg>
-  );
-}
-
-function NavIconAbout() {
-  return (
-    <svg {...navIconProps}>
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="16" x2="12" y2="12" />
-      <line x1="12" y1="8" x2="12.01" y2="8" />
-    </svg>
-  );
-}
-
-function NavIconHistory() {
-  return (
-    <svg {...navIconProps}>
-      <path d="M12 8v4l3 2" />
-      <circle cx="12" cy="12" r="9" />
-    </svg>
-  );
+function NavIconHubCard({ cardId }: { cardId: HubCardId }) {
+  switch (cardId) {
+    case "workspace":
+      return (
+        <svg {...navIconProps}>
+          <rect x="3" y="3" width="7" height="9" rx="1" />
+          <rect x="14" y="3" width="7" height="5" rx="1" />
+          <rect x="14" y="12" width="7" height="9" rx="1" />
+          <rect x="3" y="16" width="7" height="5" rx="1" />
+        </svg>
+      );
+    case "player":
+      return (
+        <svg {...navIconProps}>
+          <polygon points="5 3 19 12 5 21 5 3" />
+        </svg>
+      );
+    case "jobs":
+      return (
+        <svg {...navIconProps}>
+          <path d="M12 8v4l3 2" />
+          <circle cx="12" cy="12" r="9" />
+        </svg>
+      );
+    case "about":
+      return (
+        <svg {...navIconProps}>
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="16" x2="12" y2="12" />
+          <line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+      );
+    default:
+      return null;
+  }
 }
 
 export type StudioNavProps = {
   activeView: StudioView;
   onViewChange: (view: StudioView) => void;
-  editorFocusMode: boolean;
-  onExitEditorFocus: () => void;
   /** Au moins un job `queued` ou `running` — pastille sur l’onglet Studio. */
   workspaceHasActiveJobs?: boolean;
 };
@@ -89,26 +88,8 @@ export type StudioNavProps = {
 export function StudioNav({
   activeView,
   onViewChange,
-  editorFocusMode,
-  onExitEditorFocus,
   workspaceHasActiveJobs = false,
 }: StudioNavProps) {
-  if (editorFocusMode) {
-    return (
-      <nav className="studio-nav studio-nav--focus" aria-label="Navigation mode focus">
-        <span className="studio-nav-focus-row">
-          <Badge tone="neutral">Focus</Badge>
-          <span className="studio-nav-focus-hint">
-            Mode focus éditeur — davantage d&apos;espace pour le transcript et la waveform
-          </span>
-        </span>
-        <Button variant="ghost" type="button" onClick={onExitEditorFocus}>
-          Quitter le mode focus
-        </Button>
-      </nav>
-    );
-  }
-
   return (
     <nav className="studio-nav studio-nav--topbar" role="tablist" aria-label="Sections du studio">
       <Button
@@ -123,76 +104,51 @@ export function StudioNav({
       >
         <span className="studio-nav-tab-inner">
           <NavIconHome />
-          <span>Accueil</span>
-        </span>
-      </Button>
-      <div
-        className={`studio-nav-tab-slot${workspaceHasActiveJobs ? " studio-nav-tab-slot--live" : ""}`}
-      >
-        <Button
-          id={STUDIO_TAB_IDS.workspace}
-          variant="navTab"
-          type="button"
-          role="tab"
-          aria-selected={activeView === "workspace"}
-          aria-controls={STUDIO_PANEL_IDS.workspace}
-          active={activeView === "workspace"}
-          onClick={() => onViewChange("workspace")}
-        >
-          <span className="studio-nav-tab-inner">
-            <NavIconStudio />
-            <span>Studio</span>
+          <span className="studio-nav-tab__stack studio-nav-tab__stack--single">
+            <span className="studio-nav-tab__title">LingWhistX</span>
           </span>
-        </Button>
-        {workspaceHasActiveJobs ? (
-          <span className="studio-nav-activity-dot" title="Traitement en cours" />
-        ) : null}
-      </div>
-      <Button
-        id={STUDIO_TAB_IDS.jobs}
-        variant="navTab"
-        type="button"
-        role="tab"
-        aria-selected={activeView === "jobs"}
-        aria-controls={STUDIO_PANEL_IDS.jobs}
-        active={activeView === "jobs"}
-        onClick={() => onViewChange("jobs")}
-      >
-        <span className="studio-nav-tab-inner">
-          <NavIconHistory />
-          <span>Historique</span>
         </span>
       </Button>
-      <Button
-        id={STUDIO_TAB_IDS.player}
-        variant="navTab"
-        type="button"
-        role="tab"
-        aria-selected={activeView === "player"}
-        aria-controls={STUDIO_PANEL_IDS.player}
-        active={activeView === "player"}
-        onClick={() => onViewChange("player")}
-      >
-        <span className="studio-nav-tab-inner">
-          <NavIconPlayer />
-          <span>Player</span>
-        </span>
-      </Button>
-      <Button
-        id={STUDIO_TAB_IDS.about}
-        variant="navTab"
-        type="button"
-        role="tab"
-        aria-selected={activeView === "about"}
-        aria-controls={STUDIO_PANEL_IDS.about}
-        active={activeView === "about"}
-        onClick={() => onViewChange("about")}
-      >
-        <span className="studio-nav-tab-inner">
-          <NavIconAbout />
-          <span>À propos & diagnostic</span>
-        </span>
-      </Button>
+      {STUDIO_HUB_CARDS.map((card) => {
+        const label = `${card.kicker} — ${card.title}`;
+        const tab = (
+          <Button
+            id={STUDIO_TAB_IDS[card.view]}
+            variant="navTab"
+            type="button"
+            role="tab"
+            aria-selected={activeView === card.view}
+            aria-controls={STUDIO_PANEL_IDS[card.view]}
+            active={activeView === card.view}
+            onClick={() => onViewChange(card.view)}
+            aria-label={label}
+          >
+            <span className="studio-nav-tab-inner">
+              <NavIconHubCard cardId={card.cardId} />
+              <span className="studio-nav-tab__stack">
+                <span className="studio-nav-tab__kicker">{card.kicker}</span>
+                <span className="studio-nav-tab__title">{card.title}</span>
+              </span>
+            </span>
+          </Button>
+        );
+
+        if (card.cardId === "workspace") {
+          return (
+            <div
+              key={card.view}
+              className={`studio-nav-tab-slot${workspaceHasActiveJobs ? " studio-nav-tab-slot--live" : ""}`}
+            >
+              {tab}
+              {workspaceHasActiveJobs ? (
+                <span className="studio-nav-activity-dot" title="Traitement en cours" />
+              ) : null}
+            </div>
+          );
+        }
+
+        return <Fragment key={card.view}>{tab}</Fragment>;
+      })}
     </nav>
   );
 }

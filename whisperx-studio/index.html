@@ -1,10 +1,39 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri + React + Typescript</title>
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#f8fafb"
+    />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#0f1419"
+    />
+    <title>LingWhistX Studio</title>
+    <!--
+      Thème avant premier paint : aligné sur LX_THEME_STORAGE_KEY / readStoredThemePreference
+      dans src/theme/applyStoredTheme.ts (évite un flash clair↔sombre si préférence explicite).
+    -->
+    <script>
+      (function () {
+        try {
+          var k = "lx-theme";
+          var v = localStorage.getItem(k);
+          if (v == null) return;
+          v = String(v).trim().toLowerCase();
+          if (v === "dark" || v === "light") {
+            document.documentElement.setAttribute("data-lx-theme", v);
+          }
+        } catch (e) {
+          /* ignore */
+        }
+      })();
+    </script>
   </head>
 
   <body>

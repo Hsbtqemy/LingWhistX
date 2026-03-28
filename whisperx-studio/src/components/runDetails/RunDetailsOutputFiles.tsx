@@ -277,9 +277,9 @@ export function RunDetailsOutputFiles({
               <p className="output-files-guide__subhead">Vérifier les pauses dans Studio</p>
               <ol className="output-files-guide__list output-files-guide__list--numbered">
                 <li>
-                  Depuis l’<strong>accueil</strong>, ou <strong>onglet Studio</strong> : ouvrir le
-                  dossier de sortie comme <strong>run</strong> (dossier contenant un{" "}
-                  <code>run_manifest.json</code> si pipeline orchestré).
+                  Depuis le <strong>Studio</strong> (section « Ouvrir un run sur disque » ou
+                  explorateur avancé) : ouvrir le dossier de sortie comme <strong>run</strong>{" "}
+                  (dossier contenant un <code>run_manifest.json</code> si pipeline orchestré).
                 </li>
                 <li>
                   <strong>Indexer les événements</strong> (SQLite) pour importer mots / pauses /
@@ -294,7 +294,7 @@ export function RunDetailsOutputFiles({
               <p className="output-files-guide__note">
                 Le <strong>Player</strong> attend un répertoire de run valide (manifest + média).
                 Si le manifest est dans un sous-dossier <code>runs/…</code>, ouvre ce dossier depuis
-                l’accueil « Ouvrir un run ».
+                le Studio (« Ouvrir un run sur disque »).
               </p>
             </div>
           </details>

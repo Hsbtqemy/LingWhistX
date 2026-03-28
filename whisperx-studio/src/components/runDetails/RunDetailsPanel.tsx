@@ -28,8 +28,6 @@ export type RunDetailsPanelProps = {
   onPreviewOutput: (path: string) => void;
   onLoadTranscriptEditor: (path: string) => void;
   transcriptEditor: TranscriptEditorPanelProps | null;
-  editorFocusMode: boolean;
-  onToggleEditorFocusMode: () => void;
   /** Ouvre le dossier de sortie dans le Player (onglet Player). */
   onOpenPlayerRun?: (outputDir: string, label?: string | null) => void;
 };
@@ -60,8 +58,6 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
       onPreviewOutput,
       onLoadTranscriptEditor,
       transcriptEditor,
-      editorFocusMode,
-      onToggleEditorFocusMode,
       onOpenPlayerRun,
     },
     ref,
@@ -150,7 +146,7 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                   className="danger"
                   onClick={() => void onCancelJob(selectedJob.id)}
                 >
-                  Arrêter le job
+                  Annuler le run
                 </button>
               ) : null}
             </div>
@@ -190,9 +186,9 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
             <div className="empty-state-card-icon empty-state-card-icon--muted" aria-hidden />
             <h3 className="empty-state-card-title">Sélectionne un job</h3>
             <p className="empty-state-card-text">
-              Clique sur « Voir détails » dans l&apos;historique (colonne de droite dans Studio) ou
-              lance un job depuis l&apos;accueil : tu seras placé ici sur le détail du run, puis le
-              transcript dès qu&apos;un JSON est disponible.
+              Clique sur « Voir détails » dans l&apos;historique ou lance un job depuis le bloc{" "}
+              <strong>Nouveau job</strong> en haut du Studio : tu seras placé ici sur le détail du
+              run, puis le transcript dès qu&apos;un JSON est disponible.
             </p>
           </div>
         ) : (
@@ -202,13 +198,19 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                 <h3 className="run-details-error-hero__title">Le run a échoué</h3>
                 <p className="run-details-error-hero__lead">
                   Le message technique ci-dessous inclut souvent des blocs « [Aide …] » (HF, SSL,
-                  GPU…). Suis-les puis relance un job depuis l&apos;accueil.
+                  GPU…). Suis-les puis relance un job depuis le Studio.
                 </p>
                 <WorkerErrorMessage text={selectedJob.error} />
               </div>
             ) : null}
             <div className="details-column">
-              <JobRunPipelineStrip job={selectedJob} logs={selectedJobLogs} />
+              <JobRunPipelineStrip
+                job={selectedJob}
+                logs={selectedJobLogs}
+                onCancelJob={
+                  canCancelJob ? () => void onCancelJob(selectedJob.id) : undefined
+                }
+              />
               <LiveTranscriptFeed job={selectedJob} segments={liveTranscriptSegments} />
               <div id="run-details-tabs-anchor" className="run-details-tabs-anchor">
                 <TabListBar
@@ -277,15 +279,6 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                       ou les bornes met à jour le JSON exportable. Raccourcis : Alt+J / K / L
                       (reculer / pause / avancer), Alt+Shift+J / L (segment précédent / suivant).
                     </p>
-                    {transcriptEditor ? (
-                      <button
-                        type="button"
-                        className={editorFocusMode ? "primary" : "ghost"}
-                        onClick={onToggleEditorFocusMode}
-                      >
-                        {editorFocusMode ? "Quitter le mode focus" : "Mode focus éditeur"}
-                      </button>
-                    ) : null}
                   </header>
                   <div className="run-details-verification__grid">
                     <div className="run-details-verification__pane">
@@ -328,15 +321,6 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                       <strong>Vérification</strong>.
                     </p>
                   </div>
-                  {transcriptEditor ? (
-                    <button
-                      type="button"
-                      className={editorFocusMode ? "primary" : "ghost"}
-                      onClick={onToggleEditorFocusMode}
-                    >
-                      {editorFocusMode ? "Quitter le mode focus" : "Mode focus éditeur"}
-                    </button>
-                  ) : null}
                 </div>
                 {!transcriptEditor ? (
                   <p className="small">

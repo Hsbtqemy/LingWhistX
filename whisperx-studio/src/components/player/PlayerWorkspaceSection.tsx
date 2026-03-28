@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { runInTransition } from "../../whisperxOptionsTransitions";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
-import { clampNumber, formatClockSeconds, parsePlayerTimecodeToSeconds } from "../../appUtils";
+import {
+  clampNumber,
+  fileBasename,
+  formatClockSeconds,
+  parsePlayerTimecodeToSeconds,
+} from "../../appUtils";
 import { usePlayerPlayback } from "../../hooks/usePlayerPlayback";
 import { usePlayerKeyboard } from "../../hooks/usePlayerKeyboard";
 import { usePlayerRunWindow } from "../../hooks/usePlayerRunWindow";
@@ -11,6 +16,7 @@ import type { PlayerDerivedAlertKind } from "../../player/derivePlayerAlerts";
 import type { ExportRunTimingPackResponse, StudioView } from "../../types";
 import { PlayerRunWindowViews, type PlayerViewportMode } from "./PlayerRunWindowViews";
 import { PlayerJumpPanel } from "./PlayerJumpPanel";
+import { PlayerMediaTransport } from "./PlayerMediaTransport";
 import { PlayerTopBar } from "./PlayerTopBar";
 import { PlayerRunArtifactsStrip } from "./PlayerRunArtifactsStrip";
 import { Button } from "../ui";
@@ -411,30 +417,6 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
           shortcutsHelpOpen={shortcutsHelpOpen}
           onToggleShortcutsHelp={() => setShortcutsHelpOpen((v) => !v)}
           transportDisabled={transportDisabled}
-          playing={playing}
-          onTogglePlayPause={togglePlayPause}
-          onStop={stop}
-          onSeekRelative={seekRelative}
-          posLabel={posLabel}
-          durLabel={durLabel}
-          copyPositionHint={copyPositionHint}
-          onCopyPlayhead={copyPlayheadToClipboard}
-          playbackRate={playbackRate}
-          onNudgePlaybackRate={nudgePlaybackRate}
-          volume={volume}
-          muted={muted}
-          onVolumeChange={(v) => {
-            setVolume(v);
-            if (v > 0) {
-              setMuted(false);
-            }
-          }}
-          onToggleMute={toggleMute}
-          isVideo={isVideo}
-          videoFullscreen={videoFullscreen}
-          onToggleVideoFullscreen={toggleVideoFullscreen}
-          followPlayhead={followPlayhead}
-          onToggleFollowPlayhead={() => setFollowPlayhead((v) => !v)}
           loopHint={loopHint}
           onMarkLoopA={markLoopA}
           onMarkLoopB={markLoopB}
@@ -466,17 +448,18 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
               Aucun run ouvert pour la lecture
             </h3>
             <p className="empty-state-card-text">
-              Depuis l&apos;accueil, ouvre un dossier de run (manifest) puis utilise{" "}
-              <strong>Ouvrir le Player</strong>.
+              Depuis le Studio, section <strong>Ouvrir un run sur disque</strong>, ouvre un dossier
+              de run (manifest) puis utilise <strong>Ouvrir le Player</strong>.
               <br />
-              Depuis le Studio, sélectionne un job avec média pour lancer la lecture ici.
+              Tu peux aussi sélectionner un job avec média dans le détail du run et ouvrir le Player
+              depuis les fichiers de sortie.
             </p>
             <div className="player-empty-cta">
-              <Button type="button" variant="primary" onClick={() => onBack("create")}>
-                Aller à l&apos;accueil
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => onBack("workspace")}>
+              <Button type="button" variant="primary" onClick={() => onBack("workspace")}>
                 Aller au Studio
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => onBack("create")}>
+                LingWhistX
               </Button>
             </div>
           </div>
@@ -581,30 +564,83 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
           </aside>
           <main className="player-viewport">
             <div className="player-media-stage">
-              {mediaSrc && isVideo ? (
-                <video
-                  ref={mediaRef as RefObject<HTMLVideoElement | null>}
-                  className="player-viewport-video"
-                  src={mediaSrc}
-                  preload="metadata"
-                  playsInline
-                  controls={false}
-                  {...mediaHandlers}
+              <div
+                className={`player-media-stage__surface${mediaSrc ? " player-media-stage__surface--interactive" : ""}`}
+                onClick={() => {
+                  if (!transportDisabled) {
+                    void togglePlayPause();
+                  }
+                }}
+                role="presentation"
+              >
+                {mediaSrc && isVideo ? (
+                  <video
+                    ref={mediaRef as RefObject<HTMLVideoElement | null>}
+                    className="player-viewport-video"
+                    src={mediaSrc}
+                    preload="metadata"
+                    playsInline
+                    controls={false}
+                    {...mediaHandlers}
+                  />
+                ) : null}
+                {mediaSrc && !isVideo ? (
+                  <>
+                    <div className="player-audio-surface" aria-hidden>
+                      <span className="player-audio-surface__glyph" />
+                      <p className="player-audio-surface__label mono">
+                        {mediaPath ? fileBasename(mediaPath) : "Audio"}
+                      </p>
+                      <p className="player-audio-surface__hint small">
+                        Clic pour lecture / pause — contrôles sous la piste
+                      </p>
+                    </div>
+                    <audio
+                      ref={mediaRef as RefObject<HTMLAudioElement | null>}
+                      className="player-viewport-audio"
+                      src={mediaSrc}
+                      preload="metadata"
+                      {...mediaHandlers}
+                    />
+                  </>
+                ) : null}
+                {!mediaSrc ? (
+                  <p className="player-viewport-placeholder">
+                    <strong>Média</strong> — aucune source après lecture du manifest.
+                  </p>
+                ) : null}
+              </div>
+              {mediaSrc ? (
+                <PlayerMediaTransport
+                  disabled={transportDisabled}
+                  playing={playing}
+                  onTogglePlayPause={togglePlayPause}
+                  onStop={stop}
+                  onSeekRelative={seekRelative}
+                  currentTimeSec={currentTimeSec}
+                  durationSec={durationSec}
+                  onSeek={seek}
+                  playbackRate={playbackRate}
+                  onNudgePlaybackRate={nudgePlaybackRate}
+                  volume={volume}
+                  muted={muted}
+                  onVolumeChange={(v) => {
+                    setVolume(v);
+                    if (v > 0) {
+                      setMuted(false);
+                    }
+                  }}
+                  onToggleMute={toggleMute}
+                  isVideo={isVideo}
+                  videoFullscreen={videoFullscreen}
+                  onToggleVideoFullscreen={toggleVideoFullscreen}
+                  followPlayhead={followPlayhead}
+                  onToggleFollowPlayhead={() => setFollowPlayhead((v) => !v)}
+                  posLabel={posLabel}
+                  durLabel={durLabel}
+                  copyPositionHint={copyPositionHint}
+                  onCopyPlayhead={copyPlayheadToClipboard}
                 />
-              ) : null}
-              {mediaSrc && !isVideo ? (
-                <audio
-                  ref={mediaRef as RefObject<HTMLAudioElement | null>}
-                  className="player-viewport-audio"
-                  src={mediaSrc}
-                  preload="metadata"
-                  {...mediaHandlers}
-                />
-              ) : null}
-              {!mediaSrc ? (
-                <p className="player-viewport-placeholder">
-                  <strong>Média</strong> — aucune source après lecture du manifest.
-                </p>
               ) : null}
             </div>
             <div
@@ -681,12 +717,15 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
               </ul>
             )}
             <h4 className="player-panel-title">Contrôles</h4>
-            <p className="small">Layout, recompute — bientôt</p>
+            <p className="small">
+              Lecture, saut ±1 s / ±5 s, progression et volume sont sous le média. Boucle A–B et export
+              en haut.
+            </p>
             <p className="small player-shortcuts-hint">
-              Espace · Home / Fin · ⌃⇧C copier · ⌃⇧O dossier · ⌃⇧E export · ← → · Shift / Alt · +/−
-              vitesse · M muet · Alt+Entrée plein écran (vidéo) · F suivi · W mots · L boucle · ⌃1–6
-              vues · N / P alertes · 0 / 1–9 locuteur · Aller au temps (panneau gauche) ·{" "}
-              <strong>?</strong> aide
+              Espace · Home / Fin · ⌃⇧C copier · ⌃⇧O dossier · ⌃⇧E export · ← → (±1 s) · Shift+← →
+              (±5 s) · Alt+← → (±0,1 s) · +/− vitesse · M muet · Alt+Entrée plein écran (vidéo) · F
+              suivi · W mots · L boucle · ⌃1–6 vues · N / P alertes · 0 / 1–9 locuteur · Aller au temps
+              (gauche) · <strong>?</strong> aide
             </p>
           </aside>
         </div>
@@ -724,8 +763,8 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
                     <kbd className="player-kbd">Espace</kbd> Lecture / pause
                   </li>
                   <li>
-                    <kbd className="player-kbd">Stop</kbd> · <kbd className="player-kbd">Home</kbd>{" "}
-                    Arrêt + début
+                    <kbd className="player-kbd">Home</kbd> Arrêt + retour au début (barre sous le média
+                    aussi)
                   </li>
                   <li>
                     <kbd className="player-kbd">Fin</kbd> Fin de média
