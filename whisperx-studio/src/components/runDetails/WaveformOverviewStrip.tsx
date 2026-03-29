@@ -1,5 +1,6 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useRef } from "react";
+import { getWaveformCanvasThemeColors, useWaveformThemeRevision } from "../../hooks/waveformCanvasTheme";
 import type { WaveformOverviewEnvelope } from "../../types";
 
 export type WaveformOverviewStripProps = {
@@ -28,6 +29,7 @@ export function WaveformOverviewStrip(props: WaveformOverviewStripProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ startClientX: number; startViewStart: number } | null>(null);
+  const themeRevision = useWaveformThemeRevision();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -35,6 +37,7 @@ export function WaveformOverviewStrip(props: WaveformOverviewStripProps) {
     if (!canvas || !wrap || !overview || durationSec <= 0) {
       return;
     }
+    const colors = getWaveformCanvasThemeColors();
     const widthCss = Math.max(120, Math.floor(wrap.clientWidth));
     const heightCss = 56;
     const dpr = window.devicePixelRatio || 1;
@@ -46,19 +49,19 @@ export function WaveformOverviewStrip(props: WaveformOverviewStripProps) {
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, widthCss, heightCss);
-    ctx.fillStyle = "#eef8f9";
+    ctx.fillStyle = colors.overviewBg;
     ctx.fillRect(0, 0, widthCss, heightCss);
 
     const { minMax, nBlocks } = overview;
     const centerY = heightCss / 2;
-    ctx.strokeStyle = "rgba(16, 93, 103, 0.2)";
+    ctx.strokeStyle = colors.gridLine;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, centerY + 0.5);
     ctx.lineTo(widthCss, centerY + 0.5);
     ctx.stroke();
 
-    ctx.strokeStyle = "#0f7e8a";
+    ctx.strokeStyle = colors.envelopeStroke;
     ctx.lineWidth = 1;
     ctx.beginPath();
     const cols = Math.max(1, widthCss);
@@ -73,7 +76,7 @@ export function WaveformOverviewStrip(props: WaveformOverviewStripProps) {
       ctx.lineTo(x + 0.5, centerY + h);
     }
     ctx.stroke();
-  }, [durationSec, overview]);
+  }, [durationSec, overview, themeRevision]);
 
   const visible = Math.max(0.001, viewEndSec - viewStartSec);
   const leftPct = durationSec > 0 ? (viewStartSec / durationSec) * 100 : 0;

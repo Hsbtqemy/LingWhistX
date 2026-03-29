@@ -335,9 +335,21 @@ fn parse_wxenv_header(raw: &[u8]) -> Result<(u32, u32, u32), String> {
     if &raw[0..6] != WXENV_MAGIC {
         return Err("Invalid WXENV magic.".into());
     }
-    let sample_rate = u32::from_le_bytes(raw[8..12].try_into().unwrap());
-    let block_size = u32::from_le_bytes(raw[12..16].try_into().unwrap());
-    let n_blocks = u32::from_le_bytes(raw[16..20].try_into().unwrap());
+    let sample_rate = u32::from_le_bytes(
+        raw[8..12]
+            .try_into()
+            .map_err(|_| "WXENV header: invalid sample_rate slice.".to_string())?,
+    );
+    let block_size = u32::from_le_bytes(
+        raw[12..16]
+            .try_into()
+            .map_err(|_| "WXENV header: invalid block_size slice.".to_string())?,
+    );
+    let n_blocks = u32::from_le_bytes(
+        raw[16..20]
+            .try_into()
+            .map_err(|_| "WXENV header: invalid n_blocks slice.".to_string())?,
+    );
     let expected = HEADER_LEN + n_blocks as usize * 4;
     if raw.len() < expected {
         return Err("WXENV payload truncated.".into());

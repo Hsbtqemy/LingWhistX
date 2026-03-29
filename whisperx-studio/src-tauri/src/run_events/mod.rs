@@ -17,6 +17,7 @@ use serde::Serialize;
 use serde_json::Value as JsonValue;
 
 mod run_events_query_window;
+pub mod player_derived_alerts;
 
 pub use run_events_query_window::{
     query_run_events_window_inner, QueryWindowRequest, QueryWindowResult,

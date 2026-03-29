@@ -3,6 +3,7 @@ import { MAX_WAVEFORM_ZOOM, MIN_WAVEFORM_ZOOM } from "../constants";
 import { clampNumber } from "../appUtils";
 import type { EditableSegment, SegmentDragState, SegmentEdge } from "../types";
 import type { WaveformWorkspace } from "./useWaveformWorkspace";
+import { getWaveformCanvasThemeColors, useWaveformThemeRevision } from "./waveformCanvasTheme";
 
 /**
  * Dessine la waveform + segments + playheads sur le canvas (effet synchronisé sur wf et l’overlay éditeur).
@@ -31,11 +32,15 @@ export function useWaveformCanvas(
     pauseOverlayVisible,
   } = wf;
 
+  const waveformThemeRevision = useWaveformThemeRevision();
+
   useEffect(() => {
     const canvas = waveformCanvasRef.current;
     if (!canvas || !waveform) {
       return;
     }
+
+    const colors = getWaveformCanvasThemeColors();
 
     const widthCss = Math.max(320, Math.floor(canvas.clientWidth));
     const heightCss = 200;
@@ -63,7 +68,7 @@ export function useWaveformCanvas(
     const toX = (seconds: number): number => ((seconds - viewStart) / visibleDuration) * widthCss;
 
     if (pauseOverlayVisible && pauseOverlayIntervals.length > 0) {
-      ctx.fillStyle = "rgba(110, 75, 155, 0.13)";
+      ctx.fillStyle = colors.pauseOverlay;
       const maxBands = Math.min(pauseOverlayIntervals.length, 8000);
       for (let i = 0; i < maxBands; i += 1) {
         const { start, end } = pauseOverlayIntervals[i];
@@ -83,7 +88,7 @@ export function useWaveformCanvas(
     }
 
     if (editorSegments.length > 0) {
-      ctx.fillStyle = "rgba(19, 111, 126, 0.14)";
+      ctx.fillStyle = colors.segmentOverlay;
       const maxOverlays = Math.min(editorSegments.length, 6000);
       for (let i = 0; i < maxOverlays; i += 1) {
         const segment = editorSegments[i];
@@ -108,19 +113,19 @@ export function useWaveformCanvas(
           const endX = Math.ceil(toX(focused.end));
           const segW = Math.max(2, endX - startX);
 
-          ctx.fillStyle = "rgba(36, 123, 176, 0.24)";
+          ctx.fillStyle = colors.segmentFocus;
           ctx.fillRect(Math.max(0, startX), 0, segW, heightCss);
 
           const handleSize = 9;
           const drawHandle = (x: number, active: boolean) => {
-            ctx.strokeStyle = active ? "#e06b2f" : "#1a6fb0";
+            ctx.strokeStyle = active ? colors.handleHot : colors.handleCold;
             ctx.lineWidth = active ? 2.2 : 2;
             ctx.beginPath();
             ctx.moveTo(x + 0.5, 0);
             ctx.lineTo(x + 0.5, heightCss);
             ctx.stroke();
 
-            ctx.fillStyle = active ? "#e06b2f" : "#1a6fb0";
+            ctx.fillStyle = active ? colors.handleHot : colors.handleCold;
             ctx.fillRect(
               x - Math.floor(handleSize / 2),
               Math.floor(heightCss / 2 - handleSize),
@@ -159,14 +164,14 @@ export function useWaveformCanvas(
       ctx.fillRect(x0, 0, Math.max(1, x1 - x0), heightCss);
     };
     if (previewRangeSec) {
-      drawRangeBand(previewRangeSec.start, previewRangeSec.end, "rgba(52, 140, 88, 0.22)");
+      drawRangeBand(previewRangeSec.start, previewRangeSec.end, colors.rangeValid);
     }
     if (rangeDragPreviewSec) {
-      drawRangeBand(rangeDragPreviewSec.start, rangeDragPreviewSec.end, "rgba(210, 165, 40, 0.2)");
+      drawRangeBand(rangeDragPreviewSec.start, rangeDragPreviewSec.end, colors.rangePreview);
     }
 
     const centerY = heightCss / 2;
-    ctx.strokeStyle = "rgba(16, 93, 103, 0.25)";
+    ctx.strokeStyle = colors.gridLine;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, centerY + 0.5);
@@ -177,7 +182,7 @@ export function useWaveformCanvas(
     const env = detailEnvelope;
     const useWxenv = env !== null && env.minMax.length >= 2 && env.returnedBlocks > 0;
 
-    ctx.strokeStyle = "#0f7e8a";
+    ctx.strokeStyle = colors.envelopeStroke;
     ctx.lineWidth = 1;
     ctx.beginPath();
     if (useWxenv) {
@@ -232,7 +237,7 @@ export function useWaveformCanvas(
 
     const playheadX = Math.floor(toX(Math.max(0, mediaCurrentSec)));
     if (playheadX >= -2 && playheadX <= widthCss + 2) {
-      ctx.strokeStyle = "#d35d2f";
+      ctx.strokeStyle = colors.playhead;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(playheadX + 0.5, 0);
@@ -243,7 +248,7 @@ export function useWaveformCanvas(
     if (waveformCursorSec !== null) {
       const cursorX = Math.floor(toX(Math.max(0, waveformCursorSec)));
       if (cursorX >= -2 && cursorX <= widthCss + 2) {
-        ctx.strokeStyle = "#1964b6";
+        ctx.strokeStyle = colors.cursor;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(cursorX + 0.5, 0);
@@ -252,6 +257,7 @@ export function useWaveformCanvas(
       }
     }
   }, [
+    waveformThemeRevision,
     waveformCanvasRef,
     waveform,
     waveformZoom,

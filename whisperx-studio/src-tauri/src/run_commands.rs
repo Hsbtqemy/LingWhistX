@@ -9,7 +9,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 use tauri::Manager;
 
-use crate::path_guard::validate_path_string;
+use crate::path_guard::{validate_delete_allowed_directory, validate_path_string};
 use crate::time_utils::now_ms;
 
 const RECENT_RUNS_MAX: usize = 20;
@@ -269,4 +269,46 @@ pub fn clear_recent_runs(app: AppHandle) -> Result<(), String> {
         fs::remove_file(&path).map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+fn run_dirs_match(a: &str, b: &str) -> bool {
+    let pa = Path::new(a.trim());
+    let pb = Path::new(b.trim());
+    if let (Ok(ca), Ok(cb)) = (pa.canonicalize(), pb.canonicalize()) {
+        return ca == cb;
+    }
+    a.trim() == b.trim()
+}
+
+fn persist_recent_store(app: &AppHandle, store: &RecentRunsStore) -> Result<(), String> {
+    let path = recent_runs_path(app)?;
+    let json = serde_json::to_string_pretty(store).map_err(|e| e.to_string())?;
+    fs::write(&path, json).map_err(|e| format!("recent_runs write failed: {e}"))?;
+    Ok(())
+}
+
+fn remove_recent_run_impl(app: &AppHandle, run_dir: &str) -> Result<(), String> {
+    validate_path_string(run_dir)?;
+    let path = recent_runs_path(app)?;
+    if !path.is_file() {
+        return Ok(());
+    }
+    let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut store: RecentRunsStore = serde_json::from_str(&raw).unwrap_or_default();
+    store.entries.retain(|e| !run_dirs_match(&e.run_dir, run_dir));
+    persist_recent_store(app, &store)
+}
+
+/// Retire un chemin de la liste des runs récents (sans toucher aux fichiers).
+#[tauri::command]
+pub fn remove_recent_run(app: AppHandle, run_dir: String) -> Result<(), String> {
+    remove_recent_run_impl(&app, &run_dir)
+}
+
+/// Supprime récursivement un dossier de run ; même périmètre de chemins autorisés que pour un outputDir.
+#[tauri::command]
+pub fn delete_run_directory(app: AppHandle, run_dir: String) -> Result<(), String> {
+    let p = validate_delete_allowed_directory(&app, &run_dir)?;
+    fs::remove_dir_all(&p).map_err(|e| format!("Suppression disque impossible: {e}"))?;
+    remove_recent_run_impl(&app, &run_dir)
 }

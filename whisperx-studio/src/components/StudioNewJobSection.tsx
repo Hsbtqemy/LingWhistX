@@ -1,7 +1,9 @@
 import { memo } from "react";
 import { fileBasename } from "../appUtils";
 import { runInTransition } from "../whisperxOptionsTransitions";
+import { useAudioPreview } from "../hooks/useAudioPreview";
 import { AnalysisTimingOptionsForm } from "./AnalysisTimingOptionsForm";
+import { AudioPreviewPanel } from "./AudioPreviewPanel";
 import { ErrorBanner } from "./ErrorBanner";
 import { NewJobMediaPreview } from "./NewJobMediaPreview";
 import { HfTokenQuickCard } from "./HfTokenQuickCard";
@@ -72,6 +74,13 @@ export function StudioNewJobSection({
     submitJob,
     applyProfile,
   } = jobForm;
+
+  const {
+    state: previewState,
+    activeAudioSrc,
+    generate: generatePreview,
+    setSlot: setPreviewSlot,
+  } = useAudioPreview(inputPath, whisperxOptions.audioPipelineModulesJson);
 
   return (
     <section id="home-new-job" className="panel panel--home panel--home-primary">
@@ -211,6 +220,17 @@ export function StudioNewJobSection({
                 onProfileChange={applyProfile}
                 selectedProfile={selectedProfile}
                 profilePresets={jobForm.profilePresets}
+              />
+            ) : null}
+
+            {mode === "whisperx" ? (
+              <AudioPreviewPanel
+                inputPath={inputPath}
+                modulesJson={whisperxOptions.audioPipelineModulesJson}
+                state={previewState}
+                activeAudioSrc={activeAudioSrc}
+                onGenerate={generatePreview}
+                onSetSlot={setPreviewSlot}
               />
             ) : null}
 

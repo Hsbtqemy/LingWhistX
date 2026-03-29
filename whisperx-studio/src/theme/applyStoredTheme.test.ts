@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyStoredTheme,
   applyThemeFromStorageEvent,
+  getEffectiveColorScheme,
   LX_THEME_CHANGED_EVENT,
   LX_THEME_STORAGE_KEY,
   readStoredThemePreference,
@@ -41,11 +42,11 @@ describe("applyStoredTheme / thème", () => {
     expect(document.documentElement.getAttribute("data-lx-theme")).toBe("light");
   });
 
-  it("setThemePreference('system') : retire clé et attribut", () => {
+  it("setThemePreference('system') : persiste system et met data-lx-theme=system", () => {
     setThemePreference("dark");
     setThemePreference("system");
-    expect(localStorage.getItem(LX_THEME_STORAGE_KEY)).toBeNull();
-    expect(document.documentElement.getAttribute("data-lx-theme")).toBeNull();
+    expect(localStorage.getItem(LX_THEME_STORAGE_KEY)).toBe("system");
+    expect(document.documentElement.getAttribute("data-lx-theme")).toBe("system");
   });
 
   it("applyStoredTheme : aligne le DOM sur localStorage", () => {
@@ -118,8 +119,15 @@ describe("applyStoredTheme / thème", () => {
       }),
     );
 
-    expect(document.documentElement.getAttribute("data-lx-theme")).toBeNull();
+    expect(document.documentElement.getAttribute("data-lx-theme")).toBe("system");
     expect(spy).toHaveBeenCalledTimes(1);
     window.removeEventListener(LX_THEME_CHANGED_EVENT, spy);
+  });
+
+  it("getEffectiveColorScheme : light forcé ou selon prefers", () => {
+    setThemePreference("light");
+    expect(getEffectiveColorScheme()).toBe("light");
+    setThemePreference("dark");
+    expect(getEffectiveColorScheme()).toBe("dark");
   });
 });

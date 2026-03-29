@@ -104,6 +104,45 @@ pub(crate) struct WorkerLog {
     pub(crate) progress: Option<u8>,
 }
 
+/// WX-657 — erreur structurée émise par le worker avec code machine-readable.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WorkerErrorMsg {
+    /// Code machine-readable : OOM, HF_GATED, HF_AUTH, SSL, NETWORK, …
+    pub(crate) code: Option<String>,
+    pub(crate) message: String,
+}
+
+/// WX-661 — rapport d'évaluation qualité audio émis avant la transcription.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) struct AudioQualityReport {
+    pub(crate) snr_db: Option<f64>,
+    pub(crate) clipping_ratio: Option<f64>,
+    pub(crate) speech_ratio: Option<f64>,
+    pub(crate) duration_sec: Option<f64>,
+    pub(crate) speech_sec: Option<f64>,
+    pub(crate) warnings: Vec<String>,
+}
+
+/// WX-657 — message JSON-lines structuré (champ `type` discriminant).
+/// Remplace le protocole `__WXLOG__` / `__WXRESULT__` par des lignes JSON pures.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub(crate) enum WorkerMessage {
+    /// Progression / log de pipeline (ancien `__WXLOG__`).
+    Progress(WorkerLog),
+    /// Résultat final avec fichiers de sortie (ancien `__WXRESULT__`).
+    Result(WorkerResult),
+    /// Erreur structurée avec code machine-readable.
+    Error(WorkerErrorMsg),
+    /// Segment de transcription en direct (séparé de `progress` pour éviter le
+    /// `stage == "wx_live_transcript"` check côté Rust).
+    LiveTranscript(LiveTranscriptSegment),
+    /// WX-661 — rapport qualité audio avant transcription.
+    AudioQuality(AudioQualityReport),
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct JobLogEvent {
@@ -312,6 +351,10 @@ pub(crate) struct RuntimeStatus {
     pub(crate) torch_mps_available: bool,
     /// Comme le défaut CLI WhisperX : `cuda` si CUDA dispo, sinon `cpu` (faster-whisper n’utilise pas MPS).
     pub(crate) whisperx_default_device: Option<String>,
+    /// WX-666 — Demucs disponible pour séparation sources.
+    pub(crate) demucs_ok: bool,
+    /// Version de Demucs détectée (None si absent).
+    pub(crate) demucs_version: Option<String>,
 }
 
 #[derive(Debug, Clone)]

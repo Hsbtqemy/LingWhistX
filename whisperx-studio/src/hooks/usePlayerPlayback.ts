@@ -1,7 +1,55 @@
+import type { SyntheticEvent } from "react";
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { clampNumber, isVideoFile } from "../appUtils";
 import type { RunManifestSummary } from "../types";
+
+/** Message lisible quand le moteur ne donne que « Load failed » (WebKit). */
+function describeMediaElementError(el: HTMLMediaElement, path: string | null): string {
+  const code = el.error?.code;
+  const codeHint =
+    code === MediaError.MEDIA_ERR_ABORTED
+      ? "chargement interrompu"
+      : code === MediaError.MEDIA_ERR_NETWORK
+        ? "erreur réseau / lecture fichier"
+        : code === MediaError.MEDIA_ERR_DECODE
+          ? "décodage impossible (fichier corrompu ou format ambigu)"
+          : code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+            ? "format non supporté, ou fichier hors périmètre du protocole asset (chemins sous $HOME, etc. — redémarrer l’app après config)"
+            : code != null
+              ? `code média ${code}`
+              : "";
+  const pathLine = path?.trim() ? `Chemin : ${path}` : "Chemin inconnu.";
+  return [
+    "Impossible de charger le média dans le lecteur.",
+    codeHint && `(${codeHint})`,
+    pathLine,
+    "Vérifie que le fichier existe, lance l’app avec « npm run tauri dev » (pas le navigateur seul), et que le chemin est couvert par security.assetProtocol.scope dans tauri.conf.json (souvent sous $HOME ou dossiers utilisateur).",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** Rend les erreurs IPC manifest lisibles (chemins refusés côté Rust / périmètre sortie). */
+function formatManifestReadError(err: unknown): string {
+  const s = String(err);
+  const lower = s.toLowerCase();
+  if (
+    lower.includes("path") &&
+    (lower.includes("denied") ||
+      lower.includes("not allowed") ||
+      lower.includes("must be") ||
+      lower.includes("invalid") ||
+      lower.includes("unable to resolve"))
+  ) {
+    return [
+      "Le dossier du run ou le chemin média n’est pas accepté par l’application (règles de sécurité des chemins).",
+      "Place le run sous une racine autorisée : données app, Documents, Téléchargements, répertoire utilisateur ou volume amovible — voir README « Chemins et médias ».",
+      `Détail : ${s}`,
+    ].join(" ");
+  }
+  return s;
+}
 
 const PLAYBACK_RATE_MIN = 0.5;
 const PLAYBACK_RATE_MAX = 2;
@@ -39,11 +87,14 @@ export type PlayerMediaHandlers = {
   onLoadedMetadata: () => void;
   onPlay: () => void;
   onPause: () => void;
+  onError: (event: SyntheticEvent<HTMLMediaElement>) => void;
 };
 
 export type UsePlayerPlaybackResult = {
   manifestLoading: boolean;
   manifestError: string | null;
+  /** Échec chargement `<audio>` / `<video>` (ex. TypeError / Load failed). */
+  mediaLoadError: string | null;
   summary: RunManifestSummary | null;
   mediaSrc: string | null;
   mediaPath: string | null;
@@ -68,6 +119,8 @@ export type UsePlayerPlaybackResult = {
   markLoopA: () => void;
   markLoopB: () => void;
   clearLoop: () => void;
+  /** Définit la boucle A–B en secondes (ex. mini-carte Lanes, WX-653). */
+  setLoopRange: (aSec: number, bSec: number) => void;
   /** 0–1 */
   volume: number;
   muted: boolean;
@@ -84,6 +137,7 @@ export function usePlayerPlayback(runDir: string | null): UsePlayerPlaybackResul
   const mediaRef = useRef<HTMLMediaElement | null>(null);
   const [manifestLoading, setManifestLoading] = useState(false);
   const [manifestError, setManifestError] = useState<string | null>(null);
+  const [mediaLoadError, setMediaLoadError] = useState<string | null>(null);
   const [summary, setSummary] = useState<RunManifestSummary | null>(null);
   const [mediaSrc, setMediaSrc] = useState<string | null>(null);
   const [mediaPath, setMediaPath] = useState<string | null>(null);
@@ -114,6 +168,7 @@ export function usePlayerPlayback(runDir: string | null): UsePlayerPlaybackResul
   useEffect(() => {
     if (!runDir) {
       setManifestError(null);
+      setMediaLoadError(null);
       setSummary(null);
       setMediaSrc(null);
       setMediaPath(null);
@@ -129,6 +184,7 @@ export function usePlayerPlayback(runDir: string | null): UsePlayerPlaybackResul
     let cancelled = false;
     setManifestLoading(true);
     setManifestError(null);
+    setMediaLoadError(null);
     setSummary(null);
     setMediaSrc(null);
     setMediaPath(null);
@@ -152,7 +208,7 @@ export function usePlayerPlayback(runDir: string | null): UsePlayerPlaybackResul
         setIsVideo(isVideoFile(raw));
       } catch (e) {
         if (!cancelled) {
-          setManifestError(String(e));
+          setManifestError(formatManifestReadError(e));
         }
       } finally {
         if (!cancelled) {
@@ -289,16 +345,50 @@ export function usePlayerPlayback(runDir: string | null): UsePlayerPlaybackResul
     setLoopBsec(null);
   }, []);
 
+  const setLoopRange = useCallback(
+    (aSec: number, bSec: number) => {
+      let a = Math.min(aSec, bSec);
+      let b = Math.max(aSec, bSec);
+      const dur =
+        durationSec != null && Number.isFinite(durationSec) && durationSec > 0 ? durationSec : null;
+      if (dur != null) {
+        a = clampNumber(a, 0, dur);
+        b = clampNumber(b, 0, dur);
+      } else {
+        a = Math.max(0, a);
+        b = Math.max(0, b);
+      }
+      if (b <= a) {
+        b = Math.min(a + 0.05, dur ?? a + 0.05);
+      }
+      setLoopAsec(a);
+      setLoopBsec(b);
+    },
+    [durationSec],
+  );
+
   const onLoadedMetadata = useCallback(() => {
     const el = mediaRef.current;
     if (!el) {
       return;
     }
+    setMediaLoadError(null);
     const d = el.duration;
     if (Number.isFinite(d) && d > 0) {
       setDurationSec(d);
     }
   }, []);
+
+  const onMediaError = useCallback(
+    (event: SyntheticEvent<HTMLMediaElement>) => {
+      const el = event.currentTarget;
+      if (!el) {
+        return;
+      }
+      setMediaLoadError(describeMediaElementError(el, mediaPath));
+    },
+    [mediaPath],
+  );
 
   const onPlay = useCallback(() => setPlaying(true), []);
   const onPause = useCallback(() => setPlaying(false), []);
@@ -372,6 +462,7 @@ export function usePlayerPlayback(runDir: string | null): UsePlayerPlaybackResul
   return {
     manifestLoading,
     manifestError,
+    mediaLoadError,
     summary,
     mediaSrc,
     mediaPath,
@@ -387,6 +478,7 @@ export function usePlayerPlayback(runDir: string | null): UsePlayerPlaybackResul
       onLoadedMetadata,
       onPlay,
       onPause,
+      onError: onMediaError,
     },
     play,
     pause,
@@ -399,6 +491,7 @@ export function usePlayerPlayback(runDir: string | null): UsePlayerPlaybackResul
     markLoopA,
     markLoopB,
     clearLoop,
+    setLoopRange,
     volume,
     muted,
     setVolume,

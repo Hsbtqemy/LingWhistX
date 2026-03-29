@@ -60,6 +60,10 @@ jobs:
       - name: Python syntax (Studio worker)
         run: python -m py_compile whisperx-studio/python/worker.py
 
+      - name: Python unit tests (Studio worker)
+        working-directory: whisperx-studio
+        run: python -m unittest discover -s python -p 'test_*.py' -q
+
       - name: Build frontend
         working-directory: whisperx-studio
         run: npm run build
@@ -88,3 +92,24 @@ jobs:
 
       - name: Cargo test (Tauri backend)
         run: cargo test --manifest-path whisperx-studio/src-tauri/Cargo.toml
+
+  lighthouse-dark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: whisperx-studio/package-lock.json
+
+      - name: Install Node dependencies
+        working-directory: whisperx-studio
+        run: npm ci
+
+      - name: Lighthouse CI (prefers-color-scheme: dark)
+        working-directory: whisperx-studio
+        run: npm run lighthouse

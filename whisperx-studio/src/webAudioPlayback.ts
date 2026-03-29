@@ -3,13 +3,19 @@
  * WX-622 — Chaîne preview (gain / EQ shelf / balance) sans écrire le fichier source.
  */
 
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { invoke } from "@tauri-apps/api/core";
 
 /** Moitié de la fenêtre centrée sur la position de lecture (secondes). */
 export const WEB_AUDIO_HALF_SEC = 10;
 /** Durée max d’un extrait (secondes) — aligné sur le plafond backend (60 s). */
 export const WEB_AUDIO_MAX_CHUNK_SEC = 60;
+
+/**
+ * Plafond chaîne base64 renvoyée par `read_extracted_wav_bytes_b64` (aligné sur
+ * `MAX_READ_WAV_BYTES_FOR_B64` côté Rust, ~4/3 en taille base64).
+ * Au-delà : refus explicite pour éviter un gel du thread principal.
+ */
+const MAX_WAV_B64_CHARS = 6 * 1024 * 1024;
 
 let sharedAudioContext: AudioContext | null = null;
 
@@ -18,6 +24,23 @@ function getAudioContext(): AudioContext {
     sharedAudioContext = new AudioContext();
   }
   return sharedAudioContext;
+}
+
+/** Charge le WAV depuis le cache via IPC (évite `fetch(convertFileSrc)` : périmètre asset Tauri). */
+async function readWavArrayBufferFromExtractPath(path: string): Promise<ArrayBuffer> {
+  const b64 = await invoke<string>("read_extracted_wav_bytes_b64", { path });
+  if (b64.length > MAX_WAV_B64_CHARS) {
+    throw new Error(
+      `Extrait WAV trop volumineux pour le navigateur (${b64.length} caractères base64, plafond ${MAX_WAV_B64_CHARS}). Réduis la durée ou la fenêtre (max ${WEB_AUDIO_MAX_CHUNK_SEC} s).`,
+    );
+  }
+  const binary = atob(b64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
 }
 
 function dbToLinearGain(db: number): number {
@@ -155,9 +178,7 @@ export class WebAudioWindowPlayer {
       durationSec: maxDur,
     });
     this.ctx = getAudioContext();
-    const url = convertFileSrc(outPath);
-    const res = await fetch(url);
-    const arr = await res.arrayBuffer();
+    const arr = await readWavArrayBufferFromExtractPath(outPath);
     this.buffer = await this.ctx.decodeAudioData(arr.slice(0));
     this.chunkStartSec = chunkStart;
     this.chunkEndSec = chunkStart + this.buffer.duration;
@@ -183,9 +204,7 @@ export class WebAudioWindowPlayer {
       durationSec: maxDur,
     });
     this.ctx = getAudioContext();
-    const url = convertFileSrc(outPath);
-    const res = await fetch(url);
-    const arr = await res.arrayBuffer();
+    const arr = await readWavArrayBufferFromExtractPath(outPath);
     this.buffer = await this.ctx.decodeAudioData(arr.slice(0));
     this.chunkStartSec = a;
     this.chunkEndSec = a + this.buffer.duration;

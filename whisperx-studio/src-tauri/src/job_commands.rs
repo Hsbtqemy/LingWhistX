@@ -4,9 +4,10 @@ use std::path::Path;
 
 use tauri::{AppHandle, Manager, State};
 
-use crate::app_events::{emit_job_log, emit_job_update};
+use crate::app_events::{emit_job_deleted, emit_job_log, emit_job_update};
 use crate::db::{
-    count_jobs, load_jobs_page, persist_job, redact_whisperx_options_for_storage, JOBS_PAGE_SIZE,
+    count_jobs, delete_job_row, load_jobs_page, persist_job, redact_whisperx_options_for_storage,
+    JOBS_PAGE_SIZE,
 };
 use crate::jobs::{current_job_status, mutate_job, run_job_thread};
 use crate::models::{
@@ -283,5 +284,52 @@ pub fn cancel_job(
         emit_job_log(&app, &event);
     }
 
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_job(
+    app: AppHandle,
+    db_state: State<DbState>,
+    state: State<JobsState>,
+    pagination: State<JobsPaginationState>,
+    runtime_state: State<RuntimeState>,
+    job_id: String,
+) -> Result<(), String> {
+    let status =
+        current_job_status(&state.jobs, &job_id).ok_or_else(|| "Unknown job id".to_string())?;
+
+    if status == "queued" || status == "running" {
+        return Err("Cannot delete a queued or running job; cancel it first.".into());
+    }
+
+    delete_job_row(db_state.path.as_ref(), &job_id)?;
+
+    {
+        let mut lock = state
+            .jobs
+            .lock()
+            .map_err(|_| "Failed to lock in-memory job store".to_string())?;
+        lock.remove(&job_id);
+    }
+
+    {
+        let _ = runtime_state
+            .running_pids
+            .lock()
+            .map_err(|_| "Failed to lock running pid store".to_string())?
+            .remove(&job_id);
+    }
+
+    {
+        let mut meta = pagination
+            .inner
+            .lock()
+            .map_err(|_| "Failed to lock jobs pagination state".to_string())?;
+        meta.total_in_db = count_jobs(db_state.path.as_ref())?;
+        meta.next_db_offset = meta.next_db_offset.min(meta.total_in_db);
+    }
+
+    emit_job_deleted(&app, &job_id);
     Ok(())
 }

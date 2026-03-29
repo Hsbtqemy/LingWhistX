@@ -469,6 +469,37 @@ def get_writer(
 
         return write_all
 
+    if "," in output_format:
+        parts = [p.strip().lower() for p in output_format.split(",") if p.strip()]
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for p in parts:
+            if p in seen:
+                continue
+            if p not in writers and p not in optional_writers:
+                raise ValueError(
+                    f"Unknown output format '{p}' in --output_format (expected one of: "
+                    f"{', '.join(sorted(writers.keys()))}, aud, or comma-separated combination)"
+                )
+            seen.add(p)
+            ordered.append(p)
+
+        if not ordered:
+            raise ValueError("Empty --output_format after parsing comma-separated list")
+
+        selected_instances: list[ResultWriter] = []
+        for p in ordered:
+            if p in optional_writers:
+                selected_instances.append(optional_writers[p](output_dir))
+            else:
+                selected_instances.append(writers[p](output_dir))
+
+        def write_selected(result: dict, file: str, options: dict):
+            for w in selected_instances:
+                w(result, file, options)
+
+        return write_selected
+
     if output_format in optional_writers:
         return optional_writers[output_format](output_dir)
     return writers[output_format](output_dir)

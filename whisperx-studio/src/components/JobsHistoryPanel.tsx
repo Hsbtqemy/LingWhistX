@@ -9,6 +9,8 @@ export type JobsHistoryPanelProps = {
   onFocusJobDetails: (jobId: string) => void;
   onOpenLocalPath: (path: string) => void;
   onCancelJob: (jobId: string) => void;
+  /** Supprime l’entrée SQLite + mémoire (fichiers sur disque inchangés). */
+  onDeleteJob: (jobId: string) => void | Promise<void>;
   /** Si défini et `hasMore`, affiche le bouton « Charger plus » (pagination SQLite). */
   jobsPagination?: { hasMore: boolean; totalInDb: number } | null;
   onLoadMoreJobs?: () => void | Promise<void>;
@@ -22,6 +24,7 @@ export function JobsHistoryPanel({
   onFocusJobDetails,
   onOpenLocalPath,
   onCancelJob,
+  onDeleteJob,
   jobsPagination,
   onLoadMoreJobs,
   loadMoreJobsLoading = false,
@@ -74,6 +77,7 @@ export function JobsHistoryPanel({
           ) : (
             jobs.map((job) => {
               const canCancel = job.status === "queued" || job.status === "running";
+              const canDeleteFromHistory = !canCancel;
               const isSelected = selectedJobId === job.id;
               return (
                 <article
@@ -130,6 +134,15 @@ export function JobsHistoryPanel({
                     {canCancel ? (
                       <button type="button" className="danger" onClick={() => onCancelJob(job.id)}>
                         Annuler
+                      </button>
+                    ) : null}
+                    {canDeleteFromHistory ? (
+                      <button
+                        type="button"
+                        className="ghost danger"
+                        onClick={() => void onDeleteJob(job.id)}
+                      >
+                        Retirer de l&apos;historique
                       </button>
                     ) : null}
                   </div>

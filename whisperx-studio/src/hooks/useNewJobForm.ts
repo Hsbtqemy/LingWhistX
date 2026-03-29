@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { defaultWhisperxOptions } from "../constants";
@@ -7,10 +7,16 @@ import { normalizeWhisperxOptions } from "../appUtils";
 import { readStoredHfToken, writeStoredHfToken } from "../hfTokenStorage";
 import { STUDIO_PREFS_CHANGED_EVENT } from "../studioPreferences";
 import { adaptiveProfilePresets } from "../runtimeAdaptivePresets";
+import {
+  applyProfileOverrides,
+  computeDirtyFields,
+  extractProfileOverrides,
+} from "../profiles/profileCompose";
 import type {
   CreateJobRequest,
   Job,
   JobFormStep,
+  ProfilePreset,
   RuntimeStatus,
   UiWhisperxOptions,
 } from "../types";
@@ -44,6 +50,8 @@ export function useNewJobForm({
     hfToken: readStoredHfToken(),
   }));
   const [selectedProfileId, setSelectedProfileId] = useState("balanced");
+  /** WX-656 — profils créés par l'utilisateur, chargés depuis appDataDir/profiles/ au démarrage. */
+  const [userProfiles, setUserProfiles] = useState<ProfilePreset[]>([]);
 
   useEffect(() => {
     writeStoredHfToken(whisperxOptions.hfToken);
@@ -59,14 +67,43 @@ export function useNewJobForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [jobFormStep, setJobFormStep] = useState<JobFormStep>("import");
 
+  const loadUserProfiles = useCallback(async () => {
+    try {
+      const raw = await invoke<{ id: string; label: string; description: string; overrides: Record<string, unknown> }[]>(
+        "read_user_profiles",
+      );
+      setUserProfiles(
+        raw.map((p) => ({
+          id: p.id,
+          label: p.label,
+          description: p.description,
+          overrides: p.overrides as Partial<UiWhisperxOptions>,
+          isUserProfile: true,
+        })),
+      );
+    } catch {
+      // Profils utilisateur indisponibles (ex. build web sans Tauri) — ignoré silencieusement.
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadUserProfiles();
+  }, [loadUserProfiles]);
+
   const profilePresetsResolved = useMemo(
-    () => adaptiveProfilePresets(runtimeStatus),
-    [runtimeStatus],
+    () => [...adaptiveProfilePresets(runtimeStatus), ...userProfiles],
+    [runtimeStatus, userProfiles],
   );
 
   const selectedProfile = useMemo(
     () => profilePresetsResolved.find((preset) => preset.id === selectedProfileId),
     [profilePresetsResolved, selectedProfileId],
+  );
+
+  /** WX-656 — champs modifiés par l'utilisateur depuis l'application du preset actif. */
+  const dirtyFields = useMemo(
+    () => computeDirtyFields(whisperxOptions, selectedProfile),
+    [whisperxOptions, selectedProfile],
   );
 
   const runtimePresetSyncedRef = useRef(false);
@@ -85,11 +122,11 @@ export function useNewJobForm({
       if (prev.device !== defaultWhisperxOptions.device) {
         return prev;
       }
-      return { ...profile.options, hfToken: prev.hfToken };
+      return applyProfileOverrides(profile.overrides, prev.hfToken);
     });
   }, [runtimeCoreReady, runtimeStatus?.whisperxOk, profilePresetsResolved, selectedProfileId]);
 
-  async function pickInputPath() {
+  async function pickInputPath(): Promise<string | null> {
     const selected = await open({
       multiple: false,
       directory: false,
@@ -99,7 +136,9 @@ export function useNewJobForm({
       setInputPath(selected);
       setError("");
       setJobFormStep("configure");
+      return selected;
     }
+    return null;
   }
 
   async function pickOutputDir() {
@@ -356,8 +395,35 @@ export function useNewJobForm({
     setSelectedProfileId(profileId);
     const profile = profilePresetsResolved.find((preset) => preset.id === profileId);
     if (profile) {
-      setWhisperxOptions((prev) => ({ ...profile.options, hfToken: prev.hfToken }));
+      setWhisperxOptions((prev) =>
+        applyProfileOverrides(profile.overrides, prev.hfToken),
+      );
     }
+  }
+
+  /** WX-656 — sauvegarde la configuration courante comme nouveau profil utilisateur. */
+  async function saveCurrentAsUserProfile(label: string, description: string): Promise<string> {
+    const trimmedLabel = label.trim();
+    if (!trimmedLabel) {
+      throw new Error("Le nom du profil est requis.");
+    }
+    const id = `user_${Date.now()}`;
+    const overrides = extractProfileOverrides(whisperxOptions);
+    const profilePayload = { id, label: trimmedLabel, description: description.trim(), overrides };
+    await invoke("save_user_profile", { profile: profilePayload });
+    await loadUserProfiles();
+    setSelectedProfileId(id);
+    return id;
+  }
+
+  /** WX-656 — supprime un profil utilisateur persisté. */
+  async function deleteUserProfile(id: string): Promise<void> {
+    await invoke("delete_user_profile", { id });
+    if (selectedProfileId === id) {
+      setSelectedProfileId("balanced");
+      applyProfile("balanced");
+    }
+    await loadUserProfiles();
   }
 
   function applyAdvancedPreset(
@@ -395,8 +461,11 @@ export function useNewJobForm({
     pickOutputDir,
     continueToConfigurationPanel,
     submitJob,
+    dirtyFields,
     applyProfile,
     applyAdvancedPreset,
+    saveCurrentAsUserProfile,
+    deleteUserProfile,
     profilePresets: profilePresetsResolved,
   };
 }

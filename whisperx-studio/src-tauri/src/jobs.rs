@@ -13,12 +13,13 @@ use std::sync::{Arc, Mutex};
 
 use tauri::AppHandle;
 
-use crate::app_events::{emit_job_log, emit_job_update};
+use crate::app_events::{emit_audio_quality, emit_job_log, emit_job_update};
 use crate::db::persist_job;
 use crate::embedded_resources::resolve_worker_path;
 use crate::ffmpeg_tools::{prepend_path_env, resolve_ffmpeg_tools};
 use crate::models::{
-    Job, JobLogEvent, LiveTranscriptSegment, WhisperxOptions, WorkerLog, WorkerResult,
+    Job, JobLogEvent, LiveTranscriptSegment, WhisperxOptions, WorkerLog, WorkerMessage,
+    WorkerResult,
 };
 use crate::python_runtime::resolve_python_command;
 use crate::time_utils::now_ms;
@@ -127,6 +128,44 @@ pub(crate) fn set_job_error(
     });
 }
 
+/// Traite un message `WorkerLog` (type `progress` ou legacy `__WXLOG__`).
+fn handle_worker_log(
+    app: &AppHandle,
+    db_path: &Path,
+    jobs: &Arc<Mutex<HashMap<String, Job>>>,
+    job_id: &str,
+    stream: &str,
+    worker_log: WorkerLog,
+) {
+    // Fallback legacy : live_transcript via stage (conservé pour compat protocole ancien).
+    if worker_log.stage.as_deref() == Some("wx_live_transcript") {
+        append_live_transcript_segment(db_path, jobs, job_id, &worker_log.message);
+    }
+
+    let level = worker_log.level.unwrap_or_else(|| {
+        if stream == "stderr" { "error".into() } else { "info".into() }
+    });
+
+    let event = JobLogEvent {
+        job_id: job_id.into(),
+        ts_ms: now_ms(),
+        stream: stream.into(),
+        level,
+        stage: worker_log.stage.clone(),
+        message: worker_log.message.clone(),
+    };
+    emit_job_log(app, &event);
+
+    if let Some(progress) = worker_log.progress {
+        mutate_job(app, db_path, jobs, job_id, |job| {
+            if progress > job.progress {
+                job.progress = progress;
+            }
+            job.message = worker_log.message;
+        });
+    }
+}
+
 fn process_worker_line(
     app: &AppHandle,
     db_path: &Path,
@@ -136,39 +175,67 @@ fn process_worker_line(
     stream: &str,
     line: &str,
 ) {
-    if let Some(json_payload) = line.strip_prefix(LOG_PREFIX) {
-        match serde_json::from_str::<WorkerLog>(json_payload) {
-            Ok(worker_log) => {
-                if worker_log.stage.as_deref() == Some("wx_live_transcript") {
-                    append_live_transcript_segment(db_path, jobs, job_id, &worker_log.message);
+    // WX-657 — protocole JSON-lines structuré (champ `type` discriminant).
+    // Une ligne JSON pure commence toujours par `{` ; on tente le parse en priorité.
+    if line.starts_with('{') {
+        match serde_json::from_str::<WorkerMessage>(line) {
+            Ok(WorkerMessage::Progress(worker_log)) => {
+                handle_worker_log(app, db_path, jobs, job_id, stream, worker_log);
+                return;
+            }
+            Ok(WorkerMessage::Result(result)) => {
+                if let Ok(mut lock) = result_holder.lock() {
+                    *lock = Some(result);
                 }
-
-                let level = worker_log.level.unwrap_or_else(|| {
-                    if stream == "stderr" {
-                        "error".into()
-                    } else {
-                        "info".into()
+                return;
+            }
+            Ok(WorkerMessage::LiveTranscript(seg)) => {
+                // Type dédié (WX-657) — stocke directement le segment sans passer par stage check.
+                mutate_job_without_emit(db_path, jobs, job_id, |job| {
+                    if job.live_transcript_segments.len() < LIVE_TRANSCRIPT_MAX_SEGMENTS {
+                        job.live_transcript_segments.push(seg);
                     }
                 });
-
+                return;
+            }
+            Ok(WorkerMessage::AudioQuality(report)) => {
+                // WX-661 — émet le rapport qualité au frontend, non bloquant.
+                emit_audio_quality(app, job_id, &report);
+                return;
+            }
+            Ok(WorkerMessage::Error(err)) => {
+                // Erreur structurée du worker avec code machine-readable.
+                // On logue le message et on laisse `run_worker` gérer l'état final via le code retour.
+                let hint = match err.code.as_deref() {
+                    Some("OOM") => " [Aide GPU] Mémoire insuffisante : modèle plus petit, batch réduit, ou CPU.",
+                    Some("HF_GATED") => " [Aide HF] Modèle gated : acceptez les conditions sur hf.co et renseignez votre token.",
+                    Some("HF_AUTH") => " [Aide HF] Token invalide ou expiré — vérifiez dans les préférences Studio.",
+                    Some("SSL") => " [Aide SSL] Certificats HTTPS manquants — voir Install Certificates.command (macOS).",
+                    Some("NETWORK") => " [Aide réseau] Connexion refusée ou timeout — vérifiez le proxy/pare-feu.",
+                    _ => "",
+                };
                 let event = JobLogEvent {
                     job_id: job_id.into(),
                     ts_ms: now_ms(),
                     stream: stream.into(),
-                    level,
-                    stage: worker_log.stage.clone(),
-                    message: worker_log.message.clone(),
+                    level: "error".into(),
+                    stage: Some("worker_error".into()),
+                    message: format!("{}{}", err.message, hint),
                 };
                 emit_job_log(app, &event);
+                return;
+            }
+            Err(_) => {
+                // JSON valide mais format inconnu — tombe dans le fallback plain-text ci-dessous.
+            }
+        }
+    }
 
-                if let Some(progress) = worker_log.progress {
-                    mutate_job(app, db_path, jobs, job_id, |job| {
-                        if progress > job.progress {
-                            job.progress = progress;
-                        }
-                        job.message = worker_log.message;
-                    });
-                }
+    // Fallback legacy : sentinelles __WXLOG__ / __WXRESULT__ (worker ancienne version).
+    if let Some(json_payload) = line.strip_prefix(LOG_PREFIX) {
+        match serde_json::from_str::<WorkerLog>(json_payload) {
+            Ok(worker_log) => {
+                handle_worker_log(app, db_path, jobs, job_id, stream, worker_log);
             }
             Err(err) => {
                 let event = JobLogEvent {
@@ -194,6 +261,7 @@ fn process_worker_line(
         return;
     }
 
+    // Ligne plain-text (stdout sous-processus, logs Python non structurés).
     let level = if stream == "stderr" { "error" } else { "info" };
     let event = JobLogEvent {
         job_id: job_id.into(),

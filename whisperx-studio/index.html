@@ -24,10 +24,17 @@
         try {
           var k = "lx-theme";
           var v = localStorage.getItem(k);
-          if (v == null) return;
+          if (v == null || String(v).trim() === "") {
+            document.documentElement.setAttribute("data-lx-theme", "system");
+            return;
+          }
           v = String(v).trim().toLowerCase();
-          if (v === "dark" || v === "light") {
+          if (v === "system") {
+            document.documentElement.setAttribute("data-lx-theme", "system");
+          } else if (v === "dark" || v === "light") {
             document.documentElement.setAttribute("data-lx-theme", v);
+          } else {
+            document.documentElement.setAttribute("data-lx-theme", "system");
           }
         } catch (e) {
           /* ignore */

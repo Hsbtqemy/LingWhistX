@@ -91,6 +91,24 @@ function App() {
     onNavigateToWorkspace: () => setActiveView("workspace"),
   });
 
+  const handlePlayerImportPick = useCallback(async () => {
+    setError("");
+    const path = await jobForm.pickInputPath();
+    if (path) {
+      setActiveView("workspace");
+    }
+  }, [jobForm, setError]);
+
+  const handlePlayerImportDroppedPath = useCallback(
+    (path: string) => {
+      setError("");
+      jobForm.setInputPath(path);
+      jobForm.setJobFormStep("configure");
+      setActiveView("workspace");
+    },
+    [jobForm, setError],
+  );
+
   useEffect(() => {
     whisperxSetterRef.current = jobForm.setWhisperxOptions;
     return () => {
@@ -165,6 +183,13 @@ function App() {
               runDir={playerRunDir}
               runLabel={playerRunLabel}
               onBack={handlePlayerBack}
+              importMedia={{
+                inputPath: jobForm.inputPath,
+                isSubmitting: jobForm.isSubmitting,
+                onPickFile: handlePlayerImportPick,
+                onDroppedPath: handlePlayerImportDroppedPath,
+                onImportError: setError,
+              }}
             />
           ) : null}
         </div>

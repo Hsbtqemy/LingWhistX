@@ -4,18 +4,53 @@ export type JobFormStep = "import" | "configure";
 /** Vues principales de l’application (navigation par onglets) */
 export type StudioView = "create" | "workspace" | "jobs" | "player" | "about";
 
-export type WhisperxOptions = {
+// ─── WX-655 : sous-interfaces sémantiques ────────────────────────────────────
+// La shape JSON sérialisée reste identique (intersections plates) — aucun impact
+// sur le bridge Tauri, les modèles Rust ou le worker Python.
+
+/** Modèle ASR et ressources de calcul. */
+export type WhisperxModelOptions = {
   model?: string;
   language?: string;
   device?: string;
   computeType?: string;
   batchSize?: number;
+};
+
+/** Découpage pipeline, VAD, alignement et format de sortie. */
+export type WhisperxPipelineOptions = {
   pipelineChunkSeconds?: number;
   pipelineChunkOverlapSeconds?: number;
+  vadMethod?: string;
+  noAlign?: boolean;
+  outputFormat?: string;
+  printProgress?: boolean;
+  /** Chemin absolu vers un JSON v1 de timings mots (WX-607). */
+  externalWordTimingsJson?: string;
+  /** Exiger la correspondance token par token avec la transcription. */
+  externalWordTimingsStrict?: boolean;
+  /**
+   * Modules pipeline audio optionnels (combinables). Clés canoniques : doc dans l’app
+   * `/docs/pipeline-modules-multi-speaker.md`.
+   */
+  audioPipelineModules?: Record<string, unknown>;
+  /**
+   * WX-623 — plages `{ startSec, endSec, audioPipelineModules? }[]` ; concat ffmpeg après traitement par plage.
+   */
+  audioPipelineSegments?: unknown[];
+};
+
+/** Diarisation et token HuggingFace. */
+export type WhisperxDiarizationOptions = {
   diarize?: boolean;
   minSpeakers?: number;
   maxSpeakers?: number;
   forceNSpeakers?: number;
+  hfToken?: string;
+};
+
+/** Analyse prosodique : pauses, IPU, tours de parole, stabilisation timestamps. */
+export type WhisperxAnalysisOptions = {
   analysisPauseMin?: number;
   analysisPauseIgnoreBelow?: number;
   analysisPauseMax?: number;
@@ -24,15 +59,6 @@ export type WhisperxOptions = {
   analysisIpuMinWords?: number;
   analysisIpuMinDuration?: number;
   analysisIpuBridgeShortGapsUnder?: number;
-  hfToken?: string;
-  outputFormat?: string;
-  noAlign?: boolean;
-  /** Chemin absolu vers un JSON v1 de timings mots (WX-607). */
-  externalWordTimingsJson?: string;
-  /** Exiger la correspondance token par token avec la transcription. */
-  externalWordTimingsStrict?: boolean;
-  vadMethod?: string;
-  printProgress?: boolean;
   /** WX-605 — ex. `sport_duo` */
   analysisSpeakerTurnPostprocessPreset?: string;
   analysisSpeakerTurnMergeGapSecMax?: number;
@@ -42,29 +68,61 @@ export type WhisperxOptions = {
   analysisWordTsNeighborRatioLow?: number;
   analysisWordTsNeighborRatioHigh?: number;
   analysisWordTsSmoothMaxSec?: number;
-  /**
-   * Modules pipeline audio optionnels (combinables). Clés canoniques : doc dans l’app
-   * `/docs/pipeline-modules-multi-speaker.md` (copie de `audit/pipeline-modules-multi-speaker.md`).
-   */
-  audioPipelineModules?: Record<string, unknown>;
-  /**
-   * WX-623 — plages `{ startSec, endSec, audioPipelineModules? }[]` ; concat ffmpeg après traitement par plage.
-   */
-  audioPipelineSegments?: unknown[];
 };
 
-export type UiWhisperxOptions = {
+/**
+ * Options complètes WhisperX — intersection des quatre catégories sémantiques.
+ * Utiliser les sous-types pour des patches typés partiels (ex. `Partial<WhisperxAnalysisOptions>`).
+ */
+export type WhisperxOptions = WhisperxModelOptions &
+  WhisperxPipelineOptions &
+  WhisperxDiarizationOptions &
+  WhisperxAnalysisOptions;
+
+// ─── Variantes UI (champs formulaire — toujours string sauf booléens) ─────────
+
+/** Variante formulaire — modèle et calcul. */
+export type UiWhisperxModelOptions = {
   model: string;
   language: string;
   device: "auto" | "cpu" | "cuda";
   computeType: "default" | "float16" | "float32" | "int8";
   batchSize: string;
+};
+
+/** Variante formulaire — pipeline, VAD, alignement, sorties. */
+export type UiWhisperxPipelineOptions = {
   pipelineChunkSeconds: string;
   pipelineChunkOverlapSeconds: string;
+  vadMethod: "pyannote" | "silero";
+  noAlign: boolean;
+  /** `all` ou liste séparée par des virgules (ex. `json,srt,vtt`). `json` est toujours produit pour Studio. */
+  outputFormat: string;
+  printProgress: boolean;
+  externalWordTimingsJson: string;
+  externalWordTimingsStrict: boolean;
+  /** Optionnel — pas de champ formulaire par défaut ; réservé API / extensions. */
+  audioPipelineModules?: Record<string, unknown>;
+  /**
+   * Objet JSON texte (prioritaire sur `audioPipelineModules` si non vide et parse valide).
+   * Voir `/docs/pipeline-modules-multi-speaker.md` dans l’app.
+   */
+  audioPipelineModulesJson: string;
+  /** JSON tableau (prioritaire) : plages pipeline (WX-623). */
+  audioPipelineSegmentsJson: string;
+};
+
+/** Variante formulaire — diarisation et token HF. */
+export type UiWhisperxDiarizationOptions = {
   diarize: boolean;
   minSpeakers: string;
   maxSpeakers: string;
   forceNSpeakers: string;
+  hfToken: string;
+};
+
+/** Variante formulaire — analyse prosodique. */
+export type UiWhisperxAnalysisOptions = {
   analysisPauseMin: string;
   analysisPauseIgnoreBelow: string;
   analysisPauseMax: string;
@@ -73,13 +131,6 @@ export type UiWhisperxOptions = {
   analysisIpuMinWords: string;
   analysisIpuMinDuration: string;
   analysisIpuBridgeShortGapsUnder: string;
-  hfToken: string;
-  outputFormat: "all" | "json" | "srt" | "vtt" | "txt" | "tsv" | "aud";
-  noAlign: boolean;
-  externalWordTimingsJson: string;
-  externalWordTimingsStrict: boolean;
-  vadMethod: "pyannote" | "silero";
-  printProgress: boolean;
   analysisSpeakerTurnPostprocessPreset: string;
   analysisSpeakerTurnMergeGapSecMax: string;
   analysisSpeakerTurnSplitWordGapSec: string;
@@ -87,17 +138,38 @@ export type UiWhisperxOptions = {
   analysisWordTsNeighborRatioLow: string;
   analysisWordTsNeighborRatioHigh: string;
   analysisWordTsSmoothMaxSec: string;
-  /** Optionnel — pas de champ formulaire par défaut ; réservé API / extensions. */
-  audioPipelineModules?: Record<string, unknown>;
+};
+
+/** Options UI complètes — intersection des quatre catégories. */
+export type UiWhisperxOptions = UiWhisperxModelOptions &
+  UiWhisperxPipelineOptions &
+  UiWhisperxDiarizationOptions &
+  UiWhisperxAnalysisOptions;
+
+/**
+ * WX-661 — rapport d'évaluation qualité audio émis avant la transcription (type=audio_quality).
+ * Tous les champs numériques peuvent être null si le décodage a échoué.
+ */
+export type AudioQualityReport = {
+  /** Estimation SNR en dB (approche spectrale). null si non disponible. */
+  snr_db: number | null;
+  /** Proportion d'échantillons saturés [0, 1]. null si non disponible. */
+  clipping_ratio: number | null;
+  /** Proportion d'énergie identifiée comme parole [0, 1]. null si non disponible. */
+  speech_ratio: number | null;
+  /** Durée totale du fichier (secondes). */
+  duration_sec: number | null;
+  /** Durée estimée de parole (secondes). */
+  speech_sec: number | null;
   /**
-   * Objet JSON texte (prioritaire sur `audioPipelineModules` si non vide et parse valide).
-   * Voir `/docs/pipeline-modules-multi-speaker.md` dans l’app (source `audit/…` dans le dépôt).
+   * Codes d'avertissement :
+   *   CLIPPING       — clipping_ratio > 0.001
+   *   HIGH_NOISE     — snr_db < 15 dB
+   *   LOW_SPEECH     — speech_ratio < 0.15
+   *   DECODE_FAILED  — impossible de décoder l'audio
+   *   ASSESS_UNAVAILABLE — module audio_assessment absent
    */
-  audioPipelineModulesJson: string;
-  /**
-   * JSON tableau (prioritaire) : plages pipeline (WX-623) — même doc que ci-dessus.
-   */
-  audioPipelineSegmentsJson: string;
+  warnings: string[];
 };
 
 /** Segment ASR émis en direct (stage `wx_live_transcript`, message JSON côté worker). */
@@ -165,6 +237,10 @@ export type RuntimeStatus = {
   torchMpsAvailable?: boolean;
   /** Défaut identique au CLI WhisperX : cuda ou cpu (faster-whisper n’utilise pas MPS). */
   whisperxDefaultDevice?: string | null;
+  /** WX-666 — Demucs disponible pour séparation sources. */
+  demucsOk?: boolean;
+  /** Version de Demucs détectée (undefined/null si absent). */
+  demucsVersion?: string | null;
 };
 
 export type RuntimeSetupStatus = {
@@ -323,6 +399,75 @@ export type EditorSnapshot = {
   segments: EditableSegment[];
 };
 
+// ─── WX-658 : patches structurés pour l'historique undo/redo ─────────────────
+// Remplace les snapshots complets par des opérations inversibles.
+// Mémoire : ~50 bytes par patch (text_change) vs ~25 KB par snapshot (500 segments).
+
+export type TextChangePatch = {
+  kind: "text_change";
+  index: number;
+  prevText: string;
+  nextText: string;
+};
+
+export type TimingChangePatch = {
+  kind: "timing_change";
+  index: number;
+  prevStart: number;
+  prevEnd: number;
+  nextStart: number;
+  nextEnd: number;
+};
+
+export type SplitPatch = {
+  kind: "split";
+  /** Index du segment avant le split. */
+  index: number;
+  original: EditableSegment;
+  left: EditableSegment;
+  right: EditableSegment;
+};
+
+export type MergePatch = {
+  kind: "merge";
+  firstIndex: number;
+  secondIndex: number;
+  seg1: EditableSegment;
+  seg2: EditableSegment;
+  merged: EditableSegment;
+};
+
+export type LanguageChangePatch = {
+  kind: "language_change";
+  prevLanguage: string;
+  nextLanguage: string;
+};
+
+export type SpeakerChangePatch = {
+  kind: "speaker_change";
+  index: number;
+  prevSpeaker: string | null | undefined;
+  nextSpeaker: string | null | undefined;
+};
+
+/** Union de toutes les mutations atomiques inversibles sur un `EditorSnapshot`. */
+export type SegmentPatch =
+  | TextChangePatch
+  | TimingChangePatch
+  | SplitPatch
+  | MergePatch
+  | LanguageChangePatch
+  | SpeakerChangePatch;
+
+/**
+ * Entrée d'historique undo/redo.
+ * - `patch` : l'opération à appliquer pour aller vers l'état cible (économique en mémoire).
+ * - `snapshot` : fallback pour les opérations non modélisées par un patch (multi-segment delete, etc.).
+ */
+export type HistoryEntry =
+  | { kind: "patch"; patch: SegmentPatch }
+  | { kind: "snapshot"; snapshot: EditorSnapshot };
+
 export type CreateJobRequest = {
   inputPath: string;
   outputDir?: string | null;
@@ -334,7 +479,13 @@ export type ProfilePreset = {
   id: string;
   label: string;
   description: string;
-  options: UiWhisperxOptions;
+  /**
+   * WX-656 — surcharges partielles appliquées par-dessus `defaultWhisperxOptions`.
+   * Seuls les champs définis ici remplacent le défaut ; les champs absents restent au défaut.
+   */
+  overrides: Partial<UiWhisperxOptions>;
+  /** true pour les profils créés par l'utilisateur (persistés sur disque). */
+  isUserProfile?: boolean;
 };
 
 /** Résumé `run_manifest.json` (WX-611), aligné sur la commande Tauri `read_run_manifest_summary`. */
@@ -467,6 +618,33 @@ export type QueryWindowResult = {
   pauses: EventPauseRow[];
   ipus: EventIpuRow[];
   truncated: QueryWindowTruncated;
+};
+
+/** Requête / réponse IPC `recompute_player_alerts` (WX-652). */
+export type RecomputePlayerAlertsRequest = {
+  runDir: string;
+  t0Ms: number;
+  t1Ms: number;
+  longPauseMs: number;
+  queryPreset: "standard" | "words_detail";
+  speakers: string[];
+};
+
+export type RecomputePlayerAlertsStats = {
+  nOverlapTurn: number;
+  nLongPause: number;
+  nTurnsInWindow: number;
+  nPausesInWindow: number;
+};
+
+export type RecomputePlayerAlertsResponse = {
+  alerts: Array<{
+    id: string;
+    kind: "overlap_turn" | "long_pause";
+    startMs: number;
+    message: string;
+  }>;
+  stats: RecomputePlayerAlertsStats;
 };
 
 /** Résultat `build_waveform_pyramid` (WX-614, format WXENV1). */

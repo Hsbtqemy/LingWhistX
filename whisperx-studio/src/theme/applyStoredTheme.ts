@@ -1,6 +1,6 @@
 /**
- * Clé localStorage — préférence thème explicite (`light` | `dark`) ; absent = système.
- * À garder aligné avec le script inline dans `index.html` (anti-flash avant chargement du bundle).
+ * Clé localStorage — préférence thème (`light` | `dark` | `system`) ; absent ou invalide = système.
+ * Aligné avec le script inline dans `index.html` (anti-flash avant chargement du bundle).
  */
 export const LX_THEME_STORAGE_KEY = "lx-theme";
 
@@ -17,7 +17,7 @@ export function notifyThemePreferenceChanged(): void {
 function syncDomFromPreference(pref: LxThemePreference): void {
   const root = document.documentElement;
   if (pref === "system") {
-    root.removeAttribute("data-lx-theme");
+    root.setAttribute("data-lx-theme", "system");
   } else {
     root.setAttribute("data-lx-theme", pref);
   }
@@ -27,7 +27,7 @@ function syncDomFromPreference(pref: LxThemePreference): void {
 export function readStoredThemePreference(): LxThemePreference {
   try {
     const raw = localStorage.getItem(LX_THEME_STORAGE_KEY)?.trim().toLowerCase();
-    if (raw === "dark" || raw === "light") return raw;
+    if (raw === "dark" || raw === "light" || raw === "system") return raw;
     return "system";
   } catch {
     return "system";
@@ -36,16 +36,12 @@ export function readStoredThemePreference(): LxThemePreference {
 
 /**
  * Enregistre le thème et met à jour `data-lx-theme` sur `<html>`.
- * - `system` : supprime l’attribut (le CSS suit `prefers-color-scheme`)
- * - `light` | `dark` : force le thème correspondant
+ * - `system` : `data-lx-theme="system"` + le CSS suit `prefers-color-scheme` dans ce mode
+ * - `light` | `dark` : forcé
  */
 export function setThemePreference(pref: LxThemePreference): void {
   try {
-    if (pref === "system") {
-      localStorage.removeItem(LX_THEME_STORAGE_KEY);
-    } else {
-      localStorage.setItem(LX_THEME_STORAGE_KEY, pref);
-    }
+    localStorage.setItem(LX_THEME_STORAGE_KEY, pref);
   } catch {
     /* lecture seule ou quota : on applique quand même au DOM */
   }
@@ -53,13 +49,26 @@ export function setThemePreference(pref: LxThemePreference): void {
   notifyThemePreferenceChanged();
 }
 
-/**
- * Applique `data-lx-theme` sur `<html>` avant le premier paint React.
- * - `light` | `dark` : forcé
- * - absent ou `system` : suit `prefers-color-scheme` (CSS uniquement)
- */
+/** Applique `data-lx-theme` sur `<html>` selon {@link readStoredThemePreference}. */
 export function applyStoredTheme(): void {
   syncDomFromPreference(readStoredThemePreference());
+}
+
+/**
+ * Rendu effectif (clair / sombre) après application des tokens CSS.
+ * Utile pour l’UI (libellé « actuellement ») et les tests.
+ */
+export function getEffectiveColorScheme(): "light" | "dark" {
+  const attr = document.documentElement.getAttribute("data-lx-theme");
+  if (attr === "light") return "light";
+  if (attr === "dark") return "dark";
+  if (attr === "system" || attr == null) {
+    if (typeof window === "undefined" || !window.matchMedia) {
+      return "light";
+    }
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  return "light";
 }
 
 let themeStorageSyncRegistered = false;

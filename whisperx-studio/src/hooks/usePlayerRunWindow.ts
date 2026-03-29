@@ -2,12 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { QueryWindowResult } from "../types";
 import { QUERY_WINDOW_DEFAULT_MAX } from "../types";
+import {
+  computePlayerWindowQueryBounds,
+  PLAYER_RUN_WINDOW_DEBOUNCE_MS,
+  PLAYER_RUN_WINDOW_MIN_INTERVAL_MS,
+} from "../player/playerRunWindowBounds";
+import type { ViewportQueryContract } from "../components/player/playerViewportContract";
 
-/** Fenêtre temporelle totale centrée sur la tête de lecture (spec WX-624 : buffer ~±10s–±30s ; ici 60s pour Lanes/Chat). */
-export const PLAYER_WINDOW_TOTAL_MS = 60_000;
-
-/** Fenêtre 30s pour charger les mots (spec : words si fenêtre ≤ 30s). */
-export const PLAYER_WINDOW_WORDS_MS = 30_000;
+/** Réexport — compat imports existants. */
+export {
+  PLAYER_WINDOW_TOTAL_MS,
+  PLAYER_WINDOW_WORDS_MS,
+} from "../player/playerRunWindowBounds";
 
 /**
  * Grille temporelle pour déclencher `query_run_events_window` : ~4 requêtes/s max pendant la lecture
@@ -15,7 +21,7 @@ export const PLAYER_WINDOW_WORDS_MS = 30_000;
  */
 export const PLAYER_WINDOW_COARSE_SEC = 0.25;
 
-export type PlayerRunWindowQueryPreset = "standard" | "words_detail";
+export type PlayerRunWindowQueryPreset = "standard" | "words_detail" | "full_run";
 
 export type UsePlayerRunWindowOptions = {
   runDir: string | null;
@@ -26,8 +32,14 @@ export type UsePlayerRunWindowOptions = {
   /**
    * `standard` : 60s, sans words (Lanes/Chat).
    * `words_detail` : 30s + words avec plafond (aperçu mots).
+   * Ignoré si `queryContract` est fourni.
    */
   queryPreset?: PlayerRunWindowQueryPreset;
+  /**
+   * WX-660 — contrat de vue : définit les tables requises et la fenêtre temporelle.
+   * Prioritaire sur `queryPreset` quand fourni.
+   */
+  queryContract?: ViewportQueryContract;
   /** Filtre SQLite : un ou plusieurs `speaker` exacts ; `null` = tous. */
   speakersFilter?: string[] | null;
 };
@@ -39,17 +51,25 @@ export type UsePlayerRunWindowResult = {
   /** Bornes de la dernière requête réussie (ms). */
   lastT0Ms: number | null;
   lastT1Ms: number | null;
+  /** Preset résolu (depuis le contrat ou le paramètre explicite). */
   queryPreset: PlayerRunWindowQueryPreset;
 };
 
 /**
- * Slices SQLite pour le Player : `query_run_events_window` avec couches adaptées (sans words sur fenêtre large).
+ * Slices SQLite pour le Player : `query_run_events_window` avec couches adaptées par vue (WX-660).
+ *
+ * WX-654 : debounce 50–100 ms, marge buffer ±10 s sur la fenêtre logique, intervalle min entre IPC
+ * pour rester sous ~10 requêtes/s en conditions normales.
+ *
+ * WX-660 : `queryContract` détermine les tables interrogées et la taille de fenêtre selon la vue
+ * active — remplace le booléen `includeWords` hard-codé.
  */
 export function usePlayerRunWindow({
   runDir,
   centerTimeSec,
   enabled,
   queryPreset = "standard",
+  queryContract,
   speakersFilter = null,
 }: UsePlayerRunWindowOptions): UsePlayerRunWindowResult {
   const [loading, setLoading] = useState(false);
@@ -61,8 +81,30 @@ export function usePlayerRunWindow({
   const centerRef = useRef(centerTimeSec);
   centerRef.current = centerTimeSec;
 
-  const coarseKey = Math.floor(centerTimeSec / PLAYER_WINDOW_COARSE_SEC) * PLAYER_WINDOW_COARSE_SEC;
-  const speakersKey = speakersFilter && speakersFilter.length > 0 ? speakersFilter.join("|") : "";
+  const lastInvokeDoneAtRef = useRef(0);
+  /**
+   * Ref pour lire le contrat et le filtre au moment de l’IPC (après debounce) sans les
+   * mettre dans les deps de l’effet. Les clés dérivées (`resolvedPreset`, `contractLayersKey`,
+   * `speakersKey`) encodent le contenu effectif dans les deps.
+   */
+  const speakersFilterRef = useRef(speakersFilter);
+  speakersFilterRef.current = speakersFilter;
+  const queryContractRef = useRef(queryContract);
+  queryContractRef.current = queryContract;
+
+  // Preset résolu : le contrat est prioritaire sur le param explicite.
+  const resolvedPreset: PlayerRunWindowQueryPreset =
+    queryContract?.queryPreset ?? queryPreset;
+
+  // Clé stable pour les layers du contrat (évite re-render si la référence change mais pas le contenu).
+  const contractLayersKey = queryContract
+    ? `${queryContract.layers.words ? 1 : 0}${queryContract.layers.turns ? 1 : 0}${queryContract.layers.pauses ? 1 : 0}${queryContract.layers.ipus ? 1 : 0}`
+    : null;
+
+  const coarseKey =
+    Math.floor(centerTimeSec / PLAYER_WINDOW_COARSE_SEC) * PLAYER_WINDOW_COARSE_SEC;
+  const speakersKey =
+    speakersFilter && speakersFilter.length > 0 ? speakersFilter.join("|") : "";
 
   useEffect(() => {
     if (!runDir || !enabled) {
@@ -80,28 +122,40 @@ export function usePlayerRunWindow({
 
     const t = window.setTimeout(() => {
       void (async () => {
+        const now0 = Date.now();
+        const waitMin = Math.max(
+          0,
+          PLAYER_RUN_WINDOW_MIN_INTERVAL_MS - (now0 - lastInvokeDoneAtRef.current),
+        );
+        await new Promise((r) => setTimeout(r, waitMin));
+        if (cancelled) {
+          return;
+        }
+
+        const contract = queryContractRef.current;
+        const preset = contract?.queryPreset ?? queryPreset;
+        // WX-660 : tables issues du contrat ; fallback sur le comportement historique.
+        const layers = contract?.layers ?? {
+          words: preset === "words_detail",
+          turns: true,
+          pauses: true,
+          ipus: true,
+        };
+
         const centerMs = Math.round(centerRef.current * 1000);
-        const totalMs =
-          queryPreset === "words_detail" ? PLAYER_WINDOW_WORDS_MS : PLAYER_WINDOW_TOTAL_MS;
-        const half = Math.floor(totalMs / 2);
-        const t0 = Math.max(0, centerMs - half);
-        const t1 = centerMs + half;
-        const includeWords = queryPreset === "words_detail";
+        const { t0Ms, t1Ms } = computePlayerWindowQueryBounds(centerMs, preset);
+
         try {
-          const speakers = speakersFilter && speakersFilter.length > 0 ? speakersFilter : [];
+          const f = speakersFilterRef.current;
+          const speakers = f && f.length > 0 ? f : [];
           const r = await invoke<QueryWindowResult>("query_run_events_window", {
             request: {
               runDir,
-              t0Ms: t0,
-              t1Ms: t1,
-              layers: {
-                words: includeWords,
-                turns: true,
-                pauses: true,
-                ipus: true,
-              },
+              t0Ms,
+              t1Ms,
+              layers,
               speakers,
-              limits: includeWords
+              limits: layers.words
                 ? {
                     maxWords: Math.min(2000, QUERY_WINDOW_DEFAULT_MAX.words),
                     maxTurns: 2000,
@@ -111,6 +165,7 @@ export function usePlayerRunWindow({
                 : undefined,
             },
           });
+          lastInvokeDoneAtRef.current = Date.now();
           if (!cancelled) {
             setSlice(r);
             setLastT0Ms(r.t0Ms);
@@ -130,14 +185,16 @@ export function usePlayerRunWindow({
           }
         }
       })();
-    }, 75);
+    }, PLAYER_RUN_WINDOW_DEBOUNCE_MS);
 
     return () => {
       cancelled = true;
       window.clearTimeout(t);
       setLoading(false);
     };
-  }, [runDir, enabled, coarseKey, queryPreset, speakersKey]);
+    // contractLayersKey encode le contenu des layers ; resolvedPreset encode le preset résolu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runDir, enabled, coarseKey, resolvedPreset, contractLayersKey, speakersKey]);
 
-  return { loading, error, slice, lastT0Ms, lastT1Ms, queryPreset };
+  return { loading, error, slice, lastT0Ms, lastT1Ms, queryPreset: resolvedPreset };
 }

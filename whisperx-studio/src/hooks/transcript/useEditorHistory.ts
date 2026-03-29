@@ -5,13 +5,38 @@ import {
   MIN_EDITOR_HISTORY_LIMIT,
 } from "../../constants";
 import { areEditorSnapshotsEqual, clampNumber, cloneEditorSnapshot } from "../../appUtils";
-import type { EditorSnapshot } from "../../types";
+import type { EditorSnapshot, HistoryEntry, SegmentPatch } from "../../types";
+import { applyPatch, invertPatch } from "./editorPatches";
 
-export function trimEditorHistoryStack(stack: EditorSnapshot[], limit: number): EditorSnapshot[] {
+export function trimEditorHistoryStack<T>(stack: T[], limit: number): T[] {
   if (stack.length <= limit) {
     return stack;
   }
   return stack.slice(stack.length - limit);
+}
+
+/**
+ * Applique une `HistoryEntry` à un snapshot.
+ * - Patch → `applyPatch` (économique en mémoire et CPU).
+ * - Snapshot → retourne directement le snapshot stocké.
+ */
+function applyHistoryEntry(snapshot: EditorSnapshot, entry: HistoryEntry): EditorSnapshot {
+  if (entry.kind === "patch") {
+    return applyPatch(snapshot, entry.patch);
+  }
+  return cloneEditorSnapshot(entry.snapshot);
+}
+
+/**
+ * Construit l'entrée inverse d'une `HistoryEntry` (pour alimenter la pile opposée).
+ * - Patch → `invertPatch` (pas de snapshot nécessaire).
+ * - Snapshot → on capture l'état courant (snapshot complet, comportement legacy).
+ */
+function invertHistoryEntry(entry: HistoryEntry, currentSnapshot: EditorSnapshot): HistoryEntry {
+  if (entry.kind === "patch") {
+    return { kind: "patch", patch: invertPatch(entry.patch) };
+  }
+  return { kind: "snapshot", snapshot: cloneEditorSnapshot(currentSnapshot) };
 }
 
 export type UseEditorHistoryArgs = {
@@ -25,10 +50,11 @@ export function useEditorHistory({
   applySnapshot,
   onUndoRedo,
 }: UseEditorHistoryArgs) {
-  const [editorUndoStack, setEditorUndoStack] = useState<EditorSnapshot[]>([]);
-  const [editorRedoStack, setEditorRedoStack] = useState<EditorSnapshot[]>([]);
-  const editorUndoStackRef = useRef<EditorSnapshot[]>([]);
-  const editorRedoStackRef = useRef<EditorSnapshot[]>([]);
+  // WX-658 : stacks stockent des HistoryEntry (patch ou snapshot) au lieu de snapshots complets.
+  const [editorUndoStack, setEditorUndoStack] = useState<HistoryEntry[]>([]);
+  const [editorRedoStack, setEditorRedoStack] = useState<HistoryEntry[]>([]);
+  const editorUndoStackRef = useRef<HistoryEntry[]>([]);
+  const editorRedoStackRef = useRef<HistoryEntry[]>([]);
   const [editorHistoryLimitInput, setEditorHistoryLimitInput] = useState(
     String(DEFAULT_EDITOR_HISTORY_LIMIT),
   );
@@ -41,19 +67,41 @@ export function useEditorHistory({
     return clampNumber(Math.floor(parsed), MIN_EDITOR_HISTORY_LIMIT, MAX_EDITOR_HISTORY_LIMIT);
   }, [editorHistoryLimitInput]);
 
-  function setHistoryStacks(nextUndo: EditorSnapshot[], nextRedo: EditorSnapshot[]) {
+  function setHistoryStacks(nextUndo: HistoryEntry[], nextRedo: HistoryEntry[]) {
     editorUndoStackRef.current = nextUndo;
     editorRedoStackRef.current = nextRedo;
     setEditorUndoStack(nextUndo);
     setEditorRedoStack(nextRedo);
   }
 
+  /** Pousse un snapshot complet (legacy / opérations complexes non patchables). */
   function pushUndoSnapshot(snapshot: EditorSnapshot) {
+    const entry: HistoryEntry = { kind: "snapshot", snapshot: cloneEditorSnapshot(snapshot) };
     const nextUndo = trimEditorHistoryStack(
-      [...editorUndoStackRef.current, cloneEditorSnapshot(snapshot)],
+      [...editorUndoStackRef.current, entry],
       editorHistoryLimit,
     );
     setHistoryStacks(nextUndo, []);
+  }
+
+  /**
+   * WX-658 — applique un patch forward, enregistre `invertPatch(patch)` dans l'undo stack.
+   * Retourne `false` si le patch n'a pas modifié le document.
+   */
+  function applyEditorPatch(patch: SegmentPatch): boolean {
+    const currentSnapshot = getCurrentSnapshot();
+    const nextSnapshot = applyPatch(currentSnapshot, patch);
+    if (areEditorSnapshotsEqual(currentSnapshot, nextSnapshot)) {
+      return false;
+    }
+    const undoEntry: HistoryEntry = { kind: "patch", patch: invertPatch(patch) };
+    const nextUndo = trimEditorHistoryStack(
+      [...editorUndoStackRef.current, undoEntry],
+      editorHistoryLimit,
+    );
+    setHistoryStacks(nextUndo, []);
+    applySnapshot(nextSnapshot);
+    return true;
   }
 
   function applyEditorSnapshotMutation(
@@ -69,8 +117,12 @@ export function useEditorHistory({
     }
 
     if (recordHistory) {
+      const entry: HistoryEntry = {
+        kind: "snapshot",
+        snapshot: cloneEditorSnapshot(currentSnapshot),
+      };
       const nextUndo = trimEditorHistoryStack(
-        [...editorUndoStackRef.current, cloneEditorSnapshot(currentSnapshot)],
+        [...editorUndoStackRef.current, entry],
         editorHistoryLimit,
       );
       setHistoryStacks(nextUndo, []);
@@ -87,17 +139,19 @@ export function useEditorHistory({
       return;
     }
     const undoStack = [...editorUndoStackRef.current];
-    const previous = undoStack.pop();
-    if (!previous) {
+    const undoEntry = undoStack.pop();
+    if (!undoEntry) {
       return;
     }
     const current = getCurrentSnapshot();
+    // L'entrée redo est l'inverse de l'undo (pour pouvoir ré-appliquer).
+    const redoEntry = invertHistoryEntry(undoEntry, current);
     const nextRedo = trimEditorHistoryStack(
-      [...editorRedoStackRef.current, current],
+      [...editorRedoStackRef.current, redoEntry],
       editorHistoryLimit,
     );
     setHistoryStacks(undoStack, nextRedo);
-    applySnapshot(previous);
+    applySnapshot(applyHistoryEntry(current, undoEntry));
     onUndoRedo?.("undo");
   }
 
@@ -106,17 +160,18 @@ export function useEditorHistory({
       return;
     }
     const redoStack = [...editorRedoStackRef.current];
-    const next = redoStack.pop();
-    if (!next) {
+    const redoEntry = redoStack.pop();
+    if (!redoEntry) {
       return;
     }
     const current = getCurrentSnapshot();
+    const undoEntry = invertHistoryEntry(redoEntry, current);
     const nextUndo = trimEditorHistoryStack(
-      [...editorUndoStackRef.current, current],
+      [...editorUndoStackRef.current, undoEntry],
       editorHistoryLimit,
     );
     setHistoryStacks(nextUndo, redoStack);
-    applySnapshot(next);
+    applySnapshot(applyHistoryEntry(current, redoEntry));
     onUndoRedo?.("redo");
   }
 
@@ -142,6 +197,7 @@ export function useEditorHistory({
     editorHistoryLimit,
     setHistoryStacks,
     applyEditorSnapshotMutation,
+    applyEditorPatch,
     pushUndoSnapshot,
     undoEditorChange,
     redoEditorChange,

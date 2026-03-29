@@ -6,25 +6,51 @@ import {
   clampNumber,
   fileBasename,
   formatClockSeconds,
+  joinPathSegments,
   parsePlayerTimecodeToSeconds,
 } from "../../appUtils";
+import { useWaveformCanvas } from "../../hooks/useWaveformCanvas";
+import { useWaveformWorkspace } from "../../hooks/useWaveformWorkspace";
 import { usePlayerPlayback } from "../../hooks/usePlayerPlayback";
-import { usePlayerKeyboard } from "../../hooks/usePlayerKeyboard";
+import { usePlayerKeyboard, type UsePlayerKeyboardOptions } from "../../hooks/usePlayerKeyboard";
 import { usePlayerRunWindow } from "../../hooks/usePlayerRunWindow";
 import { derivePlayerAlerts } from "../../player/derivePlayerAlerts";
 import type { PlayerDerivedAlertKind } from "../../player/derivePlayerAlerts";
-import type { ExportRunTimingPackResponse, StudioView } from "../../types";
+import type {
+  ExportRunTimingPackResponse,
+  RecomputePlayerAlertsResponse,
+  RecomputePlayerAlertsStats,
+  StudioView,
+} from "../../types";
+import type { PlayerDerivedAlert } from "../../player/derivePlayerAlerts";
 import { PlayerRunWindowViews, type PlayerViewportMode } from "./PlayerRunWindowViews";
+import {
+  VIEWPORT_QUERY_CONTRACTS,
+  type ViewportQueryContract,
+} from "./playerViewportContract";
 import { PlayerJumpPanel } from "./PlayerJumpPanel";
 import { PlayerMediaTransport } from "./PlayerMediaTransport";
 import { PlayerTopBar } from "./PlayerTopBar";
 import { PlayerRunArtifactsStrip } from "./PlayerRunArtifactsStrip";
+import { PlayerWaveformPanel } from "./PlayerWaveformPanel";
+import { ErrorBanner } from "../ErrorBanner";
+import { NewJobDropZone } from "../NewJobDropZone";
 import { Button } from "../ui";
+
+/** Import média depuis l’état vide Player — même état que « Nouveau job » puis bascule Studio. */
+export type PlayerWorkspaceSectionImportMediaProps = {
+  inputPath: string;
+  isSubmitting: boolean;
+  onPickFile: () => void | Promise<void>;
+  onDroppedPath: (path: string) => void;
+  onImportError: (message: string) => void;
+};
 
 export type PlayerWorkspaceSectionProps = {
   runDir: string | null;
   runLabel?: string | null;
   onBack: (view: StudioView) => void;
+  importMedia?: PlayerWorkspaceSectionImportMediaProps;
 };
 
 type AlertListFilter = "all" | PlayerDerivedAlertKind;
@@ -32,7 +58,12 @@ type AlertListFilter = "all" | PlayerDerivedAlertKind;
 /**
  * Player multi-vues (WX-624) — layout TopBar + colonnes + viewport ; transport via usePlayerPlayback.
  */
-export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorkspaceSectionProps) {
+export function PlayerWorkspaceSection({
+  runDir,
+  runLabel,
+  onBack,
+  importMedia,
+}: PlayerWorkspaceSectionProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [viewportMode, setViewportMode] = useState<PlayerViewportMode>("lanes");
   const [wordsWindowEnabled, setWordsWindowEnabled] = useState(false);
@@ -44,6 +75,13 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
   const [speakerSolo, setSpeakerSolo] = useState<string | null>(null);
   const [runSpeakerIds, setRunSpeakerIds] = useState<string[]>([]);
   const [alertListFilter, setAlertListFilter] = useState<AlertListFilter>("all");
+  const [longPauseMs, setLongPauseMs] = useState(3000);
+  const [ipcAlerts, setIpcAlerts] = useState<PlayerDerivedAlert[] | null>(null);
+  const [recomputeBusy, setRecomputeBusy] = useState(false);
+  const [recomputeError, setRecomputeError] = useState("");
+  const [lastRecomputeStats, setLastRecomputeStats] = useState<RecomputePlayerAlertsStats | null>(
+    null,
+  );
   const [jumpTimeInput, setJumpTimeInput] = useState("");
   const [jumpTimeError, setJumpTimeError] = useState("");
   const [copyPositionHint, setCopyPositionHint] = useState(false);
@@ -58,6 +96,7 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
   const {
     manifestLoading,
     manifestError,
+    mediaLoadError,
     summary,
     mediaSrc,
     mediaPath,
@@ -68,6 +107,7 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
     playbackRate,
     loopAsec,
     loopBsec,
+    setLoopRange,
     mediaRef,
     mediaHandlers,
     togglePlayPause,
@@ -85,19 +125,95 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
     toggleMute,
   } = pb;
 
+  const wf = useWaveformWorkspace({
+    selectedJob: null,
+    selectedJobId: runDir ? `player:${runDir}` : "player-idle",
+    selectedIsVideo: isVideo,
+    previewMediaPath: mediaPath,
+    playerMediaRef: mediaRef,
+  });
+
+  useWaveformCanvas(wf, [], null, null, null);
+
+  const pauseCsvPaths = useMemo(() => {
+    if (!runDir || !summary?.artifactKeys?.length) {
+      return [];
+    }
+    return summary.artifactKeys
+      .filter((k) => k.toLowerCase().endsWith(".pauses.csv"))
+      .map((k) => joinPathSegments(runDir, k));
+  }, [runDir, summary?.artifactKeys]);
+
+  useEffect(() => {
+    if (wf.webAudioMode && !isVideo) {
+      return;
+    }
+    wf.setMediaCurrentSec(currentTimeSec);
+  }, [currentTimeSec, isVideo, wf]);
+
   const runWindowEnabled = Boolean(runDir && !manifestLoading && !manifestError);
+
+  // WX-660 : contrat de vue — tables et fenêtre dédiées par mode.
+  // `wordsWindowEnabled` force la couche words sur toute vue (toggle UI existant).
+  const queryContract: ViewportQueryContract = (() => {
+    const base = VIEWPORT_QUERY_CONTRACTS[viewportMode];
+    if (wordsWindowEnabled && !base.layers.words) {
+      return {
+        queryPreset: "words_detail" as const,
+        layers: { ...base.layers, words: true },
+      };
+    }
+    return base;
+  })();
+
+  const wordsLayerActive = queryContract.layers.words;
+
   const runWindow = usePlayerRunWindow({
     runDir,
     centerTimeSec: currentTimeSec,
     enabled: runWindowEnabled,
-    queryPreset: wordsWindowEnabled ? "words_detail" : "standard",
+    queryContract,
     speakersFilter: speakerSolo ? [speakerSolo] : null,
   });
 
-  const derivedAlerts = useMemo(
-    () => (runWindow.slice ? derivePlayerAlerts(runWindow.slice) : []),
-    [runWindow.slice],
+  const derivedAlertsFromTs = useMemo(
+    () => (runWindow.slice ? derivePlayerAlerts(runWindow.slice, { longPauseMs }) : []),
+    [runWindow.slice, longPauseMs],
   );
+
+  useEffect(() => {
+    setIpcAlerts(null);
+    setLastRecomputeStats(null);
+  }, [runDir, runWindow.slice?.t0Ms, runWindow.slice?.t1Ms, speakerSolo, longPauseMs]);
+
+  const derivedAlerts = ipcAlerts ?? derivedAlertsFromTs;
+
+  const recomputePlayerAlertsIpc = useCallback(async () => {
+    if (!runDir || !runWindow.slice) {
+      return;
+    }
+    setRecomputeError("");
+    setRecomputeBusy(true);
+    try {
+      const r = await invoke<RecomputePlayerAlertsResponse>("recompute_player_alerts", {
+        request: {
+          runDir,
+          t0Ms: runWindow.slice.t0Ms,
+          t1Ms: runWindow.slice.t1Ms,
+          longPauseMs,
+          queryPreset: runWindow.queryPreset,
+          speakers: speakerSolo ? [speakerSolo] : [],
+        },
+      });
+      setIpcAlerts(r.alerts as PlayerDerivedAlert[]);
+      setLastRecomputeStats(r.stats);
+    } catch (e) {
+      setRecomputeError(String(e));
+      setIpcAlerts(null);
+    } finally {
+      setRecomputeBusy(false);
+    }
+  }, [runDir, runWindow.slice, runWindow.queryPreset, speakerSolo, longPauseMs]);
 
   const displayedAlerts = useMemo(() => {
     if (alertListFilter === "all") {
@@ -279,7 +395,7 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
   const posLabel = formatClockSeconds(currentTimeSec);
 
   const copyPlayheadToClipboard = useCallback(async () => {
-    if (!mediaSrc || manifestError) {
+    if (!mediaSrc || manifestError || mediaLoadError) {
       return;
     }
     const text = formatClockSeconds(currentTimeSec);
@@ -296,7 +412,7 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
     } catch {
       /* presse-papiers indisponible */
     }
-  }, [currentTimeSec, mediaSrc, manifestError]);
+  }, [currentTimeSec, mediaSrc, manifestError, mediaLoadError]);
 
   const toggleVideoFullscreen = useCallback(async () => {
     const el = mediaRef.current;
@@ -362,38 +478,76 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
 
   const transportDisabled = !mediaSrc || !!manifestError;
 
-  const onKeyDown = usePlayerKeyboard({
-    shortcutsHelpOpen,
-    setShortcutsHelpOpen,
-    togglePlayPause,
-    copyPlayheadToClipboard,
-    exportRunTimingPack,
-    exportPackBusy,
-    openRunFolder,
-    runDir,
-    stop,
-    seek,
-    seekRelative,
-    durationSec,
-    mediaSrc,
-    manifestError,
-    nudgePlaybackRate,
-    setViewportMode,
-    displayedAlerts,
-    playheadMs,
-    setFollowPlayhead,
-    setWordsWindowEnabled,
-    toggleMute,
-    toggleVideoFullscreen,
-    isVideo,
-    loopAsec,
-    loopBsec,
-    markLoopA,
-    markLoopB,
-    clearLoop,
-    runSpeakerIds,
-    setSpeakerSolo,
-  });
+  const keyboardOptions = useMemo(
+    (): UsePlayerKeyboardOptions => ({
+      shortcutsHelpOpen,
+      setShortcutsHelpOpen,
+      togglePlayPause,
+      copyPlayheadToClipboard,
+      exportRunTimingPack,
+      exportPackBusy,
+      openRunFolder,
+      runDir,
+      stop,
+      seek,
+      seekRelative,
+      durationSec,
+      mediaSrc,
+      manifestError,
+      mediaLoadError,
+      nudgePlaybackRate,
+      setViewportMode,
+      displayedAlerts,
+      playheadMs,
+      setFollowPlayhead,
+      setWordsWindowEnabled,
+      toggleMute,
+      toggleVideoFullscreen,
+      isVideo,
+      loopAsec,
+      loopBsec,
+      markLoopA,
+      markLoopB,
+      clearLoop,
+      runSpeakerIds,
+      setSpeakerSolo,
+    }),
+    [
+      shortcutsHelpOpen,
+      setShortcutsHelpOpen,
+      togglePlayPause,
+      copyPlayheadToClipboard,
+      exportRunTimingPack,
+      exportPackBusy,
+      openRunFolder,
+      runDir,
+      stop,
+      seek,
+      seekRelative,
+      durationSec,
+      mediaSrc,
+      manifestError,
+      mediaLoadError,
+      nudgePlaybackRate,
+      setViewportMode,
+      displayedAlerts,
+      playheadMs,
+      setFollowPlayhead,
+      setWordsWindowEnabled,
+      toggleMute,
+      toggleVideoFullscreen,
+      isVideo,
+      loopAsec,
+      loopBsec,
+      markLoopA,
+      markLoopB,
+      clearLoop,
+      runSpeakerIds,
+      setSpeakerSolo,
+    ],
+  );
+
+  const onKeyDown = usePlayerKeyboard(keyboardOptions);
 
   useEffect(() => {
     rootRef.current?.focus();
@@ -434,6 +588,11 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
         {runDir && summary && summary.artifactKeys.length > 0 ? (
           <PlayerRunArtifactsStrip runDir={runDir} artifactKeys={summary.artifactKeys} />
         ) : null}
+        {mediaLoadError ? (
+          <ErrorBanner>
+            <p className="error-banner-text">{mediaLoadError}</p>
+          </ErrorBanner>
+        ) : null}
       </div>
 
       {!runDir ? (
@@ -454,18 +613,46 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
               Tu peux aussi sélectionner un job avec média dans le détail du run et ouvrir le Player
               depuis les fichiers de sortie.
             </p>
+            {importMedia ? (
+              <div className="player-empty-import">
+                <p className="player-empty-import-hint">
+                  <strong>Nouveau job</strong> — importe un média (glisser-déposer ou Parcourir) : tu
+                  seras basculé vers le Studio pour les paramètres et le lancement.
+                </p>
+                <NewJobDropZone
+                  selectedLabel={
+                    importMedia.inputPath.trim()
+                      ? fileBasename(importMedia.inputPath)
+                      : undefined
+                  }
+                  disabled={importMedia.isSubmitting}
+                  onPath={importMedia.onDroppedPath}
+                  onError={importMedia.onImportError}
+                />
+                <div className="player-empty-import-row">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={importMedia.isSubmitting}
+                    onClick={() => void importMedia.onPickFile()}
+                  >
+                    Parcourir un média
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             <div className="player-empty-cta">
               <Button type="button" variant="primary" onClick={() => onBack("workspace")}>
                 Aller au Studio
               </Button>
-              <Button type="button" variant="secondary" onClick={() => onBack("create")}>
-                LingWhistX
+              <Button type="button" variant="secondary" onClick={() => onBack("jobs")}>
+                Historique des jobs
               </Button>
             </div>
           </div>
         </div>
       ) : manifestLoading ? (
-        <div className="player-empty">
+        <div className="player-empty player-empty--loading" role="status" aria-busy="true">
           <p>Chargement du manifest…</p>
         </div>
       ) : manifestError ? (
@@ -531,6 +718,16 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
               >
                 Karaoké
               </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={viewportMode === "stats"}
+                className={`player-view-mode-btn ${viewportMode === "stats" ? "is-active" : ""}`}
+                onClick={() => setViewportMode("stats")}
+                title="Statistiques prosodiques par locuteur (WX-667)"
+              >
+                Stats
+              </button>
             </div>
             <label className="player-words-toggle small">
               <input
@@ -540,7 +737,7 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
               />
               Fenêtre mots (30s) + requête words
             </label>
-            <p className="small mono player-view-mode-hint">⌃1 · ⌃2 · ⌃3 · ⌃4 · ⌃5 · ⌃6</p>
+            <p className="small mono player-view-mode-hint">⌃1 · ⌃2 · ⌃3 · ⌃4 · ⌃5 · ⌃6 · ⌃7</p>
             <h4 className="player-panel-title">Filtres</h4>
             <p className="small">
               Locuteur : <span className="mono">{speakerSolo ?? "tous"}</span>
@@ -600,6 +797,7 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
                       className="player-viewport-audio"
                       src={mediaSrc}
                       preload="metadata"
+                      muted={muted || wf.webAudioMode}
                       {...mediaHandlers}
                     />
                   </>
@@ -642,6 +840,14 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
                   onCopyPlayhead={copyPlayheadToClipboard}
                 />
               ) : null}
+              {mediaSrc && mediaPath && runDir ? (
+                <PlayerWaveformPanel
+                  wf={wf}
+                  mediaPath={mediaPath}
+                  pauseCsvPaths={pauseCsvPaths}
+                  isVideo={isVideo}
+                />
+              ) : null}
             </div>
             <div
               ref={eventsPanelRef}
@@ -672,14 +878,59 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
                 playheadMs={playheadMs}
                 loading={runWindow.loading}
                 queryError={runWindow.error}
-                wordsLayerActive={wordsWindowEnabled}
+                wordsLayerActive={wordsLayerActive}
+                followPlayhead={followPlayhead}
                 onSeekToMs={(ms) => seek(ms / 1000)}
+                durationSec={durationSec}
+                loopAsec={loopAsec}
+                loopBsec={loopBsec}
+                onSetLoopRange={setLoopRange}
               />
             </div>
             {runDir ? <p className="small mono player-viewport-path">{runDir}</p> : null}
           </main>
           <aside className="player-panel player-panel--right">
             <h4 className="player-panel-title">Alertes (fenêtre)</h4>
+            <details className="player-alerts-advanced small">
+              <summary className="player-alerts-advanced-summary">Avancé — seuils (IPC)</summary>
+              <div className="player-alerts-advanced-body">
+                <label className="player-alerts-advanced-label">
+                  Pause longue ≥ (ms)
+                  <input
+                    type="range"
+                    min={500}
+                    max={30000}
+                    step={100}
+                    value={longPauseMs}
+                    onChange={(e) => setLongPauseMs(Number(e.target.value))}
+                    aria-label="Seuil pause longue en millisecondes"
+                  />
+                  <span className="mono">{longPauseMs}</span>
+                </label>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!runWindow.slice}
+                  loading={recomputeBusy}
+                  onClick={() => void recomputePlayerAlertsIpc()}
+                >
+                  Recalculer (IPC)
+                </Button>
+                {recomputeError ? (
+                  <p className="small player-alerts-recompute-error" role="alert">
+                    {recomputeError}
+                  </p>
+                ) : null}
+                {lastRecomputeStats ? (
+                  <p className="small mono player-alerts-qc-stats">
+                    QC Rust : {lastRecomputeStats.nOverlapTurn} chev. · {lastRecomputeStats.nLongPause}{" "}
+                    pauses · {lastRecomputeStats.nTurnsInWindow} tours ·{" "}
+                    {lastRecomputeStats.nPausesInWindow} pauses (fenêtre)
+                  </p>
+                ) : null}
+              </div>
+            </details>
             <label className="player-alert-filter small">
               Liste :{" "}
               <select
@@ -696,7 +947,8 @@ export function PlayerWorkspaceSection({ runDir, runLabel, onBack }: PlayerWorks
             </label>
             {derivedAlerts.length === 0 ? (
               <p className="small">
-                Aucune alerte détectée (chevauchements de tours, pauses ≥ 3 s).
+                Aucune alerte détectée (chevauchements de tours, pauses ≥{" "}
+                {(longPauseMs / 1000).toFixed(1).replace(/\.0$/, "")} s).
               </p>
             ) : displayedAlerts.length === 0 ? (
               <p className="small">Aucune alerte pour ce filtre.</p>

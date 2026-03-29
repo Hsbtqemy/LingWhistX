@@ -26,6 +26,7 @@ mod run_events_recalc;
 mod runtime_setup_commands;
 mod runtime_status;
 mod transcript_commands;
+mod user_profiles_commands;
 mod waveform;
 mod wxenv;
 
@@ -70,17 +71,27 @@ pub fn run() {
             transcript_commands::export_run_timing_pack,
             local_fs_commands::open_local_path,
             local_fs_commands::read_text_preview,
+            local_fs_commands::list_directory_files,
             job_commands::cancel_job,
+            job_commands::delete_job,
             run_commands::read_run_manifest_summary,
             run_commands::list_recent_runs,
             run_commands::clear_recent_runs,
+            run_commands::remove_recent_run,
+            run_commands::delete_run_directory,
             run_events::import_run_events,
             run_events::list_run_speakers,
             run_events::query_run_events_window,
+            run_events::player_derived_alerts::recompute_player_alerts,
             run_events_recalc::recalc_pauses_ipu,
             audio_preview::extract_audio_wav_window,
+            audio_preview::read_extracted_wav_bytes_b64,
             audio_preview::export_audio_wav_segment,
-            hf_token_commands::validate_hf_token
+            audio_preview::generate_preprocessed_audio_preview,
+            hf_token_commands::validate_hf_token,
+            user_profiles_commands::read_user_profiles,
+            user_profiles_commands::save_user_profile,
+            user_profiles_commands::delete_user_profile
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

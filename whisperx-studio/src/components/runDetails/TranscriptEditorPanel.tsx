@@ -10,9 +10,9 @@ import { isPreviewableFile, parseFiniteNumberInput, qaIssueLabel } from "../../a
 import { ErrorBanner } from "../ErrorBanner";
 import type {
   EditableSegment,
-  EditorSnapshot,
   ExportCorrectionReport,
   ExportTimingRules,
+  HistoryEntry,
   TranscriptQaIssue,
 } from "../../types";
 
@@ -56,8 +56,8 @@ export type TranscriptEditorPanelProps = {
   editorSegments: EditableSegment[];
   displayedEditorSegments: EditableSegment[];
   editorDirty: boolean;
-  editorUndoStack: EditorSnapshot[];
-  editorRedoStack: EditorSnapshot[];
+  editorUndoStack: HistoryEntry[];
+  editorRedoStack: HistoryEntry[];
   activeSegmentIndex: number | null;
   setActiveSegmentIndex: (n: number | null) => void;
   updateEditorSegmentBoundary: (index: number, edge: "start" | "end", value: number) => void;

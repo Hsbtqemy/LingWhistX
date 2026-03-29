@@ -74,6 +74,7 @@ export function useStudioWorkspace({
     loadMoreJobsLoading,
     jobsPagination,
     cancelJob,
+    deleteJob,
     focusJobDetails,
     selectedJob,
     selectedJobLogs,
@@ -176,6 +177,7 @@ export function useStudioWorkspace({
       onFocusJobDetails: focusJobDetails,
       onOpenLocalPath: openLocalPath,
       onCancelJob: cancelJob,
+      onDeleteJob: deleteJob,
       jobsPagination: jobsPagination
         ? { hasMore: jobsPagination.hasMore, totalInDb: jobsPagination.totalInDb }
         : null,
@@ -188,6 +190,7 @@ export function useStudioWorkspace({
       focusJobDetails,
       openLocalPath,
       cancelJob,
+      deleteJob,
       jobsPagination,
       loadMoreJobs,
       loadMoreJobsLoading,

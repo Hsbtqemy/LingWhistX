@@ -16,6 +16,7 @@ describe("JobsHistoryPanel — pagination jobs", () => {
         onFocusJobDetails={noop}
         onOpenLocalPath={noop}
         onCancelJob={noop}
+        onDeleteJob={noop}
         jobsPagination={{ hasMore: true, totalInDb: 100 }}
         onLoadMoreJobs={vi.fn()}
         loadMoreJobsLoading

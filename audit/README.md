@@ -3,6 +3,10 @@
 Date d'audit: 2026-03-19  
 Scope: `c:\Dev\whisperX`
 
+## Audit global récent (LingWhistX)
+
+- **`audit/audit-global-2026-03-28.md`** — Vue transversale 2026-03-28 : tests, lint, Rust, Python, CI, backlog, index des audits.
+
 ## Fichiers produits
 
 - `audit/workspace-audit.md`: inventaire technique et constats.

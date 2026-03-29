@@ -40,7 +40,25 @@ except ImportError:
         _ = (out_dir, options, emit_log)
         return input_path
 
+try:
+    from audio_assessment import assess_audio, mock_assessment
+except ImportError:
+    try:
+        from whisperx_studio.audio_assessment import assess_audio, mock_assessment
+    except ImportError:
 
+        def assess_audio(input_path: str, sample_rate: int = 16000) -> dict:  # type: ignore[misc]
+            _ = (input_path, sample_rate)
+            return {"snr_db": None, "clipping_ratio": None, "speech_ratio": None,
+                    "duration_sec": None, "speech_sec": None, "warnings": ["ASSESS_UNAVAILABLE"]}
+
+        def mock_assessment(duration_sec: float = 120.0) -> dict:  # type: ignore[misc]
+            _ = duration_sec
+            return {"snr_db": 28.5, "clipping_ratio": 0.0, "speech_ratio": 0.72,
+                    "duration_sec": duration_sec, "speech_sec": duration_sec * 0.72, "warnings": []}
+
+
+# WX-657 : conservés pour rétrocompatibilité (parsés côté Rust comme fallback legacy).
 LOG_PREFIX = "__WXLOG__"
 RESULT_PREFIX = "__WXRESULT__"
 SUPPORTED_OUTPUT_FORMATS = {"all", "json", "srt", "vtt", "txt", "tsv", "aud"}
@@ -197,19 +215,79 @@ def emit_log(
     message: str,
     progress: int | None = None,
 ) -> None:
+    """WX-657 : émet une ligne JSON-lines structurée (type=progress)."""
     payload: dict[str, object] = {
+        "type": "progress",
         "level": level,
         "stage": stage,
         "message": message,
     }
     if progress is not None:
         payload["progress"] = max(0, min(100, int(progress)))
-    print(f"{LOG_PREFIX}{json.dumps(payload, ensure_ascii=False)}", flush=True)
+    print(json.dumps(payload, ensure_ascii=False), flush=True)
+
+
+def emit_live_transcript(start: float, end: float, text: str) -> None:
+    """WX-657 : type dédié pour les segments temps-réel (évite le check stage côté Rust)."""
+    payload: dict[str, object] = {
+        "type": "live_transcript",
+        "start": start,
+        "end": end,
+        "text": text,
+    }
+    print(json.dumps(payload, ensure_ascii=False), flush=True)
 
 
 def emit_result(message: str, output_files: list[str]) -> None:
-    payload = {"message": message, "output_files": output_files}
-    print(f"{RESULT_PREFIX}{json.dumps(payload, ensure_ascii=False)}", flush=True)
+    """WX-657 : type=result (remplace le préfixe __WXRESULT__)."""
+    payload: dict[str, object] = {
+        "type": "result",
+        "message": message,
+        "output_files": output_files,
+    }
+    print(json.dumps(payload, ensure_ascii=False), flush=True)
+
+
+def emit_audio_quality(report: dict) -> None:
+    """WX-661 : type=audio_quality — rapport d'évaluation qualité avant transcription."""
+    payload: dict[str, object] = {"type": "audio_quality", **report}
+    print(json.dumps(payload, ensure_ascii=False), flush=True)
+
+
+def classify_error(message: str) -> str | None:
+    """WX-657 : retourne un code d'erreur machine-readable pour le type=error structuré."""
+    low = message.lower()
+    if "cuda out of memory" in low or "out of memory" in low or "outofmemoryerror" in low:
+        return "OOM"
+    if "gatedrepoerror" in low or "cannot access gated repo" in low or (
+        "access to model" in low and "restricted" in low
+    ):
+        return "HF_GATED"
+    if (
+        "401" in low
+        or "unauthorized" in low
+        or "invalid credentials" in low
+        or ("gated" in low and "huggingface" in low)
+        or ("cannot access" in low and "gated" in low)
+    ):
+        return "HF_AUTH"
+    if (
+        "certificate_verify_failed" in low
+        or "sslcertverificationerror" in low
+        or "unable to get local issuer certificate" in low
+        or ("certificate verify failed" in low and "ssl" in low)
+    ):
+        return "SSL"
+    if (
+        "connection refused" in low
+        or "timed out" in low
+        or "urlerror" in low
+        or "network is unreachable" in low
+        or "getaddrinfo failed" in low
+        or "temporary failure in name resolution" in low
+    ):
+        return "NETWORK"
+    return None
 
 
 _whisperx_help_cache: str | None = None
@@ -312,10 +390,51 @@ def _skip_intermediate_chunk_artifact(path: Path) -> bool:
     return bool(_CHUNK_WORDS_JSONL_RE.search(name))
 
 
+def _normalize_output_format_for_cli(options: dict[str, object]) -> tuple[str, bool]:
+    """Construit la valeur `--output_format` (y compris liste comma-separated) ; force `json` si besoin pour Studio.
+
+    Retourne (format_cli, json_ajouté_automatiquement).
+    """
+    raw = options.get("outputFormat", "all")
+    if isinstance(raw, list):
+        parts = [str(x).strip().lower() for x in raw if str(x).strip()]
+    else:
+        s = str(raw).strip().lower() or "all"
+        if s == "all":
+            return ("all", False)
+        parts = [p.strip() for p in s.split(",") if p.strip()]
+    if not parts:
+        return ("all", False)
+    if len(parts) == 1 and parts[0] == "all":
+        return ("all", False)
+    filtered = [p for p in parts if p in SUPPORTED_OUTPUT_FORMATS]
+    if not filtered:
+        return ("all", False)
+    forcing_json = "json" not in filtered
+    if forcing_json:
+        filtered.insert(0, "json")
+    seen: set[str] = set()
+    dedup: list[str] = []
+    for p in filtered:
+        if p not in seen:
+            seen.add(p)
+            dedup.append(p)
+    if len(dedup) == 1:
+        return (dedup[0], forcing_json)
+    return (",".join(dedup), forcing_json)
+
+
 def collect_output_files(out_dir: Path) -> list[str]:
     """Liste les fichiers sous `out_dir` pour le résultat job (hors caches et artefacts chunk ASR)."""
+    return collect_output_files_with_progress(out_dir, emit_progress=False)
+
+
+def collect_output_files_with_progress(out_dir: Path, *, emit_progress: bool = True) -> list[str]:
+    """Comme `collect_output_files`, avec logs de progression (96–99 %) pour l’UI pendant le scan."""
     root = out_dir.resolve()
     collected: list[str] = []
+    files_seen = 0
+    last_progress_emit = 96
     for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
         dirnames[:] = [d for d in dirnames if d not in _SKIP_OUTPUT_DIR_NAMES]
         for fn in filenames:
@@ -328,7 +447,28 @@ def collect_output_files(out_dir: Path) -> list[str]:
             if _skip_intermediate_chunk_artifact(p):
                 continue
             collected.append(str(p))
+            files_seen += 1
+            if emit_progress:
+                # Un seul passage disque ; éviter un emit à chaque N fichiers (IPC coûteux sur
+                # des dizaines de milliers de fichiers) : premier fichier, paliers 96→99, fin.
+                progress = min(99, 96 + min(3, files_seen // 100))
+                if files_seen == 1 or progress > last_progress_emit:
+                    emit_log(
+                        "info",
+                        "wx_finalize",
+                        f"Collecte des fichiers de sortie… ({files_seen} fichier(s) indexé(s))",
+                        progress,
+                    )
+                    last_progress_emit = progress
+
     collected.sort()
+    if emit_progress and files_seen > 0:
+        emit_log(
+            "info",
+            "wx_finalize",
+            f"Indexation terminée — {len(collected)} fichier(s) retenu(s).",
+            99,
+        )
     return collected
 
 
@@ -341,6 +481,8 @@ def run_mock(job_id: str, input_path: str, out_dir: Path) -> list[str]:
         ("export", "Export", 96),
     ]
 
+    # WX-661 : rapport qualité déterministe en mode mock.
+    emit_audio_quality(mock_assessment(120.0))
     emit_log("info", "mock", f"Input: {input_path}", 5)
     for stage, label, progress in stages:
         emit_log("info", stage, f"{label} en cours...", progress)
@@ -571,18 +713,25 @@ def append_analysis_options(command: list[str], options: dict[str, object]) -> N
 
 
 def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> list[str]:
+    # WX-661 : évaluation qualité audio avant transcription (non bloquante).
+    emit_log("info", "wx_prep", "Évaluation qualité audio…", 5)
+    try:
+        quality_report = assess_audio(input_path)
+        emit_audio_quality(quality_report)
+        if quality_report.get("warnings"):
+            for w in quality_report["warnings"]:
+                if w == "CLIPPING":
+                    emit_log("warning", "wx_prep", "Clipping détecté — résultats potentiellement dégradés.", 6)
+                elif w == "HIGH_NOISE":
+                    emit_log("warning", "wx_prep", "Bruit élevé (SNR < 15 dB) — qualité de transcription potentiellement réduite.", 6)
+                elif w == "LOW_SPEECH":
+                    emit_log("warning", "wx_prep", "Peu de parole détectée — vérifie que le bon fichier est sélectionné.", 6)
+    except Exception as exc:
+        emit_log("warning", "wx_prep", f"Évaluation qualité audio ignorée : {exc}", 6)
+
     input_path = maybe_prepare_audio_input(input_path, out_dir, options, emit_log=emit_log)
 
-    requested_output_format = str(options.get("outputFormat", "all")).strip().lower() or "all"
-    if requested_output_format not in SUPPORTED_OUTPUT_FORMATS:
-        requested_output_format = "all"
-    # Studio transcript/workspace features rely on a JSON artifact.
-    # Force `all` for non-JSON single-format requests so `.json` remains available.
-    output_format = (
-        requested_output_format
-        if requested_output_format in {"all", "json"}
-        else "all"
-    )
+    output_format, added_json = _normalize_output_format_for_cli(options)
     command = [
         sys.executable,
         "-m",
@@ -594,11 +743,11 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         output_format,
     ]
 
-    if output_format != requested_output_format:
+    if added_json:
         emit_log(
             "info",
             "whisperx",
-            f"Format demande '{requested_output_format}' -> execution '{output_format}' pour conserver le JSON Studio.",
+            "Format JSON ajouté automatiquement (requis pour l’éditeur transcript Studio).",
             12,
         )
 
@@ -734,11 +883,8 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         live_seg = parse_live_transcript_line(clean)
         if live_seg is not None:
             start_f, end_f, text = live_seg
-            payload = json.dumps(
-                {"start": start_f, "end": end_f, "text": text},
-                ensure_ascii=False,
-            )
-            emit_log("info", "wx_live_transcript", payload)
+            # WX-657 : type dédié live_transcript (plus de stage="wx_live_transcript" imbriqué).
+            emit_live_transcript(start_f, end_f, text)
             last_wx_stage = "wx_transcribe"
             continue
 
@@ -764,7 +910,9 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         raise RuntimeError(summary)
 
     emit_log("info", "wx_finalize", "WhisperX terminé — collecte des fichiers de sortie…", 96)
-    return [str(path) for path in sorted(out_dir.rglob("*")) if path.is_file()]
+    # Même logique qu’analyse-only : os.walk avec exclusion des caches / artefacts chunk ASR
+    # (évite un rglob sur des milliers de fichiers intermédiaires — nettement plus rapide).
+    return collect_output_files_with_progress(out_dir, emit_progress=True)
 
 
 def run_analyze_only(input_path: str, out_dir: Path, options: dict[str, object]) -> list[str]:
@@ -807,7 +955,7 @@ def run_analyze_only(input_path: str, out_dir: Path, options: dict[str, object])
         raise RuntimeError(f"analyze-only command failed with exit code {return_code}")
 
     emit_log("info", "wx_finalize", "Analyse-only terminée — collecte des fichiers…", 96)
-    return collect_output_files(out_dir)
+    return collect_output_files_with_progress(out_dir, emit_progress=True)
 
 
 def main() -> int:
@@ -834,8 +982,21 @@ def main() -> int:
         emit_result(message, outputs)
         return 0
     except Exception as exc:
-        print(str(exc), file=sys.stderr, flush=True)
+        error_message = str(exc)
+        # WX-657 : émettre une erreur structurée avec code machine-readable avant de quitter.
+        code = classify_error(error_message)
+        emit_error_structured(error_message, code)
+        # Garder la sortie stderr pour la compat avec append_worker_failure_context (Rust).
+        print(error_message, file=sys.stderr, flush=True)
         return 1
+
+
+def emit_error_structured(message: str, code: str | None = None) -> None:
+    """WX-657 : type=error avec code machine-readable (OOM, HF_GATED, HF_AUTH, SSL, NETWORK)."""
+    payload: dict[str, object] = {"type": "error", "message": message}
+    if code:
+        payload["code"] = code
+    print(json.dumps(payload, ensure_ascii=False), flush=True)
 
 
 if __name__ == "__main__":

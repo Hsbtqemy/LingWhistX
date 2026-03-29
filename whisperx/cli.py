@@ -139,6 +139,30 @@ def write_run_manifest(
     return path
 
 
+_OUTPUT_FORMAT_TOKENS = frozenset({"all", "json", "srt", "vtt", "txt", "tsv", "aud"})
+
+
+def parse_output_format_arg(value: str) -> str:
+    """Accepte `all`, un format seul, ou une liste séparée par des virgules (ex. `json,srt,vtt`)."""
+    v = value.strip().lower()
+    if "," in v:
+        parts = [p.strip() for p in v.split(",") if p.strip()]
+        if not parts:
+            raise argparse.ArgumentTypeError("output_format: liste vide")
+        for p in parts:
+            pl = p.lower()
+            if pl not in _OUTPUT_FORMAT_TOKENS:
+                raise argparse.ArgumentTypeError(
+                    f"output_format: format inconnu {pl!r} (attendu un de {_OUTPUT_FORMAT_TOKENS})"
+                )
+        return ",".join(p.lower() for p in parts)
+    if v not in _OUTPUT_FORMAT_TOKENS:
+        raise argparse.ArgumentTypeError(
+            f"output_format: valeur inconnue {v!r} (attendu all, un format seul, ou liste comma-separated)"
+        )
+    return v
+
+
 def register_core_arguments(parser: argparse.ArgumentParser) -> None:
     """Arguments shared by run/transcribe/align/diarize/analyze subcommands."""
     import torch
@@ -160,7 +184,13 @@ def register_core_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--compute_type", default="default", type=str, choices=["default", "float16", "float32", "int8"], help="compute type for computation; 'default' uses float16 on GPU, float32 on CPU")
 
     parser.add_argument("--output_dir", "-o", type=str, default=".", help="directory to save the outputs")
-    parser.add_argument("--output_format", "-f", type=str, default="all", choices=["all", "srt", "vtt", "txt", "tsv", "json", "aud"], help="format of the output file; if not specified, all available formats will be produced")
+    parser.add_argument(
+        "--output_format",
+        "-f",
+        type=parse_output_format_arg,
+        default="all",
+        help="all, one format, or comma-separated (e.g. json,srt,vtt); if not specified, all available formats will be produced",
+    )
     parser.add_argument("--verbose", type=str2bool, default=True, help="whether to print out the progress and debug messages")
     parser.add_argument("--log-level", type=str, default=None, choices=["debug", "info", "warning", "error", "critical"], help="logging level (overrides --verbose if set)")
 
@@ -378,9 +408,9 @@ def register_export_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "-f",
         "--output_format",
+        type=parse_output_format_arg,
         default="json",
-        choices=["all", "srt", "vtt", "txt", "tsv", "json", "aud"],
-        help="Output format",
+        help="Output format (all, one format, or comma-separated e.g. json,srt)",
     )
     parser.add_argument(
         "--export_data_science",

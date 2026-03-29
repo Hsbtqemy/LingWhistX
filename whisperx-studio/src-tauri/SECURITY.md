@@ -20,6 +20,8 @@ Ce document decrit la surface d’attaque des commandes Tauri exposees au fronte
 | `get_jobs_pagination_info` | Pagination historique | Pas de chemin utilisateur ; lit l’etat interne (`has_more`, `total_in_db`, offset). |
 | `load_more_jobs_from_db` | Charger une page de jobs anciens | Pas de chemin ; lecture SQLite paginee, fusion dans le store memoire. |
 | `build_waveform_peaks` / `start_waveform_generation` | Waveform | Validation du chemin media avant traitement. |
+| `remove_recent_run` | Retire un chemin de `recent_runs.json` | Chemin non vide ; pas d’effet disque. |
+| `delete_run_directory` | Suppression récursive d’un dossier de run | Répertoire existant ; **mêmes racines autorisées** que `output_dir` (`validate_delete_allowed_directory`) avant `remove_dir_all`. |
 
 ## Comportement volontairement non sandboxe
 

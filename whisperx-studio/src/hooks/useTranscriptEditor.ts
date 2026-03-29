@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MIN_SEGMENT_DURATION_SEC, defaultExportRules } from "../constants";
 import {
-  areEditorSnapshotsEqual,
   buildEditorSnapshot,
   cloneEditorSnapshot,
   closestSegmentIndex,
@@ -28,18 +27,13 @@ import {
 import { loadTranscriptFromPath } from "./transcript/transcriptEditorLoad";
 import { tauriExportTranscript, tauriSaveTranscriptJson } from "./transcript/transcriptEditorTauri";
 import type { WaveformPointerContext } from "./transcript/waveformPointer";
+import { computeEditorDirtyFromBaseline } from "./transcript/computeEditorDirty";
 import { relativeSegmentIndex } from "./transcript/transcriptEditorNavigation";
 import {
   buildSplitPair,
   computeSplitAtCursor,
   mergeTwoEditableSegments,
 } from "./transcript/transcriptEditorSplitMerge";
-import {
-  mergeTwoSegmentsAt,
-  mutateEditorLanguage,
-  mutateSegmentText,
-  replaceSegmentWithPair,
-} from "./transcript/transcriptSegmentMutations";
 import { useTranscriptWaveformInteraction } from "./transcript/useTranscriptWaveformInteraction";
 import { useEditorDraftPersistence } from "./transcript/useEditorDraftPersistence";
 import { useEditorHistory } from "./transcript/useEditorHistory";
@@ -82,12 +76,7 @@ export function useTranscriptEditor({
   }
 
   function updateEditorDirtyFromSnapshot(snapshot: EditorSnapshot) {
-    const baseline = editorBaselineRef.current;
-    if (!baseline) {
-      setEditorDirty(snapshot.segments.length > 0 || snapshot.language.trim().length > 0);
-      return;
-    }
-    setEditorDirty(!areEditorSnapshotsEqual(snapshot, baseline));
+    setEditorDirty(computeEditorDirtyFromBaseline(snapshot, editorBaselineRef.current));
   }
 
   function setEditorSnapshotState(snapshot: EditorSnapshot) {
@@ -107,6 +96,7 @@ export function useTranscriptEditor({
     editorHistoryLimit,
     setHistoryStacks,
     applyEditorSnapshotMutation,
+    applyEditorPatch,
     pushUndoSnapshot,
     undoEditorChange,
     redoEditorChange,
@@ -324,11 +314,20 @@ export function useTranscriptEditor({
   }
 
   function updateEditorSegmentText(index: number, text: string) {
-    applyEditorSnapshotMutation((current) => mutateSegmentText(current, index, text));
+    applyEditorPatch({
+      kind: "text_change",
+      index,
+      prevText: editorSegmentsRef.current[index]?.text ?? "",
+      nextText: text,
+    });
   }
 
   function updateEditorLanguage(nextLanguage: string) {
-    applyEditorSnapshotMutation((current) => mutateEditorLanguage(current, nextLanguage));
+    applyEditorPatch({
+      kind: "language_change",
+      prevLanguage: editorLanguageRef.current,
+      nextLanguage,
+    });
   }
 
   function focusSegment(index: number) {
@@ -377,9 +376,13 @@ export function useTranscriptEditor({
     const splitAt = splitResult.splitAt;
     const [leftSegment, rightSegment] = buildSplitPair(segment, splitAt);
 
-    applyEditorSnapshotMutation((current) =>
-      replaceSegmentWithPair(current, targetIndex, leftSegment, rightSegment),
-    );
+    applyEditorPatch({
+      kind: "split",
+      index: targetIndex,
+      original: segment,
+      left: leftSegment,
+      right: rightSegment,
+    });
     setActiveSegmentIndex(targetIndex + 1);
     wf.setWaveformCursorSec(splitAt);
     setEditorError("");
@@ -411,9 +414,14 @@ export function useTranscriptEditor({
 
     const mergedSegment = mergeTwoEditableSegments(first, second);
 
-    applyEditorSnapshotMutation((current) =>
-      mergeTwoSegmentsAt(current, firstIndex, secondIndex, mergedSegment),
-    );
+    applyEditorPatch({
+      kind: "merge",
+      firstIndex,
+      secondIndex,
+      seg1: first,
+      seg2: second,
+      merged: mergedSegment,
+    });
     setActiveSegmentIndex(firstIndex);
     wf.setWaveformCursorSec(mergedSegment.start);
     setEditorError("");

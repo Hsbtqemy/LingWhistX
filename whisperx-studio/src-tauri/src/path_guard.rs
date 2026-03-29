@@ -103,6 +103,23 @@ fn ensure_output_dir_allowed(app: &AppHandle, canonical: &Path) -> Result<(), St
     )
 }
 
+/// Répertoire existant autorisé pour suppression récursive (mêmes racines que `validate_custom_output_dir`).
+pub fn validate_delete_allowed_directory(app: &AppHandle, raw: &str) -> Result<PathBuf, String> {
+    validate_path_string(raw)?;
+    let path = Path::new(raw.trim());
+    if !path.exists() {
+        return Err("path does not exist".into());
+    }
+    if !path.is_dir() {
+        return Err("path must be a directory".into());
+    }
+    let canonical = path
+        .canonicalize()
+        .map_err(|e| format!("Unable to resolve path: {e}"))?;
+    ensure_output_dir_allowed(app, &canonical)?;
+    Ok(canonical)
+}
+
 #[cfg(windows)]
 fn is_dangerous_windows_system_path(p: &Path) -> bool {
     let s = p.to_string_lossy().to_uppercase();

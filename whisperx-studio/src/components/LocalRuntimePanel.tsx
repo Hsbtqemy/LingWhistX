@@ -65,7 +65,7 @@ function LocalRuntimePanelComponent({
         </div>
       </div>
       {!runtimeStatus ? (
-        <p className="small">Aucun diagnostic runtime disponible pour l'instant.</p>
+        <p className="small">Aucun diagnostic runtime disponible pour l’instant.</p>
       ) : (
         <>
           <div className={`runtime-readiness ${runtimeReady ? "ready" : "pending"}`}>
@@ -175,7 +175,7 @@ function LocalRuntimePanelComponent({
           ) : null}
           <p className="small mono">Commande Python: {runtimeStatus.pythonCommand}</p>
           {runtimeStatus.whisperxVersion ? (
-            <p className="small">WhisperX version: {runtimeStatus.whisperxVersion}</p>
+            <p className="small">Version WhisperX : {runtimeStatus.whisperxVersion}</p>
           ) : null}
           {!runtimeReady ? (
             <div className="runtime-setup-box">

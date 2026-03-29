@@ -16,6 +16,10 @@ pub(crate) const EMBEDDED_STUDIO_AUDIO_MODULES: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../python/studio_audio_modules.py"
 ));
+pub(crate) const EMBEDDED_PREVIEW_PREPROCESS_SCRIPT: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../python/preview_preprocess.py"
+));
 #[cfg(target_os = "windows")]
 pub(crate) const EMBEDDED_RUNTIME_SETUP_SCRIPT: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -57,11 +61,12 @@ pub(crate) fn ensure_embedded_resource_file(
     Ok(target)
 }
 
-/// Garantit `studio_audio_modules.py` au même répertoire que `worker.py` (import Python).
+/// Garantit `studio_audio_modules.py` et `preview_preprocess.py` au même répertoire que `worker.py`.
 fn ensure_studio_audio_modules_adjacent(worker_path: &Path) -> Result<(), String> {
     let parent = worker_path
         .parent()
         .ok_or_else(|| "Worker path has no parent directory.".to_string())?;
+
     let target = parent.join("studio_audio_modules.py");
     let should_write = match std::fs::read_to_string(&target) {
         Ok(existing) => existing != EMBEDDED_STUDIO_AUDIO_MODULES,
@@ -71,7 +76,27 @@ fn ensure_studio_audio_modules_adjacent(worker_path: &Path) -> Result<(), String
         std::fs::write(&target, EMBEDDED_STUDIO_AUDIO_MODULES)
             .map_err(|err| format!("Unable to write studio_audio_modules.py: {err}"))?;
     }
+
+    let preview_target = parent.join("preview_preprocess.py");
+    let should_write_preview = match std::fs::read_to_string(&preview_target) {
+        Ok(existing) => existing != EMBEDDED_PREVIEW_PREPROCESS_SCRIPT,
+        Err(_) => true,
+    };
+    if should_write_preview {
+        std::fs::write(&preview_target, EMBEDDED_PREVIEW_PREPROCESS_SCRIPT)
+            .map_err(|err| format!("Unable to write preview_preprocess.py: {err}"))?;
+    }
+
     Ok(())
+}
+
+/// Résout le chemin de `preview_preprocess.py` (adjacent à `worker.py`).
+pub(crate) fn resolve_preview_preprocess_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let worker_path = resolve_worker_path(app)?;
+    let parent = worker_path
+        .parent()
+        .ok_or_else(|| "Worker path has no parent directory.".to_string())?;
+    Ok(parent.join("preview_preprocess.py"))
 }
 
 pub(crate) fn resolve_worker_path(app: &AppHandle) -> Result<PathBuf, String> {

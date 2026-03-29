@@ -21,6 +21,8 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
     let mut torch_cuda_available = false;
     let mut torch_mps_available = false;
     let mut whisperx_default_device: Option<String> = None;
+    let mut demucs_ok = false;
+    let mut demucs_version: Option<String> = None;
 
     match run_probe(
         &python_command,
@@ -87,6 +89,27 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
         }
     }
 
+    // WX-666 — probe Demucs availability
+    if python_ok {
+        match run_probe(
+            &python_command,
+            &[
+                "-c",
+                "import importlib.metadata as md; print(md.version('demucs'))",
+            ],
+            None,
+        ) {
+            Ok(version) => {
+                demucs_ok = true;
+                demucs_version = Some(version.clone());
+                details.push(format!("demucs ok: {version}"));
+            }
+            Err(_) => {
+                details.push("demucs not installed".into());
+            }
+        }
+    }
+
     if let Some(dir) = ffmpeg_tools.ffmpeg_dir.as_deref() {
         details.push(format!("ffmpeg dir: {}", dir.to_string_lossy()));
     }
@@ -116,6 +139,8 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
         torch_cuda_available,
         torch_mps_available,
         whisperx_default_device,
+        demucs_ok,
+        demucs_version,
     }
 }
 

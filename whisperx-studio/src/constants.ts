@@ -59,49 +59,32 @@ export const defaultWhisperxOptions: UiWhisperxOptions = {
   audioPipelineSegmentsJson: "",
 };
 
+// WX-656 — presets définis comme surcharges partielles (Partial<UiWhisperxOptions>).
+// applyProfileOverrides() dans profileCompose.ts les fusionne avec defaultWhisperxOptions.
 export const profilePresets: ProfilePreset[] = [
   {
     id: "balanced",
     label: "Equilibre (recommande)",
     description: "Bon compromis vitesse/qualite pour la plupart des fichiers audio.",
-    options: { ...defaultWhisperxOptions, model: "small", batchSize: "8", device: "auto" },
+    overrides: { model: "small", batchSize: "8", device: "auto" },
   },
   {
     id: "cpu_fast",
     label: "CPU rapide",
     description: "Pour machines sans GPU, priorite a la vitesse et a la stabilite.",
-    options: {
-      ...defaultWhisperxOptions,
-      model: "base",
-      device: "cpu",
-      computeType: "int8",
-      batchSize: "4",
-      vadMethod: "silero",
-    },
+    overrides: { model: "base", device: "cpu", computeType: "int8", batchSize: "4", vadMethod: "silero" },
   },
   {
     id: "quality_gpu",
     label: "Qualite GPU",
     description: "Optimise precision (GPU requis, plus lent et plus gourmand).",
-    options: {
-      ...defaultWhisperxOptions,
-      model: "large-v3",
-      device: "cuda",
-      computeType: "float16",
-      batchSize: "8",
-    },
+    overrides: { model: "large-v3", device: "cuda", computeType: "float16", batchSize: "8" },
   },
   {
     id: "meeting_diarize",
     label: "Reunion + speakers",
     description: "Active diarization, utile pour reunions/interviews multi-intervenants.",
-    options: {
-      ...defaultWhisperxOptions,
-      model: "small",
-      diarize: true,
-      vadMethod: "pyannote",
-      outputFormat: "all",
-    },
+    overrides: { model: "small", diarize: true, vadMethod: "pyannote", outputFormat: "all" },
   },
 ];
 

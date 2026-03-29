@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { fileBasename, upsertJobInList } from "../appUtils";
 import type {
+  AudioQualityReport,
   Job,
   JobLogEvent,
   JobsPaginationInfo,
@@ -43,6 +44,10 @@ export function useJobsList({
   const [liveTranscriptByJob, setLiveTranscriptByJob] = useState<
     Record<string, LiveTranscriptSegment[]>
   >({});
+  /** WX-661 — rapport qualité audio par job (réinitialisé à chaque nouveau run). */
+  const [audioQualityByJob, setAudioQualityByJob] = useState<Record<string, AudioQualityReport>>(
+    {},
+  );
   const [selectedJobId, setSelectedJobId] = useState(() => {
     try {
       return sessionStorage.getItem(SELECTED_JOB_STORAGE_KEY) ?? "";
@@ -160,6 +165,26 @@ export function useJobsList({
       }
     });
 
+    const unlistenDeletedPromise = listen<{ jobId: string }>("job-deleted", (event) => {
+      const id = event.payload.jobId;
+      setJobs((prev) => prev.filter((j) => j.id !== id));
+      setJobLogs((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+      setLiveTranscriptByJob((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setAudioQualityByJob((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    });
+
     const unlistenLogPromise = listen<JobLogEvent>("job-log", (event) => {
       const payload = event.payload;
       setJobLogs((current) => {
@@ -181,9 +206,19 @@ export function useJobsList({
       }
     });
 
+    const unlistenAudioQualityPromise = listen<{ jobId: string; report: AudioQualityReport }>(
+      "job-audio-quality",
+      (event) => {
+        const { jobId, report } = event.payload;
+        setAudioQualityByJob((prev) => ({ ...prev, [jobId]: report }));
+      },
+    );
+
     return () => {
       void unlistenJobPromise.then((unlisten) => unlisten());
+      void unlistenDeletedPromise.then((unlisten) => unlisten());
       void unlistenLogPromise.then((unlisten) => unlisten());
+      void unlistenAudioQualityPromise.then((unlisten) => unlisten());
     };
   }, []);
 
@@ -253,6 +288,37 @@ export function useJobsList({
     [refreshJobs, setError],
   );
 
+  const deleteJob = useCallback(
+    async (jobId: string) => {
+      if (
+        typeof window !== "undefined" &&
+        !window.confirm(
+          "Retirer ce job de l'historique ? Les fichiers sur disque (dossier de sortie) ne sont pas supprimés.",
+        )
+      ) {
+        return;
+      }
+      setError("");
+      try {
+        await invoke("delete_job", { jobId });
+        setJobLogs((current) => {
+          const next = { ...current };
+          delete next[jobId];
+          return next;
+        });
+        setLiveTranscriptByJob((prev) => {
+          const next = { ...prev };
+          delete next[jobId];
+          return next;
+        });
+        await refreshJobs();
+      } catch (e) {
+        setError(String(e));
+      }
+    },
+    [refreshJobs, setError],
+  );
+
   const restoreSession = useCallback(() => {
     if (!sessionRestorePrompt) {
       return;
@@ -281,12 +347,14 @@ export function useJobsList({
     loadMoreJobsLoading,
     jobsPagination,
     cancelJob,
+    deleteJob,
     focusJobDetails,
     selectedJob,
     selectedJobLogs,
     selectedLiveTranscript,
     selectedJobHasJsonOutput,
     runningJobs,
+    audioQualityByJob,
     sessionRestorePrompt,
     restoreSession,
     dismissSessionRestore,

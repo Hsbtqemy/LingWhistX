@@ -44,6 +44,8 @@ export type UsePlayerKeyboardOptions = {
   durationSec: number | null | undefined;
   mediaSrc: string | null | undefined;
   manifestError: string | null | undefined;
+  /** Même rôle que manifestError pour désactiver transport / raccourcis si le média ne charge pas. */
+  mediaLoadError: string | null | undefined;
   nudgePlaybackRate: (delta: number) => void;
   setViewportMode: Dispatch<SetStateAction<PlayerViewportMode>>;
   displayedAlerts: PlayerDerivedAlert[];
@@ -175,6 +177,11 @@ export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
         o.setViewportMode("karaoke");
         return;
       }
+      if ((e.ctrlKey || e.metaKey) && e.code === "Digit7") {
+        e.preventDefault();
+        o.setViewportMode("stats");
+        return;
+      }
       if (e.code === "KeyN" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         const idx = nextAlertIndex(o.displayedAlerts, o.playheadMs);
@@ -203,7 +210,7 @@ export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
       }
       if (e.code === "KeyM" && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
-        if (!o.mediaSrc || o.manifestError) {
+        if (!o.mediaSrc || o.manifestError || o.mediaLoadError) {
           return;
         }
         o.toggleMute();
@@ -211,7 +218,7 @@ export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
       }
       if (e.code === "Enter" && e.altKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        if (!o.mediaSrc || o.manifestError || !o.isVideo) {
+        if (!o.mediaSrc || o.manifestError || o.mediaLoadError || !o.isVideo) {
           return;
         }
         void o.toggleVideoFullscreen();
@@ -219,7 +226,7 @@ export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
       }
       if (e.code === "KeyL" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        if (!o.mediaSrc || o.manifestError) {
+        if (!o.mediaSrc || o.manifestError || o.mediaLoadError) {
           return;
         }
         if (o.loopAsec == null) {
@@ -255,37 +262,6 @@ export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
         return;
       }
     },
-    [
-      o.shortcutsHelpOpen,
-      o.setShortcutsHelpOpen,
-      o.togglePlayPause,
-      o.copyPlayheadToClipboard,
-      o.exportRunTimingPack,
-      o.openRunFolder,
-      o.stop,
-      o.seekRelative,
-      o.nudgePlaybackRate,
-      o.displayedAlerts,
-      o.playheadMs,
-      o.seek,
-      o.durationSec,
-      o.mediaSrc,
-      o.manifestError,
-      o.loopAsec,
-      o.loopBsec,
-      o.markLoopA,
-      o.markLoopB,
-      o.clearLoop,
-      o.toggleMute,
-      o.toggleVideoFullscreen,
-      o.runSpeakerIds,
-      o.setViewportMode,
-      o.runDir,
-      o.exportPackBusy,
-      o.isVideo,
-      o.setFollowPlayhead,
-      o.setWordsWindowEnabled,
-      o.setSpeakerSolo,
-    ],
+    [o],
   );
 }

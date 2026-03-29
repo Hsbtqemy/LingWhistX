@@ -57,4 +57,14 @@ describe("derivePlayerAlerts", () => {
     });
     expect(derivePlayerAlerts(s).every((x) => x.kind !== "long_pause")).toBe(true);
   });
+
+  it("respecte longPauseMs personnalisé", () => {
+    const s = sliceStub({
+      turns: [],
+      pauses: [{ id: 1, startMs: 0, endMs: 5000, durMs: 5000 }],
+    });
+    expect(derivePlayerAlerts(s, { longPauseMs: 6000 }).every((x) => x.kind !== "long_pause")).toBe(
+      true,
+    );
+  });
 });

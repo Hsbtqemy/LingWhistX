@@ -1,8 +1,12 @@
-//! Commandes Tauri: ouverture explorateur / fichier, apercu texte.
+//! Commandes Tauri: ouverture explorateur / fichier, apercu texte, listage dossier.
 
 use std::process::Command;
 
-use crate::path_guard::{resolve_existing_file_path, resolve_existing_path_for_open};
+use tauri::AppHandle;
+
+use crate::path_guard::{
+    resolve_existing_file_path, resolve_existing_path_for_open, validate_delete_allowed_directory,
+};
 
 #[tauri::command]
 pub fn open_local_path(path: String) -> Result<(), String> {
@@ -56,4 +60,21 @@ pub fn read_text_preview(path: String, max_bytes: Option<usize>) -> Result<Strin
         ));
     }
     Ok(content)
+}
+
+/// Liste les fichiers (non récursif) d’un dossier de sortie autorisé — pour suivi des exports pendant un job.
+#[tauri::command]
+pub fn list_directory_files(app: AppHandle, dir_path: String) -> Result<Vec<String>, String> {
+    let dir = validate_delete_allowed_directory(&app, &dir_path)?;
+    let read = std::fs::read_dir(&dir).map_err(|e| format!("Unable to read directory: {e}"))?;
+    let mut out: Vec<String> = Vec::new();
+    for entry in read {
+        let entry = entry.map_err(|e| format!("Directory entry: {e}"))?;
+        let p = entry.path();
+        if p.is_file() {
+            out.push(p.to_string_lossy().to_string());
+        }
+    }
+    out.sort();
+    Ok(out)
 }

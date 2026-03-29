@@ -61,6 +61,24 @@ export function WhisperxOptionsForm({
     [modelValue],
   );
 
+  /** WX-666 — avertissement coût compute si sourceSeparate est activé dans le JSON pipeline. */
+  const hasSourceSeparate = useMemo(() => {
+    const raw = whisperxOptions.audioPipelineModulesJson.trim();
+    if (!raw) return false;
+    try {
+      const parsed = JSON.parse(raw);
+      return (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        "sourceSeparate" in parsed &&
+        parsed.sourceSeparate !== false &&
+        parsed.sourceSeparate !== null
+      );
+    } catch {
+      return false;
+    }
+  }, [whisperxOptions.audioPipelineModulesJson]);
+
   const patchWhisperx = useCallback(
     (partial: Partial<UiWhisperxOptions>) => {
       setWhisperxOptions((prev) => ({ ...prev, ...partial }));
@@ -514,6 +532,13 @@ export function WhisperxOptionsForm({
                   ). Si ce champ est rempli avec un JSON valide non vide, il remplace tout objet
                   `audioPipelineModules` injecté ailleurs. Laisser vide pour désactiver.
                 </p>
+                {hasSourceSeparate && (
+                  <p className="field-help pipeline-source-separate-warn">
+                    ⚠ <strong>sourceSeparate (WX-666)</strong> — séparation Demucs activée. Coût
+                    estimé : ~3× temps réel sur CPU. GPU (CUDA) fortement recommandé. Nécessite{" "}
+                    <code>pip install demucs</code>.
+                  </p>
+                )}
               </label>
 
               <label className="full-width">

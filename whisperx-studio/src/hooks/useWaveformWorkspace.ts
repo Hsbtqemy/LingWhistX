@@ -1,4 +1,4 @@
-import type { WheelEvent } from "react";
+import type { RefObject, WheelEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -9,20 +9,14 @@ import type {
   Job,
   WaveformCancelledEvent,
   WaveformErrorEvent,
-  WaveformDetailEnvelope,
   WaveformPeaks,
   WaveformProgressEvent,
   WaveformReadyEvent,
-  WaveformOverviewEnvelope,
   WaveformPyramidBuilt,
   WaveformTaskStarted,
 } from "../types";
-import {
-  loadDetailEnvelopeForView,
-  loadFullOverviewMinMax,
-  resolveOverviewLevelPath,
-  shouldDrawSegmentOverlays,
-} from "../waveformWxenv";
+import { shouldDrawSegmentOverlays } from "../waveformWxenv";
+import { useWaveformService } from "./useWaveformService";
 import { WebAudioWindowPlayer } from "../webAudioPlayback";
 import { readWebAudioDefault, STUDIO_PREFS_CHANGED_EVENT } from "../studioPreferences";
 
@@ -32,6 +26,8 @@ export type UseWaveformWorkspaceOptions = {
   selectedIsVideo: boolean;
   /** Flux « Nouveau job » : média sans Job encore créé (chemin local). */
   previewMediaPath?: string | null;
+  /** Player : même élément `<audio>` / `<video>` que `usePlayerPlayback` (prioritaire sur audioRef/videoRef). */
+  playerMediaRef?: RefObject<HTMLMediaElement | null>;
 };
 
 export function useWaveformWorkspace({
@@ -39,6 +35,7 @@ export function useWaveformWorkspace({
   selectedJobId,
   selectedIsVideo,
   previewMediaPath = null,
+  playerMediaRef,
 }: UseWaveformWorkspaceOptions) {
   const [waveform, setWaveform] = useState<WaveformPeaks | null>(null);
   const [isWaveformLoading, setIsWaveformLoading] = useState(false);
@@ -86,9 +83,6 @@ export function useWaveformWorkspace({
   const [waveformPyramid, setWaveformPyramid] = useState<WaveformPyramidBuilt | null>(null);
   const [isPyramidBuilding, setIsPyramidBuilding] = useState(false);
   const [pyramidError, setPyramidError] = useState("");
-  const [overviewEnvelope, setOverviewEnvelope] = useState<WaveformOverviewEnvelope | null>(null);
-  const [isOverviewLoading, setIsOverviewLoading] = useState(false);
-  const [detailEnvelope, setDetailEnvelope] = useState<WaveformDetailEnvelope | null>(null);
 
   const waveformDurationSec = waveform?.durationSec ?? 0;
 
@@ -114,6 +108,13 @@ export function useWaveformWorkspace({
     [waveformVisibleDurationSec],
   );
 
+  // WX-659 — service unifié WXENV1 : overview + slice de détail.
+  const { overviewEnvelope, isOverviewLoading, detailEnvelope } = useWaveformService({
+    pyramid: waveformPyramid,
+    viewStartSec: waveformViewStartSec,
+    visibleDurationSec: waveformVisibleDurationSec,
+  });
+
   const buildWaveformPyramid = useCallback(async () => {
     if (!effectiveMediaPath) {
       setPyramidError("Aucun fichier media.");
@@ -130,7 +131,6 @@ export function useWaveformWorkspace({
     } catch (e) {
       setPyramidError(String(e));
       setWaveformPyramid(null);
-      setOverviewEnvelope(null);
     } finally {
       setIsPyramidBuilding(false);
     }
@@ -159,8 +159,12 @@ export function useWaveformWorkspace({
   }, [waveformDurationSec, waveformVisibleDurationSec]);
 
   const getActiveMediaElement = useCallback((): HTMLMediaElement | null => {
+    const shared = playerMediaRef?.current ?? null;
+    if (shared) {
+      return shared;
+    }
     return selectedIsVideo ? videoRef.current : audioRef.current;
-  }, [selectedIsVideo]);
+  }, [playerMediaRef, selectedIsVideo]);
 
   const applySnap = useCallback(
     (seconds: number): number => {
@@ -305,7 +309,7 @@ export function useWaveformWorkspace({
           .catch((e: unknown) => {
             setWebAudioError(String(e));
           });
-        const a = audioRef.current;
+        const a = getActiveMediaElement();
         if (a) {
           a.currentTime = clamped;
         }
@@ -576,7 +580,7 @@ export function useWaveformWorkspace({
       );
       setWaveformZoom(1);
       setWaveformViewStartSec(0);
-      const playerTime = videoRef.current?.currentTime ?? audioRef.current?.currentTime ?? 0;
+      const playerTime = getActiveMediaElement()?.currentTime ?? 0;
       setMediaCurrentSec(playerTime);
       setWaveformCursorSec(playerTime);
       setIsWaveformLoading(false);
@@ -613,7 +617,7 @@ export function useWaveformWorkspace({
       void unlistenWaveformErrorPromise.then((unlisten) => unlisten());
       void unlistenWaveformCancelledPromise.then((unlisten) => unlisten());
     };
-  }, []);
+  }, [getActiveMediaElement]);
 
   useEffect(() => {
     const onPrefs = () => {
@@ -733,8 +737,8 @@ export function useWaveformWorkspace({
     if (!webAudioMode || selectedIsVideo) {
       return;
     }
-    audioRef.current?.pause();
-  }, [selectedIsVideo, webAudioMode]);
+    getActiveMediaElement()?.pause();
+  }, [getActiveMediaElement, selectedIsVideo, webAudioMode]);
 
   useEffect(() => {
     const onResize = () => setViewportWidth(window.innerWidth);
@@ -763,8 +767,6 @@ export function useWaveformWorkspace({
     setMediaCurrentSec(0);
     setIsWaveformLoading(false);
     setWaveformPyramid(null);
-    setOverviewEnvelope(null);
-    setDetailEnvelope(null);
     setPyramidError("");
     setPreviewRangeSec(null);
     setRangeSelectionMode(false);
@@ -778,9 +780,13 @@ export function useWaveformWorkspace({
     setPreviewWaveBypassEffects(false);
   }, [selectedJobId, requestCancelWaveformGeneration]);
 
-  /** Chargement automatique de l’ondeforme à la sélection d’un job (pas en aperçu « Nouveau job » sans job). */
+  /** Chargement automatique : job sélectionné, ou aperçu média (`previewMediaPath` + pas de job), ex. Nouveau job / Player. */
   useEffect(() => {
-    if (!selectedJob || !effectiveMediaPath.trim()) {
+    if (!effectiveMediaPath.trim()) {
+      return;
+    }
+    const fromPreviewOnly = !selectedJob && previewMediaPath?.trim();
+    if (!selectedJob && !fromPreviewOnly) {
       return;
     }
     if (autoWaveformLoadJobIdRef.current === selectedJobId) {
@@ -788,7 +794,7 @@ export function useWaveformWorkspace({
     }
     autoWaveformLoadJobIdRef.current = selectedJobId;
     void loadWaveformForSelectedJob();
-  }, [selectedJob, selectedJobId, effectiveMediaPath, loadWaveformForSelectedJob]);
+  }, [selectedJob, selectedJobId, effectiveMediaPath, loadWaveformForSelectedJob, previewMediaPath]);
 
   /** Après génération des peaks, construire la pyramide WXENV pour l’overview (hero + Alignement). */
   useEffect(() => {
@@ -803,76 +809,6 @@ export function useWaveformWorkspace({
     }
     void buildWaveformPyramid();
   }, [buildWaveformPyramid, isPyramidBuilding, pyramidError, waveform, waveformPyramid]);
-
-  useEffect(() => {
-    if (!waveformPyramid) {
-      setOverviewEnvelope(null);
-      return;
-    }
-    let cancelled = false;
-    setIsOverviewLoading(true);
-    void (async () => {
-      try {
-        const { path, levelIndex } = await resolveOverviewLevelPath(waveformPyramid);
-        const { minMax, meta } = await loadFullOverviewMinMax(path);
-        if (!cancelled) {
-          setOverviewEnvelope({
-            minMax,
-            sampleRate: meta.sampleRate,
-            blockSize: meta.blockSize,
-            nBlocks: meta.nBlocks,
-            levelIndex,
-          });
-        }
-      } catch {
-        if (!cancelled) {
-          setOverviewEnvelope(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsOverviewLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [waveformPyramid]);
-
-  useEffect(() => {
-    if (
-      !waveform ||
-      !waveformPyramid ||
-      waveform.durationSec <= 0 ||
-      waveformVisibleDurationSec <= 0
-    ) {
-      setDetailEnvelope(null);
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const env = await loadDetailEnvelopeForView(
-            waveformPyramid,
-            waveformViewStartSec,
-            waveformVisibleDurationSec,
-          );
-          if (!cancelled) {
-            setDetailEnvelope(env);
-          }
-        } catch {
-          if (!cancelled) {
-            setDetailEnvelope(null);
-          }
-        }
-      })();
-    }, 80);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [waveform, waveformPyramid, waveformViewStartSec, waveformVisibleDurationSec]);
 
   useEffect(() => {
     if (!waveform || waveform.durationSec <= 0) {

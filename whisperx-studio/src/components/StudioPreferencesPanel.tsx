@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { readStoredHfToken, writeStoredHfToken } from "../hfTokenStorage";
 import {
+  getEffectiveColorScheme,
   LX_THEME_CHANGED_EVENT,
   readStoredThemePreference,
   setThemePreference as persistThemePreference,
@@ -14,11 +15,14 @@ import {
 } from "../studioPreferences";
 
 /**
- * Paramètres persistants (localStorage) : Web Audio par défaut, token Hugging Face.
- * À placer dans l’onglet À propos / diagnostic.
+ * Paramètres généraux (localStorage) : thème, Web Audio par défaut, token Hugging Face.
+ * Vue « À propos » / diagnostic.
  */
 export function StudioPreferencesPanel() {
   const [themePreference, setThemePreferenceState] = useState(readStoredThemePreference);
+  const [effectiveScheme, setEffectiveScheme] = useState<"light" | "dark">(() =>
+    getEffectiveColorScheme(),
+  );
   const [webAudioDefault, setWebAudioDefault] = useState(readWebAudioDefault);
   const [hfToken, setHfToken] = useState(readStoredHfToken);
   const [hfSavedHint, setHfSavedHint] = useState(false);
@@ -40,6 +44,21 @@ export function StudioPreferencesPanel() {
     return () => window.removeEventListener(LX_THEME_CHANGED_EVENT, onThemeExternal);
   }, []);
 
+  useEffect(() => {
+    const bump = () => setEffectiveScheme(getEffectiveColorScheme());
+    window.addEventListener(LX_THEME_CHANGED_EVENT, bump);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", bump);
+    return () => {
+      window.removeEventListener(LX_THEME_CHANGED_EVENT, bump);
+      mq.removeEventListener("change", bump);
+    };
+  }, []);
+
+  useEffect(() => {
+    setEffectiveScheme(getEffectiveColorScheme());
+  }, [themePreference]);
+
   const onThemeChange = useCallback((pref: LxThemePreference) => {
     setThemePreferenceState(pref);
     persistThemePreference(pref);
@@ -59,19 +78,20 @@ export function StudioPreferencesPanel() {
 
   return (
     <section className="panel about-preferences-panel" aria-labelledby="about-prefs-title">
-      <h3 id="about-prefs-title">Paramètres persistants</h3>
+      <h3 id="about-prefs-title">Paramètres généraux</h3>
       <p className="small about-prefs-lead">
-        Ces réglages sont enregistrés sur cette machine (navigateur / WebView). Ils complètent les
-        options par job et le diagnostic runtime ci-dessous.
+        Réglages persistants sur cette machine (stockage local de l’app). Ils viennent en complément
+        des options par job et du diagnostic runtime ci-dessous.
       </p>
 
       <fieldset className="about-prefs-row about-prefs-theme">
         <legend className="about-prefs-theme-legend">Apparence</legend>
         <p className="small about-prefs-theme-hint">
-          Thème de l&apos;interface : <strong>Système</strong> suit le réglage du navigateur ou de
-          l&apos;OS ; <strong>Clair</strong> ou <strong>Sombre</strong> force l&apos;affichage.
+          <strong>Système</strong> suit le thème du navigateur ou de l&apos;OS (y compris en
+          WebView). <strong>Clair</strong> et <strong>Sombre</strong> fixent l&apos;interface
+          indépendamment du système.
         </p>
-        <div className="about-prefs-theme-radios" role="radiogroup" aria-label="Thème">
+        <div className="about-prefs-theme-segmented" role="radiogroup" aria-label="Thème">
           {(
             [
               ["system", "Système"],
@@ -91,6 +111,14 @@ export function StudioPreferencesPanel() {
             </label>
           ))}
         </div>
+        <p className="small about-prefs-effective" aria-live="polite">
+          Affichage effectif : <strong>{effectiveScheme === "dark" ? "sombre" : "clair"}</strong>
+          {themePreference === "system"
+            ? " (selon le système)"
+            : themePreference === "light"
+              ? " (clair forcé)"
+              : " (sombre forcé)"}
+        </p>
       </fieldset>
 
       <label className="checkbox-row about-prefs-row">

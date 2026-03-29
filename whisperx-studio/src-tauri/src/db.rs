@@ -189,6 +189,15 @@ pub(crate) fn persist_job(db_path: &Path, job: &Job) -> Result<(), String> {
     Ok(())
 }
 
+/// Supprime une ligne de `jobs`. Retourne `true` si une ligne a été supprimée.
+pub(crate) fn delete_job_row(db_path: &Path, job_id: &str) -> Result<bool, String> {
+    let conn = Connection::open(db_path).map_err(|err| format!("DB open failed: {err}"))?;
+    let n = conn
+        .execute("DELETE FROM jobs WHERE id = ?1", params![job_id])
+        .map_err(|err| format!("Delete job failed: {err}"))?;
+    Ok(n > 0)
+}
+
 pub(crate) fn count_jobs(db_path: &Path) -> Result<i64, String> {
     let conn = Connection::open(db_path).map_err(|err| format!("DB open failed: {err}"))?;
     let count: i64 = conn

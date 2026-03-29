@@ -53,8 +53,8 @@ describe("adaptiveProfilePresets", () => {
       }),
     );
     const q = presets.find((p) => p.id === "quality_gpu");
-    expect(q?.options.device).toBe("cpu");
-    expect(q?.options.computeType).toBe("float32");
+    expect(q?.overrides.device).toBe("cpu");
+    expect(q?.overrides.computeType).toBe("float32");
   });
 
   it("équilibre utilise cuda si CUDA dispo", () => {
@@ -62,6 +62,6 @@ describe("adaptiveProfilePresets", () => {
       baseRs({ torchCudaAvailable: true, whisperxDefaultDevice: "cuda" }),
     );
     const b = presets.find((p) => p.id === "balanced");
-    expect(b?.options.device).toBe("cuda");
+    expect(b?.overrides.device).toBe("cuda");
   });
 });

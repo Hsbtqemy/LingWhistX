@@ -21,6 +21,10 @@ EmitLogFn = Callable[[str, str, str, int | None], None]
 CANONICAL_KEYS: Final[frozenset[str]] = frozenset(
     {
         "preNormalize",
+        "normalizeLoudness",  # WX-662 — normalisation EBU R128 2 passes via whisperx/audio_preprocessing.py
+        "denoise",            # WX-663 — débruitage noisereduce / DeepFilterNet
+        "smartChunk",         # WX-664 — découpage intelligent sur silences VAD
+        "sourceSeparate",     # WX-666 — séparation sources voix/fond via Demucs
         "bandLimit",
         "spectralDenoise",
         "stereoMidSide",
@@ -1931,6 +1935,38 @@ def maybe_prepare_audio_input(
         did_run = True
         current = Path(run_pre_normalize(current, out_dir, raw_pn, emit_log))
 
+    if _module_wants(spec, "normalizeLoudness"):
+        # WX-662 — normalisation EBU R128 2 passes via whisperx/audio_preprocessing.py
+        raw_nl = spec.get("normalizeLoudness")
+        nl_opts: dict = raw_nl if isinstance(raw_nl, dict) else {}
+        try:
+            from whisperx.audio_preprocessing import normalize_loudness_two_pass
+        except ImportError:
+            try:
+                from audio_preprocessing import normalize_loudness_two_pass  # type: ignore[no-redef]
+            except ImportError:
+                raise RuntimeError(
+                    "Module normalizeLoudness indisponible : whisperx.audio_preprocessing introuvable."
+                )
+        did_run = True
+        current = Path(normalize_loudness_two_pass(str(current), out_dir, nl_opts, emit_log))
+
+    if _module_wants(spec, "denoise"):
+        # WX-663 — débruitage Python (noisereduce / DeepFilterNet)
+        raw_dn = spec.get("denoise")
+        dn_opts: dict = raw_dn if isinstance(raw_dn, dict) else {}
+        try:
+            from whisperx.audio_preprocessing import denoise_audio
+        except ImportError:
+            try:
+                from audio_preprocessing import denoise_audio  # type: ignore[no-redef]
+            except ImportError:
+                raise RuntimeError(
+                    "Module denoise indisponible : whisperx.audio_preprocessing introuvable."
+                )
+        did_run = True
+        current = Path(denoise_audio(str(current), out_dir, dn_opts, emit_log))
+
     if _module_wants(spec, "bandLimit"):
         raw_bl = spec.get("bandLimit")
         did_run = True
@@ -1955,6 +1991,53 @@ def maybe_prepare_audio_input(
         raw_vac = spec.get("vadAlignedChunking")
         did_run = True
         current = Path(run_vad_aligned_chunking(current, out_dir, raw_vac, emit_log))
+
+    if _module_wants(spec, "smartChunk"):
+        # WX-664 — calcule les frontières de chunks VAD et les écrit dans un fichier JSON.
+        # Le fichier audio courant n'est pas découpé ici ; les frontières sont utilisées
+        # pour paramétrer audioPipelineSegments lors de la soumission à Whisper.
+        raw_sc = spec.get("smartChunk")
+        sc_opts: dict = raw_sc if isinstance(raw_sc, dict) else {}
+        try:
+            from whisperx.smart_chunking import compute_smart_chunk_boundaries, boundaries_to_ffmpeg_segments
+        except ImportError:
+            try:
+                from smart_chunking import compute_smart_chunk_boundaries, boundaries_to_ffmpeg_segments  # type: ignore[no-redef]
+            except ImportError:
+                raise RuntimeError(
+                    "Module smartChunk indisponible : whisperx.smart_chunking introuvable."
+                )
+        boundaries = compute_smart_chunk_boundaries(str(current), sc_opts, emit_log)
+        # Persiste les frontières dans audio_preprocessing/smart_chunk_boundaries.json
+        import json as _json
+        sc_dir = out_dir / "audio_preprocessing"
+        sc_dir.mkdir(parents=True, exist_ok=True)
+        boundaries_path = sc_dir / "smart_chunk_boundaries.json"
+        boundaries_path.write_text(
+            _json.dumps({"boundaries": boundaries_to_ffmpeg_segments(boundaries)}, indent=2),
+            encoding="utf-8",
+        )
+        if emit_log:
+            emit_log("info", "smart_chunking",
+                     f"{len(boundaries)} frontière(s) de chunk écrites → {boundaries_path.name}", None)
+        did_run = True
+
+    if _module_wants(spec, "sourceSeparate"):
+        # WX-666 — séparation sources voix/fond via Demucs.
+        # Remplace l'audio courant par la piste voix extraite (vocals.wav).
+        raw_ss = spec.get("sourceSeparate")
+        ss_opts: dict = raw_ss if isinstance(raw_ss, dict) else {}
+        try:
+            from whisperx.audio_preprocessing import separate_sources
+        except ImportError:
+            try:
+                from audio_preprocessing import separate_sources  # type: ignore[no-redef]
+            except ImportError:
+                raise RuntimeError(
+                    "Module sourceSeparate indisponible : whisperx.audio_preprocessing introuvable."
+                )
+        did_run = True
+        current = Path(separate_sources(str(current), out_dir, ss_opts, emit_log))
 
     if _module_wants(spec, "speakerTurnPostprocess"):
         raw_stp = spec.get("speakerTurnPostprocess")

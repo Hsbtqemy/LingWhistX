@@ -1,6 +1,6 @@
 /*
  * Design system — tokens CSS (--lx-*)
- * Source : audit/ui-ux-harmonization-spec.md §C.1 · backlog WX-626.
+ * Source : audit/ui-ux-harmonization-spec.md §C.1 · backlog WX-626 · étendu WX-646 (panneaux / waveform).
  * Les alias --home-accent / --home-accent-2 pointent vers --lx-accent / --lx-accent-secondary.
  *
  * Code couleur (volontairement restreint, style produit) :
@@ -23,6 +23,27 @@
   --lx-hairline: color-mix(in srgb, var(--lx-text-0) 7%, transparent);
   --lx-border-strong: color-mix(in srgb, var(--lx-text-0) 16%, transparent);
   --lx-surface-muted: color-mix(in srgb, var(--lx-text-0) 5%, transparent);
+  /* Panneaux Studio (jobs, éditeur, QA) — WX-646/647 : éviter hex figés ; suit les surfaces clair/sombre */
+  --lx-panel-workspace: color-mix(in srgb, var(--lx-accent) 6%, var(--lx-surface-1));
+  --lx-panel-workspace-deep: color-mix(in srgb, var(--lx-accent) 10%, var(--lx-surface-0));
+  --lx-panel-workspace-info: color-mix(in srgb, var(--lx-accent) 5%, color-mix(in srgb, #38bdf8 11%, var(--lx-surface-1)));
+  /*
+   * Canvas waveform + overview — remplies via getComputedStyle() (pas de var() dans CanvasRenderingContext2D).
+   * WX-648 : même jeu en thème clair/sombre.
+   */
+  --lx-waveform-canvas-bg: color-mix(in srgb, var(--lx-accent) 7%, var(--lx-surface-0));
+  --lx-waveform-overview-bg: color-mix(in srgb, var(--lx-accent) 8%, var(--lx-surface-0));
+  --lx-waveform-grid-line: color-mix(in srgb, var(--lx-accent) 18%, transparent);
+  --lx-waveform-envelope-stroke: var(--lx-accent);
+  --lx-waveform-playhead: color-mix(in srgb, var(--lx-warning) 55%, var(--lx-danger));
+  --lx-waveform-cursor: color-mix(in srgb, #2563eb 72%, var(--lx-accent));
+  --lx-waveform-segment-overlay: color-mix(in srgb, var(--lx-accent) 14%, transparent);
+  --lx-waveform-segment-focus: color-mix(in srgb, #247bb0 24%, transparent);
+  --lx-waveform-pause-overlay: color-mix(in srgb, #6e4b9b 13%, transparent);
+  --lx-waveform-range-valid: color-mix(in srgb, var(--lx-accent-secondary) 22%, transparent);
+  --lx-waveform-range-preview: color-mix(in srgb, var(--lx-warning) 20%, transparent);
+  --lx-waveform-handle-cold: color-mix(in srgb, #1a6fb0 100%, transparent);
+  --lx-waveform-handle-hot: color-mix(in srgb, var(--lx-warning) 90%, transparent);
   /* Accent & états */
   --lx-accent: #0f8a94;
   --lx-accent-hover: #0c6f77;
@@ -141,12 +162,13 @@
    * Breakpoints @media — garder les valeurs alignées avec les blocs ci-dessous
    * (pas de var() dans @media pour compatibilité navigateurs plus larges).
    * nav-stack : shell sidebar + grille Player · md : workspace / explorer · sm : formulaires · xs : shell gutter fixe
+   * lg : aligné sur le premier palier responsive (max-width 1200px dans responsive.css).
    */
   --studio-bp-xs: 480px;
   --studio-bp-sm: 768px;
   --studio-bp-nav-stack: 900px;
   --studio-bp-md: 1024px;
-  --studio-bp-lg: 1280px;
+  --studio-bp-lg: 1200px;
   --studio-bp-stats-compact: 640px;
   /* Largeur max du bloc central (évite bandes énormes sur ultra‑large) */
   --studio-shell-max-width: 1600px;
@@ -163,11 +185,12 @@ html {
 }
 
 /*
- * Thème sombre — préférence système, sauf si data-lx-theme="light" sur <html>.
- * Thème sombre explicite : data-lx-theme="dark" (même valeurs).
+ * Thème sombre via OS — seulement si data-lx-theme="system" ou attribut absent (legacy).
+ * Ne pas inclure data-lx-theme="dark" ici : ce cas est couvert par le bloc dédié (y compris OS clair).
+ * Thème sombre explicite : data-lx-theme="dark" (bloc :root[data-lx-theme="dark"] ci-dessous).
  */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-lx-theme="light"]) {
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) {
     color-scheme: dark;
     --lx-surface-0: #0f1419;
     --lx-surface-1: rgba(24, 33, 45, 0.94);
@@ -256,6 +279,17 @@ html {
     --lx-status-cancelled-fg: #94a3b8;
     --lx-status-cancelled-border: rgba(148, 163, 184, 0.32);
   }
+}
+
+/* WX-668 — Tokens karaoké (thémables) */
+:root {
+  --lx-karaoke-active-bg: var(--lx-accent);
+  --lx-karaoke-active-fg: #fff;
+  --lx-karaoke-chip-bg: color-mix(in srgb, var(--lx-text-0) 7%, transparent);
+  --lx-karaoke-chip-fg: var(--lx-text-1);
+  --lx-karaoke-chip-hover-bg: color-mix(in srgb, var(--lx-accent) 18%, transparent);
+  --lx-karaoke-unaligned-fg: var(--lx-text-2);
+  --lx-karaoke-unaligned-style: italic;
 }
 
 :root[data-lx-theme="dark"] {

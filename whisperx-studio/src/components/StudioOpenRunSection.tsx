@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { formatTimestamp, pathsEqualNormalized } from "../appUtils";
+import { Button } from "./ui";
 import type {
   Job,
   QueryWindowResult,
@@ -180,6 +181,53 @@ export function StudioOpenRunSection({
     }
   }, [setError, refreshRecent]);
 
+  const removeFromRecentOnly = useCallback(
+    async (runDir: string) => {
+      setError("");
+      try {
+        await invoke("remove_recent_run", { runDir });
+        if (summary && pathsEqualNormalized(summary.runDir, runDir)) {
+          setSummary(null);
+          setMatchingJobId(null);
+          setEventsImport(null);
+          setEventsImportError("");
+          setQueryWindowPreview(null);
+          setQueryWindowError("");
+        }
+        await refreshRecent();
+      } catch (e) {
+        setError(String(e));
+      }
+    },
+    [setError, summary, refreshRecent],
+  );
+
+  const deleteRunOnDisk = useCallback(async () => {
+    if (!summary?.runDir) {
+      return;
+    }
+    const msg = `Supprimer définitivement ce dossier et tout son contenu sur le disque ?\n\n${summary.runDir}\n\nCette action est irréversible.`;
+    if (typeof window !== "undefined" && !window.confirm(msg)) {
+      return;
+    }
+    setError("");
+    setBusy(true);
+    try {
+      await invoke("delete_run_directory", { runDir: summary.runDir });
+      setSummary(null);
+      setMatchingJobId(null);
+      setEventsImport(null);
+      setEventsImportError("");
+      setQueryWindowPreview(null);
+      setQueryWindowError("");
+      await refreshRecent();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [setError, summary, refreshRecent]);
+
   return (
     <section
       id="home-open-run"
@@ -220,7 +268,7 @@ export function StudioOpenRunSection({
           </div>
           <ul className="open-run-recent-list">
             {recent.map((r) => (
-              <li key={r.runDir}>
+              <li key={r.runDir} className="open-run-recent-row">
                 <button
                   type="button"
                   className="open-run-recent-item"
@@ -232,6 +280,20 @@ export function StudioOpenRunSection({
                     {r.runDir}
                   </span>
                   <span className="open-run-recent-time">{formatTimestamp(r.lastOpenedAtMs)}</span>
+                </button>
+                <button
+                  type="button"
+                  className="ghost small open-run-recent-remove"
+                  title="Retirer ce run de la liste (les fichiers restent sur le disque)"
+                  aria-label={`Retirer ${r.runId} des récents`}
+                  disabled={busy}
+                  onClick={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    void removeFromRecentOnly(r.runDir);
+                  }}
+                >
+                  Retirer
                 </button>
               </li>
             ))}
@@ -336,6 +398,20 @@ export function StudioOpenRunSection({
                 Ouvrir le Player (WX-624)
               </button>
             ) : null}
+          </div>
+          <div className="open-run-danger-zone">
+            <p className="field-help">
+              Supprimer le dossier efface définitivement les fichiers du run (hors périmètre
+              sécurisé, la suppression est refusée).
+            </p>
+            <Button
+              type="button"
+              variant="danger"
+              disabled={busy}
+              onClick={() => void deleteRunOnDisk()}
+            >
+              Supprimer le dossier sur le disque…
+            </Button>
           </div>
         </div>
       ) : null}

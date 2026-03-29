@@ -29,6 +29,28 @@ Desktop local-first wrapper skeleton for WhisperX:
 - **Vue média omniprésente (WX-621)** : dès qu’un chemin média est renseigné sur « Nouveau job », un panneau **Aperçu média** affiche le lecteur (vidéo ou audio) et l’ondeforme sur la même page ; pour la vidéo, lecteur et ondeforme sont dans des zones distinctes (empilées). Le temps de lecture et le seek sont partagés via `useWaveformWorkspace` (même hook que l’espace d’alignement sur un job). Dans l’historique / détail de run, l’**Alignment Workspace** utilise le même découpage visuel.
 - **Plage + preview Web Audio (WX-622)** : dans l’Alignment Workspace, sélection d’une plage `[t0, t1]` (glisser sur la waveform en mode dédié, ou saisie numérique, ou bouton « Plage = fenêtre visible »). En lecture « Web Audio », la lecture peut charger uniquement l’extrait plage (`loadRangeChunk`, ffmpeg jusqu’à 60 s). Chaîne preview gain / EQ shelf / balance avec bypass ; le fichier source n’est pas modifié. Bandes vertes / jaunes sur le canvas pour plage validée / drag.
 
+## CI (intégration continue)
+
+Les changements sous `whisperx-studio/` déclenchent le workflow [`.github/workflows/studio-ci.yml`](../.github/workflows/studio-ci.yml) sur `main` (push / PR) : `npm ci`, Prettier, build frontend, ESLint, Vitest, compilation et **tests unitaires Python** (`unittest` dans `whisperx-studio/python/`), puis `cargo fmt`, `cargo clippy`, `cargo test` sur le backend Tauri.
+
+## Chemins et médias (Player / protocole asset)
+
+- Le lecteur utilise `convertFileSrc` (Tauri) pour résoudre le fichier média du manifest. Le fichier doit être **lisible par le moteur Web** : en pratique, chemins sous les répertoires couverts par `security.assetProtocol.scope` dans `tauri.conf.json` (souvent sous `$HOME` / profil utilisateur).
+- Les dossiers de **sortie** personnalisés et les **runs** ouverts depuis l’UI doivent respecter les règles Rust (`path_guard`, `validate_custom_output_dir`) : chemins **absolus** sous données app, Documents, Téléchargements, home, temporaire ou volumes amovibles — pas de chemins système arbitraires.
+- Si le média est **hors périmètre**, le navigateur renvoie souvent `MEDIA_ERR_SRC_NOT_SUPPORTED` : le message d’erreur du Player l’explique (sans stack trace utilisateur).
+
+### IPC WAV (lecture Web Audio)
+
+Les extraits ffmpeg sont lus via `read_extracted_wav_bytes_b64` (base64). Des plafonds de taille côté Rust (`MAX_READ_WAV_BYTES_FOR_B64` dans `audio_preview.rs`) et côté front (`webAudioPlayback.ts`) évitent un décodage excessif dans le thread UI. Si un cas réel dépasse ces limites avec des extraits pourtant ≤ 60 s, envisager un canal IPC binaire (évolution suivie dans le backlog **WX-642**).
+
+## QA accessibilité / contraste (checklist)
+
+Voir [`docs/qa-ui.md`](docs/qa-ui.md) (reprise §F.1 de `audit/ui-ux-harmonization-spec.md`) — cases à cocher lors des release candidates.
+
+## Smoke release (manuel)
+
+Pour une RC sans automate E2E : lancer `npm run tauri build` (ou `tauri dev`), ouvrir un run avec manifest valide, vérifier lecteur + indexation événements. Décision produit : conserver ce smoke manuel tant qu’aucun pipeline E2E n’est prioritaire (ticket **WX-645**).
+
 ## Prerequisites
 
 - Node.js + npm (after cloning, run `npm ci` or `npm install` inside `whisperx-studio/` so `tsc` and Vite are available)

@@ -3,13 +3,17 @@
 use tauri::{AppHandle, Emitter};
 
 use crate::models::{
-    Job, JobLogEvent, RuntimeSetupFinishedEvent, RuntimeSetupLogEvent, WaveformCancelledEvent,
-    WaveformErrorEvent, WaveformProgressEvent, WaveformReadyEvent,
+    AudioQualityReport, Job, JobLogEvent, RuntimeSetupFinishedEvent, RuntimeSetupLogEvent,
+    WaveformCancelledEvent, WaveformErrorEvent, WaveformProgressEvent, WaveformReadyEvent,
 };
 use crate::time_utils::now_ms;
 
 pub(crate) fn emit_job_update(app: &AppHandle, job: &Job) {
     let _ = app.emit("job-updated", job);
+}
+
+pub(crate) fn emit_job_deleted(app: &AppHandle, job_id: &str) {
+    let _ = app.emit("job-deleted", serde_json::json!({ "jobId": job_id }));
 }
 
 pub(crate) fn emit_job_log(app: &AppHandle, log_event: &JobLogEvent) {
@@ -58,4 +62,12 @@ pub(crate) fn emit_ffmpeg_install_log(app: &AppHandle, stream: &str, message: &s
 pub(crate) fn emit_ffmpeg_install_finished(app: &AppHandle, success: bool, message: String) {
     let event = RuntimeSetupFinishedEvent { success, message };
     let _ = app.emit("ffmpeg-install-finished", event);
+}
+
+/// WX-661 — rapport qualité audio émis au frontend (`job-audio-quality`).
+pub(crate) fn emit_audio_quality(app: &AppHandle, job_id: &str, report: &AudioQualityReport) {
+    let _ = app.emit(
+        "job-audio-quality",
+        serde_json::json!({ "jobId": job_id, "report": report }),
+    );
 }

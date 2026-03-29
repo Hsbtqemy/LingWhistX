@@ -6,7 +6,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from worker import WhisperxProgressMapper, collect_output_files, parse_whisperx_progress_line
+from worker import (
+    WhisperxProgressMapper,
+    _normalize_output_format_for_cli,
+    collect_output_files,
+    parse_whisperx_progress_line,
+)
 
 
 class TestParseWhisperxProgressLine(unittest.TestCase):
@@ -45,6 +50,23 @@ class TestWhisperxProgressMapper(unittest.TestCase):
         self.assertEqual(m.feed(100.0), 65)
         self.assertEqual(m.feed(50.0, "wx_diarize"), 80)
         self.assertEqual(m.feed(100.0, "wx_diarize"), 95)
+
+
+class TestNormalizeOutputFormat(unittest.TestCase):
+    def test_multi_adds_json(self) -> None:
+        fmt, forced = _normalize_output_format_for_cli({"outputFormat": "srt,vtt"})
+        self.assertTrue(forced)
+        self.assertEqual(fmt, "json,srt,vtt")
+
+    def test_multi_keeps_json(self) -> None:
+        fmt, forced = _normalize_output_format_for_cli({"outputFormat": "json,srt"})
+        self.assertFalse(forced)
+        self.assertEqual(fmt, "json,srt")
+
+    def test_all(self) -> None:
+        fmt, forced = _normalize_output_format_for_cli({"outputFormat": "all"})
+        self.assertFalse(forced)
+        self.assertEqual(fmt, "all")
 
 
 class TestCollectOutputFiles(unittest.TestCase):

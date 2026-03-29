@@ -1,14 +1,9 @@
 /* Blocs @media — importé en dernier (cascade).
- * Ordre des largeurs : 1200 → 1024 (md) → 900 (nav-stack) → 768 (sm) → 640 → 480 (xs)
+ * Ordre des largeurs : 1200 (lg) → 1024 (md) → 900 (nav-stack) → 768 (sm) → 560 (nav 2×2) → 640 (stats) → 480 (xs)
  */
 @media (max-width: 1200px) {
   .studio-shell {
     width: calc(100% - 2 * var(--studio-shell-gutter));
-  }
-
-  .studio-nav.studio-nav--sidebar {
-    padding: 12px 10px;
-    gap: 8px;
   }
 
   .studio-nav.studio-nav--topbar {
@@ -47,12 +42,6 @@
   .studio-shell__main {
     max-width: 100%;
     min-width: 0;
-  }
-
-  .studio-nav.studio-nav--sidebar {
-    position: static;
-    width: 100%;
-    max-width: none;
   }
 
   .studio-nav.studio-nav--topbar {
@@ -103,7 +92,7 @@
   .hero-feature-card:hover {
     transform: translateY(-2px);
     border-color: var(--lx-border-strong);
-    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.09);
+    box-shadow: var(--lx-shadow-card);
   }
 }
 
@@ -127,10 +116,6 @@
   }
 
   .option-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .studio-workspace-body--run-primary {
     grid-template-columns: 1fr;
   }
 
@@ -227,21 +212,6 @@
   .studio-nav {
     gap: 6px;
     padding: 8px 10px;
-  }
-
-  .studio-nav-tab {
-    flex: 1 1 0;
-    min-width: 0;
-    text-align: center;
-    justify-content: center;
-  }
-
-  .studio-nav.studio-nav--sidebar .studio-nav-tab {
-    flex: 0 0 auto;
-    width: 100%;
-    min-width: 0;
-    text-align: left;
-    justify-content: flex-start;
   }
 
   .hero-card,
@@ -389,21 +359,73 @@
   .panel-header-job-id {
     max-width: 100%;
   }
+
+  /* Vue À propos / paramètres généraux : colonne unique, actions runtime empilées */
+  .about-view {
+    max-width: 100%;
+  }
+
+  .about-machine-panel .about-machine-dl {
+    grid-template-columns: 1fr;
+    gap: 4px 0;
+  }
+
+  .about-machine-panel dt {
+    margin-top: 10px;
+    font-weight: 600;
+  }
+
+  .about-machine-panel dt:first-of-type {
+    margin-top: 0;
+  }
+
+  .about-machine-panel dd {
+    margin-bottom: 8px;
+  }
+
+  .about-prefs-hf-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .about-prefs-hf-row .ghost {
+    width: 100%;
+  }
+
+  .runtime-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .runtime-header-actions {
+    width: 100%;
+  }
+}
+
+/* Nav : marque au-dessus + onglets 2×2 — évite 4 colonnes illisibles sous ~560px */
+@media (max-width: 560px) {
+  .studio-nav.studio-nav--topbar {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .studio-nav-brand {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .studio-nav-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 10px;
+  }
 }
 
 @media (max-width: 480px) {
   :root {
     --studio-shell-gutter: 10px;
-  }
-
-  .studio-nav.studio-nav--sidebar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .studio-nav.studio-nav--sidebar .studio-nav-tab {
-    width: 100%;
-    min-width: 0;
   }
 
   .job-stepper {
@@ -439,6 +461,11 @@
 
   .home-hub-card__title {
     font-size: 1rem;
+  }
+
+  .about-prefs-theme-segmented {
+    grid-template-columns: 1fr;
+    max-width: 100%;
   }
 
   .panel-header {

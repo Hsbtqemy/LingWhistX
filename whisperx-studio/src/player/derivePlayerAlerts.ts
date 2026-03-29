@@ -10,12 +10,21 @@ export type PlayerDerivedAlert = {
   message: string;
 };
 
-const LONG_PAUSE_MS = 3000;
+const DEFAULT_LONG_PAUSE_MS = 3000;
+
+export type DerivePlayerAlertsOptions = {
+  /** Seuil pause longue (ms). Défaut 3000 — aligné IPC `recompute_player_alerts`. */
+  longPauseMs?: number;
+};
 
 /**
  * Détecte chevauchements entre tours consécutifs (fenêtre courante) et pauses longues.
  */
-export function derivePlayerAlerts(slice: QueryWindowResult): PlayerDerivedAlert[] {
+export function derivePlayerAlerts(
+  slice: QueryWindowResult,
+  options?: DerivePlayerAlertsOptions,
+): PlayerDerivedAlert[] {
+  const longPauseMs = options?.longPauseMs ?? DEFAULT_LONG_PAUSE_MS;
   const out: PlayerDerivedAlert[] = [];
   const turns = [...slice.turns].sort((a, b) => a.startMs - b.startMs);
   for (let i = 0; i < turns.length - 1; i++) {
@@ -32,7 +41,7 @@ export function derivePlayerAlerts(slice: QueryWindowResult): PlayerDerivedAlert
     }
   }
   for (const p of slice.pauses) {
-    if (p.durMs >= LONG_PAUSE_MS) {
+    if (p.durMs >= longPauseMs) {
       out.push({
         id: `pause-${p.id}`,
         kind: "long_pause",

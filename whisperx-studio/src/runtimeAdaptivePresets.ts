@@ -31,18 +31,17 @@ export function adaptiveProfilePresets(rs: RuntimeStatus | null): ProfilePreset[
   const genericCpuHint = !cuda && !isMac ? " Pas de GPU NVIDIA détecté : exécution CPU." : "";
 
   return profilePresets.map((p) => {
-    const o = { ...p.options };
     switch (p.id) {
       case "balanced":
         return {
           ...p,
           description: `${p.description}${macCpuHint || genericCpuHint}`,
-          options: { ...o, device: dev },
+          overrides: { ...p.overrides, device: dev },
         };
       case "cpu_fast":
         return {
           ...p,
-          options: { ...o, device: "cpu" },
+          overrides: { ...p.overrides, device: "cpu" as UiWhisperxOptions["device"] },
         };
       case "quality_gpu":
         return {
@@ -50,20 +49,20 @@ export function adaptiveProfilePresets(rs: RuntimeStatus | null): ProfilePreset[
           description: `${p.description}${
             cuda ? "" : " GPU indisponible : passage en CPU (float32) pour la stabilité."
           }`,
-          options: {
-            ...o,
-            device: cuda ? "cuda" : "cpu",
-            computeType: cuda ? "float16" : "float32",
+          overrides: {
+            ...p.overrides,
+            device: cuda ? ("cuda" as UiWhisperxOptions["device"]) : ("cpu" as UiWhisperxOptions["device"]),
+            computeType: cuda ? ("float16" as UiWhisperxOptions["computeType"]) : ("float32" as UiWhisperxOptions["computeType"]),
           },
         };
       case "meeting_diarize":
         return {
           ...p,
           description: `${p.description}${macCpuHint || genericCpuHint}`,
-          options: { ...o, device: dev },
+          overrides: { ...p.overrides, device: dev },
         };
       default:
-        return { ...p, options: { ...o, device: dev } };
+        return { ...p, overrides: { ...p.overrides, device: dev } };
     }
   });
 }

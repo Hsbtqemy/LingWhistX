@@ -14,9 +14,13 @@ export function MachineSummaryPanel({ runtimeStatus }: MachineSummaryPanelProps)
 
   return (
     <section className="panel about-machine-panel" aria-labelledby="about-machine-title">
-      <h3 id="about-machine-title">Cette machine &amp; navigateur</h3>
+      <h3 id="about-machine-title">Environnement &amp; machine</h3>
+      <p className="small about-machine-lead">
+        Informations côté interface (WebView) et, après vérification du runtime, la pile Python
+        détectée.
+      </p>
       <dl className="about-machine-dl">
-        <dt>Plateforme (navigateur)</dt>
+        <dt>Plateforme (OS / UI)</dt>
         <dd className="mono">{platform || "—"}</dd>
         <dt>Langue UI</dt>
         <dd>{lang || "—"}</dd>
@@ -40,6 +44,17 @@ export function MachineSummaryPanel({ runtimeStatus }: MachineSummaryPanelProps)
             <dd className="mono">{runtimeStatus.whisperxDefaultDevice ?? "—"}</dd>
             <dt>WhisperX</dt>
             <dd className="mono">{runtimeStatus.whisperxVersion ?? "—"}</dd>
+            <dt>Demucs (WX-666)</dt>
+            <dd>
+              {runtimeStatus.demucsOk ? (
+                <span className="mono">{runtimeStatus.demucsVersion ?? "ok"}</span>
+              ) : (
+                <span className="about-machine-missing">
+                  non installé —{" "}
+                  <code>pip install demucs</code>
+                </span>
+              )}
+            </dd>
             <dt>Python</dt>
             <dd className="mono">{runtimeStatus.pythonCommand}</dd>
           </dl>

@@ -32,15 +32,6 @@ const navIconProps = {
   "aria-hidden": true,
 };
 
-function NavIconHome() {
-  return (
-    <svg {...navIconProps}>
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  );
-}
-
 function NavIconHubCard({ cardId }: { cardId: HubCardId }) {
   switch (cardId) {
     case "workspace":
@@ -91,64 +82,52 @@ export function StudioNav({
   workspaceHasActiveJobs = false,
 }: StudioNavProps) {
   return (
-    <nav className="studio-nav studio-nav--topbar" role="tablist" aria-label="Sections du studio">
-      <Button
-        id={STUDIO_TAB_IDS.create}
-        variant="navTab"
-        type="button"
-        role="tab"
-        aria-selected={activeView === "create"}
-        aria-controls={STUDIO_PANEL_IDS.create}
-        active={activeView === "create"}
-        onClick={() => onViewChange("create")}
-      >
-        <span className="studio-nav-tab-inner">
-          <NavIconHome />
-          <span className="studio-nav-tab__stack studio-nav-tab__stack--single">
-            <span className="studio-nav-tab__title">LingWhistX</span>
-          </span>
-        </span>
-      </Button>
-      {STUDIO_HUB_CARDS.map((card) => {
-        const label = `${card.kicker} — ${card.title}`;
-        const tab = (
-          <Button
-            id={STUDIO_TAB_IDS[card.view]}
-            variant="navTab"
-            type="button"
-            role="tab"
-            aria-selected={activeView === card.view}
-            aria-controls={STUDIO_PANEL_IDS[card.view]}
-            active={activeView === card.view}
-            onClick={() => onViewChange(card.view)}
-            aria-label={label}
-          >
-            <span className="studio-nav-tab-inner">
-              <NavIconHubCard cardId={card.cardId} />
-              <span className="studio-nav-tab__stack">
-                <span className="studio-nav-tab__kicker">{card.kicker}</span>
-                <span className="studio-nav-tab__title">{card.title}</span>
-              </span>
-            </span>
-          </Button>
-        );
-
-        if (card.cardId === "workspace") {
-          return (
-            <div
-              key={card.view}
-              className={`studio-nav-tab-slot${workspaceHasActiveJobs ? " studio-nav-tab-slot--live" : ""}`}
+    <nav className="studio-nav studio-nav--topbar" aria-label="Studio LingWhistX">
+      <div id={STUDIO_TAB_IDS.create} className="studio-nav-brand">
+        <span className="studio-nav-brand__name">LingWhistX</span>
+      </div>
+      <div className="studio-nav-tabs" role="tablist" aria-label="Sections du studio">
+        {STUDIO_HUB_CARDS.map((card) => {
+          const label = `${card.kicker} — ${card.title}`;
+          const tab = (
+            <Button
+              id={STUDIO_TAB_IDS[card.view]}
+              variant="navTab"
+              type="button"
+              role="tab"
+              aria-selected={activeView === card.view}
+              aria-controls={STUDIO_PANEL_IDS[card.view]}
+              active={activeView === card.view}
+              onClick={() => onViewChange(card.view)}
+              aria-label={label}
             >
-              {tab}
-              {workspaceHasActiveJobs ? (
-                <span className="studio-nav-activity-dot" title="Traitement en cours" />
-              ) : null}
-            </div>
+              <span className="studio-nav-tab-inner">
+                <NavIconHubCard cardId={card.cardId} />
+                <span className="studio-nav-tab__stack">
+                  <span className="studio-nav-tab__kicker">{card.kicker}</span>
+                  <span className="studio-nav-tab__title">{card.title}</span>
+                </span>
+              </span>
+            </Button>
           );
-        }
 
-        return <Fragment key={card.view}>{tab}</Fragment>;
-      })}
+          if (card.cardId === "workspace") {
+            return (
+              <div
+                key={card.view}
+                className={`studio-nav-tab-slot${workspaceHasActiveJobs ? " studio-nav-tab-slot--live" : ""}`}
+              >
+                {tab}
+                {workspaceHasActiveJobs ? (
+                  <span className="studio-nav-activity-dot" title="Traitement en cours" />
+                ) : null}
+              </div>
+            );
+          }
+
+          return <Fragment key={card.view}>{tab}</Fragment>;
+        })}
+      </div>
     </nav>
   );
 }

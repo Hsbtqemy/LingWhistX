@@ -28,37 +28,50 @@ Les commandes du ticket sont pensées pour être lancées **depuis la racine du 
 | **Entrée** | Open run → Player, run = source de vérité | OK | Manifest + `events.sqlite` via `query_run_events_window` ; média depuis manifest |
 | **TopBar** | Libellé run, transport, loop, QC, export | Partiel | QC condensé (alertes fenêtre + stats manifest + troncature) ; pas device CPU/CUDA dans le Player |
 | **TopBar** | % interpolé, missing timing (QC détaillé) | Non / v2 | À brancher si exposé par manifest / stats run |
-| **Viewport** | 6 modes (**⌃1–6**) : Lanes, Chat, Mots, Colonnes, Rythmo, Karaoké (aligné UI ; spec longue « 5 vues » sans Mots séparé) | Partiel | **Lanes**, **Chat**, **Mots** (⌃3) ; **⌃4** / **⌃5** / **⌃6** → placeholders Colonnes / Rythmo / Karaoké ; rendu complet hors Lanes/Chat/Mots → v2 |
+| **Viewport** | 6 modes (**⌃1–6**) : Lanes, Chat, Mots, Colonnes, Rythmo, Karaoké (aligné UI ; spec longue « 5 vues » sans Mots séparé) | Partiel | **Lanes**, **Chat**, **Mots**, **Colonnes** (⌃4), **Rythmo** (⌃5), **Karaoké** (⌃6, WX-651 clos) |
 | **Panneau gauche** | Icônes + labels vues | Partiel | Onglets texte Lanes → Karaoké (6) ; hint **⌃1–6** ; case **Fenêtre mots (30s)** + requête `words` |
 | **Panneau gauche** | Speakers alias / mute / hide | Non / v2 | Solo locuteur (filtre fenêtre) + clavier 1–9 / 0 |
 | **Panneau gauche** | Navigateur next/prev + **jump to time** | Partiel | **N** / **P** (alertes) ; **Aller au temps** (champ + Entrée) |
 | **Panneau gauche** | Filtre « alerts only » sur le viewport | Non / v2 | Filtre **type** d’alerte sur la **liste** droite ; pas masquage bulles hors alerte dans Chat |
-| **Panneau droit** | Grand public / avancé (seuils, recompute) | Non / v2 | Liste alertes + filtre type + raccourcis ; pas recompute alerts IPC |
+| **Panneau droit** | Grand public / avancé (seuils, recompute) | Partiel | Liste + filtre + **Avancé** : seuil pause longue (ms), **Recalculer (IPC)** `recompute_player_alerts`, stats QC Rust (WX-652) |
 | **Aide** | Liste raccourcis intégrée | OK | **`?`** + bouton barre · overlay **portail** · **Échap** · focus **Fermer** à l’ouverture ; détail `audit/player-multi-view.md` |
 | **Transport** | play/pause/stop, seek, vitesse, loop A–B, follow | OK | **Stop**, **Home** / **Fin**, **volume** + **M** muet (persistés **session** `sessionStorage`), **Copier** (**⌃⇧C**), **plein écran** vidéo (**Alt+Entrée** + bouton) ; désactivation follow au scroll panneau événements |
 | **Transport** | Événements `playback:tick` / `seek` / `state` (bus) | Partiel | Équivalent React + RAF dans `usePlayerPlayback`, pas bus nommé |
-| **ViewportRenderer** | Abstraction `render` / `hitTest` / `getPreferredWindow` | Non | `PlayerRunWindowViews` par mode, sans interface commune formelle |
-| **Vue Karaoké** | Bande, mots, virtualisation ±N segments | Partiel | **⌃6** + onglet → placeholder v2 ; pas bande karaoké |
-| **Vue Lanes** | Lanes empilées, turns/pauses/IPU, drag loop, mini-map | Partiel | DOM par fenêtre ; clic sur un **tour** → seek au début ; pas canvas, pas drag→loop, pas mini-map |
-| **Vue Colonnes** | Bins time/turn aligned | v2 | |
-| **Vue Rythmo** | NOW fixe, scroll, scrub | v2 | |
+| **ViewportRenderer** | Abstraction `render` / `hitTest` / `getPreferredWindow` | Partiel | Types `PlayerViewportRendererContract` dans `playerViewportContract.ts` ; rendu toujours centralisé dans `PlayerRunWindowViews` |
+| **Vue Karaoké** | Bande, mots, virtualisation ±N segments | Partiel | **⌃6** : bande horizontale + préfixe locuteur au changement + virtualisation ±40 mots + suivi lecture (**F**) ; fenêtre mots auto si mode Karaoké |
+| **Vue Lanes** | Lanes empilées, turns/pauses/IPU, drag loop, mini-map | Partiel | DOM par fenêtre ; clic tour → seek ; **mini-carte** durée média + fenêtre SQLite + boucle A–B ; **glisser** sur la mini-carte → `setLoopRange` (WX-653) |
+| **Vue Colonnes** | Bins time/turn aligned | Partiel | Temps 1s/2s/5s + mode Tours ; scroll horizontal · pas de virtualisation fenêtre > 60s (WX-649 clos) |
+| **Vue Rythmo** | NOW fixe, scroll, scrub | Partiel | Liste IPU + repère « lecture » + **barre scrub** (fenêtre courante) + scroll suivi + seek clic IPU (WX-650) |
 | **Vue Mots** | surlignage mot courant, words si fenêtre ≤ 30s | Partiel | Chips + **clic → seek** ; pas karaoké continu |
 | **Vue Chat** | Bulles, badges, pagination ~50, clic→seek | Partiel | Bulles + playhead + **clic → seek** ; pas badges riches / « only alerts » vue / pagination explicite |
 | **Modèle Alert** | Types étendus (IPU court, interpolation, …) | Partiel | Heuristiques `derivePlayerAlerts` (overlap tours, pause longue) ; pas table `alerts` SQLite dédiée |
 | **UX alertes** | Liste, next/prev, halo dans vues, heat strip | Partiel | Liste + N/P + seek ; surlignage actif renforcé (Lanes / Chat / Mots) ; pas heat strip |
-| **Raccourcis** | Espace, flèches, Shift/Alt, ± vitesse, L, N/P, F, W, ⌃1–6 | Partiel | **⌃1–6** + **⌃⇧C** / **⌃⇧E** / **⌃⇧O** + **W** **L** **0–9** solo ; **⌃4–6** = placeholders v2 |
+| **Raccourcis** | Espace, flèches, Shift/Alt, ± vitesse, L, N/P, F, W, ⌃1–6 | Partiel | **⌃1–6** + **⌃⇧C** / **⌃⇧E** / **⌃⇧O** + **W** **L** **0–9** solo ; **⌃4–6** = vues v2 (Colonnes, Rythmo, Karaoké) |
 | **Speakers 1–9** | Visibilité par lane | Partiel | **Filtre** SQLite solo (spec longue = visibilité) |
 | **IPC** | `query_window` + layers + limits | OK | `query_run_events_window` + `QueryWindowResult` |
-| **IPC** | `open_run` / `get_run_status` / `recompute_alerts` / `ensure_envelopes` | Non / v2 | Parité partielle via manifest + chemins existants |
+| **IPC** | `open_run` / `get_run_status` / `recompute_alerts` / `ensure_envelopes` | Partiel | **`recompute_player_alerts`** (fenêtre + seuil + preset) pour alertes dérivées ; pas `ensure_envelopes` |
 | **IPC** | `export_pack` | OK | `export_run_timing_pack` (aligné Explorer) + raccourci **⌃⇧E** dans le Player |
 | **Perf front** | Canvas lanes / rythmo | Non | Lanes/Chat en DOM ; spec cible canvas |
 | **Perf** | Pas d’IPC à 60 Hz | OK | Grille ~4 Hz + RAF playhead |
-| **Perf** | Buffer ±10 s, debounce 50–100 ms | Partiel | Fenêtre fixe ~60 s / 30 s mots ; pas buffer explicite documenté en code |
+| **Perf** | Buffer ±10 s, debounce 50–100 ms | OK | **`playerRunWindowBounds`** + `usePlayerRunWindow` : marge ±10 s, debounce 100 ms, intervalle min entre IPC (WX-654) |
 | **Perf** | Budgets ms mesurés (30 / 50 / 150 / 100) | Non | Objectifs backlog ; pas tableau de bord perf intégré |
 | **Limites words** | `max_words` + fallback densité | Partiel | Plafonds Rust + `truncated` ; message dégradation à renforcer si besoin |
-| **Tests auto** | `execute` build / cargo / test | OK | Vitest : `derivePlayerAlerts` + tests RTL `PlayerRunWindowViews` (chargement, erreur, placeholder Colonnes, seek Lanes, mots) |
+| **Tests auto** | `execute` build / cargo / test | OK | Vitest : `derivePlayerAlerts`, `karaokeWords`, `playerRunWindowBounds`, RTL `PlayerRunWindowViews` (+ scrub Rythmo, …) |
 
-*Dernière revue (vérif code) : **2025-03-22** — types IPC, 6 vues UI, transport plein écran, localisation fenêtre mots / alertes.*
+*Dernière revue (vérif code) : **2026-03-28** — Rythmo : barre scrub sur `[t0,t1]` ; WX-653 / WX-654 comme ci-dessus.*
+
+### Roadmap Player v2 (backlog exécutable)
+
+| Ticket | Sujet |
+|--------|--------|
+| **WX-649** | Vue **Colonnes** — **fait** (⌃4 : grille temps + mode Tours) |
+| **WX-650** | Vue **Rythmo** — **fait** (⌃5 : piste IPU + suivi + scrub fenêtre) |
+| **WX-651** | Vue **Karaoké** (bande, surlignage, virtualisation) — remplace placeholder ⌃6 |
+| **WX-652** | **IPC `recompute_player_alerts`** + panneau seuils / stats QC — **fait** |
+| **WX-653** | **Lanes pro** — **fait** (mini-carte DOM, drag → boucle A–B, canvas laissé en option si besoin) |
+| **WX-654** | **Perf** fenêtre SQLite — **fait** (buffer ±10 s, debounce 100 ms, plafond ~10 IPC/s) |
+
+Ordre de priorisation conseillé : **649–654** livrés (Player v2 backlog principal).
 
 ---
 
@@ -87,7 +100,7 @@ Les commandes du ticket sont pensées pour être lancées **depuis la racine du 
 | Volume | Curseur **Vol.** · **M** muet / son (préférences **session** : `wx-player-volume` / `wx-player-muted`) |
 | Plein écran (vidéo) | Bouton **Plein écran** · **`Alt`**+**`Entrée`** (élément `<video>`) |
 | Suivre la tête dans le viewport (Lanes / Chat / Mots) | `F` (toggle) ; **Suivi** désactivé si l’utilisateur fait défiler le panneau événements |
-| Vues (Lanes … Karaoké placeholder) | `⌃` `1` … `6` (`⌘` sur macOS accepté) ; **⌃4–⌃6** = placeholders v2 sauf rendu complet |
+| Vues (Lanes … Karaoké) | `⌃` `1` … `6` (`⌘` sur macOS accepté) ; **⌃4–⌃6** = Colonnes, Rythmo, Karaoké |
 | Aller au temps (seek) | Champ **Navigateur** (secondes, `mm:ss`, `hh:mm:ss`) + **Aller** ou `Entrée` |
 | Alerte suivante / précédente (seek) | `N` / `P` (liste filtrée = panneau **droite**) |
 | Fenêtre **Mots** (30s, couche SQLite `words`) | Case **panneau gauche** · **`W`** (toggle) · vue **Mots** (⌃3) |
@@ -99,7 +112,7 @@ Les combinaisons **⌃1–6**, **⌃⇧C** (copier position), **⌃⇧E** (expor
 
 ### Écarts backlog v1 (WX-624)
 
-- La spec historique parle souvent de **cinq** modes (Karaoké, Lanes, Colonnes, Rythmo, Chat) ; l’UI actuelle expose **six** onglets (**⌃1–6**) en ajoutant **Mots** (⌃3) et la case **Fenêtre mots (30s)** (+ **`W`**). **⌃4** / **⌃5** / **⌃6** restent des **placeholders** Colonnes / Rythmo / Karaoké (sans requête SQLite supplémentaire). **Rendu complet** Karaoké / Colonnes / Rythmo → **v2**.
+- La spec historique parle souvent de **cinq** modes (Karaoké, Lanes, Colonnes, Rythmo, Chat) ; l’UI actuelle expose **six** onglets (**⌃1–6**) en ajoutant **Mots** (⌃3) et la case **Fenêtre mots (30s)** (+ **`W`**). **⌃4–⌃6** ont un rendu **v2** (Colonnes, Rythmo, Karaoké) ; la couche **mots** SQLite est aussi activée automatiquement en mode **Karaoké** (sans cocher la case).
 - **Plein écran vidéo** (**Alt+Entrée**, bouton barre) est en **v1** ; absent de certaines specs texte courtes.
 - **Navigateur** : champ **Aller au temps** (`parsePlayerTimecodeToSeconds` dans `appUtils`) pour seek, en complément de **N** / **P** (alertes).
 - Les touches **1–9** du backlog côté « visibilité speaker » sont implémentées ici comme **filtre locuteur** (solo) sur la fenêtre SQLite, cohérent avec le panneau Filtres.

@@ -9,6 +9,7 @@ import {
 } from "./AlignmentWorkspacePanel";
 import { JobRunPipelineStrip } from "./JobRunPipelineStrip";
 import { LiveTranscriptFeed } from "./LiveTranscriptFeed";
+import { RunExpectedExportsStrip } from "./RunExpectedExportsStrip";
 import { RunDetailsMetaSection } from "./RunDetailsMetaSection";
 import { RunDetailsOutputFiles } from "./RunDetailsOutputFiles";
 import { RunDetailsPreview, type RunDetailsPreviewProps } from "./RunDetailsPreview";
@@ -211,6 +212,9 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                   canCancelJob ? () => void onCancelJob(selectedJob.id) : undefined
                 }
               />
+              {selectedJob.mode === "whisperx" ? (
+                <RunExpectedExportsStrip job={selectedJob} />
+              ) : null}
               <LiveTranscriptFeed job={selectedJob} segments={liveTranscriptSegments} />
               <div id="run-details-tabs-anchor" className="run-details-tabs-anchor">
                 <TabListBar
