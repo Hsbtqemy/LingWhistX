@@ -77,55 +77,7 @@ describe("PlayerRunWindowViews", () => {
     });
     render(<PlayerRunWindowViews {...baseProps} mode="rythmo" slice={slice} queryError={null} />);
     expect(screen.getByText("hello")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Bande rythmo horizontale/i)).toBeInTheDocument();
-    expect(screen.getByTestId("player-rythmo-scrub")).toBeInTheDocument();
-  });
-
-  it("mode Rythmo : scrub (pointer) appelle onSeekToMs", () => {
-    const onSeekToMs = vi.fn();
-    const slice = minimalSlice({
-      t0Ms: 0,
-      t1Ms: 60_000,
-      ipus: [
-        {
-          id: 1,
-          startMs: 2000,
-          endMs: 5000,
-          durMs: 3000,
-          nWords: 1,
-          speaker: "A",
-          text: "hello",
-        },
-      ],
-    });
-    const rect = {
-      width: 10_000,
-      height: 22,
-      top: 0,
-      left: 0,
-      bottom: 22,
-      right: 10_000,
-      x: 0,
-      y: 0,
-      toJSON: () => "",
-    };
-    const spy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(rect as DOMRect);
-
-    const { container } = render(
-      <PlayerRunWindowViews
-        {...baseProps}
-        mode="rythmo"
-        slice={slice}
-        queryError={null}
-        onSeekToMs={onSeekToMs}
-      />,
-    );
-    const scrub = container.querySelector('[data-testid="player-rythmo-scrub"]');
-    expect(scrub).toBeTruthy();
-    fireEvent.pointerDown(scrub!, { clientX: 5000, button: 0, pointerId: 1 });
-    spy.mockRestore();
-    expect(onSeekToMs).toHaveBeenCalled();
-    expect(onSeekToMs.mock.calls[0][0]).toBe(30_000);
+    expect(screen.getByLabelText(/Bande rythmo multi-lanes/i)).toBeInTheDocument();
   });
 
   it("mode Lanes : clic sur un tour appelle onSeekToMs avec le début (ms)", () => {
@@ -156,11 +108,19 @@ describe("PlayerRunWindowViews", () => {
     expect(screen.getByText(/fenêtre mots \(30s\)/i)).toBeInTheDocument();
   });
 
-  it("mode Karaoké : bande virtualisée et surlignage mot actif", () => {
+  it("mode Karaoké : segments IPU avec surlignage mot actif", () => {
     const slice = minimalSlice({
       words: [
         { id: 1, startMs: 0, endMs: 400, speaker: "A", token: "bonjour" },
         { id: 2, startMs: 400, endMs: 900, speaker: "B", token: "monde" },
+      ],
+      ipus: [
+        { id: 1, startMs: 0, endMs: 400, durMs: 400, nWords: 1, speaker: "A", text: "bonjour" },
+        { id: 2, startMs: 400, endMs: 900, durMs: 500, nWords: 1, speaker: "B", text: "monde" },
+      ],
+      turns: [
+        { id: 1, startMs: 0, endMs: 400, speaker: "A" },
+        { id: 2, startMs: 400, endMs: 900, speaker: "B" },
       ],
     });
     render(
@@ -175,7 +135,7 @@ describe("PlayerRunWindowViews", () => {
     );
     expect(screen.getByText("bonjour")).toBeInTheDocument();
     expect(screen.getByText("monde")).toBeInTheDocument();
-    expect(document.querySelector(".player-karaoke")).toBeTruthy();
+    expect(document.querySelector(".karaoke-v2")).toBeTruthy();
     const monde = screen.getByText("monde").closest("button");
     expect(monde).toHaveClass("is-active");
   });

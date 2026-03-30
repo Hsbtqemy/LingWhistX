@@ -5,17 +5,18 @@ import {
   turnsForSpeakerInBin,
   uniqueSpeakersFromTurns,
 } from "../../player/playerColumnsBins";
-import {
-  findActiveWordIndex,
-  isWordAligned,
-  karaokeVisibleRange,
-  KARAOKE_VISIBLE_RADIUS,
-} from "../../player/karaokeWords";
+import { isWordAligned } from "../../player/karaokeWords";
 import {
   buildPauseHistogram,
   computeSpeakerStats,
 } from "../../player/playerSpeakerStats";
-import type { EditableSegment, EventTurnRow, QueryWindowResult } from "../../types";
+import type {
+  EditableSegment,
+  EventIpuRow,
+  EventPauseRow,
+  EventTurnRow,
+  QueryWindowResult,
+} from "../../types";
 import type { PlayerViewportMode } from "./playerViewportContract";
 
 export type { PlayerViewportMode };
@@ -94,26 +95,18 @@ export function PlayerRunWindowViews({
     );
   }
   if (mode === "rythmo") {
-    if (editMode && editorSegments) {
-      return (
-        <PlayerRythmoEditBody
-          segments={editorSegments}
-          playheadMs={playheadMs}
-          activeSegmentIndex={activeSegmentIndex ?? null}
-          onSeekToMs={onSeekToMs}
-          onFocusSegment={focusSegment}
-          onUpdateText={updateEditorSegmentText}
-          followPlayhead={followPlayhead}
-          durationSec={durationSec}
-        />
-      );
-    }
     return (
-      <PlayerRythmoBody
+      <PlayerRythmoView
         slice={slice}
         playheadMs={playheadMs}
         onSeekToMs={onSeekToMs}
         followPlayhead={followPlayhead}
+        editMode={editMode}
+        editorSegments={editorSegments}
+        activeSegmentIndex={activeSegmentIndex ?? null}
+        onFocusSegment={focusSegment}
+        onUpdateText={updateEditorSegmentText}
+        durationSec={durationSec}
       />
     );
   }
@@ -202,6 +195,73 @@ export function PlayerRunWindowViews({
   );
 }
 
+type KaraokeSegment = {
+  ipuId: number;
+  startMs: number;
+  endMs: number;
+  speaker: string;
+  text: string;
+  words: { id: number; token: string; startMs: number; endMs: number; aligned: boolean }[];
+  pauseBefore: number | null;
+  hasOverlap: boolean;
+  hasUnaligned: boolean;
+};
+
+function buildKaraokeSegments(
+  slice: QueryWindowResult,
+): KaraokeSegment[] {
+  const ipus = [...slice.ipus].sort((a, b) => a.startMs - b.startMs);
+  const words = [...slice.words].sort((a, b) => a.startMs - b.startMs);
+  const pauses = slice.pauses;
+  const turns = slice.turns;
+
+  const result: KaraokeSegment[] = [];
+  for (let ii = 0; ii < ipus.length; ii++) {
+    const ipu = ipus[ii];
+    const sp = ipu.speaker?.trim() || "\u2014";
+    const segWords = words.filter(
+      (w) => w.startMs >= ipu.startMs && w.endMs <= ipu.endMs + 50,
+    );
+    const hasUnaligned = segWords.some((w) => !isWordAligned(w));
+
+    let pauseBefore: number | null = null;
+    const matchedPause = pauses.find(
+      (p) => p.endMs >= ipu.startMs - 50 && p.endMs <= ipu.startMs + 50 && p.durMs >= 300,
+    );
+    if (matchedPause) pauseBefore = matchedPause.durMs;
+
+    let hasOverlap = false;
+    for (const t of turns) {
+      if (t.speaker !== sp) {
+        const oStart = Math.max(t.startMs, ipu.startMs);
+        const oEnd = Math.min(t.endMs, ipu.endMs);
+        if (oEnd - oStart > 50) { hasOverlap = true; break; }
+      }
+    }
+
+    result.push({
+      ipuId: ipu.id,
+      startMs: ipu.startMs,
+      endMs: ipu.endMs,
+      speaker: sp,
+      text: ipu.text?.trim() ?? segWords.map((w) => w.token?.trim() || "").join(" "),
+      words: segWords.map((w) => ({
+        id: w.id,
+        token: w.token?.trim() || "\u2026",
+        startMs: w.startMs,
+        endMs: w.endMs,
+        aligned: isWordAligned(w),
+      })),
+      pauseBefore,
+      hasOverlap,
+      hasUnaligned,
+    });
+  }
+  return result;
+}
+
+const KARAOKE_SEG_WINDOW = 300;
+
 function PlayerKaraokeBody({
   slice,
   playheadMs,
@@ -215,89 +275,173 @@ function PlayerKaraokeBody({
   onSeekToMs?: (ms: number) => void;
   followPlayhead: boolean;
 }) {
-  const activeRef = useRef<HTMLButtonElement | null>(null);
-  const words = useMemo(
-    () => [...slice.words].sort((a, b) => a.startMs - b.startMs),
-    [slice.words],
-  );
-  const activeIdx = useMemo(() => findActiveWordIndex(words, playheadMs), [words, playheadMs]);
-  const { from, to } = useMemo(
-    () => karaokeVisibleRange(words.length, activeIdx, KARAOKE_VISIBLE_RADIUS),
-    [words.length, activeIdx],
-  );
-  const visible = words.slice(from, to);
-  const activeWordId = activeIdx >= 0 ? words[activeIdx]?.id : null;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const activeSegRef = useRef<HTMLDivElement | null>(null);
+  const [followActive, setFollowActive] = useState(true);
+  const programmaticScrollRef = useRef(false);
+
+  const allSegments = useMemo(() => buildKaraokeSegments(slice), [slice]);
+
+  const activeSegIdx = useMemo(() => {
+    for (let i = 0; i < allSegments.length; i++) {
+      if (playheadMs >= allSegments[i].startMs && playheadMs < allSegments[i].endMs) return i;
+    }
+    let best = -1;
+    for (let i = 0; i < allSegments.length; i++) {
+      if (allSegments[i].startMs <= playheadMs) best = i;
+    }
+    return best;
+  }, [allSegments, playheadMs]);
+
+  const visibleSegments = useMemo(() => {
+    if (allSegments.length <= KARAOKE_SEG_WINDOW) return allSegments;
+    const center = activeSegIdx >= 0 ? activeSegIdx : 0;
+    const half = Math.floor(KARAOKE_SEG_WINDOW / 2);
+    const from = Math.max(0, center - half);
+    const to = Math.min(allSegments.length, from + KARAOKE_SEG_WINDOW);
+    return allSegments.slice(from, to);
+  }, [allSegments, activeSegIdx]);
+
+  const activeWordId = useMemo(() => {
+    if (activeSegIdx < 0) return -1;
+    const seg = allSegments[activeSegIdx];
+    for (const w of seg.words) {
+      if (playheadMs >= w.startMs && playheadMs < w.endMs) return w.id;
+    }
+    return -1;
+  }, [allSegments, activeSegIdx, playheadMs]);
 
   useEffect(() => {
-    const el = activeRef.current;
-    if (!followPlayhead || !el || typeof el.scrollIntoView !== "function") {
-      return;
-    }
-    const reduceMotion =
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollIntoView({
-      inline: "center",
-      block: "center",
-      behavior: reduceMotion ? "auto" : "smooth",
-    });
-  }, [followPlayhead, activeWordId, from, to]);
+    if (!followPlayhead || !followActive || activeSegIdx < 0) return;
+    const el = activeSegRef.current;
+    const container = scrollRef.current;
+    if (!el || !container || typeof container.scrollTo !== "function") return;
+    programmaticScrollRef.current = true;
+    const containerH = container.clientHeight;
+    const elTop = el.offsetTop;
+    const targetScroll = elTop - containerH * 0.33;
+    container.scrollTo({ top: targetScroll, behavior: "smooth" });
+    const tid = window.setTimeout(() => { programmaticScrollRef.current = false; }, 400);
+    return () => window.clearTimeout(tid);
+  }, [followPlayhead, followActive, activeSegIdx]);
+
+  const handleScroll = () => {
+    if (programmaticScrollRef.current) return;
+    if (followActive) setFollowActive(false);
+  };
 
   if (!wordsLayerActive) {
     return (
       <p className="player-viewport-placeholder small">
-        Active <strong>Fenêtre mots (30s)</strong> dans le panneau de gauche pour charger les tokens
-        dans une fenêtre ≤ 30s (spec WX-624).
+        Active <strong>Charger les mots</strong> dans le panneau de gauche pour afficher la vue Karaok\u00e9.
       </p>
     );
   }
 
+  const speakers = Array.from(new Set(allSegments.map((s) => s.speaker)));
+
   return (
-    <div className="player-karaoke">
-      <p className="player-lanes-meta small mono">
-        Fenêtre {slice.t0Ms}–{slice.t1Ms} ms · {words.length} mots · virt. ±{KARAOKE_VISIBLE_RADIUS}
-        {slice.truncated.words ? " · tronqué (zoom / réduire la fenêtre)" : ""}
-      </p>
-      <div className="player-karaoke-now" aria-hidden="true">
-        <span className="player-karaoke-now-line" />
-        <span className="player-karaoke-now-label">lecture</span>
-        <span className="player-karaoke-now-line" />
+    <div className="karaoke-v2" aria-label="Vue karaok\u00e9">
+      <div className="karaoke-v2-header">
+        <span className="karaoke-v2-header-info small mono">
+          {allSegments.length} segments \u00b7 {speakers.length} loc.
+          {slice.truncated.ipus ? " \u00b7 tronqu\u00e9" : ""}
+        </span>
+        {!followActive && (
+          <button
+            type="button"
+            className="karaoke-v2-follow-btn small"
+            onClick={() => setFollowActive(true)}
+          >
+            Reprendre le suivi
+          </button>
+        )}
       </div>
-      <div className="player-karaoke-strip" role="list">
-        {visible.map((w, i) => {
-          const idx = from + i;
-          const prev = idx > 0 ? words[idx - 1] : null;
-          const speaker = w.speaker?.trim() || null;
-          const prevSp = prev?.speaker?.trim() || null;
-          const showSpeaker = speaker !== prevSp;
-          const active = idx === activeIdx && activeIdx >= 0;
-          const aligned = isWordAligned(w);
+
+      <div className="karaoke-v2-scroll" ref={scrollRef} onScroll={handleScroll} role="list">
+        {visibleSegments.map((seg) => {
+          const si = allSegments.indexOf(seg);
+          const isActive = si === activeSegIdx;
+          const isPast = activeSegIdx >= 0 && si < activeSegIdx;
+          let cls = "karaoke-v2-seg";
+          if (isActive) cls += " is-active";
+          else if (isPast) cls += " is-past";
+
           return (
-            <span key={w.id} className="player-karaoke-item" role="listitem">
-              {showSpeaker ? (
-                <span className="player-karaoke-speaker mono small">{speaker ?? "—"}</span>
-              ) : null}
-              <button
-                type="button"
-                ref={active ? activeRef : undefined}
-                className={`player-karaoke-chip${active ? " is-active" : ""}${!aligned ? " is-unaligned" : ""}`}
-                title={`${w.startMs}–${w.endMs} ms${!aligned ? ` · ${w.alignmentStatus ?? "non aligné"}` : ""} — cliquer pour seek`}
-                disabled={!onSeekToMs}
-                onClick={() => onSeekToMs?.(w.startMs)}
-              >
-                {w.token?.trim() || "…"}
-              </button>
-            </span>
+            <div
+              key={seg.ipuId}
+              ref={isActive ? activeSegRef : undefined}
+              className={cls}
+              role="listitem"
+            >
+              <div className="karaoke-v2-seg-left">
+                <span className="karaoke-v2-speaker mono">{seg.speaker}</span>
+                <span className="karaoke-v2-time mono">
+                  {formatClockSeconds(seg.startMs / 1000)}
+                </span>
+              </div>
+
+              <div className="karaoke-v2-seg-body">
+                {seg.words.length > 0 ? (
+                  <span className="karaoke-v2-seg-words">
+                    {seg.words.map((w) => {
+                      const wActive = w.id === activeWordId;
+                      let wCls = "karaoke-v2-word";
+                      if (wActive) wCls += " is-active";
+                      if (!w.aligned) wCls += " is-unaligned";
+                      return (
+                        <button
+                          key={w.id}
+                          type="button"
+                          className={wCls}
+                          disabled={!onSeekToMs}
+                          onClick={() => onSeekToMs?.(w.startMs)}
+                        >
+                          {w.token}
+                        </button>
+                      );
+                    })}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="karaoke-v2-seg-text"
+                    disabled={!onSeekToMs}
+                    onClick={() => onSeekToMs?.(seg.startMs)}
+                  >
+                    {seg.text || "\u2026"}
+                  </button>
+                )}
+              </div>
+
+              <div className="karaoke-v2-seg-right">
+                {seg.pauseBefore != null && (
+                  <span className="karaoke-v2-badge karaoke-v2-badge--pause" title={`Pause ${seg.pauseBefore} ms`}>
+                    \u23f8 {(seg.pauseBefore / 1000).toFixed(1)}s
+                  </span>
+                )}
+                {seg.hasOverlap && (
+                  <span className="karaoke-v2-badge karaoke-v2-badge--overlap" title="Chevauchement">
+                    \u27f7
+                  </span>
+                )}
+                {seg.hasUnaligned && (
+                  <span className="karaoke-v2-badge karaoke-v2-badge--unaligned" title="Mots interpol\u00e9s">
+                    \u2248
+                  </span>
+                )}
+              </div>
+            </div>
           );
         })}
+        {allSegments.length === 0 && (
+          <p className="small" style={{ padding: "16px" }}>Aucun segment dans cette fen\u00eatre.</p>
+        )}
       </div>
-      {words.length === 0 ? (
-        <p className="small">Aucun mot dans cette fenêtre — vérifie l’indexation ou zoome pour une fenêtre ≤ 30s.</p>
-      ) : null}
     </div>
   );
 }
+
 
 type ColumnsLayoutMode = "time" | "turn";
 
@@ -446,19 +590,247 @@ function PlayerColumnsBody({
   );
 }
 
-/** WX-669 — Bande rythmo horizontale défilante (doublage style). */
-function PlayerRythmoBody({
+// ---------------------------------------------------------------------------
+// Rythmo view — bande horizontale multi-lanes, défilement continu (WX-669)
+// ---------------------------------------------------------------------------
+
+type RythmoWordTimed = {
+  word: string;
+  offsetPct: number;
+};
+
+type RythmoBlock = {
+  id: string;
+  startMs: number;
+  endMs: number;
+  durMs: number;
+  speaker: string;
+  text: string;
+  segIdx?: number;
+  isWord?: boolean;
+  timedWords?: RythmoWordTimed[];
+};
+
+const RYTHMO_ZOOM_PRESETS = [1, 2, 3, 4, 5, 10, 30, 60] as const;
+type RythmoZoomSec = (typeof RYTHMO_ZOOM_PRESETS)[number];
+const RYTHMO_TIMESCALE_HEIGHT = 18;
+
+function buildTimedWords(
+  blockStartMs: number,
+  blockDurMs: number,
+  words: { word: string; start: number; end: number }[] | undefined,
+  plainText: string,
+): RythmoWordTimed[] | undefined {
+  if (blockDurMs <= 0) return undefined;
+  if (words && words.length > 0) {
+    return words.map((w) => ({
+      word: w.word,
+      offsetPct: Math.max(0, Math.min(100, ((Math.round(w.start * 1000) - blockStartMs) / blockDurMs) * 100)),
+    }));
+  }
+  const tokens = plainText.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return undefined;
+  return tokens.map((t, i) => ({
+    word: t,
+    offsetPct: (i / tokens.length) * 100,
+  }));
+}
+
+function buildRythmoBlocks(
+  ipus: EventIpuRow[],
+  editorSegments: EditableSegment[] | undefined,
+  editMode: boolean,
+  wordLevel: boolean,
+): RythmoBlock[] {
+  if (editMode && editorSegments && editorSegments.length > 0) {
+    if (wordLevel) return explodeSegmentsToWords(editorSegments);
+    return editorSegments.map((seg, i) => {
+      const startMs = Math.round(seg.start * 1000);
+      const endMs = Math.round(seg.end * 1000);
+      const durMs = Math.max(1, endMs - startMs);
+      return {
+        id: `seg-${i}`,
+        startMs,
+        endMs,
+        durMs,
+        speaker: seg.speaker ?? "",
+        text: seg.text.trim(),
+        segIdx: i,
+        timedWords: buildTimedWords(startMs, durMs, seg.words ?? undefined, seg.text),
+      };
+    });
+  }
+  if (wordLevel) return explodeIpusToWords(ipus);
+  return ipus.map((ipu) => {
+    const text = ipu.text?.trim() ?? "";
+    return {
+      id: `ipu-${ipu.id}`,
+      startMs: ipu.startMs,
+      endMs: ipu.endMs,
+      durMs: ipu.durMs,
+      speaker: ipu.speaker ?? "",
+      text,
+      timedWords: buildTimedWords(ipu.startMs, ipu.durMs, undefined, text),
+    };
+  });
+}
+
+function explodeSegmentsToWords(segments: EditableSegment[]): RythmoBlock[] {
+  const result: RythmoBlock[] = [];
+  for (let si = 0; si < segments.length; si++) {
+    const seg = segments[si];
+    const segStartMs = Math.round(seg.start * 1000);
+    const segEndMs = Math.round(seg.end * 1000);
+    const segDurMs = segEndMs - segStartMs;
+    const speaker = seg.speaker ?? "";
+
+    if (seg.words && seg.words.length > 0) {
+      for (let wi = 0; wi < seg.words.length; wi++) {
+        const w = seg.words[wi];
+        const wStart = Math.round(w.start * 1000);
+        const wEnd = Math.round(w.end * 1000);
+        result.push({
+          id: `sw-${si}-${wi}`,
+          startMs: wStart,
+          endMs: wEnd,
+          durMs: Math.max(1, wEnd - wStart),
+          speaker,
+          text: w.word,
+          segIdx: si,
+          isWord: true,
+        });
+      }
+    } else {
+      const textWords = seg.text.trim().split(/\s+/).filter(Boolean);
+      if (textWords.length === 0) continue;
+      for (let wi = 0; wi < textWords.length; wi++) {
+        const wStart = segStartMs + Math.round((wi / textWords.length) * segDurMs);
+        const wEnd = segStartMs + Math.round(((wi + 1) / textWords.length) * segDurMs);
+        result.push({
+          id: `sw-${si}-${wi}`,
+          startMs: wStart,
+          endMs: wEnd,
+          durMs: Math.max(1, wEnd - wStart),
+          speaker,
+          text: textWords[wi],
+          segIdx: si,
+          isWord: true,
+        });
+      }
+    }
+  }
+  return result;
+}
+
+function explodeIpusToWords(ipus: EventIpuRow[]): RythmoBlock[] {
+  const result: RythmoBlock[] = [];
+  for (const ipu of ipus) {
+    const textWords = (ipu.text?.trim() ?? "").split(/\s+/).filter(Boolean);
+    if (textWords.length === 0) continue;
+    const speaker = ipu.speaker ?? "";
+    for (let wi = 0; wi < textWords.length; wi++) {
+      const wStart = ipu.startMs + Math.round((wi / textWords.length) * ipu.durMs);
+      const wEnd = ipu.startMs + Math.round(((wi + 1) / textWords.length) * ipu.durMs);
+      result.push({
+        id: `iw-${ipu.id}-${wi}`,
+        startMs: wStart,
+        endMs: wEnd,
+        durMs: Math.max(1, wEnd - wStart),
+        speaker,
+        text: textWords[wi],
+        isWord: true,
+      });
+    }
+  }
+  return result;
+}
+
+function computeOverlaps(
+  blocks: RythmoBlock[],
+  speakers: string[],
+): { startMs: number; endMs: number }[] {
+  if (speakers.length < 2) return [];
+  const result: { startMs: number; endMs: number }[] = [];
+  const bySpeaker = new Map<string, RythmoBlock[]>();
+  for (const b of blocks) {
+    const arr = bySpeaker.get(b.speaker) ?? [];
+    arr.push(b);
+    bySpeaker.set(b.speaker, arr);
+  }
+  const allSpeakers = Array.from(bySpeaker.keys());
+  for (let si = 0; si < allSpeakers.length; si++) {
+    const blocksA = bySpeaker.get(allSpeakers[si]) ?? [];
+    for (let sj = si + 1; sj < allSpeakers.length; sj++) {
+      const blocksB = bySpeaker.get(allSpeakers[sj]) ?? [];
+      for (const a of blocksA) {
+        for (const b of blocksB) {
+          const oStart = Math.max(a.startMs, b.startMs);
+          const oEnd = Math.min(a.endMs, b.endMs);
+          if (oEnd > oStart) result.push({ startMs: oStart, endMs: oEnd });
+        }
+      }
+    }
+  }
+  result.sort((a, b) => a.startMs - b.startMs);
+  return result;
+}
+
+function rythmoTimeTicks(
+  playheadMs: number,
+  visibleMs: number,
+): { posMs: number; label: string }[] {
+  const halfMs = visibleMs / 2;
+  const startMs = playheadMs - halfMs;
+  const endMs = playheadMs + halfMs;
+  let step: number;
+  if (visibleMs <= 1_500) step = 200;
+  else if (visibleMs <= 3_000) step = 500;
+  else if (visibleMs <= 10_000) step = 1_000;
+  else if (visibleMs <= 30_000) step = 5_000;
+  else step = 10_000;
+  const firstTick = Math.ceil(startMs / step) * step;
+  const ticks: { posMs: number; label: string }[] = [];
+  for (let ms = firstTick; ms <= endMs; ms += step) {
+    if (ms < 0) continue;
+    const totalSec = ms / 1000;
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    const label = step < 1000
+      ? `${min}:${sec.toFixed(1).padStart(4, "0")}`
+      : `${min}:${Math.floor(sec).toString().padStart(2, "0")}`;
+    ticks.push({ posMs: ms, label });
+  }
+  return ticks;
+}
+
+function PlayerRythmoView({
   slice,
   playheadMs,
   onSeekToMs,
+  editMode = false,
+  editorSegments,
+  onFocusSegment,
+  onUpdateText,
+  durationSec,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
   onSeekToMs?: (ms: number) => void;
-  followPlayhead: boolean;
+  followPlayhead?: boolean;
+  editMode?: boolean;
+  editorSegments?: EditableSegment[];
+  activeSegmentIndex?: number | null;
+  onFocusSegment?: (i: number) => void;
+  onUpdateText?: (i: number, text: string) => void;
+  durationSec?: number | null;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(600);
+  const [zoomSec, setZoomSec] = useState<RythmoZoomSec>(30);
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef<{ startX: number; startPlayheadMs: number } | null>(null);
+  const [dragOffsetMs, setDragOffsetMs] = useState(0);
+  const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -471,150 +843,281 @@ function PlayerRythmoBody({
     return () => obs.disconnect();
   }, []);
 
-  const ipus = useMemo(
-    () => [...slice.ipus].sort((a, b) => a.startMs - b.startMs),
-    [slice.ipus],
+  const wordLevel = false;
+  const blocks = useMemo(
+    () => buildRythmoBlocks(slice.ipus, editorSegments, editMode, wordLevel),
+    [slice.ipus, editorSegments, editMode, wordLevel],
   );
 
-  const speakerIndex = useMemo(() => {
-    const speakers = Array.from(new Set(ipus.map((i) => i.speaker ?? ""))).sort();
-    return new Map(speakers.map((s, idx) => [s, idx]));
-  }, [ipus]);
+  const speakers = useMemo(() => {
+    const set = new Set(blocks.map((b) => b.speaker));
+    return Array.from(set).sort();
+  }, [blocks]);
 
-  // 60s fills the viewport → PX_PER_MS such that 60 000 ms = containerWidth
-  const PX_PER_MS = containerWidth / 60_000;
-  const stripTranslateX = Math.round(containerWidth / 2 - playheadMs * PX_PER_MS);
-  const stripWidth = Math.max(containerWidth, slice.t1Ms * PX_PER_MS + containerWidth / 2);
+  const speakerIdx = useMemo(
+    () => new Map(speakers.map((s, i) => [s, i])),
+    [speakers],
+  );
+
+  const overlaps = useMemo(
+    () => computeOverlaps(blocks, speakers),
+    [blocks, speakers],
+  );
+
+  const pauses: EventPauseRow[] = slice.pauses ?? [];
+
+  const visibleMs = zoomSec * 1000;
+  const pxPerMs = containerWidth / visibleMs;
+  const effectivePlayheadMs = dragging ? playheadMs + dragOffsetMs : playheadMs;
+  const stripTranslateX = Math.round(containerWidth / 2 - effectivePlayheadMs * pxPerMs);
+  const totalMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
+    ? durationSec * 1000
+    : Math.max(slice.t1Ms, ...blocks.map((b) => b.endMs));
+  const stripWidth = Math.max(containerWidth, totalMs * pxPerMs + containerWidth);
+
+  const ticks = useMemo(
+    () => rythmoTimeTicks(effectivePlayheadMs, visibleMs),
+    [effectivePlayheadMs, visibleMs],
+  );
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const idx = RYTHMO_ZOOM_PRESETS.indexOf(zoomSec);
+    if (e.deltaY < 0 && idx > 0) setZoomSec(RYTHMO_ZOOM_PRESETS[idx - 1]);
+    else if (e.deltaY > 0 && idx < RYTHMO_ZOOM_PRESETS.length - 1) setZoomSec(RYTHMO_ZOOM_PRESETS[idx + 1]);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest(".player-rythmo-v2-block")) return;
+    dragRef.current = { startX: e.clientX, startPlayheadMs: playheadMs };
+    setDragging(true);
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* */ }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const deltaMs = -dx / pxPerMs;
+    setDragOffsetMs(deltaMs);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const deltaMs = -dx / pxPerMs;
+    if (Math.abs(dx) > 4 && onSeekToMs) {
+      onSeekToMs(Math.round(dragRef.current.startPlayheadMs + deltaMs));
+    }
+    dragRef.current = null;
+    setDragging(false);
+    setDragOffsetMs(0);
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* */ }
+  };
+
+  const handleBlockClick = (block: RythmoBlock) => {
+    if (editMode && block.segIdx != null) {
+      onFocusSegment?.(block.segIdx);
+      setFocusedBlockId(block.id);
+    } else {
+      onSeekToMs?.(block.startMs);
+    }
+  };
+
+  const handleBlockDoubleClick = (block: RythmoBlock) => {
+    if (editMode && block.segIdx != null) {
+      onFocusSegment?.(block.segIdx);
+      setFocusedBlockId(block.id);
+    }
+  };
+
+  const laneHeight = zoomSec <= 2 ? 220
+    : zoomSec <= 3 ? 190
+    : zoomSec <= 4 ? 170
+    : zoomSec <= 5 ? 160
+    : zoomSec <= 10 ? 130
+    : zoomSec <= 30 ? 220
+    : 280;
+  const viewportHeight = speakers.length * laneHeight + RYTHMO_TIMESCALE_HEIGHT + 8;
+
+  const halfVis = visibleMs / 2;
+  const visStartMs = effectivePlayheadMs - halfVis;
+  const visEndMs = effectivePlayheadMs + halfVis;
 
   return (
-    <div className="player-rythmo">
-      <PlayerRythmoScrub
-        t0Ms={slice.t0Ms}
-        t1Ms={slice.t1Ms}
-        playheadMs={playheadMs}
-        onSeekToMs={onSeekToMs}
-      />
-      {/* Horizontal band */}
+    <div className="player-rythmo-v2">
+      <div className="player-rythmo-v2-toolbar">
+        <span className="player-rythmo-v2-toolbar-label small mono">
+          {formatClockSeconds(effectivePlayheadMs / 1000)}
+        </span>
+        <span className="player-rythmo-v2-zoom-group" role="group" aria-label="Zoom">
+          {RYTHMO_ZOOM_PRESETS.map((z) => (
+            <button
+              key={z}
+              type="button"
+              className={`player-rythmo-v2-zoom-btn small${z === zoomSec ? " is-active" : ""}`}
+              onClick={() => setZoomSec(z)}
+            >
+              {z}s
+            </button>
+          ))}
+        </span>
+        <span className="player-rythmo-v2-toolbar-info small mono">
+          {speakers.length} loc. · {blocks.length} {wordLevel ? "mots" : "blocs"}
+        </span>
+      </div>
+
       <div
         ref={containerRef}
-        className="player-rythmo-band-viewport"
-        aria-label="Bande rythmo horizontale"
+        className={`player-rythmo-v2-viewport${editMode ? " player-rythmo-v2-viewport--edit" : ""}`}
+        style={{ height: `${viewportHeight}px` }}
+        data-zoom={zoomSec}
+        aria-label="Bande rythmo multi-lanes"
+        onWheel={handleWheel}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => { dragRef.current = null; setDragging(false); setDragOffsetMs(0); }}
       >
-        {/* Fixed cursor at center */}
-        <div className="player-rythmo-band-cursor" aria-hidden="true" />
-        {/* Sliding strip — translates so playheadMs is always at 50% */}
+        {/* Reading zone — subtle highlight around NOW */}
+        <div className="player-rythmo-v2-reading-zone" aria-hidden="true" />
+        {/* NOW cursor */}
+        <div className="player-rythmo-v2-now" aria-hidden="true" />
+
+        {/* Timescale ticks */}
         <div
-          className="player-rythmo-band-strip"
-          style={{ width: `${stripWidth}px`, transform: `translateX(${stripTranslateX}px)` }}
+          className="player-rythmo-v2-timescale"
+          style={{ transform: `translateX(${stripTranslateX}px)`, width: `${stripWidth}px` }}
         >
-          {ipus.map((ipu) => {
-            const spIdx = speakerIndex.get(ipu.speaker ?? "") ?? 0;
-            const blockW = Math.max(2, ipu.durMs * PX_PER_MS - 2);
-            const active = playheadMs >= ipu.startMs && playheadMs < ipu.endMs;
+          {ticks.map((t) => (
+            <span
+              key={t.posMs}
+              className="player-rythmo-v2-tick"
+              style={{ left: `${t.posMs * pxPerMs}px` }}
+            >
+              {t.label}
+            </span>
+          ))}
+        </div>
+
+        {/* Overlap bands (behind lanes) */}
+        <div
+          className="player-rythmo-v2-overlap-layer"
+          style={{ transform: `translateX(${stripTranslateX}px)`, width: `${stripWidth}px` }}
+        >
+          {overlaps.map((ov, oi) => {
+            if (ov.endMs < visStartMs || ov.startMs > visEndMs) return null;
             return (
-              <button
-                key={ipu.id}
-                type="button"
-                className={`player-rythmo-band-ipu${active ? " is-active" : ""}`}
-                style={
-                  {
-                    left: `${ipu.startMs * PX_PER_MS}px`,
-                    width: `${blockW}px`,
-                    "--ipu-sp": `var(--lx-speaker-${spIdx}, var(--lx-accent))`,
-                  } as CSSProperties
-                }
-                disabled={!onSeekToMs}
-                onClick={() => onSeekToMs?.(ipu.startMs)}
-                title={`${ipu.speaker ?? "?"} · ${ipu.text?.trim() ?? ""}`}
-              >
-                <span className="player-rythmo-band-ipu-text">{ipu.text?.trim() || "…"}</span>
-              </button>
+              <div
+                key={oi}
+                className="player-rythmo-v2-overlap-band"
+                style={{
+                  left: `${ov.startMs * pxPerMs}px`,
+                  width: `${Math.max(2, (ov.endMs - ov.startMs) * pxPerMs)}px`,
+                  top: `${RYTHMO_TIMESCALE_HEIGHT}px`,
+                  height: `${speakers.length * laneHeight}px`,
+                }}
+              />
             );
           })}
         </div>
+
+        {/* Speaker lanes */}
+        {speakers.map((sp, si) => {
+          const laneBlocks = blocks.filter((b) => b.speaker === sp);
+          const lanePauses = pauses.filter((p) => (p.speaker ?? "") === sp || (!p.speaker && speakers.length === 1));
+          return (
+            <div
+              key={sp}
+              className="player-rythmo-v2-lane"
+              style={{
+                top: `${RYTHMO_TIMESCALE_HEIGHT + si * laneHeight}px`,
+                height: `${laneHeight}px`,
+              }}
+              data-speaker={sp}
+            >
+              <span className="player-rythmo-v2-lane-label small mono">{sp || "?"}</span>
+              <div
+                className="player-rythmo-v2-lane-strip"
+                style={{ transform: `translateX(${stripTranslateX}px)`, width: `${stripWidth}px` }}
+              >
+                {/* Pause markers */}
+                {lanePauses.map((p) => {
+                  if (p.endMs < visStartMs || p.startMs > visEndMs) return null;
+                  const pw = Math.max(2, (p.endMs - p.startMs) * pxPerMs);
+                  return (
+                    <span
+                      key={`p-${p.id}`}
+                      className="player-rythmo-v2-pause"
+                      style={{ left: `${p.startMs * pxPerMs}px`, width: `${pw}px` }}
+                      title={`Pause ${p.durMs} ms`}
+                    >
+                      {pw > 28 ? <span className="player-rythmo-v2-pause-label">{(p.durMs / 1000).toFixed(1)}</span> : null}
+                    </span>
+                  );
+                })}
+
+                {/* Blocks */}
+                {laneBlocks.map((block) => {
+                  if (block.endMs < visStartMs || block.startMs > visEndMs) return null;
+                  const active = playheadMs >= block.startMs && playheadMs < block.endMs;
+                  const focused = editMode && focusedBlockId === block.id;
+                  const isEditing = focused && block.segIdx != null && onUpdateText;
+                  const blockW = Math.max(4, block.durMs * pxPerMs - 2);
+                  const spI = speakerIdx.get(block.speaker) ?? 0;
+
+                  return (
+                    <div
+                      key={block.id}
+                      className={`player-rythmo-v2-block${block.isWord ? " is-word" : ""}${active ? " is-active" : ""}${focused ? " is-focused" : ""}`}
+                      style={{
+                        left: `${block.startMs * pxPerMs}px`,
+                        width: `${blockW}px`,
+                        "--rythmo-sp": `var(--lx-speaker-${spI}, var(--lx-accent))`,
+                      } as CSSProperties}
+                      onClick={(e) => { e.stopPropagation(); handleBlockClick(block); }}
+                      onDoubleClick={(e) => { e.stopPropagation(); handleBlockDoubleClick(block); }}
+                      title={`${block.speaker || "?"} · ${block.text || "…"}`}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      {isEditing && block.segIdx != null ? (
+                        <textarea
+                          className="player-rythmo-v2-edit-textarea"
+                          value={editorSegments?.[block.segIdx]?.text ?? block.text}
+                          onChange={(ev) => onUpdateText!(block.segIdx!, ev.target.value)}
+                          onClick={(ev) => ev.stopPropagation()}
+                          onPointerDown={(ev) => ev.stopPropagation()}
+                          autoFocus
+                          rows={1}
+                        />
+                      ) : block.timedWords && zoomSec <= 5 ? (
+                        <span className="player-rythmo-v2-block-timed">
+                          {block.timedWords.map((tw, twi) => (
+                            <span
+                              key={twi}
+                              className="player-rythmo-v2-timed-word"
+                              style={{ left: `${tw.offsetPct}%` }}
+                            >
+                              {tw.word}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="player-rythmo-v2-block-text">
+                          {block.text || "…"}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
-      {ipus.length === 0 ? <p className="small">Aucun IPU dans cette fenêtre.</p> : null}
-    </div>
-  );
-}
 
-/** Scrub horizontal sur la fenêtre SQLite courante [t0, t1] (WX-650 complément). */
-function PlayerRythmoScrub({
-  t0Ms,
-  t1Ms,
-  playheadMs,
-  onSeekToMs,
-}: {
-  t0Ms: number;
-  t1Ms: number;
-  playheadMs: number;
-  onSeekToMs?: (ms: number) => void;
-}) {
-  const barRef = useRef<HTMLDivElement | null>(null);
-  const draggingRef = useRef(false);
-
-  const span = Math.max(1, t1Ms - t0Ms);
-  const pct = (ms: number) => clampNumber(((ms - t0Ms) / span) * 100, 0, 100);
-
-  const msFromClientX = (clientX: number) => {
-    const el = barRef.current;
-    if (!el) {
-      return t0Ms;
-    }
-    const r = el.getBoundingClientRect();
-    const x = clampNumber((clientX - r.left) / Math.max(1, r.width), 0, 1);
-    return Math.round(t0Ms + x * span);
-  };
-
-  return (
-    <div className="player-rythmo-scrub-wrap">
-      <p className="player-rythmo-scrub-hint small">Scrub (fenêtre courante)</p>
-      <div
-        ref={barRef}
-        className="player-rythmo-scrub"
-        data-testid="player-rythmo-scrub"
-        role="slider"
-        aria-label="Scrub dans la fenêtre temporelle affichée"
-        aria-valuemin={t0Ms}
-        aria-valuemax={t1Ms}
-        aria-valuenow={clampNumber(playheadMs, t0Ms, t1Ms)}
-        tabIndex={0}
-        onPointerDown={(e) => {
-          if (e.button !== 0 || !onSeekToMs) {
-            return;
-          }
-          e.preventDefault();
-          draggingRef.current = true;
-          const el = e.currentTarget as HTMLDivElement;
-          if (typeof el.setPointerCapture === "function") {
-            el.setPointerCapture(e.pointerId);
-          }
-          onSeekToMs(msFromClientX(e.clientX));
-        }}
-        onPointerMove={(e) => {
-          if (!draggingRef.current || !onSeekToMs) {
-            return;
-          }
-          onSeekToMs(msFromClientX(e.clientX));
-        }}
-        onPointerUp={(e) => {
-          draggingRef.current = false;
-          const el = e.currentTarget as HTMLDivElement;
-          if (typeof el.releasePointerCapture === "function") {
-            try {
-              el.releasePointerCapture(e.pointerId);
-            } catch {
-              /* ignore */
-            }
-          }
-        }}
-        onPointerCancel={() => {
-          draggingRef.current = false;
-        }}
-      >
-        <div className="player-rythmo-scrub-fill" style={{ width: `${pct(playheadMs)}%` }} />
-        <div className="player-rythmo-scrub-playhead" style={{ left: `${pct(playheadMs)}%` }} />
-      </div>
+      {blocks.length === 0 ? <p className="small">Aucun bloc dans cette fenêtre.</p> : null}
     </div>
   );
 }
@@ -884,8 +1387,7 @@ function PlayerLanesBody({
                         onClick={() => onSeekToMs?.(t.startMs)}
                       >
                         <span className="mono player-lanes-turn-time">
-                          {formatClockSeconds(t.startMs / 1000)} →{" "}
-                          {formatClockSeconds(t.endMs / 1000)}
+                          {formatClockSeconds(t.startMs / 1000)} → {formatClockSeconds(t.endMs / 1000)}
                         </span>
                         {text ? (
                           <span className="player-lanes-turn-text">{text}</span>
@@ -1009,7 +1511,7 @@ function PlayerChatBody({
 }
 
 // ---------------------------------------------------------------------------
-// Karaoké éditable — mots extraits des segments JSON
+// Karaoke edit — derives segments from editor JSON segments
 // ---------------------------------------------------------------------------
 
 type KaraokeWord = {
@@ -1021,40 +1523,12 @@ type KaraokeWord = {
   endMs: number;
 };
 
-/**
- * Détecte si les timestamps des segments sont cohérents avec la durée réelle.
- * Retourne `true` si les timestamps semblent corrompus (span > 2× la durée).
- */
 function areTimestampsCorrupted(segments: EditableSegment[], durationMs: number): boolean {
   if (segments.length === 0 || durationMs <= 0) return false;
   const lastEnd = Math.round(segments[segments.length - 1].end * 1000);
   const firstStart = Math.round(segments[0].start * 1000);
   const span = lastEnd - firstStart;
   return span > durationMs * 2 || firstStart > durationMs;
-}
-
-/**
- * Trouve l'index du segment correspondant au playhead.
- * Utilise le matching temporel si possible, sinon un fallback proportionnel.
- */
-function findPlayheadSegment(
-  segments: EditableSegment[],
-  playheadMs: number,
-  durationMs: number,
-): number | null {
-  if (segments.length === 0) return null;
-  // Temporal match
-  for (let i = 0; i < segments.length; i++) {
-    const sMs = Math.round(segments[i].start * 1000);
-    const eMs = Math.round(segments[i].end * 1000);
-    if (playheadMs >= sMs && playheadMs < eMs) return i;
-  }
-  // Proportional fallback for corrupted timestamps
-  if (durationMs > 0 && areTimestampsCorrupted(segments, durationMs)) {
-    const ratio = Math.max(0, Math.min(playheadMs / durationMs, 1));
-    return Math.min(Math.floor(ratio * segments.length), segments.length - 1);
-  }
-  return null;
 }
 
 function buildKaraokeWords(segments: EditableSegment[], durationMs: number): KaraokeWord[] {
@@ -1104,7 +1578,7 @@ function buildKaraokeWords(segments: EditableSegment[], durationMs: number): Kar
         segIdx: si,
         wordIdx: wi,
         word: wText,
-        speaker: seg.speaker ?? "—",
+        speaker: seg.speaker ?? "\u2014",
         startMs: wStart,
         endMs: wEnd,
       });
@@ -1113,6 +1587,13 @@ function buildKaraokeWords(segments: EditableSegment[], durationMs: number): Kar
   }
   return result;
 }
+
+type KaraokeEditSegGroup = {
+  segIdx: number;
+  speaker: string;
+  startMs: number;
+  words: KaraokeWord[];
+};
 
 function PlayerKaraokeEditBody({
   segments,
@@ -1127,18 +1608,20 @@ function PlayerKaraokeEditBody({
   followPlayhead?: boolean;
   durationSec?: number | null;
 }) {
-  const activeRef = useRef<HTMLButtonElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const activeSegRef = useRef<HTMLDivElement | null>(null);
+  const [followActive, setFollowActive] = useState(true);
+  const programmaticScrollRef = useRef(false);
+
   const durationMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
     ? durationSec * 1000
     : 0;
   const words = useMemo(() => buildKaraokeWords(segments, durationMs), [segments, durationMs]);
 
-  // Proportional fallback when temporal matching fails
   const activeIdx = useMemo(() => {
     for (let i = 0; i < words.length; i++) {
       if (playheadMs >= words[i].startMs && playheadMs < words[i].endMs) return i;
     }
-    // Fallback: proportional position when durationMs is known
     if (durationMs > 0 && words.length > 0) {
       const ratio = Math.max(0, Math.min(playheadMs / durationMs, 1));
       return Math.min(Math.floor(ratio * words.length), words.length - 1);
@@ -1146,83 +1629,144 @@ function PlayerKaraokeEditBody({
     return -1;
   }, [words, playheadMs, durationMs]);
 
-  useEffect(() => {
-    if (!followPlayhead || activeIdx < 0) return;
-    const el = activeRef.current;
-    if (!el) return;
-    el.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [followPlayhead, activeIdx]);
-
-  // Group words by segment for line-per-segment layout
   const segGroups = useMemo(() => {
-    const groups: { segIdx: number; speaker: string; words: KaraokeWord[] }[] = [];
-    let cur: { segIdx: number; speaker: string; words: KaraokeWord[] } | null = null;
+    const groups: KaraokeEditSegGroup[] = [];
+    let cur: KaraokeEditSegGroup | null = null;
     for (const w of words) {
       if (!cur || cur.segIdx !== w.segIdx) {
-        cur = { segIdx: w.segIdx, speaker: w.speaker, words: [] };
+        const seg = segments[w.segIdx];
+        cur = { segIdx: w.segIdx, speaker: w.speaker, startMs: Math.round(seg.start * 1000), words: [] };
         groups.push(cur);
       }
       cur.words.push(w);
     }
     return groups;
-  }, [words]);
+  }, [words, segments]);
+
+  const activeSegGroupIdx = useMemo(() => {
+    if (activeIdx < 0) return -1;
+    let offset = 0;
+    for (let gi = 0; gi < segGroups.length; gi++) {
+      if (activeIdx >= offset && activeIdx < offset + segGroups[gi].words.length) return gi;
+      offset += segGroups[gi].words.length;
+    }
+    return -1;
+  }, [segGroups, activeIdx]);
+
+  useEffect(() => {
+    if (!followPlayhead || !followActive || activeSegGroupIdx < 0) return;
+    const el = activeSegRef.current;
+    const container = scrollRef.current;
+    if (!el || !container || typeof container.scrollTo !== "function") return;
+    programmaticScrollRef.current = true;
+    const containerH = container.clientHeight;
+    const elTop = el.offsetTop;
+    const targetScroll = elTop - containerH * 0.33;
+    container.scrollTo({ top: targetScroll, behavior: "smooth" });
+    const tid = window.setTimeout(() => { programmaticScrollRef.current = false; }, 400);
+    return () => window.clearTimeout(tid);
+  }, [followPlayhead, followActive, activeSegGroupIdx]);
+
+  const handleScroll = () => {
+    if (programmaticScrollRef.current) return;
+    if (followActive) setFollowActive(false);
+  };
 
   return (
-    <div className="player-karaoke player-karaoke--edit">
-      <p className="player-lanes-meta small mono">
-        Mode édition · {words.length} mots · {segments.length} segments
-      </p>
-      <div className="player-karaoke-edit-strip" role="list">
+    <div className="karaoke-v2 karaoke-v2--edit" aria-label="Vue karaok\u00e9 \u00e9dition">
+      <div className="karaoke-v2-header">
+        <span className="karaoke-v2-header-info small mono">
+          Mode \u00e9dition \u00b7 {words.length} mots \u00b7 {segments.length} segments
+        </span>
+        {!followActive && (
+          <button
+            type="button"
+            className="karaoke-v2-follow-btn small"
+            onClick={() => setFollowActive(true)}
+          >
+            Reprendre le suivi
+          </button>
+        )}
+      </div>
+      <div className="karaoke-v2-scroll" ref={scrollRef} onScroll={handleScroll} role="list">
         {segGroups.map((group, gi) => {
-          const prevGroup = gi > 0 ? segGroups[gi - 1] : null;
-          const showSpeaker = group.speaker !== prevGroup?.speaker;
-          const firstWordGlobalIdx = words.indexOf(group.words[0]);
-          const lastWordGlobalIdx = firstWordGlobalIdx + group.words.length - 1;
-          const lineActive = activeIdx >= firstWordGlobalIdx && activeIdx <= lastWordGlobalIdx;
+          const isActive = gi === activeSegGroupIdx;
+          const isPast = activeSegGroupIdx >= 0 && gi < activeSegGroupIdx;
+          let cls = "karaoke-v2-seg";
+          if (isActive) cls += " is-active";
+          else if (isPast) cls += " is-past";
+
+          let wordOffset = 0;
+          for (let k = 0; k < gi; k++) wordOffset += segGroups[k].words.length;
+
           return (
             <div
               key={group.segIdx}
-              className={`player-karaoke-edit-turn${lineActive ? " is-active" : ""}`}
+              ref={isActive ? activeSegRef : undefined}
+              className={cls}
               role="listitem"
             >
-              <span
-                className={`player-karaoke-edit-turn__speaker${showSpeaker ? "" : " player-karaoke-edit-turn__speaker--hidden"}`}
-              >
-                {group.speaker}
-              </span>
-              <span className="player-karaoke-edit-turn__words">
-                {group.words.map((w, wi) => {
-                  const globalIdx = firstWordGlobalIdx + wi;
-                  const active = globalIdx === activeIdx;
-                  return (
-                    <button
-                      key={wi}
-                      type="button"
-                      ref={active ? activeRef : undefined}
-                      className={`player-karaoke-chip${active ? " is-active" : ""}`}
-                      title={`${w.startMs}–${w.endMs} ms`}
-                      disabled={!onSeekToMs}
-                      onClick={() => onSeekToMs?.(w.startMs)}
-                    >
-                      {w.word}
-                    </button>
-                  );
-                })}
-              </span>
+              <div className="karaoke-v2-seg-left">
+                <span className="karaoke-v2-speaker mono">{group.speaker}</span>
+                <span className="karaoke-v2-time mono">
+                  {formatClockSeconds(group.startMs / 1000)}
+                </span>
+              </div>
+              <div className="karaoke-v2-seg-body">
+                <span className="karaoke-v2-seg-words">
+                  {group.words.map((w, wi) => {
+                    const globalIdx = wordOffset + wi;
+                    const wActive = globalIdx === activeIdx;
+                    let wCls = "karaoke-v2-word";
+                    if (wActive) wCls += " is-active";
+                    return (
+                      <button
+                        key={wi}
+                        type="button"
+                        className={wCls}
+                        disabled={!onSeekToMs}
+                        onClick={() => onSeekToMs?.(w.startMs)}
+                      >
+                        {w.word}
+                      </button>
+                    );
+                  })}
+                </span>
+              </div>
+              <div className="karaoke-v2-seg-right" />
             </div>
           );
         })}
+        {words.length === 0 && (
+          <p className="small" style={{ padding: "16px" }}>Aucun mot dans le transcript.</p>
+        )}
       </div>
-      {words.length === 0 ? (
-        <p className="small">Aucun mot dans le transcript.</p>
-      ) : null}
     </div>
   );
 }
 
+
 // ---------------------------------------------------------------------------
 // Vues éditables — segments JSON (mode édition)
 // ---------------------------------------------------------------------------
+
+function findPlayheadSegment(
+  segments: EditableSegment[],
+  playheadMs: number,
+  durationMs: number,
+): number | null {
+  if (segments.length === 0) return null;
+  for (let i = 0; i < segments.length; i++) {
+    const sMs = Math.round(segments[i].start * 1000);
+    const eMs = Math.round(segments[i].end * 1000);
+    if (playheadMs >= sMs && playheadMs < eMs) return i;
+  }
+  if (durationMs > 0 && areTimestampsCorrupted(segments, durationMs)) {
+    const ratio = Math.max(0, Math.min(playheadMs / durationMs, 1));
+    return Math.min(Math.floor(ratio * segments.length), segments.length - 1);
+  }
+  return null;
+}
 
 type EditViewProps = {
   segments: EditableSegment[];
@@ -1308,84 +1852,7 @@ function PlayerChatEditBody({
   );
 }
 
-function PlayerRythmoEditBody({
-  segments,
-  playheadMs,
-  activeSegmentIndex,
-  onFocusSegment,
-  onUpdateText,
-  followPlayhead,
-  durationSec,
-}: EditViewProps & { followPlayhead?: boolean }) {
-  const activeRef = useRef<HTMLDivElement | null>(null);
-  const durationMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
-    ? durationSec * 1000 : 0;
-  const playheadSegIdx = useMemo(
-    () => findPlayheadSegment(segments, playheadMs, durationMs),
-    [segments, playheadMs, durationMs],
-  );
-
-  const scrollTarget = playheadSegIdx ?? activeSegmentIndex;
-
-  useEffect(() => {
-    if (followPlayhead) {
-      activeRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-    }
-  }, [followPlayhead, scrollTarget]);
-
-  return (
-    <div className="player-rythmo player-rythmo--edit">
-      <p className="player-lanes-meta small mono">
-        Mode édition · {segments.length} segment{segments.length === 1 ? "" : "s"}
-      </p>
-      <div className="player-rythmo-strip" role="list">
-        {segments.map((seg, i) => {
-          const startMs = Math.round(seg.start * 1000);
-          const endMs = Math.round(seg.end * 1000);
-          const active = playheadSegIdx === i;
-          const focused = activeSegmentIndex === i;
-          const durMs = Math.max(1, endMs - startMs);
-          return (
-            <div
-              key={i}
-              ref={active ? activeRef : undefined}
-              className={`player-rythmo-band player-rythmo-band--edit ${active ? "is-active" : ""} ${focused ? "is-focused" : ""}`}
-              style={{ "--rythmo-dur-factor": Math.max(0.3, durMs / 5000) } as CSSProperties}
-              onClick={() => {
-                onFocusSegment?.(i);
-              }}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  onFocusSegment?.(i);
-                }
-              }}
-            >
-              <span className="player-rythmo-band-speaker small">{seg.speaker ?? "—"}</span>
-              {focused && onUpdateText ? (
-                <textarea
-                  className="player-rythmo-edit-textarea"
-                  value={seg.text}
-                  onChange={(e) => onUpdateText(i, e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  autoFocus
-                  rows={2}
-                />
-              ) : (
-                <span className="player-rythmo-band-text">{seg.text?.trim() || "…"}</span>
-              )}
-              <span className="player-rythmo-band-time mono small">
-                {formatClockSeconds(seg.start)}–{formatClockSeconds(seg.end)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      {segments.length === 0 ? <p className="small">Aucun segment.</p> : null}
-    </div>
-  );
-}
+/* PlayerRythmoEditBody removed — replaced by PlayerRythmoView */
 
 function PlayerWordsEditBody({
   segments,

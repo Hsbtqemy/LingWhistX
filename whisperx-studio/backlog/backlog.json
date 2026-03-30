@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "updatedAt": "2026-03-30T11:47:58.581Z",
+    "updatedAt": "2026-03-30T13:00:00.000Z",
     "statuses": [
         "todo",
         "in_progress",
@@ -3728,6 +3728,590 @@
             "acceptance": [
                 "python -m pytest tests/test_annotation_exports.py -v propre.",
                 "Regression dans write_eaf fait echouer un test."
+            ]
+        },
+        {
+            "id": "WX-697",
+            "title": "Vue Lanes : refonte layout, lisibilité, anti-troncature, interactions",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1.5d",
+            "dependsOn": [],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Layout grid responsive sans troncature de texte.",
+                "Clic segment → seek. Timecodes visibles.",
+                "Segments longs wrappent proprement.",
+                "Cohérence visuelle avec la nouvelle vue Karaoké."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Aucun texte tronqué dans la vue Lanes sur 2h de transcript."
+            ]
+        },
+        {
+            "id": "WX-698",
+            "title": "Vue Chat : refonte layout, bulles speaker, scrolling fluide",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1.5d",
+            "dependsOn": [],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Layout chat-like avec bulles par speaker.",
+                "Segment actif surligné, scroll follow mode.",
+                "Clic segment → seek.",
+                "Cohérence visuelle avec Karaoké v2."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Lecture fluide sur transcript de 2h sans saccades."
+            ]
+        },
+        {
+            "id": "WX-699",
+            "title": "Vue Mots : refonte layout, surlignage mot actif, alignement visuel",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1d",
+            "dependsOn": [],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Mots affichés en inline-flow avec surlignage du mot actif.",
+                "Mots non alignés marqués visuellement (pointillé).",
+                "Clic mot → seek.",
+                "Espacement et taille de police cohérents avec Karaoké v2."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Mot actif visible et stable pendant la lecture."
+            ]
+        },
+        {
+            "id": "WX-700",
+            "title": "Vue Colonnes : refonte layout, responsive, lisibilité",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "1d",
+            "dependsOn": [],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Grille temps / tours responsive.",
+                "Headers de colonnes lisibles sans troncature.",
+                "Cellules cliquables → seek.",
+                "Breakpoints pour écrans étroits."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Grille lisible de 800px à 1920px de largeur."
+            ]
+        },
+        {
+            "id": "WX-701",
+            "title": "Vue Stats : refonte complète, statistiques par speaker, charts canvas",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "2d",
+            "dependsOn": [],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/player/playerSpeakerStats.ts",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Stats par speaker : temps de parole, nombre de tours, débit moyen, IPU moyen.",
+                "Histogramme de pauses par speaker (canvas).",
+                "Résumé global : ratio parole/silence, nombre d'overlaps.",
+                "Layout clair avec sections visuellement séparées."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Stats cohérentes avec les données events.sqlite."
+            ]
+        },
+        {
+            "id": "WX-702",
+            "title": "Edition inline : vérifier et homogénéiser dans Lanes, Chat, Mots, Colonnes",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1.5d",
+            "dependsOn": [
+                "WX-697",
+                "WX-698",
+                "WX-699",
+                "WX-700"
+            ],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/components/player/PlayerWorkspaceSection.tsx"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Toggle Mode édition fonctionne dans toutes les vues (cocher/décocher sans blocage).",
+                "Double-clic sur un segment ouvre l'édition inline du texte.",
+                "Sauvegarde du texte modifié via Enter ou blur.",
+                "Escape annule l'édition en cours.",
+                "Indicateur visuel clair quand le mode édition est actif."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Modifier un segment dans chaque vue, sauvegarder, vérifier la persistence."
+            ]
+        },
+        {
+            "id": "WX-703",
+            "title": "Edition inline : mode édition dans Rythmo et Karaoké",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1d",
+            "dependsOn": [
+                "WX-702"
+            ],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Double-clic sur un segment en Rythmo ouvre un textarea inline.",
+                "Double-clic sur un segment en Karaoké ouvre l'édition inline.",
+                "Modifications sauvegardées et dirty tracking actif.",
+                "Feedback visuel différencié entre mode lecture et mode édition."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Modifier du texte en Rythmo et Karaoké, vérifier la sauvegarde."
+            ]
+        },
+        {
+            "id": "WX-704",
+            "title": "Player : amélioration des contrôles transport (play, seek, vitesse, boucle A-B)",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1.5d",
+            "dependsOn": [],
+            "scope": [
+                "src/components/player/PlayerWorkspaceSection.tsx",
+                "src/hooks/usePlayerPlayback.ts",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Barre de transport visible et accessible : play/pause, prev/next segment, vitesse.",
+                "Boucle A-B configurable par glisser-déposer ou raccourcis.",
+                "Affichage timecode courant / durée totale.",
+                "Raccourcis clavier documentés dans tooltip."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Lecture fluide avec changement de vitesse et boucle A-B fonctionnels."
+            ]
+        },
+        {
+            "id": "WX-705",
+            "title": "Player : waveform synchronisée avec playhead et vues",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1.5d",
+            "dependsOn": [],
+            "scope": [
+                "src/components/player/PlayerWaveformPanel.tsx",
+                "src/hooks/useWaveformCanvas.ts",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Waveform scrolle avec le playhead en mode follow.",
+                "Clic sur la waveform → seek précis.",
+                "Segments visibles en overlay sur la waveform.",
+                "Zoom waveform indépendant des vues."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Waveform fluide sur fichier 2h+."
+            ]
+        },
+        {
+            "id": "WX-706",
+            "title": "Player : panneau droit contextuel (infos segment, alertes, navigation)",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "1d",
+            "dependsOn": [
+                "WX-702"
+            ],
+            "scope": [
+                "src/components/player/PlayerWorkspaceSection.tsx",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Panneau droit affiche les infos du segment sélectionné (speaker, durée, mots, score).",
+                "Liste des alertes navigables (pauses longues, overlaps, mots interpolés).",
+                "Clic alerte → seek au segment concerné.",
+                "Section pliable pour ne pas encombrer."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Navigation alerte → segment fonctionnelle."
+            ]
+        },
+        {
+            "id": "WX-707",
+            "title": "Workflow : réorganiser le panneau gauche (vues, édition, filtres, navigateur)",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1d",
+            "dependsOn": [],
+            "scope": [
+                "src/components/player/PlayerWorkspaceSection.tsx",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Sections visuellement séparées en boxes avec titres clairs.",
+                "Ordre logique : Vues → Affichage → Édition → Filtres → Navigation.",
+                "Labels explicites sans jargon technique.",
+                "Responsive : panneau pliable sur écrans étroits."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Panneau lisible de 180px à 280px de largeur."
+            ]
+        },
+        {
+            "id": "WX-708",
+            "title": "Workflow : améliorer le flux lancement de run → lecture → édition → export",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1.5d",
+            "dependsOn": [
+                "WX-707"
+            ],
+            "scope": [
+                "src/App.tsx",
+                "src/hooks/useStudioWorkspace.ts",
+                "src/components/player/PlayerWorkspaceSection.tsx"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Après un run terminé, le player s'ouvre automatiquement sur le run.",
+                "Bouton 'Exporter' accessible directement depuis le player.",
+                "État vide informatif quand aucun run n'est chargé.",
+                "Transitions fluides entre les étapes du workflow."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Parcours complet run → player → export sans étape manuelle inutile."
+            ]
+        },
+        {
+            "id": "WX-709",
+            "title": "Visuel : harmoniser les styles des vues Player (tokens CSS, couleurs, espacement)",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "1d",
+            "dependsOn": [
+                "WX-697",
+                "WX-698",
+                "WX-699",
+                "WX-700",
+                "WX-701"
+            ],
+            "scope": [
+                "src/styles/tokens.css",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build"
+            ],
+            "definitionOfDone": [
+                "Toutes les vues utilisent les mêmes tokens CSS (--lx-*).",
+                "Espacement, tailles de police et border-radius cohérents.",
+                "Thème sombre et clair fonctionnels.",
+                "Pas de styles inline redondants."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Switch thème sans artefacts visuels."
+            ]
+        },
+        {
+            "id": "WX-710",
+            "title": "Stats : temps de parole par speaker avec timeline empilée",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1.5d",
+            "dependsOn": [
+                "WX-701"
+            ],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/player/playerSpeakerStats.ts",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Barre empilée par speaker (% temps de parole).",
+                "Timeline segmentée montrant les alternances de parole.",
+                "Hover sur un speaker met en surbrillance ses segments.",
+                "Canvas natif (pas de lib chart)."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Pourcentages cohérents avec les données events.sqlite."
+            ]
+        },
+        {
+            "id": "WX-711",
+            "title": "Stats : débit de parole (mots/min) par speaker avec courbe",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "1d",
+            "dependsOn": [
+                "WX-710"
+            ],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/player/playerSpeakerStats.ts"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Courbe de débit (mots/min) par fenêtre glissante (ex. 30s).",
+                "Une courbe par speaker, couleur distincte.",
+                "Hover affiche la valeur exacte.",
+                "Clic sur un point → seek au timestamp."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Courbe stable sur transcript 2h."
+            ]
+        },
+        {
+            "id": "WX-712",
+            "title": "Pauses : vue dédiée avec histogramme, filtres durée, navigation",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "2d",
+            "dependsOn": [
+                "WX-701"
+            ],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/player/playerSpeakerStats.ts",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Section pauses dans Stats : histogramme de distribution des durées.",
+                "Filtres : seuil minimum (ex. 300ms, 500ms, 1s), par speaker.",
+                "Liste navigable des pauses avec durée, speaker, contexte (mots avant/après).",
+                "Clic pause → seek au moment de la pause.",
+                "Distinction pauses intra-tour vs inter-tour."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Navigation entre pauses fluide sur transcript 2h."
+            ]
+        },
+        {
+            "id": "WX-713",
+            "title": "Pauses : marqueurs visuels dans les vues Lanes et Rythmo",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "1d",
+            "dependsOn": [
+                "WX-712"
+            ],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Pauses > seuil affichées en overlay discret dans Lanes.",
+                "Pauses affichées comme marqueurs dans la bande Rythmo.",
+                "Hover sur un marqueur pause → tooltip avec durée et contexte.",
+                "Le seuil est configurable dans le panneau gauche."
+            ],
+            "acceptance": [
+                "npm run build propre.",
+                "Marqueurs de pauses cohérents entre Lanes et Rythmo."
+            ]
+        },
+        {
+            "id": "WX-714",
+            "title": "Exports : vérifier et corriger SRT, VTT, JSON, CSV",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1d",
+            "dependsOn": [],
+            "scope": [
+                "whisperx/annotation_exports.py",
+                "tests/test_annotation_exports.py"
+            ],
+            "execute": [
+                "python -m pytest tests/test_annotation_exports.py -v"
+            ],
+            "definitionOfDone": [
+                "Export SRT : timecodes corrects, encodage UTF-8, numérotation séquentielle.",
+                "Export VTT : header WEBVTT, styles speaker si supporté.",
+                "Export JSON : structure complète (segments, words, metadata).",
+                "Export CSV : colonnes start, end, speaker, text, une ligne par segment.",
+                "Tests de non-régression pour chaque format."
+            ],
+            "acceptance": [
+                "pytest propre.",
+                "Chaque format importable dans son outil cible (VLC, Aegisub, etc.)."
+            ]
+        },
+        {
+            "id": "WX-715",
+            "title": "Exports : vérifier et corriger ELAN (EAF) et TextGrid (Praat)",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1d",
+            "dependsOn": [],
+            "scope": [
+                "whisperx/annotation_exports.py",
+                "tests/test_annotation_exports.py"
+            ],
+            "execute": [
+                "python -m pytest tests/test_annotation_exports.py -v"
+            ],
+            "definitionOfDone": [
+                "Export EAF : time slots corrects, tiers par speaker, re-importable dans ELAN.",
+                "Export TextGrid : IntervalTier par speaker, roundtrip parse/write.",
+                "Tests roundtrip pour les deux formats.",
+                "Gestion correcte des caractères spéciaux et Unicode."
+            ],
+            "acceptance": [
+                "pytest propre.",
+                "Fichier EAF ouvrable dans ELAN. TextGrid ouvrable dans Praat."
+            ]
+        },
+        {
+            "id": "WX-716",
+            "title": "Exports : bouton export depuis le Player avec choix de format",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1d",
+            "dependsOn": [
+                "WX-714",
+                "WX-715"
+            ],
+            "scope": [
+                "src/components/player/PlayerWorkspaceSection.tsx",
+                "src-tauri/src/transcript_commands.rs",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "cargo check"
+            ],
+            "definitionOfDone": [
+                "Bouton Export dans le player ouvre un menu de choix de format.",
+                "Formats disponibles : SRT, VTT, JSON, CSV, EAF, TextGrid, RTTM.",
+                "Sélection du chemin de sortie via dialog natif.",
+                "Notification de succès/erreur après export."
+            ],
+            "acceptance": [
+                "npm run build et cargo check propres.",
+                "Export fonctionnel dans chaque format depuis le Player."
+            ]
+        },
+        {
+            "id": "WX-717",
+            "title": "Exports : rapport HTML récapitulatif (stats + transcript + metadata)",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "1.5d",
+            "dependsOn": [
+                "WX-716",
+                "WX-710"
+            ],
+            "scope": [
+                "src-tauri/src/report_commands.rs",
+                "src/components/player/PlayerWorkspaceSection.tsx"
+            ],
+            "execute": [
+                "npm run build",
+                "cargo check"
+            ],
+            "definitionOfDone": [
+                "Rapport HTML autonome contenant : metadata du run, stats par speaker, transcript complet.",
+                "Sections cliquables pour naviguer dans le rapport.",
+                "Graphiques embarqués en SVG inline.",
+                "Exportable en un clic depuis le Player."
+            ],
+            "acceptance": [
+                "npm run build et cargo check propres.",
+                "Rapport HTML ouvrable dans un navigateur, lisible et complet."
             ]
         }
     ]

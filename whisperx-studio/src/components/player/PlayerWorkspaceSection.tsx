@@ -184,21 +184,23 @@ export function PlayerWorkspaceSection({
   const transcriptLoadedForRef = useRef<string | null>(null);
   const loadTranscriptEditorRef = useRef(te.loadTranscriptEditor);
   loadTranscriptEditorRef.current = te.loadTranscriptEditor;
+  const autoEnabledForRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!transcriptJsonPath) return;
-    if (!editMode) {
+    if (autoEnabledForRef.current !== transcriptJsonPath) {
+      autoEnabledForRef.current = transcriptJsonPath;
       setEditMode(true);
-      return;
     }
     if (transcriptLoadedForRef.current === transcriptJsonPath) return;
     transcriptLoadedForRef.current = transcriptJsonPath;
     void loadTranscriptEditorRef.current(transcriptJsonPath);
-  }, [editMode, transcriptJsonPath]);
+  }, [transcriptJsonPath]);
 
   useEffect(() => {
     setEditMode(initialEditMode);
     transcriptLoadedForRef.current = null;
+    autoEnabledForRef.current = null;
   }, [runDir, initialEditMode]);
 
   // ── Annotation import (EAF / TextGrid) directly in the Player ──
@@ -860,177 +862,190 @@ export function PlayerWorkspaceSection({
       ) : (
         <div className="player-body">
           <aside className="player-panel player-panel--left">
-            <h4 className="player-panel-title">Vues</h4>
-            <div className="player-view-mode" role="tablist" aria-label="Mode de viewport">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={viewportMode === "lanes"}
-                className={`player-view-mode-btn ${viewportMode === "lanes" ? "is-active" : ""}`}
-                onClick={() => setViewportMode("lanes")}
-              >
-                Lanes
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={viewportMode === "chat"}
-                className={`player-view-mode-btn ${viewportMode === "chat" ? "is-active" : ""}`}
-                onClick={() => setViewportMode("chat")}
-              >
-                Chat
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={viewportMode === "words"}
-                className={`player-view-mode-btn ${viewportMode === "words" ? "is-active" : ""}`}
-                onClick={() => setViewportMode("words")}
-              >
-                Mots
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={viewportMode === "columns"}
-                className={`player-view-mode-btn ${viewportMode === "columns" ? "is-active" : ""}`}
-                onClick={() => setViewportMode("columns")}
-              >
-                Colonnes
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={viewportMode === "rythmo"}
-                className={`player-view-mode-btn ${viewportMode === "rythmo" ? "is-active" : ""}`}
-                onClick={() => setViewportMode("rythmo")}
-              >
-                Rythmo
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={viewportMode === "karaoke"}
-                className={`player-view-mode-btn ${viewportMode === "karaoke" ? "is-active" : ""}`}
-                onClick={() => setViewportMode("karaoke")}
-              >
-                Karaoké
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={viewportMode === "stats"}
-                className={`player-view-mode-btn ${viewportMode === "stats" ? "is-active" : ""}`}
-                onClick={() => setViewportMode("stats")}
-                title="Statistiques prosodiques par locuteur (WX-667)"
-              >
-                Stats
-              </button>
-            </div>
-            <label className="player-words-toggle small">
-              <input
-                type="checkbox"
-                checked={wordsWindowEnabled}
-                onChange={(e) => runInTransition(() => setWordsWindowEnabled(e.target.checked))}
-              />
-              Fenêtre mots (30s) + requête words
-            </label>
-            <p className="small mono player-view-mode-hint">⌃1 · ⌃2 · ⌃3 · ⌃4 · ⌃5 · ⌃6 · ⌃7</p>
-            <h4 className="player-panel-title">Édition</h4>
-            {transcriptJsonPath ? (
+            <div className="player-panel-box">
+              <h4 className="player-panel-box-title">Vues</h4>
+              <div className="player-view-mode" role="tablist" aria-label="Mode de viewport">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewportMode === "lanes"}
+                  className={`player-view-mode-btn ${viewportMode === "lanes" ? "is-active" : ""}`}
+                  onClick={() => setViewportMode("lanes")}
+                >
+                  1 Lanes
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewportMode === "chat"}
+                  className={`player-view-mode-btn ${viewportMode === "chat" ? "is-active" : ""}`}
+                  onClick={() => setViewportMode("chat")}
+                >
+                  2 Chat
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewportMode === "words"}
+                  className={`player-view-mode-btn ${viewportMode === "words" ? "is-active" : ""}`}
+                  onClick={() => setViewportMode("words")}
+                >
+                  3 Mots
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewportMode === "columns"}
+                  className={`player-view-mode-btn ${viewportMode === "columns" ? "is-active" : ""}`}
+                  onClick={() => setViewportMode("columns")}
+                >
+                  4 Colonnes
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewportMode === "rythmo"}
+                  className={`player-view-mode-btn ${viewportMode === "rythmo" ? "is-active" : ""}`}
+                  onClick={() => setViewportMode("rythmo")}
+                >
+                  5 Rythmo
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewportMode === "karaoke"}
+                  className={`player-view-mode-btn ${viewportMode === "karaoke" ? "is-active" : ""}`}
+                  onClick={() => setViewportMode("karaoke")}
+                >
+                  6 Karaoké
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewportMode === "stats"}
+                  className={`player-view-mode-btn ${viewportMode === "stats" ? "is-active" : ""}`}
+                  onClick={() => setViewportMode("stats")}
+                >
+                  7 Stats
+                </button>
+              </div>
               <label className="player-words-toggle small">
                 <input
                   type="checkbox"
-                  checked={editMode}
-                  onChange={(e) => runInTransition(() => setEditMode(e.target.checked))}
+                  checked={wordsWindowEnabled}
+                  onChange={(e) => runInTransition(() => setWordsWindowEnabled(e.target.checked))}
                 />
-                Mode édition
+                Charger les mots (requis pour Mots et Karaoké)
               </label>
-            ) : null}
-            {editMode && te.editorDirty ? (
-              <span className="player-edit-dirty-badge small">Modifications non sauvegardées</span>
-            ) : null}
-            <button
-              type="button"
-              className="player-import-annot-btn ghost small"
-              disabled={annotImporting}
-              onClick={() => void handleAnnotImport()}
-              title="Importer un fichier EAF (ELAN) ou TextGrid (Praat)"
-            >
-              {annotImporting ? "Import…" : "Importer .eaf / .TextGrid"}
-            </button>
-            {annotError ? (
-              <p className="player-import-annot-error small">{annotError}</p>
-            ) : null}
-            {annotPending ? (
-              <div className="player-import-annot-picker">
-                <p className="small">
-                  {annotPending.tiers.length} tiers — sélectionner :
+            </div>
+
+            <div className="player-panel-box">
+              <h4 className="player-panel-box-title">Édition</h4>
+              {transcriptJsonPath ? (
+                <label className="player-words-toggle small">
+                  <input
+                    type="checkbox"
+                    checked={editMode}
+                    onChange={(e) => runInTransition(() => setEditMode(e.target.checked))}
+                  />
+                  Mode édition
+                </label>
+              ) : (
+                <p className="small" style={{ color: "var(--lx-text-2)", margin: 0 }}>
+                  Aucun transcript chargé — lancer un run pour éditer.
                 </p>
-                <ul className="player-import-annot-list">
-                  {annotPending.tiers.map((tier: AnnotationTier) => (
-                    <li key={tier.tierId}>
-                      <label className="small">
-                        <input
-                          type="checkbox"
-                          checked={annotSelectedTiers.has(tier.tierId)}
-                          onChange={() => toggleAnnotTier(tier.tierId)}
-                        />
-                        {tier.tierId}{" "}
-                        <span className="mono">({tier.segments.length})</span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-                {annotPending.warnings.length > 0 ? (
-                  <ul className="player-import-annot-warnings small">
-                    {annotPending.warnings.map((w, i) => (
-                      <li key={i}>{w}</li>
+              )}
+              {editMode && te.editorDirty ? (
+                <span className="player-edit-dirty-badge small">Modifications non sauvegardées</span>
+              ) : null}
+              <button
+                type="button"
+                className="player-import-annot-btn ghost small"
+                disabled={annotImporting}
+                onClick={() => void handleAnnotImport()}
+                title="Importer un fichier EAF (ELAN) ou TextGrid (Praat)"
+              >
+                {annotImporting ? "Import…" : "Importer .eaf / .TextGrid"}
+              </button>
+              {annotError ? (
+                <p className="player-import-annot-error small">{annotError}</p>
+              ) : null}
+              {annotPending ? (
+                <div className="player-import-annot-picker">
+                  <p className="small">
+                    {annotPending.tiers.length} tiers — sélectionner :
+                  </p>
+                  <ul className="player-import-annot-list">
+                    {annotPending.tiers.map((tier: AnnotationTier) => (
+                      <li key={tier.tierId}>
+                        <label className="small">
+                          <input
+                            type="checkbox"
+                            checked={annotSelectedTiers.has(tier.tierId)}
+                            onChange={() => toggleAnnotTier(tier.tierId)}
+                          />
+                          {tier.tierId}{" "}
+                          <span className="mono">({tier.segments.length})</span>
+                        </label>
+                      </li>
                     ))}
                   </ul>
-                ) : null}
-                <div className="player-import-annot-actions">
-                  <button
-                    type="button"
-                    className="primary small"
-                    disabled={annotSelectedTiers.size === 0}
-                    onClick={handleAnnotConfirm}
-                  >
-                    Charger {annotSelectedTiers.size} tier(s)
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost small"
-                    onClick={() => {
-                      setAnnotPending(null);
-                      setAnnotSelectedTiers(new Set());
-                    }}
-                  >
-                    Annuler
-                  </button>
+                  {annotPending.warnings.length > 0 ? (
+                    <ul className="player-import-annot-warnings small">
+                      {annotPending.warnings.map((w, i) => (
+                        <li key={i}>{w}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <div className="player-import-annot-actions">
+                    <button
+                      type="button"
+                      className="primary small"
+                      disabled={annotSelectedTiers.size === 0}
+                      onClick={handleAnnotConfirm}
+                    >
+                      Charger {annotSelectedTiers.size} tier(s)
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost small"
+                      onClick={() => {
+                        setAnnotPending(null);
+                        setAnnotSelectedTiers(new Set());
+                      }}
+                    >
+                      Annuler
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ) : null}
-            <h4 className="player-panel-title">Filtres</h4>
-            <p className="small">
-              Locuteur : <span className="mono">{speakerSolo ?? "tous"}</span>
-              {runSpeakerIds.length > 0 ? (
-                <> · 1–9 (réappuyer = off) · 0 = tous</>
-              ) : (
-                <> — indexer le run pour le solo clavier</>
-              )}
-            </p>
-            <h4 className="player-panel-title">Navigateur</h4>
-            <PlayerJumpPanel
-              jumpTimeInput={jumpTimeInput}
-              onJumpTimeInputChange={(v) => {
-                setJumpTimeInput(v);
-                setJumpTimeError("");
-              }}
-              jumpTimeError={jumpTimeError}
-              disabled={transportDisabled}
-              onCommit={commitJumpToTime}
-            />
+              ) : null}
+            </div>
+
+            <div className="player-panel-box">
+              <h4 className="player-panel-box-title">Filtres</h4>
+              <p className="small" style={{ margin: 0 }}>
+                Locuteur : <span className="mono">{speakerSolo ?? "tous"}</span>
+                {runSpeakerIds.length > 0 ? (
+                  <> · 1–9 (réappuyer = off) · 0 = tous</>
+                ) : (
+                  <> — indexer le run pour le solo clavier</>
+                )}
+              </p>
+            </div>
+
+            <div className="player-panel-box">
+              <h4 className="player-panel-box-title">Navigateur</h4>
+              <PlayerJumpPanel
+                jumpTimeInput={jumpTimeInput}
+                onJumpTimeInputChange={(v) => {
+                  setJumpTimeInput(v);
+                  setJumpTimeError("");
+                }}
+                jumpTimeError={jumpTimeError}
+                disabled={transportDisabled}
+                onCommit={commitJumpToTime}
+              />
+            </div>
           </aside>
           <main className={`player-viewport${editMode ? " player-viewport--edit" : ""}`}>
             <div className={`player-media-stage${editMode ? " player-media-stage--compact" : ""}`}>

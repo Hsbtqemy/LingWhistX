@@ -57,8 +57,8 @@ export type ViewportQueryContract = {
  * | chat     | —     | —     | —      | ✓     | 60s      |
  * | words    | ✓     | —     | —      | —     | 30s      |
  * | columns  | —     | ✓     | —      | —     | 60s      |
- * | rythmo   | —     | —     | —      | ✓     | 60s      |
- * | karaoke  | ✓     | —     | —      | —     | 30s      |
+ * | rythmo   | —     | ✓     | ✓      | ✓     | 60s      |
+ * | karaoke  | ✓     | ✓     | ✓      | ✓     | 30s      |
  * | stats    | —     | ✓     | ✓      | ✓     | full run |
  */
 export const VIEWPORT_QUERY_CONTRACTS: Record<PlayerViewportMode, ViewportQueryContract> = {
@@ -80,11 +80,11 @@ export const VIEWPORT_QUERY_CONTRACTS: Record<PlayerViewportMode, ViewportQueryC
   },
   rythmo: {
     queryPreset: "standard",
-    layers: { words: false, turns: false, pauses: false, ipus: true },
+    layers: { words: false, turns: true, pauses: true, ipus: true },
   },
   karaoke: {
     queryPreset: "words_detail",
-    layers: { words: true, turns: false, pauses: false, ipus: false },
+    layers: { words: true, turns: true, pauses: true, ipus: true },
   },
   /** WX-667 — stats prosodiques par locuteur (full run). */
   stats: {
