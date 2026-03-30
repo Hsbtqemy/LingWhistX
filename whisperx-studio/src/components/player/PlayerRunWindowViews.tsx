@@ -1063,41 +1063,47 @@ function buildKaraokeWords(segments: EditableSegment[], durationMs: number): Kar
 
   const corrupted = durationMs > 0 && areTimestampsCorrupted(segments, durationMs);
 
-  // Count total words for proportional distribution when timestamps are bad
   let totalWords = 0;
-  const segWordCounts: number[] = [];
   for (const seg of segments) {
-    const count = seg.text.split(/\s+/).filter(Boolean).length;
-    segWordCounts.push(count);
-    totalWords += count;
+    totalWords += (seg.words?.length ?? seg.text.split(/\s+/).filter(Boolean).length);
   }
   if (totalWords === 0) return result;
 
   let globalWordIdx = 0;
   for (let si = 0; si < segments.length; si++) {
     const seg = segments[si];
-    const words = seg.text.split(/\s+/).filter(Boolean);
-    if (words.length === 0) continue;
+    const hasRealWords = seg.words && seg.words.length > 0;
+    const textWords = seg.text.split(/\s+/).filter(Boolean);
+    const wordCount = hasRealWords ? seg.words!.length : textWords.length;
+    if (wordCount === 0) continue;
 
-    for (let wi = 0; wi < words.length; wi++) {
+    for (let wi = 0; wi < wordCount; wi++) {
       let wStart: number;
       let wEnd: number;
+      let wText: string;
 
       if (corrupted) {
         wStart = Math.round((globalWordIdx / totalWords) * durationMs);
         wEnd = Math.round(((globalWordIdx + 1) / totalWords) * durationMs);
+        wText = hasRealWords ? seg.words![wi].word : textWords[wi];
+      } else if (hasRealWords) {
+        const rw = seg.words![wi];
+        wStart = Math.round(rw.start * 1000);
+        wEnd = Math.round(rw.end * 1000);
+        wText = rw.word;
       } else {
         const segStartMs = Math.round(seg.start * 1000);
         const segEndMs = Math.round(seg.end * 1000);
         const segDurMs = segEndMs - segStartMs;
-        wStart = segStartMs + Math.round((wi / words.length) * segDurMs);
-        wEnd = segStartMs + Math.round(((wi + 1) / words.length) * segDurMs);
+        wStart = segStartMs + Math.round((wi / wordCount) * segDurMs);
+        wEnd = segStartMs + Math.round(((wi + 1) / wordCount) * segDurMs);
+        wText = textWords[wi];
       }
 
       result.push({
         segIdx: si,
         wordIdx: wi,
-        word: words[wi],
+        word: wText,
         speaker: seg.speaker ?? "—",
         startMs: wStart,
         endMs: wEnd,
@@ -1403,6 +1409,22 @@ function PlayerWordsEditBody({
     activeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [scrollTarget]);
 
+  // Compute active word index within the active segment using real word timestamps
+  const activeWordInfo = useMemo(() => {
+    if (playheadSegIdx == null || playheadSegIdx < 0) return null;
+    const seg = segments[playheadSegIdx];
+    if (!seg) return null;
+    const wds = seg.words;
+    if (wds && wds.length > 0) {
+      for (let i = 0; i < wds.length; i++) {
+        const ws = Math.round(wds[i].start * 1000);
+        const we = Math.round(wds[i].end * 1000);
+        if (playheadMs >= ws && playheadMs < we) return { segIdx: playheadSegIdx, wordIdx: i };
+      }
+    }
+    return null;
+  }, [segments, playheadSegIdx, playheadMs]);
+
   return (
     <div className="player-words player-words--edit">
       <p className="player-lanes-meta small mono">
@@ -1411,7 +1433,9 @@ function PlayerWordsEditBody({
       {segments.map((seg, i) => {
         const active = playheadSegIdx === i;
         const focused = activeSegmentIndex === i;
-        const words = seg.text.split(/\s+/).filter(Boolean);
+        const textWords = seg.text.split(/\s+/).filter(Boolean);
+        const hasRealWords = seg.words && seg.words.length > 0;
+        const displayWords = hasRealWords ? seg.words!.map((w) => w.word) : textWords;
         return (
           <div
             key={i}
@@ -1442,12 +1466,15 @@ function PlayerWordsEditBody({
               />
             ) : (
               <ul className="player-word-list">
-                {words.map((w, wi) => (
-                  <li key={wi}>
-                    <span className="player-word-chip">{w}</span>
-                  </li>
-                ))}
-                {words.length === 0 ? <li className="small">…</li> : null}
+                {displayWords.map((w, wi) => {
+                  const isActiveWord = activeWordInfo?.segIdx === i && activeWordInfo?.wordIdx === wi;
+                  return (
+                    <li key={wi}>
+                      <span className={`player-word-chip${isActiveWord ? " is-active" : ""}`}>{w}</span>
+                    </li>
+                  );
+                })}
+                {displayWords.length === 0 ? <li className="small">…</li> : null}
               </ul>
             )}
           </div>

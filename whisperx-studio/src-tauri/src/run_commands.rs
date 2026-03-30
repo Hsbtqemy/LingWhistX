@@ -365,7 +365,8 @@ pub fn find_run_transcript_json(run_dir: String) -> Result<Option<String>, Strin
         }
     }
 
-    // Préférer .timeline.json (contient speakers + segment_ids post-pipeline)
-    let best = timeline_json.or(plain_json);
+    // Préférer le JSON brut qui contient les timestamps mot par mot (words[])
+    // dans chaque segment ; .timeline.json sépare les mots du reste.
+    let best = plain_json.or(timeline_json);
     Ok(best.map(|p| p.to_string_lossy().into_owned()))
 }

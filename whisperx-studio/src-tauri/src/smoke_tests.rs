@@ -153,18 +153,21 @@ fn smoke_mock_edit_export_flow() -> Result<(), String> {
             end: 1.82,
             text: "sample transcript segment two cleaned".into(),
             speaker: Some("SPEAKER_01".into()),
+            words: None,
         },
         EditableSegment {
             start: 0.0,
             end: 0.12,
             text: "sample transcript segment one curated".into(),
             speaker: Some("SPEAKER_00".into()),
+            words: None,
         },
         EditableSegment {
             start: 0.1,
             end: 0.15,
             text: "bridge segment".into(),
             speaker: Some("SPEAKER_00".into()),
+            words: None,
         },
     ];
 

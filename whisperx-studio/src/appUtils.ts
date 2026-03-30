@@ -380,6 +380,7 @@ export function cloneEditableSegments(segments: EditableSegment[]): EditableSegm
     end: segment.end,
     text: segment.text,
     speaker: segment.speaker ?? undefined,
+    words: segment.words ?? undefined,
   }));
 }
 

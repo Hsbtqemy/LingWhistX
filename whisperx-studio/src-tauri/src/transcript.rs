@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::models::{EditableSegment, ExportCorrectionReport, ExportTimingRules};
+use crate::models::{EditableSegment, ExportCorrectionReport, ExportTimingRules, WordTimestamp};
 use crate::time_utils::now_ms;
 
 fn parse_f64(value: &serde_json::Value) -> Option<f64> {
@@ -34,11 +34,38 @@ pub(crate) fn load_segments_from_json(value: &serde_json::Value) -> Vec<Editable
                 .and_then(|speaker| speaker.as_str())
                 .map(ToOwned::to_owned);
 
+            let words = segment
+                .get("words")
+                .and_then(|w| w.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|w| {
+                            let ws = w.get("start").and_then(parse_f64)?;
+                            let we = w.get("end").and_then(parse_f64)?;
+                            let wt = w
+                                .get("word")
+                                .or_else(|| w.get("token"))
+                                .and_then(|v| v.as_str())
+                                .unwrap_or_default()
+                                .to_string();
+                            let score = w.get("score").and_then(parse_f64);
+                            Some(WordTimestamp {
+                                word: wt,
+                                start: ws,
+                                end: we,
+                                score,
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .filter(|v| !v.is_empty());
+
             Some(EditableSegment {
                 start,
                 end,
                 text,
                 speaker,
+                words,
             })
         })
         .collect();
@@ -139,6 +166,7 @@ fn normalize_segments(segments: &[EditableSegment]) -> Vec<EditableSegment> {
                 end: (end * 1000.0).round() / 1000.0,
                 text: segment.text.clone(),
                 speaker: segment.speaker.clone(),
+                words: None,
             }
         })
         .collect()
@@ -657,6 +685,7 @@ mod tests {
             end,
             text: text.into(),
             speaker: None,
+            words: None,
         }
     }
 

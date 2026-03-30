@@ -370,11 +370,19 @@ export type SegmentDragState = {
   edge: SegmentEdge;
 };
 
+export type WordTimestamp = {
+  word: string;
+  start: number;
+  end: number;
+  score?: number | null;
+};
+
 export type EditableSegment = {
   start: number;
   end: number;
   text: string;
   speaker?: string | null;
+  words?: WordTimestamp[] | null;
 };
 
 /** Segment mis en avant pour l’alignement waveform / transcript */

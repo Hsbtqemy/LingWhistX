@@ -164,11 +164,23 @@ pub(crate) struct JobLogEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct WordTimestamp {
+    pub(crate) word: String,
+    pub(crate) start: f64,
+    pub(crate) end: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) score: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct EditableSegment {
     pub(crate) start: f64,
     pub(crate) end: f64,
     pub(crate) text: String,
     pub(crate) speaker: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) words: Option<Vec<WordTimestamp>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
