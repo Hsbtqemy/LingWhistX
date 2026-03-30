@@ -5,7 +5,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::jobs::RESULT_PREFIX;
 use crate::time_utils::now_ms;
 use crate::transcript_commands::{
     export_transcript, load_transcript_document, save_transcript_json,
@@ -82,13 +81,20 @@ fn run_mock_worker_for_smoke(
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let result_payload = stdout
-        .lines()
-        .find_map(|line| line.strip_prefix(RESULT_PREFIX))
-        .ok_or_else(|| "Worker smoke run did not emit a result payload".to_string())?;
 
-    serde_json::from_str::<WorkerResult>(result_payload)
-        .map_err(|err| format!("Unable to parse worker result payload: {err}"))
+    // Protocole JSON-lines : cherche une ligne {"type":"result",...}
+    stdout
+        .lines()
+        .filter(|line| line.starts_with('{'))
+        .find_map(|line| {
+            let v: serde_json::Value = serde_json::from_str(line).ok()?;
+            if v.get("type")?.as_str()? == "result" {
+                serde_json::from_value::<WorkerResult>(v).ok()
+            } else {
+                None
+            }
+        })
+        .ok_or_else(|| "Worker smoke run did not emit a result line (type=result)".to_string())
 }
 
 #[test]

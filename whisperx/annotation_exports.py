@@ -117,8 +117,53 @@ def write_rttm(path: str, file_id: str, turns: list[dict[str, float | str]]) -> 
             )
 
 
-def write_textgrid(path: str, turns: list[dict[str, float | str]], xmax: float) -> None:
-    """Praat long TextGrid with one IntervalTier `Speaker` (long text file format)."""
+def _build_intervals_for_speaker(
+    speaker_segs: list[dict[str, float | str]], xmax: float
+) -> list[tuple[float, float, str]]:
+    """
+    Build a gapless sequence of intervals (xmin, xmax, text) for one speaker's segments.
+    Gaps between segments (and before first / after last) receive empty text.
+    """
+    segs = sorted(speaker_segs, key=lambda s: float(s["start"]))
+    result: list[tuple[float, float, str]] = []
+    cursor = 0.0
+    for seg in segs:
+        s = float(seg["start"])
+        e = min(float(seg["end"]), xmax)
+        if s > cursor + 1e-6:
+            result.append((cursor, s, ""))
+        text = _escape_textgrid_label(str(seg.get("text") or seg.get("speaker") or ""))
+        result.append((s, e, text))
+        cursor = e
+    if cursor < xmax - 1e-6:
+        result.append((cursor, xmax, ""))
+    if not result:
+        result.append((0.0, xmax, ""))
+    return result
+
+
+def write_textgrid(
+    path: str,
+    turns: list[dict[str, float | str]],
+    xmax: float,
+    *,
+    segments: list[dict[str, float | str]] | None = None,
+) -> None:
+    """
+    Praat long TextGrid — one IntervalTier per speaker (WX-670).
+    If *segments* is provided (list of {start, end, speaker, text}), text is used
+    as annotation value; otherwise falls back to speaker label.
+    """
+    # Group by speaker using segments (text-aware) or turns (speaker label only)
+    source = segments if segments else turns
+    by_speaker: dict[str, list[dict[str, float | str]]] = {}
+    for seg in source:
+        sp = str(seg.get("speaker") or "unknown").strip()
+        by_speaker.setdefault(sp, []).append(seg)
+
+    speakers = sorted(by_speaker)
+    n_tiers = len(speakers)
+
     lines: list[str] = [
         'File type = "ooTextFile"',
         'Object class = "TextGrid"',
@@ -126,34 +171,57 @@ def write_textgrid(path: str, turns: list[dict[str, float | str]], xmax: float) 
         "xmin = 0",
         f"xmax = {xmax:.6f}",
         "tiers? <exists>",
-        "size = 1",
+        f"size = {n_tiers}",
         "item []:",
-        "    item [1]:",
-        '        class = "IntervalTier"',
-        '        name = "Speaker"',
-        "        xmin = 0",
-        f"        xmax = {xmax:.6f}",
-        f"        intervals: size = {len(turns)}",
     ]
-    for i, turn in enumerate(turns, start=1):
-        start = float(turn["start"])
-        end = float(turn["end"])
-        label = _escape_textgrid_label(str(turn["speaker"]))
-        lines.append(f"        intervals [{i}]:")
-        lines.append(f"            xmin = {start:.6f}")
-        lines.append(f"            xmax = {end:.6f}")
-        lines.append(f'            text = "{label}"')
+    for tier_idx, sp in enumerate(speakers, start=1):
+        intervals = _build_intervals_for_speaker(by_speaker[sp], xmax)
+        tier_name = _escape_textgrid_label(sp)
+        lines += [
+            f"    item [{tier_idx}]:",
+            '        class = "IntervalTier"',
+            f'        name = "{tier_name}"',
+            "        xmin = 0",
+            f"        xmax = {xmax:.6f}",
+            f"        intervals: size = {len(intervals)}",
+        ]
+        for i, (imin, imax, text) in enumerate(intervals, start=1):
+            lines += [
+                f"        intervals [{i}]:",
+                f"            xmin = {imin:.6f}",
+                f"            xmax = {imax:.6f}",
+                f'            text = "{text}"',
+            ]
     with open(path, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")
 
 
-def write_eaf(path: str, turns: list[dict[str, float | str]], xmax: float) -> None:
-    """ELAN EAF 3.0 with one linguistic tier; times in milliseconds."""
+def write_eaf(
+    path: str,
+    turns: list[dict[str, float | str]],
+    xmax: float,
+    *,
+    segments: list[dict[str, float | str]] | None = None,
+) -> None:
+    """
+    ELAN EAF 3.0 — one TIER per speaker (WX-670), times in milliseconds.
+    If *segments* is provided (list of {start, end, speaker, text}), text is used
+    as annotation value; otherwise falls back to speaker label.
+    """
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+    source = segments if segments else turns
+    by_speaker: dict[str, list[dict[str, float | str]]] = {}
+    for seg in source:
+        sp = str(seg.get("speaker") or "unknown").strip()
+        by_speaker.setdefault(sp, []).append(seg)
+    speakers = sorted(by_speaker)
+
+    # Collect all unique time values for TIME_ORDER
     times_ms: list[int] = [0, int(round(xmax * 1000))]
-    for t in turns:
-        times_ms.append(int(round(float(t["start"]) * 1000)))
-        times_ms.append(int(round(float(t["end"]) * 1000)))
+    for seg in source:
+        times_ms.append(int(round(float(seg["start"]) * 1000)))
+        times_ms.append(int(round(float(seg["end"]) * 1000)))
     times_ms = sorted(set(times_ms))
     slot_by_ms = {ms: f"ts{idx}" for idx, ms in enumerate(times_ms)}
 
@@ -165,35 +233,71 @@ def write_eaf(path: str, turns: list[dict[str, float | str]], xmax: float) -> No
         for ms in times_ms
     )
 
-    annotations_xml = []
-    for idx, turn in enumerate(turns):
-        s_ms = int(round(float(turn["start"]) * 1000))
-        e_ms = int(round(float(turn["end"]) * 1000))
-        val = xml.sax.saxutils.escape(str(turn["speaker"]))
-        annotations_xml.append(
-            f'    <ANNOTATION>\n'
-            f'      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a{idx}" TIME_SLOT_REF1="{slot_id(s_ms)}" TIME_SLOT_REF2="{slot_id(e_ms)}">\n'
-            f"        <ANNOTATION_VALUE>{val}</ANNOTATION_VALUE>\n"
-            f"      </ALIGNABLE_ANNOTATION>\n"
-            f"    </ANNOTATION>\n"
+    tiers_xml: list[str] = []
+    ann_counter = 0
+    for sp in speakers:
+        tier_id = xml.sax.saxutils.escape(sp)
+        segs_sorted = sorted(by_speaker[sp], key=lambda s: float(s["start"]))
+        anns_xml: list[str] = []
+        for seg in segs_sorted:
+            s_ms = int(round(float(seg["start"]) * 1000))
+            e_ms = int(round(float(seg["end"]) * 1000))
+            raw_text = seg.get("text") or seg.get("speaker") or ""
+            val = xml.sax.saxutils.escape(str(raw_text))
+            anns_xml.append(
+                f"    <ANNOTATION>\n"
+                f'      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a{ann_counter}" TIME_SLOT_REF1="{slot_id(s_ms)}" TIME_SLOT_REF2="{slot_id(e_ms)}">\n'
+                f"        <ANNOTATION_VALUE>{val}</ANNOTATION_VALUE>\n"
+                f"      </ALIGNABLE_ANNOTATION>\n"
+                f"    </ANNOTATION>\n"
+            )
+            ann_counter += 1
+        tiers_xml.append(
+            f'  <TIER TIER_ID="{tier_id}" LINGUISTIC_TYPE_REF="lt-speaker">\n'
+            f"{''.join(anns_xml)}"
+            f"  </TIER>\n"
         )
 
     body = (
         f'<?xml version="1.0" encoding="UTF-8"?>\n'
-        f'<ANNOTATION_DOCUMENT AUTHOR="whisperx" DATE="{now}" VERSION="0" FORMAT="3.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n'
-        f"  <HEADER TIME_UNITS=\"milliseconds\">\n"
+        f'<ANNOTATION_DOCUMENT AUTHOR="whisperx" DATE="{now}" VERSION="0" FORMAT="3.0"'
+        f' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n'
+        f'  <HEADER TIME_UNITS="milliseconds">\n'
         f"    <TIME_ORDER>\n"
         f"{header_slots}"
         f"    </TIME_ORDER>\n"
         f"  </HEADER>\n"
-        f'  <TIER TIER_ID="speaker" LINGUISTIC_TYPE_REF="lt-speaker">\n'
-        f"{''.join(annotations_xml)}"
-        f"  </TIER>\n"
+        f"{''.join(tiers_xml)}"
         f'  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="lt-speaker" TIME_ALIGNABLE="true"/>\n'
         f"</ANNOTATION_DOCUMENT>\n"
     )
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(body)
+
+
+def collect_text_segments(result: dict[str, Any]) -> list[dict[str, float | str]]:
+    """
+    Extract {start, end, speaker, text} from result segments for annotation text content.
+    Falls back to empty list if no usable data.
+    """
+    segments = result.get("segments")
+    if not isinstance(segments, list):
+        return []
+    out: list[dict[str, float | str]] = []
+    for seg in segments:
+        if not isinstance(seg, dict):
+            continue
+        sp = seg.get("speaker")
+        if not sp or not str(sp).strip():
+            continue
+        try:
+            start = float(seg["start"])
+            end = float(seg["end"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        text = str(seg.get("text") or "").strip()
+        out.append({"start": start, "end": end, "speaker": str(sp).strip(), "text": text})
+    return out
 
 
 def write_annotation_exports(
@@ -207,6 +311,7 @@ def write_annotation_exports(
 ) -> dict[str, str]:
     """
     Write selected annotation files next to other exports. Returns map label -> path.
+    WX-670: TextGrid and EAF now have one tier per speaker with segment text.
     """
     if not (rttm or textgrid or eaf):
         return {}
@@ -219,16 +324,20 @@ def write_annotation_exports(
     if not turns:
         return {}
 
+    # Prefer richer segments (with text) for TextGrid/EAF tiers
+    text_segments = collect_text_segments(result) if (textgrid or eaf) else []
+    annotation_source = text_segments if text_segments else turns
+
     if rttm:
         p = os.path.join(output_dir, f"{stem}.rttm")
         write_rttm(p, stem, turns)
         out["rttm"] = p
     if textgrid:
         p = os.path.join(output_dir, f"{stem}.TextGrid")
-        write_textgrid(p, turns, xmax)
+        write_textgrid(p, turns, xmax, segments=annotation_source)
         out["textgrid"] = p
     if eaf:
         p = os.path.join(output_dir, f"{stem}.eaf")
-        write_eaf(p, turns, xmax)
+        write_eaf(p, turns, xmax, segments=annotation_source)
         out["eaf"] = p
     return out

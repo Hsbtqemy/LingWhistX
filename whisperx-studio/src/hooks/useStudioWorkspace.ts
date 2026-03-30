@@ -84,6 +84,8 @@ export function useStudioWorkspace({
     sessionRestorePrompt,
     restoreSession,
     dismissSessionRestore,
+    setJobPriority,
+    reorderJobs,
   } = useJobsList({
     runDetailsRef,
     setError,
@@ -148,6 +150,7 @@ export function useStudioWorkspace({
         onPreviewOutput: previewOutput,
         injectAudioPipelineSegmentsJson,
         onOpenPlayerRun,
+        onLoadAnnotationTier: te.loadAnnotationTier,
       }),
     [
       selectedJob,
@@ -167,6 +170,7 @@ export function useStudioWorkspace({
       previewOutput,
       injectAudioPipelineSegmentsJson,
       onOpenPlayerRun,
+      te.loadAnnotationTier,
     ],
   );
 
@@ -183,6 +187,8 @@ export function useStudioWorkspace({
         : null,
       onLoadMoreJobs: loadMoreJobs,
       loadMoreJobsLoading,
+      onSetJobPriority: setJobPriority,
+      onReorderJobs: reorderJobs,
     }),
     [
       jobs,
@@ -194,6 +200,8 @@ export function useStudioWorkspace({
       jobsPagination,
       loadMoreJobs,
       loadMoreJobsLoading,
+      setJobPriority,
+      reorderJobs,
     ],
   );
 

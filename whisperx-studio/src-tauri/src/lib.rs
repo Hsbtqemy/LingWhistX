@@ -6,6 +6,7 @@ pub(crate) use models::*;
 
 mod transcript;
 
+mod annotation_import_commands;
 mod app_events;
 mod app_setup;
 mod audio_preview;
@@ -20,6 +21,7 @@ mod local_fs_commands;
 mod path_guard;
 mod process_utils;
 mod python_runtime;
+mod report_commands;
 mod run_commands;
 mod run_events;
 mod run_events_recalc;
@@ -69,11 +71,14 @@ pub fn run() {
             transcript_commands::save_transcript_json,
             transcript_commands::export_transcript,
             transcript_commands::export_run_timing_pack,
+            report_commands::export_prosody_report,
             local_fs_commands::open_local_path,
             local_fs_commands::read_text_preview,
             local_fs_commands::list_directory_files,
             job_commands::cancel_job,
             job_commands::delete_job,
+            job_commands::set_job_priority,
+            job_commands::reorder_jobs,
             run_commands::read_run_manifest_summary,
             run_commands::list_recent_runs,
             run_commands::clear_recent_runs,
@@ -91,7 +96,8 @@ pub fn run() {
             hf_token_commands::validate_hf_token,
             user_profiles_commands::read_user_profiles,
             user_profiles_commands::save_user_profile,
-            user_profiles_commands::delete_user_profile
+            user_profiles_commands::delete_user_profile,
+            annotation_import_commands::import_annotation_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

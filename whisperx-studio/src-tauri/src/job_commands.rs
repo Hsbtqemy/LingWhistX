@@ -7,7 +7,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::app_events::{emit_job_deleted, emit_job_log, emit_job_update};
 use crate::db::{
     count_jobs, delete_job_row, load_jobs_page, persist_job, redact_whisperx_options_for_storage,
-    JOBS_PAGE_SIZE,
+    update_job_priority, update_jobs_queue_order, JOBS_PAGE_SIZE,
 };
 use crate::jobs::{current_job_status, mutate_job, run_job_thread};
 use crate::models::{
@@ -88,6 +88,8 @@ pub fn create_job(
         output_files: vec![],
         whisperx_options: whisperx_options_for_storage,
         live_transcript_segments: vec![],
+        priority: 2,
+        queue_order: 0,
     };
 
     {
@@ -331,5 +333,66 @@ pub fn delete_job(
     }
 
     emit_job_deleted(&app, &job_id);
+    Ok(())
+}
+
+/// WX-672 — Modifie la priorité d'un job (P0 = highest, P3 = lowest).
+#[tauri::command]
+pub fn set_job_priority(
+    app: AppHandle,
+    db_state: State<DbState>,
+    state: State<JobsState>,
+    job_id: String,
+    priority: u8,
+) -> Result<Job, String> {
+    if priority > 3 {
+        return Err(format!("Invalid priority {priority}: must be 0–3"));
+    }
+    update_job_priority(db_state.path.as_ref(), &job_id, priority)?;
+    let updated = {
+        let mut lock = state
+            .jobs
+            .lock()
+            .map_err(|_| "Failed to lock job store".to_string())?;
+        let job = lock.get_mut(&job_id).ok_or_else(|| "Unknown job id".to_string())?;
+        job.priority = priority;
+        job.clone()
+    };
+    emit_job_update(&app, &updated);
+    Ok(updated)
+}
+
+/// WX-672 — Réordonne la file en appliquant une liste ordonnée d'IDs.
+#[tauri::command]
+pub fn reorder_jobs(
+    app: AppHandle,
+    db_state: State<DbState>,
+    state: State<JobsState>,
+    ordered_ids: Vec<String>,
+) -> Result<(), String> {
+    update_jobs_queue_order(db_state.path.as_ref(), &ordered_ids)?;
+    {
+        let mut lock = state
+            .jobs
+            .lock()
+            .map_err(|_| "Failed to lock job store".to_string())?;
+        for (idx, id) in ordered_ids.iter().enumerate() {
+            if let Some(job) = lock.get_mut(id) {
+                job.queue_order = idx as i64;
+            }
+        }
+    }
+    // Emit updates for all reordered jobs
+    {
+        let lock = state
+            .jobs
+            .lock()
+            .map_err(|_| "Failed to lock job store".to_string())?;
+        for id in &ordered_ids {
+            if let Some(job) = lock.get(id) {
+                emit_job_update(&app, job);
+            }
+        }
+    }
     Ok(())
 }

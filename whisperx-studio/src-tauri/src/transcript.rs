@@ -368,6 +368,209 @@ pub(crate) fn to_csv_text(segments: &[EditableSegment]) -> String {
     out
 }
 
+// ─── WX-670 : Annotation exports (TextGrid / ELAN EAF) ───────────────────────
+
+/// Convert days since Unix epoch (1970-01-01) to (year, month, day).
+fn epoch_days_to_ymd(mut days: u64) -> (u64, u64, u64) {
+    // Algorithm: Gregorian calendar from epoch days
+    let mut y: u64 = 1970;
+    loop {
+        let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+        let days_in_year: u64 = if leap { 366 } else { 365 };
+        if days < days_in_year {
+            break;
+        }
+        days -= days_in_year;
+        y += 1;
+    }
+    let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+    let month_days: [u64; 12] = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let mut mo: u64 = 1;
+    for &md in &month_days {
+        if days < md {
+            break;
+        }
+        days -= md;
+        mo += 1;
+    }
+    (y, mo, days + 1)
+}
+
+fn escape_textgrid_label(s: &str) -> String {
+    s.replace('"', "\"\"")
+}
+
+fn xml_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
+}
+
+/// Group segments by speaker (preserving original order within each speaker).
+fn group_by_speaker(segments: &[EditableSegment]) -> Vec<(String, Vec<&EditableSegment>)> {
+    let mut order: Vec<String> = Vec::new();
+    let mut map: std::collections::HashMap<String, Vec<&EditableSegment>> =
+        std::collections::HashMap::new();
+    for seg in segments {
+        let sp = seg.speaker.as_deref().unwrap_or("unknown").to_string();
+        if !map.contains_key(&sp) {
+            order.push(sp.clone());
+        }
+        map.entry(sp).or_default().push(seg);
+    }
+    let mut ordered = order;
+    ordered.sort();
+    ordered
+        .into_iter()
+        .map(|sp| {
+            let mut segs = map.remove(&sp).unwrap_or_default();
+            segs.sort_by(|a, b| a.start.partial_cmp(&b.start).unwrap_or(std::cmp::Ordering::Equal));
+            (sp, segs)
+        })
+        .collect()
+}
+
+/// Build a gapless interval list (xmin, xmax, text) for one speaker over [0, xmax].
+fn build_intervals(segs: &[&EditableSegment], xmax: f64) -> Vec<(f64, f64, String)> {
+    let mut result = Vec::new();
+    let mut cursor: f64 = 0.0;
+    for seg in segs {
+        let s = seg.start.max(0.0);
+        let e = seg.end.min(xmax);
+        if s > cursor + 1e-6 {
+            result.push((cursor, s, String::new()));
+        }
+        result.push((s, e, seg.text.trim().to_string()));
+        cursor = e;
+    }
+    if cursor < xmax - 1e-6 {
+        result.push((cursor, xmax, String::new()));
+    }
+    if result.is_empty() {
+        result.push((0.0, xmax, String::new()));
+    }
+    result
+}
+
+pub(crate) fn to_textgrid_text(segments: &[EditableSegment]) -> String {
+    let xmax = segments
+        .iter()
+        .map(|s| s.end)
+        .fold(1.0_f64, f64::max);
+
+    let by_speaker = group_by_speaker(segments);
+    let n_tiers = by_speaker.len();
+
+    let mut out = format!(
+        "File type = \"ooTextFile\"\nObject class = \"TextGrid\"\n\nxmin = 0\nxmax = {xmax:.6}\ntiers? <exists>\nsize = {n_tiers}\nitem []:\n"
+    );
+    for (tier_idx, (sp, segs)) in by_speaker.iter().enumerate() {
+        let intervals = build_intervals(segs, xmax);
+        let n_intervals = intervals.len();
+        let tier_name = escape_textgrid_label(sp);
+        out.push_str(&format!(
+            "    item [{idx}]:\n        class = \"IntervalTier\"\n        name = \"{tier_name}\"\n        xmin = 0\n        xmax = {xmax:.6}\n        intervals: size = {n_intervals}\n",
+            idx = tier_idx + 1,
+        ));
+        for (i, (imin, imax, text)) in intervals.iter().enumerate() {
+            let label = escape_textgrid_label(text);
+            out.push_str(&format!(
+                "        intervals [{i}]:\n            xmin = {imin:.6}\n            xmax = {imax:.6}\n            text = \"{label}\"\n",
+                i = i + 1,
+            ));
+        }
+    }
+    out
+}
+
+pub(crate) fn to_eaf_text(segments: &[EditableSegment]) -> String {
+    let xmax = segments
+        .iter()
+        .map(|s| s.end)
+        .fold(1.0_f64, f64::max);
+
+    let by_speaker = group_by_speaker(segments);
+
+    // Collect all unique time values (ms)
+    let mut times_ms: Vec<u64> = vec![0, (xmax * 1000.0).round() as u64];
+    for seg in segments {
+        times_ms.push((seg.start * 1000.0).round() as u64);
+        times_ms.push((seg.end * 1000.0).round() as u64);
+    }
+    times_ms.sort_unstable();
+    times_ms.dedup();
+    let slot_by_ms: std::collections::HashMap<u64, String> = times_ms
+        .iter()
+        .enumerate()
+        .map(|(idx, &ms)| (ms, format!("ts{idx}")))
+        .collect();
+
+    let slot_id = |ms: u64| slot_by_ms.get(&ms).cloned().unwrap_or_default();
+
+    // ISO-8601 UTC timestamp without chrono dependency
+    let now = {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let s = secs % 60;
+        let m = (secs / 60) % 60;
+        let h = (secs / 3600) % 24;
+        let days = secs / 86400;
+        // Approximate Gregorian date from epoch days
+        let (y, mo, d) = epoch_days_to_ymd(days);
+        format!("{y:04}-{mo:02}-{d:02}T{h:02}:{m:02}:{s:02}+00:00")
+    };
+
+    let header_slots: String = times_ms
+        .iter()
+        .map(|&ms| {
+            format!(
+                "      <TIME_SLOT TIME_SLOT_ID=\"{}\" TIME_VALUE=\"{}\"/>\n",
+                slot_id(ms),
+                ms
+            )
+        })
+        .collect();
+
+    let mut tiers_xml = String::new();
+    let mut ann_counter: usize = 0;
+    for (sp, segs) in &by_speaker {
+        let tier_id = xml_escape(sp);
+        let mut anns = String::new();
+        for seg in segs {
+            let s_ms = (seg.start * 1000.0).round() as u64;
+            let e_ms = (seg.end * 1000.0).round() as u64;
+            let val = xml_escape(seg.text.trim());
+            anns.push_str(&format!(
+                "    <ANNOTATION>\n      <ALIGNABLE_ANNOTATION ANNOTATION_ID=\"a{ann_counter}\" TIME_SLOT_REF1=\"{ts1}\" TIME_SLOT_REF2=\"{ts2}\">\n        <ANNOTATION_VALUE>{val}</ANNOTATION_VALUE>\n      </ALIGNABLE_ANNOTATION>\n    </ANNOTATION>\n",
+                ts1 = slot_id(s_ms),
+                ts2 = slot_id(e_ms),
+            ));
+            ann_counter += 1;
+        }
+        tiers_xml.push_str(&format!(
+            "  <TIER TIER_ID=\"{tier_id}\" LINGUISTIC_TYPE_REF=\"lt-speaker\">\n{anns}  </TIER>\n"
+        ));
+    }
+
+    format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+<ANNOTATION_DOCUMENT AUTHOR=\"whisperx\" DATE=\"{now}\" VERSION=\"0\" FORMAT=\"3.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n\
+  <HEADER TIME_UNITS=\"milliseconds\">\n\
+    <TIME_ORDER>\n\
+{header_slots}\
+    </TIME_ORDER>\n\
+  </HEADER>\n\
+{tiers_xml}\
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID=\"lt-speaker\" TIME_ALIGNABLE=\"true\"/>\n\
+</ANNOTATION_DOCUMENT>\n"
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

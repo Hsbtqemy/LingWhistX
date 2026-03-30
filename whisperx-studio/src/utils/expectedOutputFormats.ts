@@ -5,6 +5,19 @@
 const ALL_WRITER_EXTENSIONS = ["txt", "vtt", "srt", "tsv", "json"] as const;
 
 /**
+ * Extensions d’annotation (WX-670) produites selon les flags d’options.
+ */
+export function expectedAnnotationExtensions(opts: {
+  exportAnnotationEaf?: boolean;
+  exportAnnotationTextgrid?: boolean;
+} | undefined | null): string[] {
+  const out: string[] = [];
+  if (opts?.exportAnnotationEaf) out.push("eaf");
+  if (opts?.exportAnnotationTextgrid) out.push("TextGrid");
+  return out;
+}
+
+/**
  * Liste d’extensions attendues pour le fichier principal `{stem}.{ext}` selon `outputFormat` du job.
  */
 export function expectedWhisperxStemExtensions(outputFormat: string | undefined | null): string[] {

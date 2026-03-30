@@ -8,6 +8,7 @@ import {
   normalizeExportRules,
 } from "../appUtils";
 import type {
+  AnnotationSegment,
   EditableSegment,
   EditorSnapshot,
   ExportCorrectionReport,
@@ -551,6 +552,27 @@ export function useTranscriptEditor({
     return attachTranscriptEditorKeyboard(() => transcriptKeyboardArgsRef.current!);
   }, []);
 
+  // WX-676 — Load an annotation tier's segments into the transcript editor.
+  // The tier_id is used as the speaker label on all segments.
+  function loadAnnotationTier(tierId: string, segments: AnnotationSegment[]) {
+    const editableSegments: EditableSegment[] = segments.map((s) => ({
+      start: s.start,
+      end: s.end,
+      text: s.text,
+      speaker: tierId,
+    }));
+    setEditorError("");
+    setEditorStatus("");
+    setEditorSourcePath("");
+    editorBaselineRef.current = null;
+    setHistoryStacks([], []);
+    setEditorSnapshotState(buildEditorSnapshot("", editableSegments));
+    setEditorVisibleCount(120);
+    setActiveSegmentIndex(editableSegments.length > 0 ? 0 : null);
+    setEditorStatus(`Annotation importée: ${editableSegments.length} segment(s) — tier "${tierId}"`);
+    seedQaFromLoadedSegments(editableSegments);
+  }
+
   return {
     activeSegmentIndex,
     setActiveSegmentIndex,
@@ -632,5 +654,6 @@ export function useTranscriptEditor({
     onWaveformMouseLeave,
     splitActiveSegmentAtCursor,
     mergeActiveSegment,
+    loadAnnotationTier,
   };
 }

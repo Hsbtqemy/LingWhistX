@@ -1,4 +1,4 @@
-import type { Job, JobLogEvent, LiveTranscriptSegment } from "../../types";
+import type { AnnotationSegment, Job, JobLogEvent, LiveTranscriptSegment } from "../../types";
 import type { AlignmentWorkspacePanelProps } from "./AlignmentWorkspacePanel";
 import type { RunDetailsPanelProps } from "./RunDetailsPanel";
 import type { TranscriptEditorPanelProps } from "./TranscriptEditorPanel";
@@ -180,6 +180,7 @@ export type BuildRunDetailsPanelPropsInput = {
   onPreviewOutput: RunDetailsPanelProps["onPreviewOutput"];
   injectAudioPipelineSegmentsJson?: (json: string) => void;
   onOpenPlayerRun?: RunDetailsPanelProps["onOpenPlayerRun"];
+  onLoadAnnotationTier?: (tierId: string, segments: AnnotationSegment[]) => void;
 };
 
 export function buildRunDetailsPanelProps(
@@ -226,5 +227,6 @@ export function buildRunDetailsPanelProps(
       ? buildTranscriptEditorPanelProps(te, openLocalPath, onPreviewOutput)
       : null,
     onOpenPlayerRun,
+    onLoadAnnotationTier: te.loadAnnotationTier,
   };
 }

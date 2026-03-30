@@ -77,7 +77,7 @@ describe("PlayerRunWindowViews", () => {
     });
     render(<PlayerRunWindowViews {...baseProps} mode="rythmo" slice={slice} queryError={null} />);
     expect(screen.getByText("hello")).toBeInTheDocument();
-    expect(screen.getByText(/lecture/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Bande rythmo horizontale/i)).toBeInTheDocument();
     expect(screen.getByTestId("player-rythmo-scrub")).toBeInTheDocument();
   });
 

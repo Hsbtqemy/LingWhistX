@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { clampNumber, formatClockSeconds } from "../../appUtils";
 import {
   buildTimeBins,
@@ -394,7 +394,7 @@ function PlayerRythmoBody({
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el || typeof ResizeObserver === "undefined") return;
     const obs = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
       if (w && w > 0) setContainerWidth(w);
@@ -453,7 +453,7 @@ function PlayerRythmoBody({
                     left: `${ipu.startMs * PX_PER_MS}px`,
                     width: `${blockW}px`,
                     "--ipu-sp": `var(--lx-speaker-${spIdx}, var(--lx-accent))`,
-                  } as React.CSSProperties
+                  } as CSSProperties
                 }
                 disabled={!onSeekToMs}
                 onClick={() => onSeekToMs?.(ipu.startMs)}

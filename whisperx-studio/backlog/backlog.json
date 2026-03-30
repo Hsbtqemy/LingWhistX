@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "updatedAt": "2026-03-29T16:35:08.068Z",
+    "updatedAt": "2026-03-29T21:27:14.213Z",
     "statuses": [
         "todo",
         "in_progress",
@@ -3067,7 +3067,7 @@
         {
             "id": "WX-669",
             "title": "Vue Rythmo : bande de texte synchronisee style doublage",
-            "status": "in_progress",
+            "status": "done",
             "priority": "P3",
             "estimate": "2.5d",
             "dependsOn": [
@@ -3097,7 +3097,7 @@
         {
             "id": "WX-670",
             "title": "Export ELAN (.eaf) et Praat TextGrid (.TextGrid)",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "3d",
             "dependsOn": [],
@@ -3128,7 +3128,7 @@
         {
             "id": "WX-671",
             "title": "Export rapport prosodique (PDF/HTML : statistiques IPU, pauses, debit)",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "2.5d",
             "dependsOn": [
@@ -3159,7 +3159,7 @@
         {
             "id": "WX-672",
             "title": "Mode batch : file de jobs avec priorite et monitoring par run",
-            "status": "todo",
+            "status": "done",
             "priority": "P3",
             "estimate": "3d",
             "dependsOn": [
@@ -3188,6 +3188,152 @@
                 "Le glisser-deposer fonctionne sur 20+ jobs sans lag.",
                 "Le panneau de monitoring se rafraichit en temps reel via evenements Tauri.",
                 "Les tests useJobsList.ts couvrent le cas reordonnancement avec priorite."
+            ]
+        },
+        {
+            "id": "WX-673",
+            "title": "Import EAF : parseur complet (ALIGNABLE + REF_ANNOTATION, multi-tiers)",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "2d",
+            "dependsOn": [],
+            "scope": [
+                "whisperx/annotation_imports.py",
+                "whisperx/annotation_exports.py"
+            ],
+            "execute": [
+                "python -m pytest tests/"
+            ],
+            "definitionOfDone": [
+                "parse_eaf(path) retourne ImportResult : segments plats + tiers structures + media_path + warnings.",
+                "ALIGNABLE_ANNOTATION avec TIME_SLOT_REF1/REF2 sont convertis en {start_sec, end_sec, text, tier_id}.",
+                "REF_ANNOTATION (annotations dependantes) heritent les timestamps de leur parent ALIGNABLE (recursif).",
+                "Tiers de type Symbolic_Association, Time_Subdivision et Included_In sont geres.",
+                "LINKED_FILE_DESCRIPTOR et MEDIA_DESCRIPTOR : media_path resolu (absolu puis relatif au .eaf).",
+                "EAF 2.7 et 3.0 sont acceptes.",
+                "Fichier .eaf sans media associe ne leve pas d erreur, media_path = None.",
+                "Avertissements non bloquants pour tiers sans annotations ou CV non resolus."
+            ],
+            "acceptance": [
+                "Un .eaf ELAN 6.x a 3 tiers (mot, phoneme, commentaire) produit 3 groupes de segments distincts.",
+                "REF_ANNOTATION sur tier phoneme herite bien des bornes temporelles du tier parent.",
+                "media_path pointe vers le bon fichier si RELATIVE_MEDIA_URL est present.",
+                "Fichier sans LINKED_FILES : media_path = None, pas d exception.",
+                "Tests couvrent EAF 2.7, EAF 3.0, tiers imbriques, fichier sans media."
+            ]
+        },
+        {
+            "id": "WX-674",
+            "title": "Import TextGrid : parseur long + short format, IntervalTier + PointTier",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "0.5d",
+            "dependsOn": [],
+            "scope": [
+                "whisperx/annotation_imports.py"
+            ],
+            "execute": [
+                "python -m pytest tests/"
+            ],
+            "definitionOfDone": [
+                "parse_textgrid(path) accepte le format long (Praat >= 5) et le format court (Praat < 5).",
+                "IntervalTier : chaque intervalle {xmin, xmax, text} converti en segment.",
+                "PointTier : chaque point {time, mark} converti en segment instantane (start == end).",
+                "Encodage auto-detecte : UTF-8 (avec ou sans BOM), Latin-1.",
+                "Retourne ImportResult identique a parse_eaf pour compatibilite aval."
+            ],
+            "acceptance": [
+                "TextGrid long format Praat 6.x avec 2 tiers charge sans erreur.",
+                "TextGrid short format charge sans erreur.",
+                "Fichier Latin-1 (produit par vieille version Praat) charge sans UnicodeDecodeError.",
+                "PointTier produit des segments avec start == end (pas d exception sur duree nulle)."
+            ]
+        },
+        {
+            "id": "WX-675",
+            "title": "IPC Rust : import_annotation_file + dialog front-end",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "0.5d",
+            "dependsOn": ["WX-673", "WX-674"],
+            "scope": [
+                "src-tauri/src/annotation_import_commands.rs",
+                "src-tauri/src/lib.rs",
+                "src/types.ts"
+            ],
+            "execute": [
+                "cargo check",
+                "npm run build"
+            ],
+            "definitionOfDone": [
+                "Commande Tauri import_annotation_file(path) appelle le parseur Python (eaf ou textgrid selon extension) et retourne ImportAnnotationResult.",
+                "ImportAnnotationResult : { tiers: [{tierId, segments: [{startSec, endSec, text}]}], mediaPath: string|null, warnings: string[], sourceFormat: 'eaf'|'textgrid' }.",
+                "Le dialog front-end accepte les extensions .eaf et .TextGrid.",
+                "Si mediaPath est detecte, un evenement Tauri propose de l utiliser comme source audio du player.",
+                "path_guard valide que le chemin est dans un repertoire accessible."
+            ],
+            "acceptance": [
+                "Ouvrir un .eaf via le dialog retourne les tiers sans crash Rust.",
+                "mediaPath non null declenche une proposition de lier l audio dans l UI.",
+                "Chemin hors zone autorisee retourne une erreur IPC explicite.",
+                "npm run build sans erreur TS."
+            ]
+        },
+        {
+            "id": "WX-676",
+            "title": "Integration editeur : charger les tiers importes comme segments editables",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "0.5d",
+            "dependsOn": ["WX-675"],
+            "scope": [
+                "src/hooks/useTranscriptEditor.ts",
+                "src/components/runDetails/RunDetailsOutputFiles.tsx",
+                "src/components/runDetails/TranscriptEditorPanel.tsx"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Un bouton 'Importer annotations (.eaf / .TextGrid)' est accessible depuis RunDetailsOutputFiles ou TranscriptEditorPanel.",
+                "Chaque tier importe devient un groupe de segments avec speaker = tierId.",
+                "Si plusieurs tiers, l utilisateur choisit lesquels importer (cases a cocher par tier).",
+                "Les segments importes sont charges dans useTranscriptEditor comme un nouveau draft (pas d ecrasement silencieux).",
+                "Si le transcript courant a des modifications non sauvegardees, une confirmation est demandee avant remplacement."
+            ],
+            "acceptance": [
+                "Import d un .eaf a 3 tiers : les 3 apparaissent dans la liste de selection.",
+                "Apres selection de 2 tiers sur 3, seuls ces 2 sont charges dans l editeur.",
+                "speaker = TIER_ID est visible dans chaque segment dans l editeur.",
+                "Draft auto-sauvegarde apres import.",
+                "Test unitaire couvre la fusion de plusieurs tiers en liste de segments plates."
+            ]
+        },
+        {
+            "id": "WX-677",
+            "title": "Tests integration import EAF/TextGrid (fixtures reels ELAN 6 + Praat 6)",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "0.5d",
+            "dependsOn": ["WX-673", "WX-674"],
+            "scope": [
+                "tests/test_annotation_imports.py",
+                "tests/fixtures/"
+            ],
+            "execute": [
+                "python -m pytest tests/test_annotation_imports.py -v"
+            ],
+            "definitionOfDone": [
+                "Fixture .eaf ELAN 6.x avec ALIGNABLE + REF_ANNOTATION + LINKED_FILE.",
+                "Fixture .eaf sans media associe.",
+                "Fixture .TextGrid long format avec IntervalTier + PointTier.",
+                "Fixture .TextGrid short format Latin-1.",
+                "Tous les cas d acceptance WX-673 et WX-674 sont couverts par des tests pytest parametres."
+            ],
+            "acceptance": [
+                "pytest tests/test_annotation_imports.py : 0 failed.",
+                "Couverture minimale : 12 cas de test (4 fixtures x 3 assertions cles chacune)."
             ]
         }
     ]

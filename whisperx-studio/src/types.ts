@@ -38,6 +38,10 @@ export type WhisperxPipelineOptions = {
    * WX-623 — plages `{ startSec, endSec, audioPipelineModules? }[]` ; concat ffmpeg après traitement par plage.
    */
   audioPipelineSegments?: unknown[];
+  /** WX-670 — exporter un .eaf (ELAN 3.0) avec un tier par locuteur. */
+  exportAnnotationEaf?: boolean;
+  /** WX-670 — exporter un .TextGrid (Praat) avec un tier par locuteur. */
+  exportAnnotationTextgrid?: boolean;
 };
 
 /** Diarisation et token HuggingFace. */
@@ -110,6 +114,10 @@ export type UiWhisperxPipelineOptions = {
   audioPipelineModulesJson: string;
   /** JSON tableau (prioritaire) : plages pipeline (WX-623). */
   audioPipelineSegmentsJson: string;
+  /** WX-670 — exporter .eaf (ELAN 3.0). */
+  exportAnnotationEaf: boolean;
+  /** WX-670 — exporter .TextGrid (Praat). */
+  exportAnnotationTextgrid: boolean;
 };
 
 /** Variante formulaire — diarisation et token HF. */
@@ -185,6 +193,27 @@ export type SessionRestorePrompt = {
   label: string;
 };
 
+// ─── WX-675/676 : Import annotations EAF / TextGrid ─────────────────────────
+
+export type AnnotationSegment = {
+  start: number;
+  end: number;
+  text: string;
+};
+
+export type AnnotationTier = {
+  tierId: string;
+  segments: AnnotationSegment[];
+};
+
+export type ImportAnnotationResult = {
+  tiers: AnnotationTier[];
+  mediaPath: string | null;
+  durationS: number;
+  sourceFormat: "eaf" | "textgrid";
+  warnings: string[];
+};
+
 export type Job = {
   id: string;
   inputPath: string;
@@ -200,6 +229,10 @@ export type Job = {
   whisperxOptions?: WhisperxOptions | null;
   /** Segments ASR persistés (SQLite) — rechargés au démarrage / liste jobs. */
   liveTranscriptSegments?: LiveTranscriptSegment[];
+  /** WX-672 — Priorité P0 (highest) à P3 (lowest). Défaut P2. */
+  priority?: 0 | 1 | 2 | 3;
+  /** WX-672 — Position dans la file pour DnD (même priorité). */
+  queueOrder?: number;
 };
 
 export type JobsPaginationInfo = {

@@ -1,9 +1,10 @@
 //! Exécution du worker Python, suivi des jobs et annulation.
 //!
-//! Les logs de progression sont des lignes stdout préfixées par [`LOG_PREFIX`] (`__WXLOG__`) puis JSON ;
-//! Rust les parse et relaie vers l’UI. L’annulation utilisateur appelle [`crate::process_utils::kill_process_tree`]
-//! sur le PID enregistré (voir `cancel_job` dans `job_commands.rs`) : sur Windows `taskkill /T` arrête l’arbre ;
-//! sur Unix un `TERM` est envoyé au PID racine (comportement documenté dans `process_utils`).
+//! Protocole IPC : le worker émet des lignes JSON structurées (champ `type` discriminant,
+//! voir [`crate::models::WorkerMessage`]). L’annulation utilisateur appelle
+//! [`crate::process_utils::kill_process_tree`] sur le PID enregistré (voir `cancel_job`
+//! dans `job_commands.rs`) : sur Windows `taskkill /T` arrête l’arbre ; sur Unix un `TERM`
+//! est envoyé au PID racine (comportement documenté dans `process_utils`).
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
@@ -23,9 +24,6 @@ use crate::models::{
 };
 use crate::python_runtime::resolve_python_command;
 use crate::time_utils::now_ms;
-
-pub(crate) const LOG_PREFIX: &str = "__WXLOG__";
-pub(crate) const RESULT_PREFIX: &str = "__WXRESULT__";
 
 pub(crate) fn current_job_status(
     jobs: &Arc<Mutex<HashMap<String, Job>>>,
@@ -91,23 +89,6 @@ pub(crate) fn mutate_job_without_emit<F>(
 
 const LIVE_TRANSCRIPT_MAX_SEGMENTS: usize = 8000;
 
-fn append_live_transcript_segment(
-    db_path: &Path,
-    jobs: &Arc<Mutex<HashMap<String, Job>>>,
-    job_id: &str,
-    message: &str,
-) {
-    let segment: LiveTranscriptSegment = match serde_json::from_str(message) {
-        Ok(s) => s,
-        Err(_) => return,
-    };
-    mutate_job_without_emit(db_path, jobs, job_id, |job| {
-        if job.live_transcript_segments.len() < LIVE_TRANSCRIPT_MAX_SEGMENTS {
-            job.live_transcript_segments.push(segment);
-        }
-    });
-}
-
 pub(crate) fn set_job_error(
     app: &AppHandle,
     db_path: &Path,
@@ -128,7 +109,7 @@ pub(crate) fn set_job_error(
     });
 }
 
-/// Traite un message `WorkerLog` (type `progress` ou legacy `__WXLOG__`).
+/// Traite un message `WorkerLog` (type `progress`).
 fn handle_worker_log(
     app: &AppHandle,
     db_path: &Path,
@@ -137,11 +118,6 @@ fn handle_worker_log(
     stream: &str,
     worker_log: WorkerLog,
 ) {
-    // Fallback legacy : live_transcript via stage (conservé pour compat protocole ancien).
-    if worker_log.stage.as_deref() == Some("wx_live_transcript") {
-        append_live_transcript_segment(db_path, jobs, job_id, &worker_log.message);
-    }
-
     let level = worker_log.level.unwrap_or_else(|| {
         if stream == "stderr" { "error".into() } else { "info".into() }
     });
@@ -175,8 +151,7 @@ fn process_worker_line(
     stream: &str,
     line: &str,
 ) {
-    // WX-657 — protocole JSON-lines structuré (champ `type` discriminant).
-    // Une ligne JSON pure commence toujours par `{` ; on tente le parse en priorité.
+    // Protocole JSON-lines : toute ligne JSON commence par `{`.
     if line.starts_with('{') {
         match serde_json::from_str::<WorkerMessage>(line) {
             Ok(WorkerMessage::Progress(worker_log)) => {
@@ -229,36 +204,6 @@ fn process_worker_line(
                 // JSON valide mais format inconnu — tombe dans le fallback plain-text ci-dessous.
             }
         }
-    }
-
-    // Fallback legacy : sentinelles __WXLOG__ / __WXRESULT__ (worker ancienne version).
-    if let Some(json_payload) = line.strip_prefix(LOG_PREFIX) {
-        match serde_json::from_str::<WorkerLog>(json_payload) {
-            Ok(worker_log) => {
-                handle_worker_log(app, db_path, jobs, job_id, stream, worker_log);
-            }
-            Err(err) => {
-                let event = JobLogEvent {
-                    job_id: job_id.into(),
-                    ts_ms: now_ms(),
-                    stream: stream.into(),
-                    level: "warning".into(),
-                    stage: Some("parser".into()),
-                    message: format!("Unable to parse worker log payload: {err}"),
-                };
-                emit_job_log(app, &event);
-            }
-        }
-        return;
-    }
-
-    if let Some(json_payload) = line.strip_prefix(RESULT_PREFIX) {
-        if let Ok(result) = serde_json::from_str::<WorkerResult>(json_payload) {
-            if let Ok(mut lock) = result_holder.lock() {
-                *lock = Some(result);
-            }
-        }
-        return;
     }
 
     // Ligne plain-text (stdout sous-processus, logs Python non structurés).

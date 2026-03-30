@@ -1,6 +1,15 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { fileBasename } from "../../appUtils";
-import type { Job, JobLogEvent, LiveTranscriptSegment } from "../../types";
+import type {
+  AnnotationSegment,
+  AnnotationTier,
+  ImportAnnotationResult,
+  Job,
+  JobLogEvent,
+  LiveTranscriptSegment,
+} from "../../types";
 import { WorkerErrorMessage } from "../../WorkerErrorMessage";
 import { TabListBar, TabPanel } from "../ui";
 import {
@@ -31,7 +40,150 @@ export type RunDetailsPanelProps = {
   transcriptEditor: TranscriptEditorPanelProps | null;
   /** Ouvre le dossier de sortie dans le Player (onglet Player). */
   onOpenPlayerRun?: (outputDir: string, label?: string | null) => void;
+  /** WX-676 — Charge un tier d'annotation EAF/TextGrid dans l'éditeur de transcript. */
+  onLoadAnnotationTier?: (tierId: string, segments: AnnotationSegment[]) => void;
 };
+
+// ─── WX-676 : Annotation Import UI ──────────────────────────────────────────
+
+function AnnotationImportSection({
+  onLoadAnnotationTier,
+}: {
+  onLoadAnnotationTier: (tierId: string, segments: AnnotationSegment[]) => void;
+}) {
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [pendingResult, setPendingResult] = useState<ImportAnnotationResult | null>(null);
+  const [selectedTierIds, setSelectedTierIds] = useState<Set<string>>(new Set());
+
+  const handlePickFile = useCallback(async () => {
+    setImportError(null);
+    const selected = await openDialog({
+      title: "Importer un fichier d'annotation",
+      filters: [{ name: "Annotation", extensions: ["eaf", "TextGrid"] }],
+      multiple: false,
+      directory: false,
+    });
+    if (!selected || typeof selected !== "string") return;
+
+    setImporting(true);
+    try {
+      const result = await invoke<ImportAnnotationResult>("import_annotation_file", {
+        path: selected,
+      });
+      if (result.tiers.length === 0) {
+        setImportError("Aucun tier trouvé dans ce fichier.");
+        return;
+      }
+      if (result.tiers.length === 1) {
+        // Single tier: load directly
+        const tier = result.tiers[0];
+        onLoadAnnotationTier(tier.tierId, tier.segments);
+      } else {
+        // Multiple tiers: show picker
+        setPendingResult(result);
+        setSelectedTierIds(new Set(result.tiers.map((t: AnnotationTier) => t.tierId)));
+      }
+    } catch (err) {
+      setImportError(String(err));
+    } finally {
+      setImporting(false);
+    }
+  }, [onLoadAnnotationTier]);
+
+  const handleConfirmTiers = useCallback(() => {
+    if (!pendingResult) return;
+    for (const tier of pendingResult.tiers) {
+      if (selectedTierIds.has(tier.tierId)) {
+        onLoadAnnotationTier(tier.tierId, tier.segments);
+      }
+    }
+    setPendingResult(null);
+    setSelectedTierIds(new Set());
+  }, [pendingResult, selectedTierIds, onLoadAnnotationTier]);
+
+  const toggleTier = useCallback((tierId: string) => {
+    setSelectedTierIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(tierId)) {
+        next.delete(tierId);
+      } else {
+        next.add(tierId);
+      }
+      return next;
+    });
+  }, []);
+
+  return (
+    <div className="annotation-import-section">
+      <button
+        type="button"
+        className="ghost"
+        disabled={importing}
+        onClick={() => void handlePickFile()}
+        title="Importer un fichier EAF (ELAN) ou TextGrid (Praat) comme segments"
+      >
+        {importing ? "Import…" : "Importer annotation (.eaf / .TextGrid)"}
+      </button>
+      {importError ? (
+        <p className="annotation-import-error small field-help">{importError}</p>
+      ) : null}
+      {pendingResult ? (
+        <div className="annotation-tier-picker" role="dialog" aria-label="Sélection des tiers">
+          <p className="small">
+            {pendingResult.tiers.length} tiers détectés — sélectionne ceux à charger :
+          </p>
+          <ul className="annotation-tier-picker__list">
+            {pendingResult.tiers.map((tier: AnnotationTier) => (
+              <li key={tier.tierId} className="annotation-tier-picker__item">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={selectedTierIds.has(tier.tierId)}
+                    onChange={() => toggleTier(tier.tierId)}
+                  />
+                  <span className="annotation-tier-picker__id">{tier.tierId}</span>
+                  <span className="annotation-tier-picker__count small">
+                    {tier.segments.length} segment(s)
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          {pendingResult.warnings.length > 0 ? (
+            <ul className="annotation-import-warnings small">
+              {pendingResult.warnings.map((w, i) => (
+                <li key={i} className="annotation-import-warnings__item">
+                  {w}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="annotation-tier-picker__actions">
+            <button
+              type="button"
+              className="primary"
+              disabled={selectedTierIds.size === 0}
+              onClick={handleConfirmTiers}
+            >
+              Charger {selectedTierIds.size} tier(s)
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => {
+                setPendingResult(null);
+                setSelectedTierIds(new Set());
+              }}
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 const RUN_DETAILS_TABS = [
   { id: "meta", label: "Méta" },
@@ -60,6 +212,7 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
       onLoadTranscriptEditor,
       transcriptEditor,
       onOpenPlayerRun,
+      onLoadAnnotationTier,
     },
     ref,
   ) {
@@ -71,6 +224,32 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
     const canCancelJob =
       selectedJob &&
       (selectedJob.status === "queued" || selectedJob.status === "running");
+
+    const [reportExporting, setReportExporting] = useState(false);
+    const [reportPath, setReportPath] = useState<string | null>(null);
+    const [reportError, setReportError] = useState<string | null>(null);
+
+    const canExportReport =
+      selectedJob &&
+      selectedJob.status === "done" &&
+      Boolean(selectedJob.outputDir?.trim());
+
+    const handleExportReport = useCallback(async () => {
+      if (!selectedJob?.outputDir) return;
+      setReportExporting(true);
+      setReportError(null);
+      try {
+        const res = await invoke<{ outputPath: string }>("export_prosody_report", {
+          runDir: selectedJob.outputDir,
+        });
+        setReportPath(res.outputPath);
+        openLocalPath(res.outputPath);
+      } catch (err) {
+        setReportError(String(err));
+      } finally {
+        setReportExporting(false);
+      }
+    }, [selectedJob, openLocalPath]);
 
     const liveTranscriptPreview = useMemo(() => {
       if (!liveTranscriptSegments.length) {
@@ -149,6 +328,20 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                 >
                   Annuler le run
                 </button>
+              ) : null}
+              {canExportReport ? (
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={reportExporting}
+                  onClick={() => void handleExportReport()}
+                  title={reportPath ? `Rapport : ${reportPath}` : "Générer et ouvrir le rapport HTML prosodique"}
+                >
+                  {reportExporting ? "Export…" : "Exporter rapport"}
+                </button>
+              ) : null}
+              {reportError ? (
+                <span className="run-details-report-error field-help">{reportError}</span>
               ) : null}
             </div>
           ) : (
@@ -334,6 +527,9 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                 ) : (
                   <TranscriptEditorPanel {...transcriptEditor} />
                 )}
+                {onLoadAnnotationTier ? (
+                  <AnnotationImportSection onLoadAnnotationTier={onLoadAnnotationTier} />
+                ) : null}
               </TabPanel>
             </div>
           </div>

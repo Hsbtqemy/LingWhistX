@@ -24,6 +24,9 @@ fn map_job_row(row: &Row<'_>) -> Result<Job, rusqlite::Error> {
         serde_json::from_str::<Vec<LiveTranscriptSegment>>(&live_transcript_json)
             .unwrap_or_default();
 
+    let priority: i64 = row.get::<_, i64>(13).unwrap_or(2);
+    let queue_order: i64 = row.get::<_, i64>(14).unwrap_or(0);
+
     Ok(Job {
         id: row.get(0)?,
         input_path: row.get(1)?,
@@ -38,6 +41,8 @@ fn map_job_row(row: &Row<'_>) -> Result<Job, rusqlite::Error> {
         output_files,
         whisperx_options,
         live_transcript_segments,
+        priority: priority.clamp(0, 3) as u8,
+        queue_order,
     })
 }
 
@@ -131,6 +136,26 @@ fn migrate_schema(conn: &Connection) -> Result<(), String> {
             .map_err(|err| format!("Set schema version failed: {err}"))?;
     }
 
+    if version < 3 {
+        // WX-672 — priority P0-P3 (default 2 = P2) and queue_order for DnD
+        if !jobs_table_has_column(conn, "priority")? {
+            conn.execute(
+                "ALTER TABLE jobs ADD COLUMN priority INTEGER NOT NULL DEFAULT 2",
+                [],
+            )
+            .map_err(|err| format!("Migrate v3 (priority) failed: {err}"))?;
+        }
+        if !jobs_table_has_column(conn, "queue_order")? {
+            conn.execute(
+                "ALTER TABLE jobs ADD COLUMN queue_order INTEGER NOT NULL DEFAULT 0",
+                [],
+            )
+            .map_err(|err| format!("Migrate v3 (queue_order) failed: {err}"))?;
+        }
+        conn.pragma_update(None, "user_version", 3)
+            .map_err(|err| format!("Set schema version v3 failed: {err}"))?;
+    }
+
     Ok(())
 }
 
@@ -150,11 +175,11 @@ pub(crate) fn persist_job(db_path: &Path, job: &Job) -> Result<(), String> {
         INSERT INTO jobs (
           id, input_path, output_dir, mode, status, progress,
           message, created_at_ms, updated_at_ms, error,
-          output_files, whisperx_options
+          output_files, whisperx_options, priority, queue_order
         ) VALUES (
           ?1, ?2, ?3, ?4, ?5, ?6,
           ?7, ?8, ?9, ?10,
-          ?11, ?12
+          ?11, ?12, ?13, ?14
         )
         ON CONFLICT(id) DO UPDATE SET
           input_path = excluded.input_path,
@@ -167,7 +192,9 @@ pub(crate) fn persist_job(db_path: &Path, job: &Job) -> Result<(), String> {
           updated_at_ms = excluded.updated_at_ms,
           error = excluded.error,
           output_files = excluded.output_files,
-          whisperx_options = excluded.whisperx_options
+          whisperx_options = excluded.whisperx_options,
+          priority = excluded.priority,
+          queue_order = excluded.queue_order
         ",
         params![
             job.id,
@@ -181,11 +208,37 @@ pub(crate) fn persist_job(db_path: &Path, job: &Job) -> Result<(), String> {
             job.updated_at_ms as i64,
             job.error,
             output_files_json,
-            whisperx_options_json
+            whisperx_options_json,
+            i64::from(job.priority),
+            job.queue_order
         ],
     )
     .map_err(|err| format!("Persist job failed: {err}"))?;
 
+    Ok(())
+}
+
+/// WX-672 — Met à jour la priorité d'un job (P0-P3).
+pub(crate) fn update_job_priority(db_path: &Path, job_id: &str, priority: u8) -> Result<(), String> {
+    let conn = Connection::open(db_path).map_err(|err| format!("DB open failed: {err}"))?;
+    conn.execute(
+        "UPDATE jobs SET priority = ?1, updated_at_ms = ?2 WHERE id = ?3",
+        params![i64::from(priority.min(3)), crate::time_utils::now_ms() as i64, job_id],
+    )
+    .map_err(|err| format!("Update job priority failed: {err}"))?;
+    Ok(())
+}
+
+/// WX-672 — Met à jour `queue_order` pour une liste ordonnée de job IDs.
+pub(crate) fn update_jobs_queue_order(db_path: &Path, ordered_ids: &[String]) -> Result<(), String> {
+    let conn = Connection::open(db_path).map_err(|err| format!("DB open failed: {err}"))?;
+    for (idx, id) in ordered_ids.iter().enumerate() {
+        conn.execute(
+            "UPDATE jobs SET queue_order = ?1 WHERE id = ?2",
+            params![idx as i64, id],
+        )
+        .map_err(|err| format!("Update queue_order failed: {err}"))?;
+    }
     Ok(())
 }
 
@@ -218,7 +271,8 @@ pub(crate) fn load_jobs_page(db_path: &Path, offset: i64, limit: i64) -> Result<
             "
             SELECT id, input_path, output_dir, mode, status, progress,
                    message, created_at_ms, updated_at_ms, error,
-                   output_files, whisperx_options, live_transcript_segments
+                   output_files, whisperx_options, live_transcript_segments,
+                   priority, queue_order
             FROM jobs
             ORDER BY created_at_ms DESC
             LIMIT ?1 OFFSET ?2

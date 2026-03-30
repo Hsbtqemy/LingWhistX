@@ -281,6 +281,18 @@ html {
   }
 }
 
+/* WX-669 — Tokens couleurs locuteurs (rythmo, lanes) */
+:root {
+  --lx-speaker-0: #3b82f6;
+  --lx-speaker-1: #f59e0b;
+  --lx-speaker-2: #10b981;
+  --lx-speaker-3: #ef4444;
+  --lx-speaker-4: #8b5cf6;
+  --lx-speaker-5: #ec4899;
+  --lx-speaker-6: #06b6d4;
+  --lx-speaker-7: #84cc16;
+}
+
 /* WX-668 — Tokens karaoké (thémables) */
 :root {
   --lx-karaoke-active-bg: var(--lx-accent);

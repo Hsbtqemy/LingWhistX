@@ -11,8 +11,8 @@ use crate::path_guard::{resolve_existing_file_path, validate_path_string};
 use crate::time_utils::{now_ms, system_time_to_ms};
 use crate::transcript::{
     apply_export_timing_rules, build_transcript_draft_json, build_transcript_json,
-    draft_path_for_source, edited_path_with_ext, load_segments_from_json, to_csv_text, to_srt_text,
-    to_txt_text, to_vtt_text,
+    draft_path_for_source, edited_path_with_ext, load_segments_from_json, to_csv_text,
+    to_eaf_text, to_srt_text, to_textgrid_text, to_txt_text, to_vtt_text,
 };
 
 fn write_export_sidecar_file(path: &Path, content: &str, err_ctx: &str) -> Result<(), String> {
@@ -243,6 +243,26 @@ pub fn export_transcript(
                 &target_path,
                 &serialized,
                 "Unable to export CSV transcript",
+            )?;
+            target_path
+        }
+        "textgrid" => {
+            let target_path = edited_path_with_ext(&source, "TextGrid");
+            let serialized = to_textgrid_text(&segments_for_export);
+            write_export_sidecar_file(
+                &target_path,
+                &serialized,
+                "Unable to export TextGrid transcript",
+            )?;
+            target_path
+        }
+        "eaf" => {
+            let target_path = edited_path_with_ext(&source, "eaf");
+            let serialized = to_eaf_text(&segments_for_export);
+            write_export_sidecar_file(
+                &target_path,
+                &serialized,
+                "Unable to export EAF transcript",
             )?;
             target_path
         }

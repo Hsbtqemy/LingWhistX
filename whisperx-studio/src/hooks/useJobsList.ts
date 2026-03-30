@@ -337,6 +337,41 @@ export function useJobsList({
     }
   }, []);
 
+  // WX-672 — Priorité et réordonnancement
+  const setJobPriority = useCallback(
+    async (jobId: string, priority: 0 | 1 | 2 | 3) => {
+      try {
+        const updated = await invoke<Job>("set_job_priority", { jobId, priority });
+        setJobs((prev) => prev.map((j) => (j.id === jobId ? updated : j)));
+      } catch (err) {
+        setError(String(err));
+      }
+    },
+    [setError],
+  );
+
+  const reorderJobs = useCallback(
+    async (orderedIds: string[]) => {
+      // Optimistic update
+      setJobs((prev) => {
+        const byId = new Map(prev.map((j) => [j.id, j]));
+        const reordered = orderedIds.map((id, idx) => {
+          const j = byId.get(id);
+          return j ? { ...j, queueOrder: idx } : null;
+        }).filter(Boolean) as Job[];
+        const rest = prev.filter((j) => !orderedIds.includes(j.id));
+        return [...reordered, ...rest];
+      });
+      try {
+        await invoke("reorder_jobs", { orderedIds });
+      } catch (err) {
+        setError(String(err));
+        void refreshJobs();
+      }
+    },
+    [setError, refreshJobs],
+  );
+
   return {
     jobs,
     jobLogs,
@@ -358,5 +393,7 @@ export function useJobsList({
     sessionRestorePrompt,
     restoreSession,
     dismissSessionRestore,
+    setJobPriority,
+    reorderJobs,
   };
 }

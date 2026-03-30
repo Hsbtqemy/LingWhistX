@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Job } from "../../types";
 import {
+  expectedAnnotationExtensions,
   expectedWhisperxStemExtensions,
   hasStemExtensionFile,
   mediaStemFromInputPath,
@@ -21,8 +22,11 @@ export function RunExpectedExportsStrip({ job }: RunExpectedExportsStripProps) {
 
   const stem = useMemo(() => mediaStemFromInputPath(job.inputPath), [job.inputPath]);
   const extensions = useMemo(
-    () => expectedWhisperxStemExtensions(job.whisperxOptions?.outputFormat),
-    [job.whisperxOptions?.outputFormat],
+    () => [
+      ...expectedWhisperxStemExtensions(job.whisperxOptions?.outputFormat),
+      ...expectedAnnotationExtensions(job.whisperxOptions),
+    ],
+    [job.whisperxOptions],
   );
 
   const mergedPaths = useMemo(() => {

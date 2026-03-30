@@ -27,7 +27,7 @@ from whisperx.utils import (
 )
 
 SUBCOMMANDS = frozenset(
-    {"run", "transcribe", "align", "diarize", "analyze", "export", "help"}
+    {"run", "transcribe", "align", "diarize", "analyze", "export", "import_annotation", "help"}
 )
 
 
@@ -525,6 +525,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Re-export formats from an existing JSON without running ASR",
     )
     register_export_arguments(exp)
+
+    # WX-675 — Import EAF/TextGrid annotation file, print JSON to stdout
+    imp = sub.add_parser(
+        "import_annotation",
+        parents=[argparse.ArgumentParser(add_help=False)],
+        help="Parse an EAF or TextGrid file and print ImportedAnnotation JSON to stdout",
+    )
+    imp.add_argument("path", help="Path to the .eaf or .TextGrid file to import")
+
     return parser
 
 
@@ -551,6 +560,32 @@ def main(argv: list[str] | None = None) -> None:
         parser.set_defaults(**cfg)
 
     args = parser.parse_args(argv[1:])
+
+    if args.command == "import_annotation":
+        # WX-675 — Parse EAF/TextGrid, print JSON result to stdout (consumed by Rust IPC).
+        setup_logging(level="warning")
+        from whisperx.annotation_imports import parse_eaf, parse_textgrid
+
+        ann_path = args.path.strip()
+        ext = os.path.splitext(ann_path)[1].lower()
+        try:
+            if ext == ".eaf":
+                result = parse_eaf(ann_path)
+            elif ext == ".textgrid":
+                result = parse_textgrid(ann_path)
+            else:
+                # Heuristic: try EAF first (XML), fallback TextGrid
+                try:
+                    result = parse_eaf(ann_path)
+                except ValueError:
+                    result = parse_textgrid(ann_path)
+        except Exception as exc:  # noqa: BLE001
+            json.dump({"error": str(exc)}, sys.stdout, ensure_ascii=False)
+            sys.stdout.flush()
+            sys.exit(1)
+        json.dump(result.to_dict(), sys.stdout, ensure_ascii=False)
+        sys.stdout.flush()
+        return
 
     if args.command == "export":
         log_level = args.log_level

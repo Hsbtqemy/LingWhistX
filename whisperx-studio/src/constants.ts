@@ -57,6 +57,8 @@ export const defaultWhisperxOptions: UiWhisperxOptions = {
   analysisWordTsSmoothMaxSec: "",
   audioPipelineModulesJson: "",
   audioPipelineSegmentsJson: "",
+  exportAnnotationEaf: false,
+  exportAnnotationTextgrid: false,
 };
 
 // WX-656 — presets définis comme surcharges partielles (Partial<UiWhisperxOptions>).

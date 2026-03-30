@@ -50,7 +50,7 @@ pub(crate) struct WhisperxOptions {
     pub(crate) audio_pipeline_segments: Option<serde_json::Value>,
 }
 
-/// Segment ASR issu du flux `wx_live_transcript` (persisté en SQLite pour rechargement UI).
+/// Segment ASR temps-réel (type `live_transcript`, persisté en SQLite pour rechargement UI).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct LiveTranscriptSegment {
@@ -76,6 +76,16 @@ pub(crate) struct Job {
     pub(crate) whisperx_options: Option<WhisperxOptions>,
     #[serde(default)]
     pub(crate) live_transcript_segments: Vec<LiveTranscriptSegment>,
+    /// WX-672 — Priorité P0 (highest) à P3 (lowest). Défaut P2.
+    #[serde(default = "default_job_priority")]
+    pub(crate) priority: u8,
+    /// WX-672 — Ordre dans la file pour DnD à priorité égale.
+    #[serde(default)]
+    pub(crate) queue_order: i64,
+}
+
+fn default_job_priority() -> u8 {
+    2
 }
 
 #[derive(Debug, Deserialize)]
@@ -125,19 +135,17 @@ pub(crate) struct AudioQualityReport {
     pub(crate) warnings: Vec<String>,
 }
 
-/// WX-657 — message JSON-lines structuré (champ `type` discriminant).
-/// Remplace le protocole `__WXLOG__` / `__WXRESULT__` par des lignes JSON pures.
+/// Message JSON-lines structuré émis par le worker Python (champ `type` discriminant).
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub(crate) enum WorkerMessage {
-    /// Progression / log de pipeline (ancien `__WXLOG__`).
+    /// Progression / log de pipeline.
     Progress(WorkerLog),
-    /// Résultat final avec fichiers de sortie (ancien `__WXRESULT__`).
+    /// Résultat final avec fichiers de sortie.
     Result(WorkerResult),
     /// Erreur structurée avec code machine-readable.
     Error(WorkerErrorMsg),
-    /// Segment de transcription en direct (séparé de `progress` pour éviter le
-    /// `stage == "wx_live_transcript"` check côté Rust).
+    /// Segment de transcription en direct.
     LiveTranscript(LiveTranscriptSegment),
     /// WX-661 — rapport qualité audio avant transcription.
     AudioQuality(AudioQualityReport),

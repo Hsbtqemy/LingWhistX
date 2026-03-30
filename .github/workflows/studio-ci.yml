@@ -64,6 +64,9 @@ jobs:
         working-directory: whisperx-studio
         run: python -m unittest discover -s python -p 'test_*.py' -q
 
+      - name: Python tests (WhisperX pipeline)
+        run: python -m pytest tests/ -q --tb=short
+
       - name: Build frontend
         working-directory: whisperx-studio
         run: npm run build
@@ -110,6 +113,6 @@ jobs:
         working-directory: whisperx-studio
         run: npm ci
 
-      - name: Lighthouse CI (prefers-color-scheme: dark)
+      - name: "Lighthouse CI (prefers-color-scheme: dark)"
         working-directory: whisperx-studio
         run: npm run lighthouse

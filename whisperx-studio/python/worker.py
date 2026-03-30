@@ -6,11 +6,15 @@ Modes:
 - mock: no ASR execution, writes deterministic sample artifacts.
 - whisperx: invokes local whisperx CLI and writes resulting files.
 
-Progress protocol (stdout, one JSON object per line):
-- Lines prefixed with LOG_PREFIX (__WXLOG__) are parsed by the Rust sidecar and relayed to the UI.
-- Final success line uses RESULT_PREFIX (__WXRESULT__) with output file paths.
-- WhisperX peut émettre des lignes `Progress: NN.NN%...` (voir --print_progress) ; le worker les
-  transforme en progression job monotone (30–95 %) pour l’UI.
+Progress protocol (stdout, one JSON object per line, champ `type` discriminant) :
+  {"type": "progress", "level": "info", "stage": "wx_transcribe", "message": "...", "progress": 42}
+  {"type": "live_transcript", "start": 0.0, "end": 1.5, "text": "..."}
+  {"type": "audio_quality", "snr_db": 28.5, ...}
+  {"type": "error", "message": "...", "code": "OOM"}
+  {"type": "result", "message": "...", "output_files": [...]}
+
+WhisperX peut émettre des lignes `Progress: NN.NN%...` (voir --print_progress) ; le worker les
+transforme en progression job monotone (30–95 %) via WhisperxProgressMapper.
 """
 
 from __future__ import annotations
@@ -58,9 +62,6 @@ except ImportError:
                     "duration_sec": duration_sec, "speech_sec": duration_sec * 0.72, "warnings": []}
 
 
-# WX-657 : conservés pour rétrocompatibilité (parsés côté Rust comme fallback legacy).
-LOG_PREFIX = "__WXLOG__"
-RESULT_PREFIX = "__WXRESULT__"
 SUPPORTED_OUTPUT_FORMATS = {"all", "json", "srt", "vtt", "txt", "tsv", "aud"}
 
 # whisperx/asr.py et whisperx/alignment.py : print(f"Progress: {percent_complete:.2f}%...")
@@ -215,7 +216,7 @@ def emit_log(
     message: str,
     progress: int | None = None,
 ) -> None:
-    """WX-657 : émet une ligne JSON-lines structurée (type=progress)."""
+    """Émet une ligne JSON-lines structurée (type=progress)."""
     payload: dict[str, object] = {
         "type": "progress",
         "level": level,
@@ -228,7 +229,7 @@ def emit_log(
 
 
 def emit_live_transcript(start: float, end: float, text: str) -> None:
-    """WX-657 : type dédié pour les segments temps-réel (évite le check stage côté Rust)."""
+    """Émet un segment de transcription temps-réel (type=live_transcript)."""
     payload: dict[str, object] = {
         "type": "live_transcript",
         "start": start,
@@ -239,7 +240,7 @@ def emit_live_transcript(start: float, end: float, text: str) -> None:
 
 
 def emit_result(message: str, output_files: list[str]) -> None:
-    """WX-657 : type=result (remplace le préfixe __WXRESULT__)."""
+    """Émet la ligne de résultat final (type=result)."""
     payload: dict[str, object] = {
         "type": "result",
         "message": message,
@@ -840,6 +841,13 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
     if options.get("noAlign") is True:
         command.append("--no_align")
 
+    # WX-670 — exports annotations (ELAN EAF, Praat TextGrid)
+    if fork_cli:
+        if options.get("exportAnnotationEaf") is True:
+            command.extend(["--export_annotation_eaf", "True"])
+        if options.get("exportAnnotationTextgrid") is True:
+            command.extend(["--export_annotation_textgrid", "True"])
+
     # Toujours activer côté sous-processus : le worker parse `Progress: …` pour l’UI (option UI
     # printProgress reste disponible pour d’autres usages futurs).
     command.extend(["--print_progress", "True"])
@@ -883,7 +891,6 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         live_seg = parse_live_transcript_line(clean)
         if live_seg is not None:
             start_f, end_f, text = live_seg
-            # WX-657 : type dédié live_transcript (plus de stage="wx_live_transcript" imbriqué).
             emit_live_transcript(start_f, end_f, text)
             last_wx_stage = "wx_transcribe"
             continue
@@ -983,7 +990,6 @@ def main() -> int:
         return 0
     except Exception as exc:
         error_message = str(exc)
-        # WX-657 : émettre une erreur structurée avec code machine-readable avant de quitter.
         code = classify_error(error_message)
         emit_error_structured(error_message, code)
         # Garder la sortie stderr pour la compat avec append_worker_failure_context (Rust).
@@ -992,7 +998,7 @@ def main() -> int:
 
 
 def emit_error_structured(message: str, code: str | None = None) -> None:
-    """WX-657 : type=error avec code machine-readable (OOM, HF_GATED, HF_AUTH, SSL, NETWORK)."""
+    """Émet une erreur structurée (type=error) avec code machine-readable optionnel."""
     payload: dict[str, object] = {"type": "error", "message": message}
     if code:
         payload["code"] = code
