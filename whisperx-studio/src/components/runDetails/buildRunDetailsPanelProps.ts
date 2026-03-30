@@ -181,6 +181,8 @@ export type BuildRunDetailsPanelPropsInput = {
   injectAudioPipelineSegmentsJson?: (json: string) => void;
   onOpenPlayerRun?: RunDetailsPanelProps["onOpenPlayerRun"];
   onLoadAnnotationTier?: (tierId: string, segments: AnnotationSegment[]) => void;
+  /** WX-696 — Appelé après écriture des tiers dans events.sqlite. */
+  onAnnotationWrittenToPlayer?: () => void;
 };
 
 export function buildRunDetailsPanelProps(
@@ -201,6 +203,7 @@ export function buildRunDetailsPanelProps(
     onPreviewOutput,
     injectAudioPipelineSegmentsJson,
     onOpenPlayerRun,
+    onAnnotationWrittenToPlayer,
   } = input;
 
   return {
@@ -228,5 +231,7 @@ export function buildRunDetailsPanelProps(
       : null,
     onOpenPlayerRun,
     onLoadAnnotationTier: te.loadAnnotationTier,
+    selectedJobOutputDir: selectedJob?.outputDir ?? undefined,
+    onAnnotationWrittenToPlayer,
   };
 }

@@ -19,7 +19,7 @@ pub(crate) fn load_segments_from_json(value: &serde_json::Value) -> Vec<Editable
         return vec![];
     };
 
-    segments
+    let mut result: Vec<EditableSegment> = segments
         .iter()
         .filter_map(|segment| {
             let start = segment.get("start").and_then(parse_f64)?;
@@ -41,7 +41,82 @@ pub(crate) fn load_segments_from_json(value: &serde_json::Value) -> Vec<Editable
                 speaker,
             })
         })
-        .collect()
+        .collect();
+
+    // Enrich segments missing speakers using speaker_turns (ordinal fallback).
+    let missing_count = result.iter().filter(|s| s.speaker.is_none()).count();
+    if missing_count > 0 {
+        if let Some(turns) = value.get("speaker_turns").and_then(|v| v.as_array()) {
+            let turn_speakers: Vec<&str> = turns
+                .iter()
+                .filter_map(|t| t.get("speaker").and_then(|s| s.as_str()))
+                .collect();
+            if !turn_speakers.is_empty() {
+                // Try temporal matching first, then ordinal fallback
+                let turn_intervals: Vec<(f64, f64, &str)> = turns
+                    .iter()
+                    .filter_map(|t| {
+                        let start = t.get("start").and_then(parse_f64)?;
+                        let end = t.get("end").and_then(parse_f64)?;
+                        let speaker = t.get("speaker").and_then(|s| s.as_str())?;
+                        Some((start, end, speaker))
+                    })
+                    .collect();
+
+                // Detect if segment timestamps are corrupted vs turn timestamps
+                let seg_max_end = result.iter().map(|s| s.end).fold(0.0_f64, f64::max);
+                let turn_max_end = turn_intervals.iter().map(|t| t.1).fold(0.0_f64, f64::max);
+                let timestamps_corrupted = turn_max_end > 0.0 && seg_max_end > turn_max_end * 2.0;
+
+                if timestamps_corrupted {
+                    // Ordinal: assign speaker from Nth turn to Nth segment
+                    for (i, seg) in result.iter_mut().enumerate() {
+                        if seg.speaker.is_none() {
+                            if let Some(turn) = turn_intervals.get(i % turn_intervals.len()) {
+                                seg.speaker = Some(turn.2.to_owned());
+                            }
+                        }
+                    }
+                } else {
+                    // Temporal: find best overlapping turn for each segment
+                    for seg in result.iter_mut() {
+                        if seg.speaker.is_some() {
+                            continue;
+                        }
+                        let seg_mid = (seg.start + seg.end) / 2.0;
+                        let mut best_speaker: Option<&str> = None;
+                        let mut best_overlap = 0.0_f64;
+                        for &(ts, te, sp) in &turn_intervals {
+                            let overlap_start = seg.start.max(ts);
+                            let overlap_end = seg.end.min(te);
+                            let overlap = (overlap_end - overlap_start).max(0.0);
+                            if overlap > best_overlap {
+                                best_overlap = overlap;
+                                best_speaker = Some(sp);
+                            }
+                        }
+                        if best_speaker.is_none() {
+                            // Nearest turn by midpoint
+                            let mut min_dist = f64::MAX;
+                            for &(ts, te, sp) in &turn_intervals {
+                                let turn_mid = (ts + te) / 2.0;
+                                let dist = (seg_mid - turn_mid).abs();
+                                if dist < min_dist {
+                                    min_dist = dist;
+                                    best_speaker = Some(sp);
+                                }
+                            }
+                        }
+                        if let Some(sp) = best_speaker {
+                            seg.speaker = Some(sp.to_owned());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    result
 }
 
 fn normalize_segments(segments: &[EditableSegment]) -> Vec<EditableSegment> {
@@ -375,7 +450,7 @@ fn epoch_days_to_ymd(mut days: u64) -> (u64, u64, u64) {
     // Algorithm: Gregorian calendar from epoch days
     let mut y: u64 = 1970;
     loop {
-        let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+        let leap = (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400);
         let days_in_year: u64 = if leap { 366 } else { 365 };
         if days < days_in_year {
             break;
@@ -383,7 +458,7 @@ fn epoch_days_to_ymd(mut days: u64) -> (u64, u64, u64) {
         days -= days_in_year;
         y += 1;
     }
-    let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+    let leap = (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400);
     let month_days: [u64; 12] = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     let mut mo: u64 = 1;
     for &md in &month_days {

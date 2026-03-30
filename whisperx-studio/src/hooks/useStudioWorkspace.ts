@@ -25,7 +25,9 @@ export type UseStudioWorkspaceOptions = {
   /** WX-623 — injecte le JSON des plages dans le formulaire « Nouveau job ». */
   injectAudioPipelineSegmentsJson?: (json: string) => void;
   /** Ouvre le dossier de sortie du job dans l’onglet Player. */
-  onOpenPlayerRun?: (outputDir: string, label?: string | null) => void;
+  onOpenPlayerRun?: (outputDir: string, label?: string | null, editMode?: boolean) => void;
+  /** WX-696 — Appelé après écriture de tiers annotation dans events.sqlite. */
+  onAnnotationWrittenToPlayer?: () => void;
   /** Après « Voir détails » depuis l’onglet Historique : afficher le détail dans Studio. */
   onNavigateToWorkspace?: () => void;
 };
@@ -55,6 +57,7 @@ export function useStudioWorkspace({
   injectAudioPipelineSegmentsJson,
   onOpenPlayerRun,
   onNavigateToWorkspace,
+  onAnnotationWrittenToPlayer,
 }: UseStudioWorkspaceOptions): StudioWorkspaceModel {
   const {
     selectedPreviewPath,
@@ -151,6 +154,7 @@ export function useStudioWorkspace({
         injectAudioPipelineSegmentsJson,
         onOpenPlayerRun,
         onLoadAnnotationTier: te.loadAnnotationTier,
+        onAnnotationWrittenToPlayer,
       }),
     [
       selectedJob,
@@ -170,7 +174,7 @@ export function useStudioWorkspace({
       previewOutput,
       injectAudioPipelineSegmentsJson,
       onOpenPlayerRun,
-      te.loadAnnotationTier,
+      onAnnotationWrittenToPlayer,
     ],
   );
 

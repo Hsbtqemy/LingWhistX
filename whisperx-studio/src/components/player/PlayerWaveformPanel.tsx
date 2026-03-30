@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import type { KeyboardEvent, MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { runInTransition } from "../../whisperxOptionsTransitions";
 import { invoke } from "@tauri-apps/api/core";
@@ -61,6 +61,38 @@ export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo }: P
 
   const waveformCursorStyle =
     wf.rangeDragStartSec !== null ? "col-resize" : ("crosshair" as const);
+
+  const waveformAriaLabel = useMemo(() => {
+    const pos = formatClockSeconds(wf.mediaCurrentSec);
+    const dur = formatClockSeconds(wf.waveform?.durationSec ?? 0);
+    const zoom = wf.waveformZoom.toFixed(2);
+    return `Ondeforme audio — position ${pos} / ${dur}, zoom ×${zoom}. Espace : lecture/pause. Flèches : déplacer de 1s (Maj : 5s).`;
+  }, [wf.mediaCurrentSec, wf.waveform, wf.waveformZoom]);
+
+  const onWaveformKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLCanvasElement>) => {
+      const step = event.shiftKey ? 5 : 1;
+      switch (event.key) {
+        case " ":
+          event.preventDefault();
+          void wf.toggleMediaPlayback();
+          break;
+        case "ArrowLeft":
+          event.preventDefault();
+          wf.seekMedia(Math.max(0, wf.mediaCurrentSec - step));
+          break;
+        case "ArrowRight": {
+          const dur = wf.waveform?.durationSec ?? wf.mediaCurrentSec;
+          event.preventDefault();
+          wf.seekMedia(Math.min(dur, wf.mediaCurrentSec + step));
+          break;
+        }
+        default:
+          break;
+      }
+    },
+    [wf],
+  );
 
   const onWaveformMouseDown = useCallback(
     (event: MouseEvent<HTMLCanvasElement>) => {
@@ -550,11 +582,15 @@ export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo }: P
             ref={wf.waveformCanvasRef}
             className="waveform-canvas"
             style={{ cursor: waveformCursorStyle }}
+            role="img"
+            aria-label={waveformAriaLabel}
+            tabIndex={0}
             onMouseDown={onWaveformMouseDown}
             onMouseMove={onWaveformMouseMove}
             onMouseUp={onWaveformMouseUp}
             onMouseLeave={onWaveformMouseLeave}
             onWheel={wf.onWaveformWheel}
+            onKeyDown={onWaveformKeyDown}
           />
           <p className="small">
             Durée : {formatClockSeconds(wf.waveform.durationSec)} | Lecture :{" "}

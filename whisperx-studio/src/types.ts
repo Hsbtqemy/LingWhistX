@@ -533,6 +533,7 @@ export type RunManifestSummary = {
   durationSec?: number | null;
   artifactCount: number;
   artifactKeys: string[];
+  artifactFiles: string[];
   warnings: string[];
   statsNSegments?: number | null;
   statsNWords?: number | null;

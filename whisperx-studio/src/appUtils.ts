@@ -574,3 +574,18 @@ export function qaIssueLabel(type: TranscriptQaIssueType): string {
       return type;
   }
 }
+
+const TRANSCRIPT_JSON_META_SUFFIXES = [".timeline.json", ".run.json", ".words.json"];
+
+/**
+ * Identifie le JSON transcript principal parmi les fichiers de sortie.
+ * Exclut les fichiers d'analyse / métadonnées (.timeline.json, .run.json, etc.)
+ */
+export function findPrimaryTranscriptJson(outputFiles: string[]): string | null {
+  const candidates = outputFiles.filter((p) => {
+    const lower = p.toLowerCase();
+    if (!lower.endsWith(".json")) return false;
+    return !TRANSCRIPT_JSON_META_SUFFIXES.some((s) => lower.endsWith(s));
+  });
+  return candidates[0] ?? null;
+}

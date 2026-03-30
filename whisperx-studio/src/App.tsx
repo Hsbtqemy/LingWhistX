@@ -36,6 +36,9 @@ function App() {
   const [activeView, setActiveView] = useState<StudioView>(readStoredView);
   const [playerRunDir, setPlayerRunDir] = useState<string | null>(null);
   const [playerRunLabel, setPlayerRunLabel] = useState<string | null>(null);
+  const [playerInitialEditMode, setPlayerInitialEditMode] = useState(false);
+  /** WX-696 — Incrémenté après écriture de tiers annotation dans events.sqlite. */
+  const [playerEventsEpoch, setPlayerEventsEpoch] = useState(0);
 
   useEffect(() => {
     try {
@@ -45,10 +48,18 @@ function App() {
     }
   }, [activeView]);
 
-  const handleOpenPlayer = useCallback((runDir: string, label?: string | null) => {
-    setPlayerRunDir(runDir);
-    setPlayerRunLabel(label ?? runDir);
-    setActiveView("player");
+  const handleOpenPlayer = useCallback(
+    (runDir: string, label?: string | null, editMode?: boolean) => {
+      setPlayerRunDir(runDir);
+      setPlayerRunLabel(label ?? runDir);
+      setPlayerInitialEditMode(editMode ?? false);
+      setActiveView("player");
+    },
+    [],
+  );
+
+  const handleAnnotationWrittenToPlayer = useCallback(() => {
+    setPlayerEventsEpoch((e) => e + 1);
   }, []);
 
   const handlePlayerBack = useCallback((view: StudioView) => {
@@ -89,6 +100,7 @@ function App() {
     injectAudioPipelineSegmentsJson,
     onOpenPlayerRun: handleOpenPlayer,
     onNavigateToWorkspace: () => setActiveView("workspace"),
+    onAnnotationWrittenToPlayer: handleAnnotationWrittenToPlayer,
   });
 
   const handlePlayerImportPick = useCallback(async () => {
@@ -183,6 +195,8 @@ function App() {
               runDir={playerRunDir}
               runLabel={playerRunLabel}
               onBack={handlePlayerBack}
+              eventsRefreshEpoch={playerEventsEpoch}
+              initialEditMode={playerInitialEditMode}
               importMedia={{
                 inputPath: jobForm.inputPath,
                 isSubmitting: jobForm.isSubmitting,

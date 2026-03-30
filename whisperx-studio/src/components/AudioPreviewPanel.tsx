@@ -119,9 +119,8 @@ export function AudioPreviewPanel({
             </p>
           )}
 
-          {/* Audio player */}
+          {/* Audio player — pas de piste de sous-titres : aperçu brut non sous-titré */}
           {activeAudioSrc && (
-            // eslint-disable-next-line jsx-a11y/media-has-caption
             <audio
               ref={audioRef}
               src={activeAudioSrc}

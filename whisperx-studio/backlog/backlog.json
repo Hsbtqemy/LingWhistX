@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "updatedAt": "2026-03-29T21:27:14.213Z",
+    "updatedAt": "2026-03-30T11:47:58.581Z",
     "statuses": [
         "todo",
         "in_progress",
@@ -3193,7 +3193,7 @@
         {
             "id": "WX-673",
             "title": "Import EAF : parseur complet (ALIGNABLE + REF_ANNOTATION, multi-tiers)",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "2d",
             "dependsOn": [],
@@ -3225,7 +3225,7 @@
         {
             "id": "WX-674",
             "title": "Import TextGrid : parseur long + short format, IntervalTier + PointTier",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "0.5d",
             "dependsOn": [],
@@ -3252,10 +3252,13 @@
         {
             "id": "WX-675",
             "title": "IPC Rust : import_annotation_file + dialog front-end",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "0.5d",
-            "dependsOn": ["WX-673", "WX-674"],
+            "dependsOn": [
+                "WX-673",
+                "WX-674"
+            ],
             "scope": [
                 "src-tauri/src/annotation_import_commands.rs",
                 "src-tauri/src/lib.rs",
@@ -3282,10 +3285,12 @@
         {
             "id": "WX-676",
             "title": "Integration editeur : charger les tiers importes comme segments editables",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "0.5d",
-            "dependsOn": ["WX-675"],
+            "dependsOn": [
+                "WX-675"
+            ],
             "scope": [
                 "src/hooks/useTranscriptEditor.ts",
                 "src/components/runDetails/RunDetailsOutputFiles.tsx",
@@ -3313,10 +3318,13 @@
         {
             "id": "WX-677",
             "title": "Tests integration import EAF/TextGrid (fixtures reels ELAN 6 + Praat 6)",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "0.5d",
-            "dependsOn": ["WX-673", "WX-674"],
+            "dependsOn": [
+                "WX-673",
+                "WX-674"
+            ],
             "scope": [
                 "tests/test_annotation_imports.py",
                 "tests/fixtures/"
@@ -3334,6 +3342,392 @@
             "acceptance": [
                 "pytest tests/test_annotation_imports.py : 0 failed.",
                 "Couverture minimale : 12 cas de test (4 fixtures x 3 assertions cles chacune)."
+            ]
+        },
+        {
+            "id": "WX-678",
+            "title": "CI : ajouter pytest tests/ au workflow GitHub Actions",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "0.5h",
+            "dependsOn": [],
+            "scope": [
+                ".github/workflows/studio-ci.yml"
+            ],
+            "execute": [
+                "python -m pytest tests/ -q --tb=short"
+            ],
+            "definitionOfDone": [
+                "Le step pytest tests/ -q --tb=short est présent dans studio-ci.yml.",
+                "Les tests integration sont exclus via addopts dans pyproject.toml.",
+                "Le step est placé après les tests worker et avant le build frontend."
+            ],
+            "acceptance": [
+                "Une régression dans whisperx/timeline.py fait échouer le CI.",
+                "Les 159 tests unitaires passent sans dépendances réseau/modèle."
+            ]
+        },
+        {
+            "id": "WX-679",
+            "title": "db.rs : WAL mode + factory with_conn() pour éviter SQLITE_BUSY",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "1d",
+            "dependsOn": [],
+            "scope": [
+                "src-tauri/src/db.rs",
+                "src-tauri/src/job_commands.rs",
+                "src-tauri/src/run_commands.rs"
+            ],
+            "execute": [
+                "cargo check",
+                "cargo test"
+            ],
+            "definitionOfDone": [
+                "PRAGMA journal_mode=WAL activé à l ouverture de chaque connexion.",
+                "PRAGMA busy_timeout=5000 configuré pour retry automatique.",
+                "Fonction with_conn(path, |conn| ...) centralisée pour éviter la duplication open/PRAGMA/close.",
+                "Tous les appels db.rs/job_commands.rs/run_commands.rs passent par with_conn()."
+            ],
+            "acceptance": [
+                "cargo check propre.",
+                "cargo test propre (smoke test inclus).",
+                "Aucun SQLITE_BUSY observable sous runs simultanés en dev."
+            ]
+        },
+        {
+            "id": "WX-680",
+            "title": "Versioning schemaVersion des profils utilisateur avec migration forward",
+            "status": "done",
+            "priority": "P2",
+            "estimate": "0.5d",
+            "dependsOn": [],
+            "scope": [
+                "src/types.ts",
+                "src-tauri/src/wxenv.rs",
+                "src-tauri/src/lib.rs"
+            ],
+            "execute": [
+                "cargo check",
+                "npm run build"
+            ],
+            "definitionOfDone": [
+                "Le type UserProfile dans types.ts expose schemaVersion: number.",
+                "La lecture Rust détecte l absence de schemaVersion et applique les valeurs par défaut (migration v0→v1).",
+                "Un schemaVersion inconnu (futur) est ignoré gracieusement sans crash.",
+                "Les tests Vitest couvrent la migration v0→v1."
+            ],
+            "acceptance": [
+                "Un profil sans schemaVersion est chargé sans erreur après la mise à jour.",
+                "Un profil v99 hypothétique est ignoré avec un warning loggé, pas un panic."
+            ]
+        },
+        {
+            "id": "WX-681",
+            "title": "Throttle événements Tauri dans jobs.rs (max 10 Hz par job)",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "0.5d",
+            "dependsOn": [],
+            "scope": [
+                "src-tauri/src/jobs.rs",
+                "src-tauri/src/app_events.rs"
+            ],
+            "execute": [
+                "cargo check",
+                "cargo test"
+            ],
+            "definitionOfDone": [
+                "Les événements progress sont coalesced à max 10 Hz (100 ms) par job.",
+                "Les événements result/error/live_transcript ne sont pas throttlés (émis immédiatement).",
+                "Le dernier état progress est toujours émis même si le throttle l a retardé.",
+                "Le mécanisme ne bloque pas le thread de lecture stdout."
+            ],
+            "acceptance": [
+                "Sur un run de 60s, le frontend reçoit < 700 événements progress (vs potentiellement des milliers).",
+                "cargo check propre, cargo test propre."
+            ]
+        },
+        {
+            "id": "WX-682",
+            "title": "Tests Rust in-memory pour db.rs (migrations, CRUD, WAL)",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "0.5d",
+            "dependsOn": [
+                "WX-679"
+            ],
+            "scope": [
+                "src-tauri/src/db.rs"
+            ],
+            "execute": [
+                "cargo test"
+            ],
+            "definitionOfDone": [
+                "Tests unitaires Rust dans db.rs via SQLite :memory:.",
+                "Couverture : init_database, migrate_schema v0→v3, persist_job, load_jobs_page, delete_job_row, count_jobs.",
+                "Test que with_conn applique WAL et busy_timeout sans erreur.",
+                "cargo test propre."
+            ],
+            "acceptance": [
+                "Une régression dans migrate_schema fait échouer cargo test.",
+                "Les tests ne nécessitent pas de fichier disque ni de AppHandle."
+            ]
+        },
+        {
+            "id": "WX-683",
+            "title": "Accessibilité canvas waveform : role=img + aria-label dynamique",
+            "status": "done",
+            "priority": "P2",
+            "estimate": "0.5d",
+            "dependsOn": [],
+            "scope": [
+                "src/components/player/PlayerWaveformPanel.tsx",
+                "src/hooks/useWaveformCanvas.ts"
+            ],
+            "execute": [
+                "npm run build",
+                "npm run lint"
+            ],
+            "definitionOfDone": [
+                "Le canvas waveform expose role=\"img\" et aria-label décrivant l état courant.",
+                "Le canvas reçoit tabIndex=0 et un onKeyDown minimal (espace = play/pause, flèches = seek).",
+                "Les overlays pause/annotation ont un aria-hidden=true quand non pertinents.",
+                "npm run lint propre."
+            ],
+            "acceptance": [
+                "Un lecteur d écran annonce le canvas comme image avec une description utile.",
+                "La navigation clavier sur le canvas fonctionne sans souris."
+            ]
+        },
+        {
+            "id": "WX-684",
+            "title": "Refactoring transcribe.py : pipeline en stages isolés et testables",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "1d",
+            "dependsOn": [],
+            "scope": [
+                "whisperx/transcribe.py",
+                "whisperx/pipeline.py",
+                "tests/test_transcribe_cli_contract.py"
+            ],
+            "execute": [
+                "python -m pytest tests/ -q --tb=short"
+            ],
+            "definitionOfDone": [
+                "transcribe.py est découpé en fonctions pures : load_audio_segment, run_asr, postprocess_words.",
+                "Chaque stage est testable indépendamment sans charger de modèle réel.",
+                "Les tests existants test_transcribe_cli_contract.py continuent de passer.",
+                "Pas de changement d API publique : transcribe() reste la fonction d entrée."
+            ],
+            "acceptance": [
+                "python -m pytest tests/ -q propre.",
+                "Un test unitaire mock couvre run_asr sans GPU."
+            ]
+        },
+        {
+            "id": "WX-685",
+            "title": "Nettoyer warnings cargo clippy (imports inutilises, dead_code, is_multiple_of)",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "0.5h",
+            "dependsOn": [],
+            "scope": [
+                "src-tauri/src/annotation_import_commands.rs",
+                "src-tauri/src/jobs.rs",
+                "src-tauri/src/report_commands.rs",
+                "src-tauri/src/transcript.rs"
+            ],
+            "execute": [
+                "cargo clippy -- -D warnings",
+                "cargo test"
+            ],
+            "definitionOfDone": [
+                "cargo clippy -- -D warnings passe sans erreur.",
+                "Imports inutilises supprimes dans annotation_import_commands.rs, jobs.rs, report_commands.rs.",
+                "total_pause_ms utilise ou supprime de SpeakerStats.",
+                "n % 2 == 0 remplace par n.is_multiple_of(2) dans transcript.rs et report_commands.rs."
+            ],
+            "acceptance": [
+                "cargo clippy -- -D warnings propre.",
+                "cargo test 25 passed."
+            ]
+        },
+        {
+            "id": "WX-686",
+            "title": "Export PDF rapport prosodique via fenetre impression Tauri (WebView print)",
+            "status": "done",
+            "priority": "P2",
+            "estimate": "0.5d",
+            "dependsOn": [
+                "WX-671"
+            ],
+            "scope": [
+                "src-tauri/src/report_commands.rs",
+                "src/components/runDetails/RunDetailsPanel.tsx"
+            ],
+            "execute": [
+                "cargo check",
+                "npm run build"
+            ],
+            "definitionOfDone": [
+                "Commande Tauri open_html_report_for_print ouvre le HTML dans une fenetre WebView dediee.",
+                "La fenetre declenche window.print() automatiquement a l ouverture.",
+                "Le bouton Export PDF dans RunDetailsPanel invoque la commande.",
+                "La fenetre se ferme apres impression ou est fermable manuellement."
+            ],
+            "acceptance": [
+                "Le dialogue d impression natif OS s ouvre avec le rapport pre-charge.",
+                "cargo check propre, npm run build propre."
+            ]
+        },
+        {
+            "id": "WX-688",
+            "title": "CI : npm test (Vitest) dans studio-ci.yml",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "0.25d",
+            "dependsOn": [],
+            "scope": [
+                ".github/workflows/studio-ci.yml"
+            ],
+            "execute": [
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Step Vitest present dans le workflow CI.",
+                "npm test passe en vert sur le runner CI."
+            ],
+            "acceptance": [
+                "npm test propre localement."
+            ]
+        },
+        {
+            "id": "WX-689",
+            "title": "CI : cargo clippy + cargo test (Rust) dans studio-ci.yml",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "0.25d",
+            "dependsOn": [],
+            "scope": [
+                ".github/workflows/studio-ci.yml"
+            ],
+            "execute": [
+                "cargo clippy -- -D warnings",
+                "cargo test"
+            ],
+            "definitionOfDone": [
+                "Steps cargo clippy et cargo test presents dans le workflow CI.",
+                "Cargo clippy -- -D warnings et cargo test passent proprement."
+            ],
+            "acceptance": [
+                "cargo clippy -- -D warnings propre localement."
+            ]
+        },
+        {
+            "id": "WX-690",
+            "title": "Tests Vitest : playerSpeakerStats (computeSpeakerStats + buildPauseHistogram)",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "0.5d",
+            "dependsOn": [],
+            "scope": [
+                "src/player/playerSpeakerStats.ts",
+                "src/player/playerSpeakerStats.test.ts"
+            ],
+            "execute": [
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Tests couvrent computeSpeakerStats : 2 locuteurs, speechMs, speechRatio, nWords, speechRate, pauses.",
+                "Tests couvrent buildPauseHistogram : distribution, bins vides, cas limites.",
+                "npm test propre."
+            ],
+            "acceptance": [
+                "npm test propre, pas de any TypeScript."
+            ]
+        },
+        {
+            "id": "WX-696",
+            "title": "Annotation tiers → events.sqlite : afficher tiers importes dans le Player",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "1d",
+            "dependsOn": [
+                "WX-675",
+                "WX-676"
+            ],
+            "scope": [
+                "src-tauri/src/annotation_events_commands.rs",
+                "src-tauri/src/lib.rs",
+                "src/components/runDetails/RunDetailsPanel.tsx",
+                "src/components/runDetails/buildRunDetailsPanelProps.ts",
+                "src/hooks/useStudioWorkspace.ts"
+            ],
+            "execute": [
+                "cargo check",
+                "npm run build"
+            ],
+            "definitionOfDone": [
+                "Nouvelle commande Tauri write_annotation_tiers_to_events(run_dir, tiers) insere les segments comme turns dans events.sqlite avec flags_json={source:annotation}.",
+                "DELETE prealable des turns annotation existants (idempotent).",
+                "AnnotationImportSection : apres chargement d un tier, si un run est selectionne, propose Afficher dans le Player.",
+                "Le Player raffraichit sa fenetre apres ecriture : les tiers apparaissent dans les vues lanes/chat/colonnes avec le tier_id comme speaker.",
+                "Sans run selectionne : comportement inchange (editeur seul)."
+            ],
+            "acceptance": [
+                "Importer un TextGrid 2 tiers sur un run existant → les 2 tiers visibles en vue Lanes avec leurs labels.",
+                "Reimporter le meme fichier ne duplique pas les turns annotation.",
+                "cargo check propre, npm run build propre."
+            ]
+        },
+        {
+            "id": "WX-693",
+            "title": "Fenetre impression : fermeture auto apres afterprint",
+            "status": "done",
+            "priority": "P2",
+            "estimate": "0.1d",
+            "dependsOn": [
+                "WX-686"
+            ],
+            "scope": [
+                "src-tauri/src/report_commands.rs"
+            ],
+            "execute": [
+                "cargo check"
+            ],
+            "definitionOfDone": [
+                "La fenetre print-prosody-report se ferme automatiquement apres impression ou annulation.",
+                "Listener afterprint ajoute dans initialization_script."
+            ],
+            "acceptance": [
+                "cargo check propre."
+            ]
+        },
+        {
+            "id": "WX-687",
+            "title": "Tests annotation_exports.py : couverture RTTM, TextGrid, EAF",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "0.5d",
+            "dependsOn": [],
+            "scope": [
+                "whisperx/annotation_exports.py",
+                "tests/test_annotation_exports.py"
+            ],
+            "execute": [
+                "python -m pytest tests/test_annotation_exports.py -q --tb=short"
+            ],
+            "definitionOfDone": [
+                "Tests couvrent : RTTM 2 locuteurs, TextGrid IntervalTier multi-speakers, EAF time slots + alignable annotations.",
+                "Test roundtrip : parse_textgrid(write_textgrid(...)) retourne les memes segments.",
+                "Test roundtrip : parse_eaf(write_eaf(...)) retourne les memes segments.",
+                "pytest propre sans torch ni GPU."
+            ],
+            "acceptance": [
+                "python -m pytest tests/test_annotation_exports.py -v propre.",
+                "Regression dans write_eaf fait echouer un test."
             ]
         }
     ]

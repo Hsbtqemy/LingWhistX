@@ -25,6 +25,7 @@ import inspect
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -813,6 +814,16 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         )
 
     command_env = os.environ.copy()
+
+    if sys.platform == "darwin":
+        ffmpeg_bin = command_env.get("FFMPEG_BINARY") or shutil.which("ffmpeg")
+        if ffmpeg_bin:
+            ffmpeg_lib = str(Path(ffmpeg_bin).resolve().parent.parent / "lib")
+            existing = command_env.get("DYLD_FALLBACK_LIBRARY_PATH", "")
+            command_env["DYLD_FALLBACK_LIBRARY_PATH"] = (
+                f"{ffmpeg_lib}:{existing}" if existing else ffmpeg_lib
+            )
+
     hf_token = resolve_hf_token(options)
     if hf_token:
         command_env["WHISPERX_HF_TOKEN"] = hf_token
@@ -885,6 +896,8 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
     for line in process.stdout:
         clean = line.strip()
         if not clean:
+            continue
+        if clean.startswith("warnings.warn"):
             continue
         whisperx_tail.append(clean)
 

@@ -5,7 +5,6 @@ export type PlayerMediaTransportProps = {
   playing: boolean;
   onTogglePlayPause: () => void | Promise<void>;
   onStop: () => void;
-  /** Décalage en secondes (ex. −5 / +5). */
   onSeekRelative: (deltaSec: number) => void;
   currentTimeSec: number;
   durationSec: number | null;
@@ -27,9 +26,43 @@ export type PlayerMediaTransportProps = {
   onCopyPlayhead: () => void | Promise<void>;
 };
 
-/**
- * Contrôles de transport liés à la zone média (lecture, saut, progression, volume).
- */
+/* SVG icon helpers – 16×16 viewBox, stroke-based */
+const I = ({ d, fill }: { d: string; fill?: boolean }) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill={fill ? "currentColor" : "none"}
+    stroke={fill ? "none" : "currentColor"}
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d={d} />
+  </svg>
+);
+
+const IconPlay = () => <I d="M4.5 2.5 L13 8 L4.5 13.5 Z" fill />;
+const IconPause = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+    <rect x="3" y="2.5" width="3.5" height="11" rx="1" />
+    <rect x="9.5" y="2.5" width="3.5" height="11" rx="1" />
+  </svg>
+);
+const IconStop = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+    <rect x="3" y="3" width="10" height="10" rx="1.5" />
+  </svg>
+);
+const IconSkipBack = () => <I d="M12 3 L6 8 L12 13 M4 3 L4 13" />;
+const IconSkipFwd = () => <I d="M4 3 L10 8 L4 13 M12 3 L12 13" />;
+const IconRewind = () => <I d="M13 3 L7.5 8 L13 13 M8.5 3 L3 8 L8.5 13" />;
+const IconFastFwd = () => <I d="M3 3 L8.5 8 L3 13 M7.5 3 L13 8 L7.5 13" />;
+const IconVolume = () => <I d="M2 6 L5 6 L9 2.5 L9 13.5 L5 10 L2 10 Z M11.5 5.5 Q14 8 11.5 10.5" />;
+const IconMute = () => <I d="M2 6 L5 6 L9 2.5 L9 13.5 L5 10 L2 10 Z M12 5.5 L14 10.5 M14 5.5 L12 10.5" />;
+const IconFollow = () => <I d="M8 2 L8 14 M4 6 L8 2 L12 6" />;
+
 export function PlayerMediaTransport({
   disabled,
   playing,
@@ -79,119 +112,132 @@ export function PlayerMediaTransport({
           aria-label="Position dans le média"
           onChange={(ev) => {
             const v = Number(ev.target.value);
-            if (Number.isFinite(v)) {
-              onSeek(v);
-            }
+            if (Number.isFinite(v)) onSeek(v);
           }}
         />
       </div>
+
       <div className="player-media-transport__row">
+        {/* ── Seek & Play ── */}
         <div className="player-media-transport__primary">
           <button
             type="button"
-            className={`ghost player-media-transport__play ${playing ? "player-media-transport__play--on" : ""}`}
-            onClick={() => void onTogglePlayPause()}
+            className="player-transport-btn"
+            onClick={() => onSeekRelative(-5)}
             disabled={disabled}
-            title="Lecture / pause (Espace)"
-            aria-label={playing ? "Pause" : "Lecture"}
+            title="−5 s (Shift+←)"
+            aria-label="Reculer de 5 secondes"
           >
-            {playing ? "Pause" : "Lecture"}
+            <IconRewind />
+            <span className="player-transport-btn__label">5s</span>
           </button>
           <button
             type="button"
-            className="ghost small"
+            className="player-transport-btn"
+            onClick={() => onSeekRelative(-1)}
+            disabled={disabled}
+            title="−1 s (←)"
+            aria-label="Reculer de 1 seconde"
+          >
+            <IconSkipBack />
+            <span className="player-transport-btn__label">1s</span>
+          </button>
+
+          <button
+            type="button"
+            className={`player-transport-btn player-transport-btn--play${playing ? " player-transport-btn--active" : ""}`}
+            onClick={() => void onTogglePlayPause()}
+            disabled={disabled}
+            title={playing ? "Pause (Espace)" : "Lecture (Espace)"}
+            aria-label={playing ? "Pause" : "Lecture"}
+          >
+            {playing ? <IconPause /> : <IconPlay />}
+          </button>
+
+          <button
+            type="button"
+            className="player-transport-btn"
             onClick={() => onStop()}
             disabled={disabled}
-            title="Arrêt et retour au début (Home)"
+            title="Stop — retour au début (Home)"
+            aria-label="Stop"
           >
-            Stop
+            <IconStop />
           </button>
-          <span className="player-media-transport__seek-group" aria-label="Sauts">
-            <button
-              type="button"
-              className="ghost small"
-              onClick={() => onSeekRelative(-5)}
-              disabled={disabled}
-              title="Reculer de 5 s (Shift+←)"
-            >
-              −5 s
-            </button>
-            <button
-              type="button"
-              className="ghost small"
-              onClick={() => onSeekRelative(-1)}
-              disabled={disabled}
-              title="Reculer de 1 s (←)"
-            >
-              −1 s
-            </button>
-            <button
-              type="button"
-              className="ghost small"
-              onClick={() => onSeekRelative(1)}
-              disabled={disabled}
-              title="Avancer de 1 s (→)"
-            >
-              +1 s
-            </button>
-            <button
-              type="button"
-              className="ghost small"
-              onClick={() => onSeekRelative(5)}
-              disabled={disabled}
-              title="Avancer de 5 s (Shift+→)"
-            >
-              +5 s
-            </button>
-          </span>
+
+          <button
+            type="button"
+            className="player-transport-btn"
+            onClick={() => onSeekRelative(1)}
+            disabled={disabled}
+            title="+1 s (→)"
+            aria-label="Avancer de 1 seconde"
+          >
+            <IconSkipFwd />
+            <span className="player-transport-btn__label">1s</span>
+          </button>
+          <button
+            type="button"
+            className="player-transport-btn"
+            onClick={() => onSeekRelative(5)}
+            disabled={disabled}
+            title="+5 s (Shift+→)"
+            aria-label="Avancer de 5 secondes"
+          >
+            <IconFastFwd />
+            <span className="player-transport-btn__label">5s</span>
+          </button>
         </div>
-        <div className="player-media-transport__time mono small" aria-live="polite">
+
+        {/* ── Timecode ── */}
+        <div className="player-media-transport__time mono small">
           <span
             className="player-timecode player-timecode--dblcopy"
-            title="Position / durée — double-clic pour copier"
+            title="Double-clic pour copier la position"
             onDoubleClick={() => void onCopyPlayhead()}
           >
             {posLabel} / {durLabel}
           </span>
           {copyPositionHint ? (
-            <span className="player-copy-hint" aria-live="polite">
-              Copié
-            </span>
+            <span className="player-copy-hint" aria-live="polite">Copié</span>
           ) : null}
-          <button
-            type="button"
-            className="ghost small"
-            onClick={() => void onCopyPlayhead()}
-            disabled={disabled}
-            title="Copier la position (⌃⇧C)"
-          >
-            Copier
-          </button>
         </div>
+
+        {/* ── Speed / Volume / Follow ── */}
         <div className="player-media-transport__secondary">
-          <button
-            type="button"
-            className="ghost small"
-            onClick={() => onNudgePlaybackRate(-PLAYBACK_RATE_STEP)}
-            disabled={disabled}
-            title="Ralentir (−)"
-          >
-            −
-          </button>
-          <span className="player-speed small" title="Vitesse de lecture">
-            {playbackRate.toFixed(2)}×
-          </span>
-          <button
-            type="button"
-            className="ghost small"
-            onClick={() => onNudgePlaybackRate(PLAYBACK_RATE_STEP)}
-            disabled={disabled}
-            title="Accélérer (+)"
-          >
-            +
-          </button>
-          <label className="player-volume small">
-            <span className="player-volume-label">Vol.</span>
+          <div className="player-speed-group" title="Vitesse de lecture">
+            <button
+              type="button"
+              className="player-transport-btn player-transport-btn--sm"
+              onClick={() => onNudgePlaybackRate(-PLAYBACK_RATE_STEP)}
+              disabled={disabled}
+              aria-label="Ralentir"
+            >
+              −
+            </button>
+            <span className="player-speed-value mono small">{playbackRate.toFixed(2)}×</span>
+            <button
+              type="button"
+              className="player-transport-btn player-transport-btn--sm"
+              onClick={() => onNudgePlaybackRate(PLAYBACK_RATE_STEP)}
+              disabled={disabled}
+              aria-label="Accélérer"
+            >
+              +
+            </button>
+          </div>
+
+          <label className="player-volume-group">
+            <button
+              type="button"
+              className={`player-transport-btn player-transport-btn--sm${muted ? " player-transport-btn--active" : ""}`}
+              onClick={() => onToggleMute()}
+              disabled={disabled}
+              title={muted ? "Activer le son (M)" : "Couper le son (M)"}
+              aria-label={muted ? "Activer le son" : "Couper le son"}
+            >
+              {muted ? <IconMute /> : <IconVolume />}
+            </button>
             <input
               type="range"
               className="player-volume-range"
@@ -199,46 +245,34 @@ export function PlayerMediaTransport({
               max={1}
               step={0.02}
               value={volume}
-              onChange={(ev) => {
-                const v = Number(ev.target.value);
-                onVolumeChange(v);
-              }}
+              onChange={(ev) => onVolumeChange(Number(ev.target.value))}
               disabled={disabled}
               aria-label="Volume"
             />
           </label>
+
           <button
             type="button"
-            className={`ghost small ${muted ? "player-mute-on" : ""}`}
-            onClick={() => onToggleMute()}
-            disabled={disabled}
-            title="Muet (M)"
+            className={`player-transport-btn player-transport-btn--sm${followPlayhead ? " player-transport-btn--active" : ""}`}
+            onClick={onToggleFollowPlayhead}
+            title={followPlayhead ? "Suivre le playhead (F) — actif" : "Suivre le playhead (F)"}
+            aria-label="Suivre le playhead"
           >
-            {muted ? "Muet" : "Son"}
+            <IconFollow />
           </button>
+
           {isVideo ? (
             <button
               type="button"
-              className={`ghost small ${videoFullscreen ? "player-video-fs-on" : ""}`}
+              className={`player-transport-btn player-transport-btn--sm${videoFullscreen ? " player-transport-btn--active" : ""}`}
               onClick={() => void onToggleVideoFullscreen()}
               disabled={disabled}
-              title={
-                videoFullscreen
-                  ? "Quitter le plein écran (Alt+Entrée)"
-                  : "Plein écran vidéo (Alt+Entrée)"
-              }
+              title={videoFullscreen ? "Quitter le plein écran (Alt+Entrée)" : "Plein écran (Alt+Entrée)"}
+              aria-label={videoFullscreen ? "Quitter le plein écran" : "Plein écran"}
             >
-              {videoFullscreen ? "Quit. écran" : "Plein écran"}
+              ⛶
             </button>
           ) : null}
-          <button
-            type="button"
-            className={`ghost small ${followPlayhead ? "player-follow-on" : ""}`}
-            onClick={onToggleFollowPlayhead}
-            title="Suivre la tête dans le viewport (F)"
-          >
-            {followPlayhead ? "Suivi" : "Suivi off"}
-          </button>
         </div>
       </div>
     </div>

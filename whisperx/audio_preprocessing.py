@@ -303,7 +303,6 @@ def denoise_audio(
                          f"DeepFilterNet indisponible — fallback noisereduce : {exc}", None)
             # Fallback noisereduce
             try:
-                import numpy as np
                 sr, data = _load_wav_as_float32(tmp_wav)
                 denoised = _denoise_noisereduce(data, sr, prop_decrease)
                 _save_float32_as_wav(denoised, sr, output_path)

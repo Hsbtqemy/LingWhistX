@@ -1,9 +1,10 @@
 //! WX-671 — Export rapport prosodique HTML auto-contenu.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use rusqlite::Connection;
+use tauri::Manager;
 
 use crate::path_guard::validate_path_string;
 use crate::run_events::{open_events_connection, EVENTS_DB_FILE};
@@ -276,6 +277,7 @@ fn build_html(
 <td>{speech_pct:.1}%</td>\
 <td>{wpm:.0}</td>\
 <td>{n_pauses}</td>\
+<td>{total_pause}</td>\
 <td>{avg_pause:.3}s</td>\
 </tr>",
                 sp_esc = sp_esc,
@@ -286,6 +288,7 @@ fn build_html(
                 speech_pct = speech_pct,
                 wpm = s.words_per_min,
                 n_pauses = s.n_pauses,
+                total_pause = fmt_ms(s.total_pause_ms),
                 avg_pause = s.avg_pause_ms / 1000.0,
             )
         })
@@ -355,7 +358,7 @@ td{{padding:7px 12px;border-top:1px solid #e2e8f0;font-size:0.82rem}}
 <h2>Par locuteur</h2>
 <table>
 <thead><tr>
-<th>Locuteur</th><th>Tours</th><th>IPU</th><th>Mots</th><th>Parole</th><th>%</th><th>Mots/min</th><th>Pauses</th><th>Pause moy.</th>
+<th>Locuteur</th><th>Tours</th><th>IPU</th><th>Mots</th><th>Parole</th><th>%</th><th>Mots/min</th><th>Pauses</th><th>Durée pauses</th><th>Pause moy.</th>
 </tr></thead>
 <tbody>{sp_rows}</tbody>
 </table>
@@ -388,6 +391,62 @@ td{{padding:7px 12px;border-top:1px solid #e2e8f0;font-size:0.82rem}}
 #[derive(serde::Serialize)]
 pub struct ExportProsodyReportResponse {
     pub output_path: String,
+}
+
+/// Ouvre le rapport HTML dans une fenêtre WebView dédiée et déclenche `window.print()`.
+///
+/// WX-686 — Le HTML est chargé via le protocole `asset://` (scope $HOME/**).
+/// Un `initialization_script` injecte l'appel à `window.print()` dès le DOMContentLoaded.
+#[tauri::command]
+pub fn open_html_report_for_print(
+    app: tauri::AppHandle,
+    html_path: String,
+) -> Result<(), String> {
+    use tauri::WebviewUrl;
+    use tauri::WebviewWindowBuilder;
+
+    crate::path_guard::validate_path_string(&html_path)?;
+    let path = std::path::PathBuf::from(html_path.trim())
+        .canonicalize()
+        .map_err(|e| format!("HTML report path not found: {e}"))?;
+    if !path.is_file() {
+        return Err("HTML report path is not a file".into());
+    }
+
+    // Build an asset:// URL so the WebView can load the local file.
+    // The assetProtocol scope in tauri.conf.json includes $HOME/**.
+    let asset_url_str = format!(
+        "asset://localhost{}",
+        path.to_string_lossy()
+    );
+    let url: tauri::Url = asset_url_str
+        .parse()
+        .map_err(|e| format!("Invalid asset URL: {e}"))?;
+
+    // Use a deterministic label so re-opening replaces the existing window.
+    let label = "print-prosody-report";
+
+    // If a window with this label already exists, focus it and navigate.
+    if let Some(win) = app.get_webview_window(label) {
+        let _ = win.show();
+        let _ = win.set_focus();
+        let _ = win.navigate(url);
+        return Ok(());
+    }
+
+    WebviewWindowBuilder::new(&app, label, WebviewUrl::CustomProtocol(url.clone()))
+        .title("Rapport prosodique — Impression")
+        .inner_size(900.0, 720.0)
+        .initialization_script(
+            "window.addEventListener('DOMContentLoaded', function() { \
+                window.print(); \
+                window.addEventListener('afterprint', function() { window.close(); }); \
+            });",
+        )
+        .build()
+        .map_err(|e| format!("Failed to open print window: {e}"))?;
+
+    Ok(())
 }
 
 /// Génère un rapport HTML prosodique auto-contenu à partir de `events.sqlite`.
@@ -451,7 +510,7 @@ pub fn export_prosody_report(run_dir: String) -> Result<ExportProsodyReportRespo
 fn epoch_days_to_ymd(mut days: u64) -> (u64, u64, u64) {
     let mut y: u64 = 1970;
     loop {
-        let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+        let leap = (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400);
         let days_in_year: u64 = if leap { 366 } else { 365 };
         if days < days_in_year {
             break;
@@ -459,7 +518,7 @@ fn epoch_days_to_ymd(mut days: u64) -> (u64, u64, u64) {
         days -= days_in_year;
         y += 1;
     }
-    let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+    let leap = (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400);
     let month_days: [u64; 12] = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     let mut mo: u64 = 1;
     for &md in &month_days {

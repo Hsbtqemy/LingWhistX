@@ -15,7 +15,7 @@ import {
   buildPauseHistogram,
   computeSpeakerStats,
 } from "../../player/playerSpeakerStats";
-import type { EventTurnRow, QueryWindowResult } from "../../types";
+import type { EditableSegment, EventTurnRow, QueryWindowResult } from "../../types";
 import type { PlayerViewportMode } from "./playerViewportContract";
 
 export type { PlayerViewportMode };
@@ -38,6 +38,17 @@ type Props = {
   loopAsec?: number | null;
   loopBsec?: number | null;
   onSetLoopRange?: (aSec: number, bSec: number) => void;
+  editMode?: boolean;
+  editorSegments?: EditableSegment[];
+  activeSegmentIndex?: number | null;
+  setActiveSegmentIndex?: (i: number | null) => void;
+  updateEditorSegmentText?: (index: number, text: string) => void;
+  updateEditorSegmentBoundary?: (
+    index: number,
+    edge: "start" | "end",
+    value: number,
+  ) => void;
+  focusSegment?: (index: number) => void;
 };
 
 /**
@@ -56,6 +67,11 @@ export function PlayerRunWindowViews({
   loopAsec,
   loopBsec,
   onSetLoopRange,
+  editMode = false,
+  editorSegments,
+  activeSegmentIndex,
+  updateEditorSegmentText,
+  focusSegment,
 }: Props) {
   if (queryError) {
     return null;
@@ -78,6 +94,20 @@ export function PlayerRunWindowViews({
     );
   }
   if (mode === "rythmo") {
+    if (editMode && editorSegments) {
+      return (
+        <PlayerRythmoEditBody
+          segments={editorSegments}
+          playheadMs={playheadMs}
+          activeSegmentIndex={activeSegmentIndex ?? null}
+          onSeekToMs={onSeekToMs}
+          onFocusSegment={focusSegment}
+          onUpdateText={updateEditorSegmentText}
+          followPlayhead={followPlayhead}
+          durationSec={durationSec}
+        />
+      );
+    }
     return (
       <PlayerRythmoBody
         slice={slice}
@@ -88,6 +118,17 @@ export function PlayerRunWindowViews({
     );
   }
   if (mode === "karaoke") {
+    if (editMode && editorSegments) {
+      return (
+        <PlayerKaraokeEditBody
+          segments={editorSegments}
+          playheadMs={playheadMs}
+          onSeekToMs={onSeekToMs}
+          followPlayhead={followPlayhead}
+          durationSec={durationSec}
+        />
+      );
+    }
     return (
       <PlayerKaraokeBody
         slice={slice}
@@ -108,11 +149,25 @@ export function PlayerRunWindowViews({
         durationSec={durationSec}
         loopAsec={loopAsec}
         loopBsec={loopBsec}
+        editorSegments={editorSegments}
         onSetLoopRange={onSetLoopRange}
       />
     );
   }
   if (mode === "chat") {
+    if (editMode && editorSegments) {
+      return (
+        <PlayerChatEditBody
+          segments={editorSegments}
+          playheadMs={playheadMs}
+          activeSegmentIndex={activeSegmentIndex ?? null}
+          onSeekToMs={onSeekToMs}
+          onFocusSegment={focusSegment}
+          onUpdateText={updateEditorSegmentText}
+          durationSec={durationSec}
+        />
+      );
+    }
     return <PlayerChatBody slice={slice} playheadMs={playheadMs} onSeekToMs={onSeekToMs} />;
   }
   if (mode === "stats") {
@@ -120,6 +175,19 @@ export function PlayerRunWindowViews({
       <PlayerStatsBody
         slice={slice}
         playheadMs={playheadMs}
+        durationSec={durationSec}
+      />
+    );
+  }
+  if (editMode && editorSegments && mode === "words") {
+    return (
+      <PlayerWordsEditBody
+        segments={editorSegments}
+        playheadMs={playheadMs}
+        activeSegmentIndex={activeSegmentIndex ?? null}
+        onSeekToMs={onSeekToMs}
+        onFocusSegment={focusSegment}
+        onUpdateText={updateEditorSegmentText}
         durationSec={durationSec}
       />
     );
@@ -690,6 +758,51 @@ function PlayerLanesMiniMap({
   );
 }
 
+function turnTextFromIpus(
+  turn: EventTurnRow,
+  ipus: QueryWindowResult["ipus"],
+): string {
+  const overlapping = ipus.filter(
+    (ipu) => ipu.endMs > turn.startMs && ipu.startMs < turn.endMs,
+  );
+  if (overlapping.length === 0) return "";
+  return overlapping
+    .map((ipu) => ipu.text?.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function turnTextFromSegments(
+  turn: EventTurnRow,
+  segments: EditableSegment[],
+): string {
+  const overlapping = segments.filter((seg) => {
+    const sMs = Math.round(seg.start * 1000);
+    const eMs = Math.round(seg.end * 1000);
+    return eMs > turn.startMs && sMs < turn.endMs;
+  });
+  if (overlapping.length === 0) return "";
+  return overlapping
+    .map((seg) => seg.text?.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * Pré-calcule un index ordinal turn→segment (global par ordre).
+ * Fallback quand le matching temporel échoue (timestamps corrompus).
+ */
+function buildOrdinalSegmentIndex(
+  turns: EventTurnRow[],
+  segments: EditableSegment[],
+): Map<number, number> {
+  const result = new Map<number, number>();
+  for (let i = 0; i < turns.length && i < segments.length; i++) {
+    result.set(i, i);
+  }
+  return result;
+}
+
 function PlayerLanesBody({
   slice,
   playheadMs,
@@ -698,6 +811,7 @@ function PlayerLanesBody({
   loopAsec,
   loopBsec,
   onSetLoopRange,
+  editorSegments,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
@@ -706,6 +820,7 @@ function PlayerLanesBody({
   loopAsec?: number | null;
   loopBsec?: number | null;
   onSetLoopRange?: (aSec: number, bSec: number) => void;
+  editorSegments?: EditableSegment[];
 }) {
   const bySpeaker = new Map<string, EventTurnRow[]>();
   for (const turn of slice.turns) {
@@ -734,32 +849,55 @@ function PlayerLanesBody({
         onSetLoopRange={onSetLoopRange}
       />
       <div className="player-lanes-grid">
-        {speakers.map((sp) => (
-          <div key={sp} className="player-lanes-column">
-            <div className="player-lanes-column-title">{sp}</div>
-            <ul className="player-lanes-turns">
-              {(bySpeaker.get(sp) ?? []).map((t) => {
-                const active = playheadMs >= t.startMs && playheadMs < t.endMs;
-                return (
-                  <li key={t.id}>
-                    <button
-                      type="button"
-                      className={`player-lanes-turn ${active ? "is-active" : ""}`}
-                      title={`${t.startMs}–${t.endMs} ms — cliquer pour lire depuis ce tour`}
-                      disabled={!onSeekToMs}
-                      onClick={() => onSeekToMs?.(t.startMs)}
-                    >
-                      <span className="mono player-lanes-turn-time">
-                        {formatClockSeconds(t.startMs / 1000)} →{" "}
-                        {formatClockSeconds(t.endMs / 1000)}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+        {speakers.map((sp) => {
+          const spTurns = bySpeaker.get(sp) ?? [];
+          const ordinalIndex = editorSegments
+            ? buildOrdinalSegmentIndex(slice.turns, editorSegments)
+            : null;
+          return (
+            <div key={sp} className="player-lanes-column">
+              <div className="player-lanes-column-title">{sp}</div>
+              <ul className="player-lanes-turns">
+                {spTurns.map((t) => {
+                  const active = playheadMs >= t.startMs && playheadMs < t.endMs;
+                  let text = "";
+                  if (editorSegments) {
+                    text = turnTextFromSegments(t, editorSegments);
+                    if (!text && ordinalIndex) {
+                      const globalIdx = slice.turns.indexOf(t);
+                      const segIdx = ordinalIndex.get(globalIdx);
+                      if (segIdx != null && editorSegments[segIdx]) {
+                        text = editorSegments[segIdx].text?.trim() || "";
+                      }
+                    }
+                  }
+                  if (!text) {
+                    text = turnTextFromIpus(t, slice.ipus);
+                  }
+                  return (
+                    <li key={t.id}>
+                      <button
+                        type="button"
+                        className={`player-lanes-turn ${active ? "is-active" : ""}`}
+                        title={`${t.startMs}–${t.endMs} ms — cliquer pour lire depuis ce tour`}
+                        disabled={!onSeekToMs}
+                        onClick={() => onSeekToMs?.(t.startMs)}
+                      >
+                        <span className="mono player-lanes-turn-time">
+                          {formatClockSeconds(t.startMs / 1000)} →{" "}
+                          {formatClockSeconds(t.endMs / 1000)}
+                        </span>
+                        {text ? (
+                          <span className="player-lanes-turn-text">{text}</span>
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
       </div>
       {slice.turns.length === 0 ? (
         <p className="small">Aucun tour de parole dans cette fenêtre.</p>
@@ -825,6 +963,16 @@ function PlayerChatBody({
   playheadMs: number;
   onSeekToMs?: (ms: number) => void;
 }) {
+  const activeRef = useRef<HTMLButtonElement | null>(null);
+  const activeId = useMemo(() => {
+    const hit = slice.ipus.find((ipu) => playheadMs >= ipu.startMs && playheadMs < ipu.endMs);
+    return hit?.id ?? null;
+  }, [slice.ipus, playheadMs]);
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [activeId]);
+
   return (
     <div className="player-chat">
       <p className="player-lanes-meta small mono">
@@ -837,6 +985,7 @@ function PlayerChatBody({
           return (
             <button
               key={ipu.id}
+              ref={active ? activeRef : undefined}
               type="button"
               className={`player-chat-bubble ${active ? "is-active" : ""}`}
               title="Cliquer pour lire depuis ce bloc"
@@ -855,6 +1004,456 @@ function PlayerChatBody({
         })}
       </div>
       {slice.ipus.length === 0 ? <p className="small">Aucun IPU dans cette fenêtre.</p> : null}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Karaoké éditable — mots extraits des segments JSON
+// ---------------------------------------------------------------------------
+
+type KaraokeWord = {
+  segIdx: number;
+  wordIdx: number;
+  word: string;
+  speaker: string;
+  startMs: number;
+  endMs: number;
+};
+
+/**
+ * Détecte si les timestamps des segments sont cohérents avec la durée réelle.
+ * Retourne `true` si les timestamps semblent corrompus (span > 2× la durée).
+ */
+function areTimestampsCorrupted(segments: EditableSegment[], durationMs: number): boolean {
+  if (segments.length === 0 || durationMs <= 0) return false;
+  const lastEnd = Math.round(segments[segments.length - 1].end * 1000);
+  const firstStart = Math.round(segments[0].start * 1000);
+  const span = lastEnd - firstStart;
+  return span > durationMs * 2 || firstStart > durationMs;
+}
+
+/**
+ * Trouve l'index du segment correspondant au playhead.
+ * Utilise le matching temporel si possible, sinon un fallback proportionnel.
+ */
+function findPlayheadSegment(
+  segments: EditableSegment[],
+  playheadMs: number,
+  durationMs: number,
+): number | null {
+  if (segments.length === 0) return null;
+  // Temporal match
+  for (let i = 0; i < segments.length; i++) {
+    const sMs = Math.round(segments[i].start * 1000);
+    const eMs = Math.round(segments[i].end * 1000);
+    if (playheadMs >= sMs && playheadMs < eMs) return i;
+  }
+  // Proportional fallback for corrupted timestamps
+  if (durationMs > 0 && areTimestampsCorrupted(segments, durationMs)) {
+    const ratio = Math.max(0, Math.min(playheadMs / durationMs, 1));
+    return Math.min(Math.floor(ratio * segments.length), segments.length - 1);
+  }
+  return null;
+}
+
+function buildKaraokeWords(segments: EditableSegment[], durationMs: number): KaraokeWord[] {
+  const result: KaraokeWord[] = [];
+  if (segments.length === 0) return result;
+
+  const corrupted = durationMs > 0 && areTimestampsCorrupted(segments, durationMs);
+
+  // Count total words for proportional distribution when timestamps are bad
+  let totalWords = 0;
+  const segWordCounts: number[] = [];
+  for (const seg of segments) {
+    const count = seg.text.split(/\s+/).filter(Boolean).length;
+    segWordCounts.push(count);
+    totalWords += count;
+  }
+  if (totalWords === 0) return result;
+
+  let globalWordIdx = 0;
+  for (let si = 0; si < segments.length; si++) {
+    const seg = segments[si];
+    const words = seg.text.split(/\s+/).filter(Boolean);
+    if (words.length === 0) continue;
+
+    for (let wi = 0; wi < words.length; wi++) {
+      let wStart: number;
+      let wEnd: number;
+
+      if (corrupted) {
+        wStart = Math.round((globalWordIdx / totalWords) * durationMs);
+        wEnd = Math.round(((globalWordIdx + 1) / totalWords) * durationMs);
+      } else {
+        const segStartMs = Math.round(seg.start * 1000);
+        const segEndMs = Math.round(seg.end * 1000);
+        const segDurMs = segEndMs - segStartMs;
+        wStart = segStartMs + Math.round((wi / words.length) * segDurMs);
+        wEnd = segStartMs + Math.round(((wi + 1) / words.length) * segDurMs);
+      }
+
+      result.push({
+        segIdx: si,
+        wordIdx: wi,
+        word: words[wi],
+        speaker: seg.speaker ?? "—",
+        startMs: wStart,
+        endMs: wEnd,
+      });
+      globalWordIdx++;
+    }
+  }
+  return result;
+}
+
+function PlayerKaraokeEditBody({
+  segments,
+  playheadMs,
+  onSeekToMs,
+  followPlayhead,
+  durationSec,
+}: {
+  segments: EditableSegment[];
+  playheadMs: number;
+  onSeekToMs?: (ms: number) => void;
+  followPlayhead?: boolean;
+  durationSec?: number | null;
+}) {
+  const activeRef = useRef<HTMLButtonElement | null>(null);
+  const durationMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
+    ? durationSec * 1000
+    : 0;
+  const words = useMemo(() => buildKaraokeWords(segments, durationMs), [segments, durationMs]);
+
+  // Proportional fallback when temporal matching fails
+  const activeIdx = useMemo(() => {
+    for (let i = 0; i < words.length; i++) {
+      if (playheadMs >= words[i].startMs && playheadMs < words[i].endMs) return i;
+    }
+    // Fallback: proportional position when durationMs is known
+    if (durationMs > 0 && words.length > 0) {
+      const ratio = Math.max(0, Math.min(playheadMs / durationMs, 1));
+      return Math.min(Math.floor(ratio * words.length), words.length - 1);
+    }
+    return -1;
+  }, [words, playheadMs, durationMs]);
+
+  useEffect(() => {
+    if (!followPlayhead || activeIdx < 0) return;
+    const el = activeRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [followPlayhead, activeIdx]);
+
+  // Group words by segment for line-per-segment layout
+  const segGroups = useMemo(() => {
+    const groups: { segIdx: number; speaker: string; words: KaraokeWord[] }[] = [];
+    let cur: { segIdx: number; speaker: string; words: KaraokeWord[] } | null = null;
+    for (const w of words) {
+      if (!cur || cur.segIdx !== w.segIdx) {
+        cur = { segIdx: w.segIdx, speaker: w.speaker, words: [] };
+        groups.push(cur);
+      }
+      cur.words.push(w);
+    }
+    return groups;
+  }, [words]);
+
+  return (
+    <div className="player-karaoke player-karaoke--edit">
+      <p className="player-lanes-meta small mono">
+        Mode édition · {words.length} mots · {segments.length} segments
+      </p>
+      <div className="player-karaoke-edit-strip" role="list">
+        {segGroups.map((group, gi) => {
+          const prevGroup = gi > 0 ? segGroups[gi - 1] : null;
+          const showSpeaker = group.speaker !== prevGroup?.speaker;
+          const firstWordGlobalIdx = words.indexOf(group.words[0]);
+          const lastWordGlobalIdx = firstWordGlobalIdx + group.words.length - 1;
+          const lineActive = activeIdx >= firstWordGlobalIdx && activeIdx <= lastWordGlobalIdx;
+          return (
+            <div
+              key={group.segIdx}
+              className={`player-karaoke-edit-turn${lineActive ? " is-active" : ""}`}
+              role="listitem"
+            >
+              <span
+                className={`player-karaoke-edit-turn__speaker${showSpeaker ? "" : " player-karaoke-edit-turn__speaker--hidden"}`}
+              >
+                {group.speaker}
+              </span>
+              <span className="player-karaoke-edit-turn__words">
+                {group.words.map((w, wi) => {
+                  const globalIdx = firstWordGlobalIdx + wi;
+                  const active = globalIdx === activeIdx;
+                  return (
+                    <button
+                      key={wi}
+                      type="button"
+                      ref={active ? activeRef : undefined}
+                      className={`player-karaoke-chip${active ? " is-active" : ""}`}
+                      title={`${w.startMs}–${w.endMs} ms`}
+                      disabled={!onSeekToMs}
+                      onClick={() => onSeekToMs?.(w.startMs)}
+                    >
+                      {w.word}
+                    </button>
+                  );
+                })}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {words.length === 0 ? (
+        <p className="small">Aucun mot dans le transcript.</p>
+      ) : null}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Vues éditables — segments JSON (mode édition)
+// ---------------------------------------------------------------------------
+
+type EditViewProps = {
+  segments: EditableSegment[];
+  playheadMs: number;
+  activeSegmentIndex: number | null;
+  onSeekToMs?: (ms: number) => void;
+  onFocusSegment?: (index: number) => void;
+  onUpdateText?: (index: number, text: string) => void;
+  durationSec?: number | null;
+};
+
+function PlayerChatEditBody({
+  segments,
+  playheadMs,
+  activeSegmentIndex,
+  onFocusSegment,
+  onUpdateText,
+  durationSec,
+}: EditViewProps) {
+  const activeRef = useRef<HTMLDivElement | null>(null);
+  const durationMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
+    ? durationSec * 1000 : 0;
+  const playheadSegIdx = useMemo(
+    () => findPlayheadSegment(segments, playheadMs, durationMs),
+    [segments, playheadMs, durationMs],
+  );
+
+  const scrollTarget = playheadSegIdx ?? activeSegmentIndex;
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [scrollTarget]);
+
+  return (
+    <div className="player-chat player-chat--edit">
+      <p className="player-lanes-meta small mono">
+        Mode édition · {segments.length} segment{segments.length === 1 ? "" : "s"}
+      </p>
+      <div className="player-chat-thread" role="log">
+        {segments.map((seg, i) => {
+          const active = playheadSegIdx === i;
+          const focused = activeSegmentIndex === i;
+          return (
+            <div
+              key={i}
+              ref={active || focused ? activeRef : undefined}
+              className={`player-chat-bubble player-chat-bubble--edit ${active ? "is-active" : ""} ${focused ? "is-focused" : ""}`}
+              onClick={() => {
+                onFocusSegment?.(i);
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  onFocusSegment?.(i);
+                }
+              }}
+            >
+              <div className="player-chat-bubble-head">
+                <span className="player-chat-speaker">{seg.speaker ?? "—"}</span>
+                <span className="mono small player-chat-time">
+                  {formatClockSeconds(seg.start)}
+                </span>
+              </div>
+              {focused && onUpdateText ? (
+                <textarea
+                  className="player-chat-edit-textarea"
+                  value={seg.text}
+                  onChange={(e) => onUpdateText(i, e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  autoFocus
+                  rows={Math.max(2, Math.ceil(seg.text.length / 60))}
+                />
+              ) : (
+                <p className="player-chat-text">{seg.text?.trim() || "…"}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {segments.length === 0 ? <p className="small">Aucun segment dans le transcript.</p> : null}
+    </div>
+  );
+}
+
+function PlayerRythmoEditBody({
+  segments,
+  playheadMs,
+  activeSegmentIndex,
+  onFocusSegment,
+  onUpdateText,
+  followPlayhead,
+  durationSec,
+}: EditViewProps & { followPlayhead?: boolean }) {
+  const activeRef = useRef<HTMLDivElement | null>(null);
+  const durationMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
+    ? durationSec * 1000 : 0;
+  const playheadSegIdx = useMemo(
+    () => findPlayheadSegment(segments, playheadMs, durationMs),
+    [segments, playheadMs, durationMs],
+  );
+
+  const scrollTarget = playheadSegIdx ?? activeSegmentIndex;
+
+  useEffect(() => {
+    if (followPlayhead) {
+      activeRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [followPlayhead, scrollTarget]);
+
+  return (
+    <div className="player-rythmo player-rythmo--edit">
+      <p className="player-lanes-meta small mono">
+        Mode édition · {segments.length} segment{segments.length === 1 ? "" : "s"}
+      </p>
+      <div className="player-rythmo-strip" role="list">
+        {segments.map((seg, i) => {
+          const startMs = Math.round(seg.start * 1000);
+          const endMs = Math.round(seg.end * 1000);
+          const active = playheadSegIdx === i;
+          const focused = activeSegmentIndex === i;
+          const durMs = Math.max(1, endMs - startMs);
+          return (
+            <div
+              key={i}
+              ref={active ? activeRef : undefined}
+              className={`player-rythmo-band player-rythmo-band--edit ${active ? "is-active" : ""} ${focused ? "is-focused" : ""}`}
+              style={{ "--rythmo-dur-factor": Math.max(0.3, durMs / 5000) } as CSSProperties}
+              onClick={() => {
+                onFocusSegment?.(i);
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  onFocusSegment?.(i);
+                }
+              }}
+            >
+              <span className="player-rythmo-band-speaker small">{seg.speaker ?? "—"}</span>
+              {focused && onUpdateText ? (
+                <textarea
+                  className="player-rythmo-edit-textarea"
+                  value={seg.text}
+                  onChange={(e) => onUpdateText(i, e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  autoFocus
+                  rows={2}
+                />
+              ) : (
+                <span className="player-rythmo-band-text">{seg.text?.trim() || "…"}</span>
+              )}
+              <span className="player-rythmo-band-time mono small">
+                {formatClockSeconds(seg.start)}–{formatClockSeconds(seg.end)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {segments.length === 0 ? <p className="small">Aucun segment.</p> : null}
+    </div>
+  );
+}
+
+function PlayerWordsEditBody({
+  segments,
+  playheadMs,
+  activeSegmentIndex,
+  onFocusSegment,
+  onUpdateText,
+  durationSec,
+}: EditViewProps) {
+  const activeRef = useRef<HTMLDivElement | null>(null);
+  const durationMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
+    ? durationSec * 1000 : 0;
+  const playheadSegIdx = useMemo(
+    () => findPlayheadSegment(segments, playheadMs, durationMs),
+    [segments, playheadMs, durationMs],
+  );
+
+  const scrollTarget = playheadSegIdx ?? activeSegmentIndex;
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [scrollTarget]);
+
+  return (
+    <div className="player-words player-words--edit">
+      <p className="player-lanes-meta small mono">
+        Mode édition · mots par segment
+      </p>
+      {segments.map((seg, i) => {
+        const active = playheadSegIdx === i;
+        const focused = activeSegmentIndex === i;
+        const words = seg.text.split(/\s+/).filter(Boolean);
+        return (
+          <div
+            key={i}
+            ref={active || focused ? activeRef : undefined}
+            className={`player-words-segment ${active ? "is-active" : ""} ${focused ? "is-focused" : ""}`}
+            onClick={() => {
+              onFocusSegment?.(i);
+            }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                onFocusSegment?.(i);
+              }
+            }}
+          >
+            <span className="player-words-segment-head small mono">
+              {seg.speaker ?? "—"} · {formatClockSeconds(seg.start)}
+            </span>
+            {focused && onUpdateText ? (
+              <textarea
+                className="player-words-edit-textarea"
+                value={seg.text}
+                onChange={(e) => onUpdateText(i, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                autoFocus
+                rows={2}
+              />
+            ) : (
+              <ul className="player-word-list">
+                {words.map((w, wi) => (
+                  <li key={wi}>
+                    <span className="player-word-chip">{w}</span>
+                  </li>
+                ))}
+                {words.length === 0 ? <li className="small">…</li> : null}
+              </ul>
+            )}
+          </div>
+        );
+      })}
+      {segments.length === 0 ? <p className="small">Aucun segment.</p> : null}
     </div>
   );
 }

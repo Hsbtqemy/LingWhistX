@@ -12,6 +12,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 
+/// Intervalle minimal entre deux émissions `job-updated` pour les événements progress (WX-681).
+/// Les événements result/error/live_transcript ne sont pas throttlés.
+const PROGRESS_THROTTLE_MS: u64 = 100;
+
 use tauri::AppHandle;
 
 use crate::app_events::{emit_audio_quality, emit_job_log, emit_job_update};
@@ -19,7 +23,7 @@ use crate::db::persist_job;
 use crate::embedded_resources::resolve_worker_path;
 use crate::ffmpeg_tools::{prepend_path_env, resolve_ffmpeg_tools};
 use crate::models::{
-    Job, JobLogEvent, LiveTranscriptSegment, WhisperxOptions, WorkerLog, WorkerMessage,
+    Job, JobLogEvent, WhisperxOptions, WorkerLog, WorkerMessage,
     WorkerResult,
 };
 use crate::python_runtime::resolve_python_command;
@@ -110,6 +114,7 @@ pub(crate) fn set_job_error(
 }
 
 /// Traite un message `WorkerLog` (type `progress`).
+/// Les logs sont toujours émis ; les `job-updated` sont throttlés à `PROGRESS_THROTTLE_MS` (WX-681).
 fn handle_worker_log(
     app: &AppHandle,
     db_path: &Path,
@@ -117,6 +122,7 @@ fn handle_worker_log(
     job_id: &str,
     stream: &str,
     worker_log: WorkerLog,
+    last_progress_ms: &Arc<Mutex<u64>>,
 ) {
     let level = worker_log.level.unwrap_or_else(|| {
         if stream == "stderr" { "error".into() } else { "info".into() }
@@ -133,15 +139,36 @@ fn handle_worker_log(
     emit_job_log(app, &event);
 
     if let Some(progress) = worker_log.progress {
-        mutate_job(app, db_path, jobs, job_id, |job| {
-            if progress > job.progress {
-                job.progress = progress;
+        let now = now_ms();
+        let should_emit = {
+            let mut last = last_progress_ms.lock().unwrap_or_else(|e| e.into_inner());
+            if now.saturating_sub(*last) >= PROGRESS_THROTTLE_MS {
+                *last = now;
+                true
+            } else {
+                false
             }
-            job.message = worker_log.message;
-        });
+        };
+
+        if should_emit {
+            mutate_job(app, db_path, jobs, job_id, |job| {
+                if progress > job.progress {
+                    job.progress = progress;
+                }
+                job.message = worker_log.message;
+            });
+        } else {
+            mutate_job_without_emit(db_path, jobs, job_id, |job| {
+                if progress > job.progress {
+                    job.progress = progress;
+                }
+                job.message = worker_log.message;
+            });
+        }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn process_worker_line(
     app: &AppHandle,
     db_path: &Path,
@@ -150,12 +177,13 @@ fn process_worker_line(
     job_id: &str,
     stream: &str,
     line: &str,
+    last_progress_ms: &Arc<Mutex<u64>>,
 ) {
     // Protocole JSON-lines : toute ligne JSON commence par `{`.
     if line.starts_with('{') {
         match serde_json::from_str::<WorkerMessage>(line) {
             Ok(WorkerMessage::Progress(worker_log)) => {
-                handle_worker_log(app, db_path, jobs, job_id, stream, worker_log);
+                handle_worker_log(app, db_path, jobs, job_id, stream, worker_log, last_progress_ms);
                 return;
             }
             Ok(WorkerMessage::Result(result)) => {
@@ -395,11 +423,15 @@ fn run_worker(
 
     let result_holder = Arc::new(Mutex::new(None::<WorkerResult>));
 
+    // WX-681 — état partagé du throttle progress entre les threads stdout et stderr.
+    let last_progress_ms: Arc<Mutex<u64>> = Arc::new(Mutex::new(0u64));
+
     let stdout_app = app.clone();
     let stdout_db = db_path.to_path_buf();
     let stdout_jobs = jobs.clone();
     let stdout_result = result_holder.clone();
     let stdout_job_id = job_id.to_string();
+    let stdout_last_ms = last_progress_ms.clone();
 
     let stdout_handle = std::thread::spawn(move || {
         let reader = BufReader::new(stdout);
@@ -412,6 +444,7 @@ fn run_worker(
                 &stdout_job_id,
                 "stdout",
                 text.trim(),
+                &stdout_last_ms,
             );
         }
     });
@@ -423,6 +456,7 @@ fn run_worker(
     let stderr_job_id = job_id.to_string();
     let stderr_tail_store: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     let stderr_tail_for_thread = stderr_tail_store.clone();
+    let stderr_last_ms = last_progress_ms.clone();
 
     let stderr_handle = std::thread::spawn(move || {
         let reader = BufReader::new(stderr);
@@ -437,6 +471,7 @@ fn run_worker(
                 &stderr_job_id,
                 "stderr",
                 trimmed,
+                &stderr_last_ms,
             );
         }
     });

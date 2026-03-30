@@ -52,8 +52,32 @@ from whisperx.utils import (
     write_data_science_exports,
 )
 from whisperx.log_utils import get_logger
+from whisperx.pipeline_stages import (
+    build_asr_options as _build_asr_options,
+    build_temperature_sequence as _build_temperature_sequence,
+    postprocess_words,
+)
 
 logger = get_logger(__name__)
+
+
+def run_asr(
+    model: Any,
+    audio: Any,
+    *,
+    batch_size: int,
+    chunk_size: int,
+    print_progress: bool,
+    verbose: bool,
+) -> TranscriptionResult:
+    """Délègue à model.transcribe — point d'injection pour les tests sans GPU."""
+    return model.transcribe(
+        audio,
+        batch_size=batch_size,
+        chunk_size=chunk_size,
+        print_progress=print_progress,
+        verbose=verbose,
+    )
 
 
 def _transcribe_with_media_chunking(
@@ -72,8 +96,8 @@ def _transcribe_with_media_chunking(
 ) -> TranscriptionResult:
     def _single_pass(mode: str, duration_sec: float | None = None) -> TranscriptionResult:
         audio = load_audio(audio_path)
-        result = model.transcribe(
-            audio,
+        result = run_asr(
+            model, audio,
             batch_size=batch_size,
             chunk_size=chunk_size,
             print_progress=print_progress,
@@ -215,8 +239,8 @@ def _transcribe_with_media_chunking(
                             write_chunk_manifest(manifest_path, manifest)
                     continue
                 try:
-                    chunk_result = model.transcribe(
-                        chunk_audio,
+                    chunk_result = run_asr(
+                        model, chunk_audio,
                         batch_size=batch_size,
                         chunk_size=chunk_size,
                         print_progress=print_progress,
@@ -247,8 +271,8 @@ def _transcribe_with_media_chunking(
                     chunk_index,
                 )
                 continue
-            chunk_result = model.transcribe(
-                chunk_audio,
+            chunk_result = run_asr(
+                model, chunk_audio,
                 batch_size=batch_size,
                 chunk_size=chunk_size,
                 print_progress=print_progress,
@@ -980,32 +1004,31 @@ def transcribe_task(args: dict, parser: argparse.ArgumentParser):
         args["language"] if args["language"] is not None else "en"
     )  # default to loading english if not specified
 
-    temperature = args.pop("temperature")
-    if (increment := args.pop("temperature_increment_on_fallback")) is not None:
-        temperature = tuple(np.arange(temperature, 1.0 + 1e-6, increment))
-    else:
-        temperature = [temperature]
+    temperatures = _build_temperature_sequence(
+        args.pop("temperature"),
+        args.pop("temperature_increment_on_fallback"),
+    )
 
     faster_whisper_threads = 4
     if (threads := args.pop("threads")) > 0:
         torch.set_num_threads(threads)
         faster_whisper_threads = threads
 
-    asr_options = {
-        "beam_size": args.pop("beam_size"),
-        "best_of": args.pop("best_of"),
-        "patience": args.pop("patience"),
-        "length_penalty": args.pop("length_penalty"),
-        "temperatures": temperature,
-        "compression_ratio_threshold": args.pop("compression_ratio_threshold"),
-        "log_prob_threshold": args.pop("logprob_threshold"),
-        "no_speech_threshold": args.pop("no_speech_threshold"),
-        "condition_on_previous_text": args.pop("condition_on_previous_text"),
-        "initial_prompt": args.pop("initial_prompt"),
-        "hotwords": args.pop("hotwords"),
-        "suppress_tokens": [int(x) for x in args.pop("suppress_tokens").split(",")],
-        "suppress_numerals": args.pop("suppress_numerals"),
-    }
+    asr_options = _build_asr_options(
+        beam_size=args.pop("beam_size"),
+        best_of=args.pop("best_of"),
+        patience=args.pop("patience"),
+        length_penalty=args.pop("length_penalty"),
+        temperatures=temperatures,
+        compression_ratio_threshold=args.pop("compression_ratio_threshold"),
+        log_prob_threshold=args.pop("logprob_threshold"),
+        no_speech_threshold=args.pop("no_speech_threshold"),
+        condition_on_previous_text=args.pop("condition_on_previous_text"),
+        initial_prompt=args.pop("initial_prompt"),
+        hotwords=args.pop("hotwords"),
+        suppress_tokens_str=args.pop("suppress_tokens"),
+        suppress_numerals=args.pop("suppress_numerals"),
+    )
 
     writer = get_writer(output_format, output_dir)
     segment_resolution = args.pop("segment_resolution")

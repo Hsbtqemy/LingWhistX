@@ -163,7 +163,8 @@ def _compute_boundaries_from_silences(
 
 def _get_audio_duration(audio_path: str) -> float:
     """Retourne la durée du fichier audio via ffprobe."""
-    import subprocess, json as _json
+    import json as _json
+    import subprocess
     try:
         result = subprocess.run(
             ["ffprobe", "-hide_banner", "-loglevel", "error",

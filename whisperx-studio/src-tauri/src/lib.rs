@@ -6,6 +6,7 @@ pub(crate) use models::*;
 
 mod transcript;
 
+mod annotation_events_commands;
 mod annotation_import_commands;
 mod app_events;
 mod app_setup;
@@ -72,6 +73,7 @@ pub fn run() {
             transcript_commands::export_transcript,
             transcript_commands::export_run_timing_pack,
             report_commands::export_prosody_report,
+            report_commands::open_html_report_for_print,
             local_fs_commands::open_local_path,
             local_fs_commands::read_text_preview,
             local_fs_commands::list_directory_files,
@@ -84,6 +86,7 @@ pub fn run() {
             run_commands::clear_recent_runs,
             run_commands::remove_recent_run,
             run_commands::delete_run_directory,
+            run_commands::find_run_transcript_json,
             run_events::import_run_events,
             run_events::list_run_speakers,
             run_events::query_run_events_window,
@@ -97,7 +100,8 @@ pub fn run() {
             user_profiles_commands::read_user_profiles,
             user_profiles_commands::save_user_profile,
             user_profiles_commands::delete_user_profile,
-            annotation_import_commands::import_annotation_file
+            annotation_import_commands::import_annotation_file,
+            annotation_events_commands::write_annotation_tiers_to_events
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

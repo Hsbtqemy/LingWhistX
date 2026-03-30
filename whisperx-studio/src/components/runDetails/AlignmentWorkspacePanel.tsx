@@ -1,4 +1,13 @@
-import { useEffect, useMemo, useState, type MouseEvent, type RefObject, type WheelEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type RefObject,
+  type WheelEvent,
+} from "react";
 import { runInTransition } from "../../whisperxOptionsTransitions";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
@@ -177,6 +186,39 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
   } = props;
 
   const [wx623Hint, setWx623Hint] = useState<string | null>(null);
+
+  const waveformAriaLabel = useMemo(() => {
+    if (!waveform) return "Ondeforme audio — aucune donnée chargée.";
+    const pos = formatClockSeconds(mediaCurrentSec);
+    const dur = formatClockSeconds(waveform.durationSec);
+    const zoom = waveformZoom.toFixed(2);
+    return `Ondeforme audio — position ${pos} / ${dur}, zoom ×${zoom}. Espace : lecture/pause. Flèches : déplacer de 1s (Maj : 5s).`;
+  }, [mediaCurrentSec, waveform, waveformZoom]);
+
+  const onWaveformKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLCanvasElement>) => {
+      const step = event.shiftKey ? 5 : 1;
+      switch (event.key) {
+        case " ":
+          event.preventDefault();
+          void toggleMediaPlayback();
+          break;
+        case "ArrowLeft":
+          event.preventDefault();
+          seekMedia(Math.max(0, mediaCurrentSec - step));
+          break;
+        case "ArrowRight": {
+          const dur = waveform?.durationSec ?? mediaCurrentSec;
+          event.preventDefault();
+          seekMedia(Math.min(dur, mediaCurrentSec + step));
+          break;
+        }
+        default:
+          break;
+      }
+    },
+    [mediaCurrentSec, seekMedia, toggleMediaPlayback, waveform],
+  );
 
   const pauseCsvPaths = useMemo(
     () => selectedJob.outputFiles.filter((p) => p.toLowerCase().endsWith(".pauses.csv")),
@@ -772,11 +814,15 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                   ref={waveformCanvasRef}
                   className="waveform-canvas"
                   style={{ cursor: waveformCursorStyle }}
+                  role="img"
+                  aria-label={waveformAriaLabel}
+                  tabIndex={0}
                   onMouseDown={onWaveformMouseDown}
                   onMouseMove={onWaveformMouseMove}
                   onMouseUp={onWaveformMouseUp}
                   onMouseLeave={onWaveformMouseLeave}
                   onWheel={onWaveformWheel}
+                  onKeyDown={onWaveformKeyDown}
                 />
                 <p className="small">
                   Durée : {formatClockSeconds(waveform.durationSec)} | Lecture :{" "}

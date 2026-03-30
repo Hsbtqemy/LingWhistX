@@ -5608,48 +5608,13 @@ button.player-artifacts-strip__key {
   font-weight: 600;
 }
 
-.player-speed {
-  color: var(--lx-text-2);
-}
-
-.player-volume {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 112px;
-  min-width: 0;
-  color: var(--lx-text-2);
-}
-
-.player-volume-label {
-  flex-shrink: 0;
-  font-size: 0.68rem;
-  font-weight: 600;
-}
-
 .player-volume-range {
   flex: 1;
   min-width: 0;
+  max-width: 80px;
   accent-color: var(--lx-accent);
 }
 
-button.ghost.small.player-mute-on {
-  border-color: color-mix(in srgb, var(--lx-accent) 40%, var(--lx-border));
-  background: color-mix(in srgb, var(--lx-accent) 14%, var(--lx-surface-muted));
-  color: color-mix(in srgb, var(--lx-accent) 38%, var(--lx-text-0));
-}
-
-button.ghost.small.player-follow-on {
-  border-color: color-mix(in srgb, var(--lx-accent) 40%, var(--lx-border));
-  background: color-mix(in srgb, var(--lx-accent) 14%, var(--lx-surface-muted));
-  color: color-mix(in srgb, var(--lx-accent) 38%, var(--lx-text-0));
-}
-
-button.ghost.small.player-video-fs-on {
-  border-color: color-mix(in srgb, var(--lx-accent) 40%, var(--lx-border));
-  background: color-mix(in srgb, var(--lx-accent) 14%, var(--lx-surface-muted));
-  color: color-mix(in srgb, var(--lx-accent) 38%, var(--lx-text-0));
-}
 
 .player-qc-badge {
   padding: 4px 8px;
@@ -5763,6 +5728,15 @@ button.ghost.small.player-video-fs-on {
   background: color-mix(in srgb, var(--lx-surface-1) 92%, var(--lx-accent) 5%);
 }
 
+.player-viewport--edit {
+  gap: 6px;
+}
+
+.player-viewport--edit .player-events-panel {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 .player-media-stage {
   position: relative;
   display: flex;
@@ -5774,6 +5748,19 @@ button.ghost.small.player-video-fs-on {
   border: 1px dashed color-mix(in srgb, var(--lx-accent) 32%, var(--lx-border));
   background: color-mix(in srgb, var(--lx-accent) 9%, var(--lx-surface-muted));
   overflow: hidden;
+}
+
+.player-media-stage--compact {
+  min-height: 0;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+}
+
+.player-media-stage--compact .player-media-transport {
+  border-radius: 8px;
+  border: 1px solid var(--lx-border);
+  background: var(--lx-surface-muted);
 }
 
 .player-media-stage__surface {
@@ -5868,28 +5855,97 @@ button.ghost.small.player-video-fs-on {
 
 .player-media-transport__primary {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   min-width: 0;
 }
 
-.player-media-transport__seek-group {
+/* ── Transport icon buttons ── */
+
+.player-transport-btn {
   display: inline-flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--lx-text-1);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.player-transport-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--lx-accent) 12%, var(--lx-surface-muted));
+  border-color: color-mix(in srgb, var(--lx-accent) 22%, var(--lx-border));
+  color: var(--lx-text-0);
+}
+
+.player-transport-btn:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.player-transport-btn--play {
+  padding: 6px 10px;
+  margin: 0 2px;
+  border-radius: 50%;
+  border: 1.5px solid var(--lx-border);
+  background: var(--lx-surface-1);
+}
+
+.player-transport-btn--play:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--lx-accent) 18%, var(--lx-surface-1));
+  border-color: var(--lx-accent);
+  color: var(--lx-accent);
+}
+
+.player-transport-btn--active {
+  border-color: color-mix(in srgb, var(--lx-accent) 45%, var(--lx-border));
+  background: color-mix(in srgb, var(--lx-accent) 14%, var(--lx-surface-muted));
+  color: var(--lx-accent);
+}
+
+.player-transport-btn--sm {
+  padding: 3px 5px;
+  font-size: 11px;
+}
+
+.player-transport-btn__label {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+/* ── Speed group ── */
+
+.player-speed-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  border: 1px solid var(--lx-border);
+  border-radius: 6px;
+  background: var(--lx-surface-muted);
+  padding: 1px;
+}
+
+.player-speed-value {
+  min-width: 3.2em;
+  text-align: center;
+  font-weight: 600;
+  padding: 0 2px;
+}
+
+/* ── Volume group ── */
+
+.player-volume-group {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-}
-
-.player-media-transport__play {
-  font-weight: 800;
-  min-width: 5.5rem;
-}
-
-.player-media-transport__play--on {
-  border-color: color-mix(in srgb, var(--lx-accent) 45%, var(--lx-border));
-  background: color-mix(in srgb, var(--lx-accent) 16%, var(--lx-surface-muted));
-  color: color-mix(in srgb, var(--lx-accent) 40%, var(--lx-text-0));
+  cursor: default;
 }
 
 .player-media-transport__time {
@@ -6288,6 +6344,20 @@ button.player-lanes-turn:disabled {
 
 .player-lanes-turn-time {
   font-size: 0.68rem;
+}
+
+.player-lanes-turn-text {
+  display: block;
+  margin-top: 3px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--lx-text-0);
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 
 .player-chat-thread {
@@ -6755,6 +6825,54 @@ button.player-karaoke-chip:disabled {
   opacity: 0.7;
 }
 
+/* Karaoké éditable — une ligne par segment, regroupée par locuteur */
+
+.player-karaoke-edit-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.player-karaoke-edit-turn {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+
+.player-karaoke-edit-turn.is-active {
+  background: color-mix(in srgb, var(--lx-accent) 10%, var(--lx-surface-muted));
+}
+
+.player-karaoke-edit-turn__speaker {
+  flex: 0 0 auto;
+  min-width: 7em;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--lx-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-karaoke-edit-turn__speaker--hidden {
+  visibility: hidden;
+}
+
+.player-karaoke-edit-turn__words {
+  flex: 1 1 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 5px;
+  align-items: baseline;
+  min-width: 0;
+}
+
 .player-coming-soon {
   padding: 16px 14px;
   border-radius: 10px;
@@ -7116,4 +7234,208 @@ button.player-karaoke-chip:disabled {
 
 .annotation-import-warnings__item::before {
   content: "⚠ ";
+}
+
+/* ---------------------------------------------------------------------------
+   Player — mode édition inline
+   --------------------------------------------------------------------------- */
+
+.player-edit-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--lx-surface-muted);
+  border: 1px solid var(--lx-border);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.player-edit-toolbar-label {
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.player-edit-toolbar-dirty {
+  color: var(--lx-warning, #e6a817);
+}
+
+.player-edit-toolbar-status {
+  color: var(--lx-text-2);
+  margin-left: auto;
+}
+
+.player-edit-toolbar-error {
+  color: var(--lx-danger);
+  margin-left: auto;
+}
+
+.player-edit-dirty-badge {
+  display: block;
+  margin-top: 2px;
+  color: var(--lx-warning, #e6a817);
+  font-weight: 500;
+}
+
+/* ── Import annotation dans le Player ── */
+
+.player-import-annot-btn {
+  margin-top: 4px;
+}
+
+.player-import-annot-error {
+  color: var(--lx-danger);
+  margin: 4px 0 0;
+}
+
+.player-import-annot-picker {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--lx-border);
+  background: var(--lx-surface-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.player-import-annot-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.player-import-annot-list label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.player-import-annot-warnings {
+  list-style: disc inside;
+  margin: 0;
+  padding: 0;
+  color: var(--lx-warning);
+}
+
+.player-import-annot-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.player-chat-bubble--edit {
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.player-chat-bubble--edit.is-focused {
+  border-color: var(--lx-accent);
+  background: color-mix(in srgb, var(--lx-accent) 10%, var(--lx-surface-1));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lx-accent) 20%, transparent);
+}
+
+.player-chat-edit-textarea,
+.player-rythmo-edit-textarea,
+.player-words-edit-textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--lx-accent);
+  border-radius: 6px;
+  background: var(--lx-surface-0);
+  color: var(--lx-text-0);
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  resize: vertical;
+  outline: none;
+}
+
+.player-chat-edit-textarea:focus,
+.player-rythmo-edit-textarea:focus,
+.player-words-edit-textarea:focus {
+  border-color: var(--lx-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lx-accent) 30%, transparent);
+}
+
+.player-rythmo--edit .player-rythmo-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+}
+
+.player-rythmo-band--edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--lx-border);
+  background: color-mix(in srgb, var(--lx-surface-1) 94%, var(--lx-accent) 4%);
+  cursor: pointer;
+}
+
+.player-rythmo-band--edit.is-active {
+  border-color: color-mix(in srgb, var(--lx-accent) 55%, var(--lx-border));
+  background: color-mix(in srgb, var(--lx-accent) 14%, var(--lx-surface-muted));
+}
+
+.player-rythmo-band--edit.is-focused {
+  border-color: var(--lx-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lx-accent) 20%, transparent);
+}
+
+.player-rythmo-band-speaker {
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--lx-text-2);
+}
+
+.player-rythmo-band-text {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--lx-text-0);
+}
+
+.player-rythmo-band-time {
+  font-size: 0.72rem;
+  color: var(--lx-text-2);
+}
+
+.player-words--edit {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.player-words-segment {
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--lx-border);
+  background: var(--lx-surface-1);
+  cursor: pointer;
+}
+
+.player-words-segment.is-active {
+  border-color: color-mix(in srgb, var(--lx-accent) 55%, var(--lx-border));
+  background: color-mix(in srgb, var(--lx-accent) 14%, var(--lx-surface-muted));
+}
+
+.player-words-segment.is-focused {
+  border-color: var(--lx-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lx-accent) 20%, transparent);
+}
+
+.player-words-segment-head {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: var(--lx-text-2);
 }

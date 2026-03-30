@@ -3,7 +3,6 @@
 //! Le Rust délègue le parsing à Python (`python -m whisperx import_annotation <path>`)
 //! et retransmet le JSON résultant au frontend.
 
-use std::path::Path;
 use std::process::Command;
 
 use serde::{Deserialize, Serialize};

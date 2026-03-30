@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { runInTransition } from "../../whisperxOptionsTransitions";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import {
   clampNumber,
   fileBasename,
@@ -11,13 +12,16 @@ import {
 } from "../../appUtils";
 import { useWaveformCanvas } from "../../hooks/useWaveformCanvas";
 import { useWaveformWorkspace } from "../../hooks/useWaveformWorkspace";
+import { useTranscriptEditor } from "../../hooks/useTranscriptEditor";
 import { usePlayerPlayback } from "../../hooks/usePlayerPlayback";
 import { usePlayerKeyboard, type UsePlayerKeyboardOptions } from "../../hooks/usePlayerKeyboard";
 import { usePlayerRunWindow } from "../../hooks/usePlayerRunWindow";
 import { derivePlayerAlerts } from "../../player/derivePlayerAlerts";
 import type { PlayerDerivedAlertKind } from "../../player/derivePlayerAlerts";
 import type {
+  AnnotationTier,
   ExportRunTimingPackResponse,
+  ImportAnnotationResult,
   RecomputePlayerAlertsResponse,
   RecomputePlayerAlertsStats,
   StudioView,
@@ -51,6 +55,10 @@ export type PlayerWorkspaceSectionProps = {
   runLabel?: string | null;
   onBack: (view: StudioView) => void;
   importMedia?: PlayerWorkspaceSectionImportMediaProps;
+  /** WX-696 — Incrémenter pour forcer un rechargement de la fenêtre events (annotation tiers). */
+  eventsRefreshEpoch?: number;
+  /** Ouvre directement le Player en mode édition (depuis le bouton Vérification → Player). */
+  initialEditMode?: boolean;
 };
 
 type AlertListFilter = "all" | PlayerDerivedAlertKind;
@@ -63,6 +71,8 @@ export function PlayerWorkspaceSection({
   runLabel,
   onBack,
   importMedia,
+  eventsRefreshEpoch = 0,
+  initialEditMode = false,
 }: PlayerWorkspaceSectionProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [viewportMode, setViewportMode] = useState<PlayerViewportMode>("lanes");
@@ -133,7 +143,133 @@ export function PlayerWorkspaceSection({
     playerMediaRef: mediaRef,
   });
 
-  useWaveformCanvas(wf, [], null, null, null);
+  const [editMode, setEditMode] = useState(initialEditMode);
+
+  const noopRefreshJobs = useCallback(async () => {}, []);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const noopPreviewOutput = useCallback(async (_path: string) => {}, []);
+
+  const te = useTranscriptEditor({
+    wf,
+    refreshJobs: noopRefreshJobs,
+    previewOutput: noopPreviewOutput,
+    selectedJobId: runDir ? `player:${runDir}` : "player-idle",
+  });
+
+  useWaveformCanvas(
+    wf,
+    editMode ? te.editorSegments : [],
+    editMode ? te.focusedSegmentIndex : null,
+    editMode ? te.hoveredSegmentEdge : null,
+    editMode ? te.dragSegmentState : null,
+  );
+
+  const [transcriptJsonPath, setTranscriptJsonPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTranscriptJsonPath(null);
+    if (!runDir) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const path = await invoke<string | null>("find_run_transcript_json", { runDir });
+        if (!cancelled) setTranscriptJsonPath(path);
+      } catch {
+        if (!cancelled) setTranscriptJsonPath(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [runDir]);
+
+  const transcriptLoadedForRef = useRef<string | null>(null);
+  const loadTranscriptEditorRef = useRef(te.loadTranscriptEditor);
+  loadTranscriptEditorRef.current = te.loadTranscriptEditor;
+
+  useEffect(() => {
+    if (!transcriptJsonPath) return;
+    if (!editMode) {
+      setEditMode(true);
+      return;
+    }
+    if (transcriptLoadedForRef.current === transcriptJsonPath) return;
+    transcriptLoadedForRef.current = transcriptJsonPath;
+    void loadTranscriptEditorRef.current(transcriptJsonPath);
+  }, [editMode, transcriptJsonPath]);
+
+  useEffect(() => {
+    setEditMode(initialEditMode);
+    transcriptLoadedForRef.current = null;
+  }, [runDir, initialEditMode]);
+
+  // ── Annotation import (EAF / TextGrid) directly in the Player ──
+  const [annotImporting, setAnnotImporting] = useState(false);
+  const [annotError, setAnnotError] = useState<string | null>(null);
+  const [annotPending, setAnnotPending] = useState<ImportAnnotationResult | null>(null);
+  const [annotSelectedTiers, setAnnotSelectedTiers] = useState<Set<string>>(new Set());
+
+  const handleAnnotImport = useCallback(async () => {
+    setAnnotError(null);
+    const selected = await openDialog({
+      title: "Importer une annotation (.eaf / .TextGrid)",
+      filters: [{ name: "Annotation", extensions: ["eaf", "TextGrid"] }],
+      multiple: false,
+      directory: false,
+    });
+    if (!selected || typeof selected !== "string") return;
+
+    setAnnotImporting(true);
+    try {
+      const result = await invoke<ImportAnnotationResult>("import_annotation_file", { path: selected });
+      if (result.tiers.length === 0) {
+        setAnnotError("Aucun tier trouvé dans ce fichier.");
+        return;
+      }
+      if (result.tiers.length === 1) {
+        const tier = result.tiers[0];
+        te.loadAnnotationTier(tier.tierId, tier.segments);
+        setEditMode(true);
+        if (runDir) {
+          void invoke("write_annotation_tiers_to_events", {
+            runDir,
+            tiers: [{ tierId: tier.tierId, segments: tier.segments }],
+          }).catch(() => {});
+        }
+      } else {
+        setAnnotPending(result);
+        setAnnotSelectedTiers(new Set(result.tiers.map((t) => t.tierId)));
+      }
+    } catch (err) {
+      setAnnotError(String(err));
+    } finally {
+      setAnnotImporting(false);
+    }
+  }, [te, runDir]);
+
+  const handleAnnotConfirm = useCallback(() => {
+    if (!annotPending) return;
+    const toLoad = annotPending.tiers.filter((t) => annotSelectedTiers.has(t.tierId));
+    for (const tier of toLoad) {
+      te.loadAnnotationTier(tier.tierId, tier.segments);
+    }
+    setEditMode(true);
+    if (runDir && toLoad.length > 0) {
+      void invoke("write_annotation_tiers_to_events", {
+        runDir,
+        tiers: toLoad.map((t) => ({ tierId: t.tierId, segments: t.segments })),
+      }).catch(() => {});
+    }
+    setAnnotPending(null);
+    setAnnotSelectedTiers(new Set());
+  }, [annotPending, annotSelectedTiers, te, runDir]);
+
+  const toggleAnnotTier = useCallback((tierId: string) => {
+    setAnnotSelectedTiers((prev) => {
+      const next = new Set(prev);
+      if (next.has(tierId)) next.delete(tierId);
+      else next.add(tierId);
+      return next;
+    });
+  }, []);
 
   const pauseCsvPaths = useMemo(() => {
     if (!runDir || !summary?.artifactKeys?.length) {
@@ -174,6 +310,7 @@ export function PlayerWorkspaceSection({
     enabled: runWindowEnabled,
     queryContract,
     speakersFilter: speakerSolo ? [speakerSolo] : null,
+    refreshEpoch: eventsRefreshEpoch,
   });
 
   const derivedAlertsFromTs = useMemo(
@@ -223,6 +360,41 @@ export function PlayerWorkspaceSection({
   }, [derivedAlerts, alertListFilter]);
 
   const playheadMs = Math.round(currentTimeSec * 1000);
+
+  const durationMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
+    ? durationSec * 1000
+    : 0;
+
+  useEffect(() => {
+    if (!editMode || !te.editorSegments.length) return;
+    const segs = te.editorSegments;
+
+    // Try temporal matching first
+    let best: number | null = null;
+    for (let i = 0; i < segs.length; i++) {
+      const sMs = Math.round(segs[i].start * 1000);
+      const eMs = Math.round(segs[i].end * 1000);
+      if (playheadMs >= sMs && playheadMs < eMs) {
+        best = i;
+        break;
+      }
+    }
+
+    // Fallback: proportional mapping when timestamps are corrupted
+    if (best === null && durationMs > 0) {
+      const lastEnd = Math.round(segs[segs.length - 1].end * 1000);
+      const firstStart = Math.round(segs[0].start * 1000);
+      const span = lastEnd - firstStart;
+      if (span > durationMs * 2 || firstStart > durationMs) {
+        const ratio = clampNumber(playheadMs / durationMs, 0, 1);
+        best = Math.min(Math.floor(ratio * segs.length), segs.length - 1);
+      }
+    }
+
+    if (best !== null && best !== te.activeSegmentIndex) {
+      te.setActiveSegmentIndex(best);
+    }
+  }, [editMode, playheadMs, durationMs, te.editorSegments, te.activeSegmentIndex, te.setActiveSegmentIndex]);
 
   const qcSummary = useMemo(() => {
     const parts: string[] = [];
@@ -349,10 +521,10 @@ export function PlayerWorkspaceSection({
   }, [runDir, runWindowEnabled]);
 
   useEffect(() => {
-    if (!wordsWindowEnabled && viewportMode === "words") {
+    if (!wordsWindowEnabled && viewportMode === "words" && !editMode) {
       setViewportMode("lanes");
     }
-  }, [wordsWindowEnabled, viewportMode]);
+  }, [wordsWindowEnabled, viewportMode, editMode]);
 
   const followScrollKey = Math.floor(playheadMs / 250);
   const followResyncKey = `${viewportMode}-${runWindow.slice?.t0Ms ?? 0}-${runWindow.slice?.t1Ms ?? 0}`;
@@ -547,7 +719,33 @@ export function PlayerWorkspaceSection({
     ],
   );
 
-  const onKeyDown = usePlayerKeyboard(keyboardOptions);
+  const onPlayerKeyDown = usePlayerKeyboard(keyboardOptions);
+
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (editMode) {
+        if (e.altKey && !e.ctrlKey && !e.metaKey) {
+          if (e.key === "z" && !e.shiftKey) {
+            e.preventDefault();
+            te.undoEditorChange();
+            return;
+          }
+          if (e.key === "z" && e.shiftKey) {
+            e.preventDefault();
+            te.redoEditorChange();
+            return;
+          }
+          if (e.key === "s") {
+            e.preventDefault();
+            void te.saveEditedJson(true);
+            return;
+          }
+        }
+      }
+      onPlayerKeyDown(e as React.KeyboardEvent<HTMLDivElement>);
+    },
+    [editMode, te, onPlayerKeyDown],
+  );
 
   useEffect(() => {
     rootRef.current?.focus();
@@ -738,6 +936,81 @@ export function PlayerWorkspaceSection({
               Fenêtre mots (30s) + requête words
             </label>
             <p className="small mono player-view-mode-hint">⌃1 · ⌃2 · ⌃3 · ⌃4 · ⌃5 · ⌃6 · ⌃7</p>
+            <h4 className="player-panel-title">Édition</h4>
+            {transcriptJsonPath ? (
+              <label className="player-words-toggle small">
+                <input
+                  type="checkbox"
+                  checked={editMode}
+                  onChange={(e) => runInTransition(() => setEditMode(e.target.checked))}
+                />
+                Mode édition
+              </label>
+            ) : null}
+            {editMode && te.editorDirty ? (
+              <span className="player-edit-dirty-badge small">Modifications non sauvegardées</span>
+            ) : null}
+            <button
+              type="button"
+              className="player-import-annot-btn ghost small"
+              disabled={annotImporting}
+              onClick={() => void handleAnnotImport()}
+              title="Importer un fichier EAF (ELAN) ou TextGrid (Praat)"
+            >
+              {annotImporting ? "Import…" : "Importer .eaf / .TextGrid"}
+            </button>
+            {annotError ? (
+              <p className="player-import-annot-error small">{annotError}</p>
+            ) : null}
+            {annotPending ? (
+              <div className="player-import-annot-picker">
+                <p className="small">
+                  {annotPending.tiers.length} tiers — sélectionner :
+                </p>
+                <ul className="player-import-annot-list">
+                  {annotPending.tiers.map((tier: AnnotationTier) => (
+                    <li key={tier.tierId}>
+                      <label className="small">
+                        <input
+                          type="checkbox"
+                          checked={annotSelectedTiers.has(tier.tierId)}
+                          onChange={() => toggleAnnotTier(tier.tierId)}
+                        />
+                        {tier.tierId}{" "}
+                        <span className="mono">({tier.segments.length})</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+                {annotPending.warnings.length > 0 ? (
+                  <ul className="player-import-annot-warnings small">
+                    {annotPending.warnings.map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                <div className="player-import-annot-actions">
+                  <button
+                    type="button"
+                    className="primary small"
+                    disabled={annotSelectedTiers.size === 0}
+                    onClick={handleAnnotConfirm}
+                  >
+                    Charger {annotSelectedTiers.size} tier(s)
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost small"
+                    onClick={() => {
+                      setAnnotPending(null);
+                      setAnnotSelectedTiers(new Set());
+                    }}
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <h4 className="player-panel-title">Filtres</h4>
             <p className="small">
               Locuteur : <span className="mono">{speakerSolo ?? "tous"}</span>
@@ -759,55 +1032,66 @@ export function PlayerWorkspaceSection({
               onCommit={commitJumpToTime}
             />
           </aside>
-          <main className="player-viewport">
-            <div className="player-media-stage">
-              <div
-                className={`player-media-stage__surface${mediaSrc ? " player-media-stage__surface--interactive" : ""}`}
-                onClick={() => {
-                  if (!transportDisabled) {
-                    void togglePlayPause();
-                  }
-                }}
-                role="presentation"
-              >
-                {mediaSrc && isVideo ? (
-                  <video
-                    ref={mediaRef as RefObject<HTMLVideoElement | null>}
-                    className="player-viewport-video"
-                    src={mediaSrc}
-                    preload="metadata"
-                    playsInline
-                    controls={false}
-                    {...mediaHandlers}
-                  />
-                ) : null}
-                {mediaSrc && !isVideo ? (
-                  <>
-                    <div className="player-audio-surface" aria-hidden>
-                      <span className="player-audio-surface__glyph" />
-                      <p className="player-audio-surface__label mono">
-                        {mediaPath ? fileBasename(mediaPath) : "Audio"}
-                      </p>
-                      <p className="player-audio-surface__hint small">
-                        Clic pour lecture / pause — contrôles sous la piste
-                      </p>
-                    </div>
-                    <audio
-                      ref={mediaRef as RefObject<HTMLAudioElement | null>}
-                      className="player-viewport-audio"
+          <main className={`player-viewport${editMode ? " player-viewport--edit" : ""}`}>
+            <div className={`player-media-stage${editMode ? " player-media-stage--compact" : ""}`}>
+              {editMode && mediaSrc && !isVideo ? (
+                <audio
+                  ref={mediaRef as RefObject<HTMLAudioElement | null>}
+                  className="player-viewport-audio"
+                  src={mediaSrc}
+                  preload="metadata"
+                  muted={muted || wf.webAudioMode}
+                  {...mediaHandlers}
+                />
+              ) : (
+                <div
+                  className={`player-media-stage__surface${mediaSrc ? " player-media-stage__surface--interactive" : ""}`}
+                  onClick={() => {
+                    if (!transportDisabled) {
+                      void togglePlayPause();
+                    }
+                  }}
+                  role="presentation"
+                >
+                  {mediaSrc && isVideo ? (
+                    <video
+                      ref={mediaRef as RefObject<HTMLVideoElement | null>}
+                      className="player-viewport-video"
                       src={mediaSrc}
                       preload="metadata"
-                      muted={muted || wf.webAudioMode}
+                      playsInline
+                      controls={false}
                       {...mediaHandlers}
                     />
-                  </>
-                ) : null}
-                {!mediaSrc ? (
-                  <p className="player-viewport-placeholder">
-                    <strong>Média</strong> — aucune source après lecture du manifest.
-                  </p>
-                ) : null}
-              </div>
+                  ) : null}
+                  {mediaSrc && !isVideo ? (
+                    <>
+                      <div className="player-audio-surface" aria-hidden>
+                        <span className="player-audio-surface__glyph" />
+                        <p className="player-audio-surface__label mono">
+                          {mediaPath ? fileBasename(mediaPath) : "Audio"}
+                        </p>
+                        <p className="player-audio-surface__hint small">
+                          Clic pour lecture / pause — contrôles sous la piste
+                        </p>
+                      </div>
+                      <audio
+                        ref={mediaRef as RefObject<HTMLAudioElement | null>}
+                        className="player-viewport-audio"
+                        src={mediaSrc}
+                        preload="metadata"
+                        muted={muted || wf.webAudioMode}
+                        {...mediaHandlers}
+                      />
+                    </>
+                  ) : null}
+                  {!mediaSrc ? (
+                    <p className="player-viewport-placeholder">
+                      <strong>Média</strong> — aucune source après lecture du manifest.
+                    </p>
+                  ) : null}
+                </div>
+              )}
               {mediaSrc ? (
                 <PlayerMediaTransport
                   disabled={transportDisabled}
@@ -840,7 +1124,7 @@ export function PlayerWorkspaceSection({
                   onCopyPlayhead={copyPlayheadToClipboard}
                 />
               ) : null}
-              {mediaSrc && mediaPath && runDir ? (
+              {mediaSrc && mediaPath && runDir && !editMode ? (
                 <PlayerWaveformPanel
                   wf={wf}
                   mediaPath={mediaPath}
@@ -849,6 +1133,61 @@ export function PlayerWorkspaceSection({
                 />
               ) : null}
             </div>
+            {editMode ? (
+              <div className="player-edit-toolbar" role="toolbar" aria-label="Outils d'édition">
+                <span className="player-edit-toolbar-label small">
+                  Édition
+                  {te.editorDirty ? (
+                    <span className="player-edit-toolbar-dirty" title="Modifications non sauvegardées"> ●</span>
+                  ) : null}
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!te.canUndoEditor}
+                  onClick={te.undoEditorChange}
+                  title="Annuler (Alt+Z)"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!te.canRedoEditor}
+                  onClick={te.redoEditorChange}
+                  title="Rétablir (Alt+Shift+Z)"
+                >
+                  Rétablir
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  disabled={!te.editorDirty || te.isEditorSaving}
+                  loading={te.isEditorSaving}
+                  onClick={() => void te.saveEditedJson(true)}
+                  title="Sauvegarder (Alt+S)"
+                >
+                  Sauvegarder
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setEditMode(false)}
+                >
+                  Quitter l'édition
+                </Button>
+                {te.editorStatus ? (
+                  <span className="player-edit-toolbar-status small">{te.editorStatus}</span>
+                ) : null}
+                {te.editorError ? (
+                  <span className="player-edit-toolbar-error small">{te.editorError}</span>
+                ) : null}
+              </div>
+            ) : null}
             <div
               ref={eventsPanelRef}
               className="player-events-panel"
@@ -885,6 +1224,13 @@ export function PlayerWorkspaceSection({
                 loopAsec={loopAsec}
                 loopBsec={loopBsec}
                 onSetLoopRange={setLoopRange}
+                editMode={editMode}
+                editorSegments={te.editorSegments}
+                activeSegmentIndex={te.activeSegmentIndex}
+                setActiveSegmentIndex={te.setActiveSegmentIndex}
+                updateEditorSegmentText={te.updateEditorSegmentText}
+                updateEditorSegmentBoundary={te.updateEditorSegmentBoundary}
+                focusSegment={te.focusSegment}
               />
             </div>
             {runDir ? <p className="small mono player-viewport-path">{runDir}</p> : null}

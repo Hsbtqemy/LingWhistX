@@ -42,6 +42,11 @@ export type UsePlayerRunWindowOptions = {
   queryContract?: ViewportQueryContract;
   /** Filtre SQLite : un ou plusieurs `speaker` exacts ; `null` = tous. */
   speakersFilter?: string[] | null;
+  /**
+   * WX-696 — Incrémenter pour forcer un rechargement immédiat de la fenêtre
+   * (ex. après écriture de turns annotation dans events.sqlite).
+   */
+  refreshEpoch?: number;
 };
 
 export type UsePlayerRunWindowResult = {
@@ -71,6 +76,7 @@ export function usePlayerRunWindow({
   queryPreset = "standard",
   queryContract,
   speakersFilter = null,
+  refreshEpoch = 0,
 }: UsePlayerRunWindowOptions): UsePlayerRunWindowResult {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -193,8 +199,9 @@ export function usePlayerRunWindow({
       setLoading(false);
     };
     // contractLayersKey encode le contenu des layers ; resolvedPreset encode le preset résolu.
+    // refreshEpoch force un rechargement immédiat quand il est incrémenté (WX-696).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runDir, enabled, coarseKey, resolvedPreset, contractLayersKey, speakersKey]);
+  }, [runDir, enabled, coarseKey, resolvedPreset, contractLayersKey, speakersKey, refreshEpoch]);
 
   return { loading, error, slice, lastT0Ms, lastT1Ms, queryPreset: resolvedPreset };
 }

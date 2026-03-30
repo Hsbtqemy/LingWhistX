@@ -40,6 +40,8 @@ pub struct RunManifestSummary {
     pub duration_sec: Option<f64>,
     pub artifact_count: usize,
     pub artifact_keys: Vec<String>,
+    /// Noms de fichiers réels (valeurs du dict `artifacts` dans le manifest).
+    pub artifact_files: Vec<String>,
     pub warnings: Vec<String>,
     pub stats_n_segments: Option<i64>,
     pub stats_n_words: Option<i64>,
@@ -159,11 +161,16 @@ fn parse_run_manifest_summary(
     }
 
     let mut artifact_keys: Vec<String> = Vec::new();
+    let mut artifact_files: Vec<String> = Vec::new();
     if let Some(art) = v.get("artifacts").and_then(|x| x.as_object()) {
-        for k in art.keys() {
+        for (k, val) in art.iter() {
             artifact_keys.push(k.clone());
+            if let Some(s) = val.as_str() {
+                artifact_files.push(s.to_string());
+            }
         }
         artifact_keys.sort();
+        artifact_files.sort();
     }
 
     let warnings: Vec<String> = v
@@ -203,6 +210,7 @@ fn parse_run_manifest_summary(
         duration_sec,
         artifact_count: artifact_keys.len(),
         artifact_keys,
+        artifact_files,
         warnings,
         stats_n_segments,
         stats_n_words,
@@ -311,4 +319,53 @@ pub fn delete_run_directory(app: AppHandle, run_dir: String) -> Result<(), Strin
     let p = validate_delete_allowed_directory(&app, &run_dir)?;
     fs::remove_dir_all(&p).map_err(|e| format!("Suppression disque impossible: {e}"))?;
     remove_recent_run_impl(&app, &run_dir)
+}
+
+/// Cherche le meilleur fichier JSON transcript dans un dossier de run.
+/// Priorité : fichier `.json` simple (pas .run.json, .timeline.json, run_manifest.json),
+/// puis `.timeline.json` en fallback.
+#[tauri::command]
+pub fn find_run_transcript_json(run_dir: String) -> Result<Option<String>, String> {
+    validate_path_string(&run_dir)?;
+    let dir = Path::new(run_dir.trim());
+    if !dir.is_dir() {
+        return Err(format!("Not a directory: {}", dir.display()));
+    }
+
+    let entries = fs::read_dir(dir)
+        .map_err(|e| format!("Cannot read directory: {e}"))?;
+
+    let mut plain_json: Option<PathBuf> = None;
+    let mut timeline_json: Option<PathBuf> = None;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let name = match path.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n.to_lowercase(),
+            None => continue,
+        };
+        if !name.ends_with(".json") {
+            continue;
+        }
+        if name == "run_manifest.json" {
+            continue;
+        }
+        if name.ends_with(".run.json") || name.ends_with(".words.json") {
+            continue;
+        }
+        if name.ends_with(".timeline.json") {
+            timeline_json = Some(path);
+            continue;
+        }
+        if plain_json.is_none() {
+            plain_json = Some(path);
+        }
+    }
+
+    // Préférer .timeline.json (contient speakers + segment_ids post-pipeline)
+    let best = timeline_json.or(plain_json);
+    Ok(best.map(|p| p.to_string_lossy().into_owned()))
 }

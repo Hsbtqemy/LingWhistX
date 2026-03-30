@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { fileBasename } from "../../appUtils";
+import { fileBasename, findPrimaryTranscriptJson } from "../../appUtils";
 import type {
   AnnotationSegment,
   AnnotationTier,
@@ -39,22 +39,47 @@ export type RunDetailsPanelProps = {
   onLoadTranscriptEditor: (path: string) => void;
   transcriptEditor: TranscriptEditorPanelProps | null;
   /** Ouvre le dossier de sortie dans le Player (onglet Player). */
-  onOpenPlayerRun?: (outputDir: string, label?: string | null) => void;
+  onOpenPlayerRun?: (outputDir: string, label?: string | null, editMode?: boolean) => void;
   /** WX-676 — Charge un tier d'annotation EAF/TextGrid dans l'éditeur de transcript. */
   onLoadAnnotationTier?: (tierId: string, segments: AnnotationSegment[]) => void;
+  /** WX-696 — Dossier de sortie du run sélectionné (pour écriture dans events.sqlite). */
+  selectedJobOutputDir?: string;
+  /** WX-696 — Appelé après écriture des tiers dans events.sqlite (force refresh Player). */
+  onAnnotationWrittenToPlayer?: () => void;
 };
 
 // ─── WX-676 : Annotation Import UI ──────────────────────────────────────────
 
 function AnnotationImportSection({
   onLoadAnnotationTier,
+  outputDir,
+  onAnnotationWrittenToPlayer,
 }: {
   onLoadAnnotationTier: (tierId: string, segments: AnnotationSegment[]) => void;
+  outputDir?: string;
+  onAnnotationWrittenToPlayer?: () => void;
 }) {
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [pendingResult, setPendingResult] = useState<ImportAnnotationResult | null>(null);
   const [selectedTierIds, setSelectedTierIds] = useState<Set<string>>(new Set());
+
+  // WX-696 — Écrit les tiers sélectionnés dans events.sqlite et notifie le Player.
+  const writeToPlayer = useCallback(
+    async (tiersToWrite: AnnotationTier[]) => {
+      if (!outputDir || tiersToWrite.length === 0) return;
+      try {
+        await invoke("write_annotation_tiers_to_events", {
+          runDir: outputDir,
+          tiers: tiersToWrite.map((t) => ({ tierId: t.tierId, segments: t.segments })),
+        });
+        onAnnotationWrittenToPlayer?.();
+      } catch (err) {
+        setImportError(`Player : ${String(err)}`);
+      }
+    },
+    [outputDir, onAnnotationWrittenToPlayer],
+  );
 
   const handlePickFile = useCallback(async () => {
     setImportError(null);
@@ -79,6 +104,7 @@ function AnnotationImportSection({
         // Single tier: load directly
         const tier = result.tiers[0];
         onLoadAnnotationTier(tier.tierId, tier.segments);
+        void writeToPlayer([tier]);
       } else {
         // Multiple tiers: show picker
         setPendingResult(result);
@@ -89,18 +115,18 @@ function AnnotationImportSection({
     } finally {
       setImporting(false);
     }
-  }, [onLoadAnnotationTier]);
+  }, [onLoadAnnotationTier, writeToPlayer]);
 
   const handleConfirmTiers = useCallback(() => {
     if (!pendingResult) return;
-    for (const tier of pendingResult.tiers) {
-      if (selectedTierIds.has(tier.tierId)) {
-        onLoadAnnotationTier(tier.tierId, tier.segments);
-      }
+    const toLoad = pendingResult.tiers.filter((t) => selectedTierIds.has(t.tierId));
+    for (const tier of toLoad) {
+      onLoadAnnotationTier(tier.tierId, tier.segments);
     }
+    void writeToPlayer(toLoad);
     setPendingResult(null);
     setSelectedTierIds(new Set());
-  }, [pendingResult, selectedTierIds, onLoadAnnotationTier]);
+  }, [pendingResult, selectedTierIds, onLoadAnnotationTier, writeToPlayer]);
 
   const toggleTier = useCallback((tierId: string) => {
     setSelectedTierIds((prev) => {
@@ -213,6 +239,8 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
       transcriptEditor,
       onOpenPlayerRun,
       onLoadAnnotationTier,
+      selectedJobOutputDir,
+      onAnnotationWrittenToPlayer,
     },
     ref,
   ) {
@@ -269,11 +297,14 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
       });
     }, []);
 
+    const autoLoadedForJobRef = useRef<string | null>(null);
+
     useEffect(() => {
       if (!selectedJob) {
         setTab("meta");
         prevJobIdRef.current = null;
         hadTranscriptOnJobRef.current = false;
+        autoLoadedForJobRef.current = null;
         return;
       }
 
@@ -284,6 +315,7 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
       if (jobChanged) {
         prevJobIdRef.current = jobId;
         hadTranscriptOnJobRef.current = hasTranscriptEditor;
+        autoLoadedForJobRef.current = null;
         if (selectedJob.status === "error") {
           setTab("meta");
         } else if (hasTranscriptEditor) {
@@ -301,7 +333,19 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
         setTab((prev) => (prev === "meta" ? "transcript" : prev));
       }
       hadTranscriptOnJobRef.current = hasTranscriptEditor;
-    }, [selectedJob, selectedJobHasJsonOutput, transcriptEditor]);
+
+      if (
+        selectedJob.status === "done" &&
+        !hasTranscriptEditor &&
+        autoLoadedForJobRef.current !== jobId
+      ) {
+        const primary = findPrimaryTranscriptJson(selectedJob.outputFiles);
+        if (primary) {
+          autoLoadedForJobRef.current = jobId;
+          onLoadTranscriptEditor(primary);
+        }
+      }
+    }, [selectedJob, selectedJobHasJsonOutput, transcriptEditor, onLoadTranscriptEditor]);
 
     const panelClass =
       selectedJob?.status === "error"
@@ -338,6 +382,16 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                   title={reportPath ? `Rapport : ${reportPath}` : "Générer et ouvrir le rapport HTML prosodique"}
                 >
                   {reportExporting ? "Export…" : "Exporter rapport"}
+                </button>
+              ) : null}
+              {reportPath ? (
+                <button
+                  type="button"
+                  className="ghost inline"
+                  onClick={() => void invoke("open_html_report_for_print", { htmlPath: reportPath })}
+                  title="Ouvrir le rapport dans une fenêtre d'impression (PDF)"
+                >
+                  Imprimer PDF
                 </button>
               ) : null}
               {reportError ? (
@@ -468,38 +522,35 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
               >
                 <div className="run-details-verification">
                   <header className="run-details-verification__intro">
-                    <h3>Vue vérification</h3>
+                    <h3>Vérification → Player</h3>
                     <p className="small">
-                      Même session que les onglets <strong>Alignement</strong> et{" "}
-                      <strong>Transcript</strong> : le curseur, la lecture et les segments sont
-                      liés. Cliquer sur l&apos;ondeforme sélectionne le segment ; modifier le texte
-                      ou les bornes met à jour le JSON exportable. Raccourcis : Alt+J / K / L
-                      (reculer / pause / avancer), Alt+Shift+J / L (segment précédent / suivant).
+                      La vérification et l&apos;édition du transcript se font désormais dans le{" "}
+                      <strong>Player</strong> en <strong>mode édition</strong>. Le Player offre un
+                      affichage synchronisé (chat, rythmo, mots) avec édition inline du texte et
+                      des bornes temporelles.
                     </p>
                   </header>
-                  <div className="run-details-verification__grid">
-                    <div className="run-details-verification__pane">
-                      {alignment ? (
-                        <AlignmentWorkspacePanel
-                          {...alignment}
-                          liveTranscriptPreview={liveTranscriptPreview}
-                        />
-                      ) : (
-                        <p className="small run-details-tab-empty">
-                          Panneau d&apos;alignement indisponible pour ce contexte.
-                        </p>
-                      )}
-                    </div>
-                    <div className="run-details-verification__pane run-details-verification__pane--transcript">
-                      {!transcriptEditor ? (
-                        <p className="small">
-                          Charge un fichier <code>.json</code> de sortie (onglet Fichiers) pour
-                          éditer le texte et les timings ici.
-                        </p>
-                      ) : (
-                        <TranscriptEditorPanel {...transcriptEditor} />
-                      )}
-                    </div>
+                  <div className="run-details-tab-empty">
+                    {selectedJobOutputDir && onOpenPlayerRun ? (
+                      <button
+                        type="button"
+                        className="primary"
+                        onClick={() => {
+                          onOpenPlayerRun(
+                            selectedJobOutputDir,
+                            selectedJob ? fileBasename(selectedJob.inputPath) : undefined,
+                            true,
+                          );
+                        }}
+                      >
+                        Ouvrir dans le Player (mode édition)
+                      </button>
+                    ) : (
+                      <p className="small">
+                        Aucun dossier de sortie disponible. Lance un run ou vérifie l&apos;onglet
+                        Fichiers.
+                      </p>
+                    )}
                   </div>
                 </div>
               </TabPanel>
@@ -513,9 +564,9 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                   <div>
                     <h3>Transcript</h3>
                     <p className="small transcript-section-hint">
-                      Édition segment par segment et contrôle qualité. Pour tout voir d&apos;un
-                      coup (média + ondeforme + liste), utilise l&apos;onglet{" "}
-                      <strong>Vérification</strong>.
+                      Édition segment par segment et contrôle qualité. Pour une vue
+                      synchronisée (média + waveform + texte), utilise le{" "}
+                      <strong>Player en mode édition</strong>.
                     </p>
                   </div>
                 </div>
@@ -528,7 +579,11 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                   <TranscriptEditorPanel {...transcriptEditor} />
                 )}
                 {onLoadAnnotationTier ? (
-                  <AnnotationImportSection onLoadAnnotationTier={onLoadAnnotationTier} />
+                  <AnnotationImportSection
+                    onLoadAnnotationTier={onLoadAnnotationTier}
+                    outputDir={selectedJobOutputDir}
+                    onAnnotationWrittenToPlayer={onAnnotationWrittenToPlayer}
+                  />
                 ) : null}
               </TabPanel>
             </div>
