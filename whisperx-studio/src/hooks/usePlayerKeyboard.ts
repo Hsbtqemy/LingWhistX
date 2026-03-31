@@ -62,6 +62,8 @@ export type UsePlayerKeyboardOptions = {
   clearLoop: () => void;
   runSpeakerIds: string[];
   setSpeakerSolo: Dispatch<SetStateAction<string | null>>;
+  fullscreenMode?: boolean;
+  setFullscreenMode?: Dispatch<SetStateAction<boolean>>;
 };
 
 export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
@@ -78,6 +80,11 @@ export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
       if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         o.setShortcutsHelpOpen((v) => !v);
+        return;
+      }
+      if (e.code === "F11" && o.setFullscreenMode) {
+        e.preventDefault();
+        o.setFullscreenMode((v) => !v);
         return;
       }
       if (e.code === "Space") {

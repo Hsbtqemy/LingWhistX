@@ -3449,6 +3449,10 @@ button.lx-btn--danger:hover:not(:disabled) {
   cursor: crosshair;
 }
 
+.player-waveform-panel--compact .waveform-canvas {
+  height: 80px;
+}
+
 .focus-segment {
   border: 1px dashed rgba(9, 87, 96, 0.26);
   border-radius: 8px;
@@ -5863,6 +5867,13 @@ details[open] > .player-panel-section-summary::before {
   overflow: hidden;
 }
 
+.player-media-stage--audio {
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
 .player-media-stage--compact {
   min-height: 0;
   border-radius: 8px;
@@ -5885,50 +5896,48 @@ details[open] > .player-panel-section-summary::before {
   position: relative;
 }
 
+.player-media-stage--audio .player-media-stage__surface {
+  min-height: 0;
+}
+
 .player-media-stage__surface--interactive {
   cursor: pointer;
 }
 
-.player-audio-surface {
+/* Mini-barre audio — remplace la grande surface ♪ decorative */
+.player-audio-mini-bar {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  padding: 24px 16px;
-  text-align: center;
-  color: var(--lx-text-1);
-  max-width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--lx-accent) 6%, var(--lx-surface-muted));
+  border-bottom: 1px solid var(--lx-hairline);
+  user-select: none;
+  position: relative;
 }
 
-.player-audio-surface__glyph {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--lx-accent) 18%, var(--lx-surface-1));
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--lx-text-0) 10%, transparent) inset;
-  color: var(--lx-accent);
-  font-size: 1.5rem;
+.player-audio-mini-bar:hover {
+  background: color-mix(in srgb, var(--lx-accent) 12%, var(--lx-surface-muted));
+}
+
+.player-audio-mini-bar__icon {
+  flex-shrink: 0;
+  font-size: 0.85rem;
   line-height: 1;
+  color: var(--lx-accent);
 }
 
-.player-audio-surface__glyph::before {
-  content: "♪";
-}
-
-.player-audio-surface__label {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  word-break: break-all;
-}
-
-.player-audio-surface__hint {
-  margin: 0;
-  color: var(--lx-text-2);
+.player-audio-mini-bar__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--lx-text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .player-media-transport {
@@ -5960,17 +5969,20 @@ details[open] > .player-panel-section-summary::before {
 
 .player-media-transport__row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 8px 10px;
-  justify-content: space-between;
+}
+
+.player-media-transport__time {
+  flex: 1;
+  min-width: 0;
 }
 
 .player-media-transport__primary {
   display: flex;
   align-items: center;
   gap: 2px;
-  min-width: 0;
+  flex-shrink: 0;
 }
 
 /* ── Transport icon buttons ── */
@@ -6066,10 +6078,10 @@ details[open] > .player-panel-section-summary::before {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  min-width: 0;
 }
 
 .player-media-transport__secondary {
+  flex: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -8681,4 +8693,177 @@ button.player-columns-cell:disabled {
   margin-bottom: 4px;
   font-weight: 600;
   color: var(--lx-text-2);
+}
+
+/* ---------------------------------------------------------------------------
+   WX-720 — Mode immersif plein écran
+   --------------------------------------------------------------------------- */
+
+.player-fs-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  background: var(--lx-surface-0);
+  color: var(--lx-text-0);
+}
+
+.player-fs-overlay:focus {
+  outline: none;
+}
+
+/* Barre de contrôles compacte */
+.player-fs-controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: var(--lx-panel-workspace);
+  border-bottom: 1px solid var(--lx-border);
+  min-height: 44px;
+}
+
+.player-fs-exit-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--lx-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--lx-text-1);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.player-fs-exit-btn:hover {
+  background: color-mix(in srgb, var(--lx-danger) 10%, var(--lx-surface-muted));
+  border-color: color-mix(in srgb, var(--lx-danger) 30%, var(--lx-border));
+  color: var(--lx-danger);
+}
+
+.player-fs-ctrl-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--lx-text-1);
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.player-fs-ctrl-btn:hover {
+  background: color-mix(in srgb, var(--lx-accent) 12%, var(--lx-surface-muted));
+  border-color: color-mix(in srgb, var(--lx-accent) 22%, var(--lx-border));
+}
+
+.player-fs-play-btn {
+  font-size: 1rem;
+  padding: 4px 10px;
+}
+
+.player-fs-timecode {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--lx-text-2);
+  white-space: nowrap;
+}
+
+.player-fs-scrub {
+  flex: 1;
+  min-width: 80px;
+  height: 6px;
+  accent-color: var(--lx-accent);
+  cursor: pointer;
+}
+
+.player-fs-rate {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--lx-text-2);
+  min-width: 3.5ch;
+  text-align: center;
+}
+
+.player-fs-volume {
+  width: 64px;
+  flex-shrink: 0;
+  height: 4px;
+  accent-color: var(--lx-accent);
+  cursor: pointer;
+}
+
+.player-fs-speaker-select {
+  flex-shrink: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--lx-border);
+  border-radius: 6px;
+  background: var(--lx-surface-muted);
+  color: var(--lx-text-1);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+/* Onglets de vue */
+.player-fs-view-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.player-fs-view-tab {
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--lx-text-2);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.player-fs-view-tab:hover {
+  background: color-mix(in srgb, var(--lx-accent) 8%, var(--lx-surface-muted));
+  color: var(--lx-text-1);
+}
+
+.player-fs-view-tab.is-active {
+  background: linear-gradient(135deg, var(--lx-accent), var(--lx-accent-secondary));
+  color: #fff;
+  border-color: color-mix(in srgb, var(--lx-accent) 42%, var(--lx-border));
+}
+
+/* Groupe transport */
+.player-fs-transport {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Groupe extras (vitesse, volume, speaker) */
+.player-fs-extras {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Zone contenu — les vues player occupent tout l'espace */
+.player-fs-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 20px 24px;
 }

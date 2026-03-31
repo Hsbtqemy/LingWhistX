@@ -47,6 +47,7 @@ import { PlayerMediaTransport } from "./PlayerMediaTransport";
 import { PlayerTopBar } from "./PlayerTopBar";
 import { PlayerRunArtifactsStrip } from "./PlayerRunArtifactsStrip";
 import { PlayerWaveformPanel } from "./PlayerWaveformPanel";
+import { PlayerFullscreenView } from "./PlayerFullscreenView";
 import { ErrorBanner } from "../ErrorBanner";
 import { NewJobDropZone } from "../NewJobDropZone";
 import { Button } from "../ui";
@@ -107,6 +108,7 @@ export function PlayerWorkspaceSection({
   const [copyPositionHint, setCopyPositionHint] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
   const [videoFullscreen, setVideoFullscreen] = useState(false);
+  const [fullscreenMode, setFullscreenMode] = useState(false);
   const eventsPanelRef = useRef<HTMLDivElement | null>(null);
   const programmaticPanelScrollRef = useRef(false);
   const copyPositionHintTimeoutRef = useRef<number | null>(null);
@@ -341,6 +343,22 @@ export function PlayerWorkspaceSection({
     loopBsec,
     waveformCompact,
   );
+
+  // WX-725 — sync transport → waveform : le canvas lit wf.mediaCurrentSec, pas currentTimeSec
+  useEffect(() => {
+    wf.setMediaCurrentSec(currentTimeSec);
+  }, [currentTimeSec, wf.setMediaCurrentSec]);
+
+  // WX-725 — follow playhead : scroll waveform pour garder le playhead visible
+  useEffect(() => {
+    if (!followPlayhead || !wf.waveform) return;
+    const visibleDur = wf.waveformVisibleDurationSec;
+    const margin = visibleDur * 0.08;
+    if (currentTimeSec < wf.waveformViewStartSec + margin || currentTimeSec > wf.waveformViewEndSec - margin) {
+      const idealStart = currentTimeSec - visibleDur * 0.3;
+      wf.setWaveformViewStart(Math.max(0, Math.min(wf.waveformMaxViewStartSec, idealStart)));
+    }
+  }, [currentTimeSec, followPlayhead, wf.waveform, wf.waveformVisibleDurationSec, wf.waveformViewStartSec, wf.waveformViewEndSec, wf.waveformMaxViewStartSec, wf.setWaveformViewStart]);
 
   const derivedAlertsFromTs = useMemo(
     () => (runWindow.slice ? derivePlayerAlerts(runWindow.slice, { longPauseMs }) : []),
@@ -663,6 +681,17 @@ export function PlayerWorkspaceSection({
   }, [shortcutsHelpOpen]);
 
   useEffect(() => {
+    if (!fullscreenMode || typeof document === "undefined") {
+      return;
+    }
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [fullscreenMode]);
+
+  useEffect(() => {
     if (!shortcutsHelpOpen) {
       return;
     }
@@ -712,6 +741,8 @@ export function PlayerWorkspaceSection({
       clearLoop,
       runSpeakerIds,
       setSpeakerSolo,
+      fullscreenMode,
+      setFullscreenMode,
     }),
     [
       shortcutsHelpOpen,
@@ -745,6 +776,8 @@ export function PlayerWorkspaceSection({
       clearLoop,
       runSpeakerIds,
       setSpeakerSolo,
+      fullscreenMode,
+      setFullscreenMode,
     ],
   );
 
@@ -797,6 +830,8 @@ export function PlayerWorkspaceSection({
           mediaPath={mediaPath}
           shortcutsHelpOpen={shortcutsHelpOpen}
           onToggleShortcutsHelp={() => setShortcutsHelpOpen((v) => !v)}
+          fullscreenMode={fullscreenMode}
+          onToggleFullscreen={runDir ? () => setFullscreenMode((v) => !v) : undefined}
         />
         {runDir && (
           <div className="player-loop-bar">
@@ -1082,19 +1117,10 @@ export function PlayerWorkspaceSection({
           <main className={`player-viewport${editMode ? " player-viewport--edit" : ""}`}>
             {/* WX-725 — Zone sticky : media + transport + waveform toujours visibles */}
             <div className="player-sticky-zone">
-            <div className={`player-media-stage${editMode ? " player-media-stage--compact" : ""}`}>
-              {editMode && mediaSrc && !isVideo ? (
-                <audio
-                  ref={mediaRef as RefObject<HTMLAudioElement | null>}
-                  className="player-viewport-audio"
-                  src={mediaSrc}
-                  preload="metadata"
-                  muted={muted || wf.webAudioMode}
-                  {...mediaHandlers}
-                />
-              ) : (
+            <div className={`player-media-stage${editMode ? " player-media-stage--compact" : ""}${mediaSrc && !isVideo ? " player-media-stage--audio" : ""}`}>
+              {mediaSrc && isVideo ? (
                 <div
-                  className={`player-media-stage__surface${mediaSrc ? " player-media-stage__surface--interactive" : ""}`}
+                  className="player-media-stage__surface player-media-stage__surface--interactive"
                   onClick={() => {
                     if (!transportDisabled) {
                       void togglePlayPause();
@@ -1102,45 +1128,60 @@ export function PlayerWorkspaceSection({
                   }}
                   role="presentation"
                 >
-                  {mediaSrc && isVideo ? (
-                    <video
-                      ref={mediaRef as RefObject<HTMLVideoElement | null>}
-                      className="player-viewport-video"
-                      src={mediaSrc}
-                      preload="metadata"
-                      playsInline
-                      controls={false}
-                      {...mediaHandlers}
-                    />
-                  ) : null}
-                  {mediaSrc && !isVideo ? (
-                    <>
-                      <div className="player-audio-surface" aria-hidden>
-                        <span className="player-audio-surface__glyph" />
-                        <p className="player-audio-surface__label mono">
-                          {mediaPath ? fileBasename(mediaPath) : "Audio"}
-                        </p>
-                        <p className="player-audio-surface__hint small">
-                          Clic pour lecture / pause — contrôles sous la piste
-                        </p>
-                      </div>
-                      <audio
-                        ref={mediaRef as RefObject<HTMLAudioElement | null>}
-                        className="player-viewport-audio"
-                        src={mediaSrc}
-                        preload="metadata"
-                        muted={muted || wf.webAudioMode}
-                        {...mediaHandlers}
-                      />
-                    </>
-                  ) : null}
-                  {!mediaSrc ? (
-                    <p className="player-viewport-placeholder">
-                      <strong>Média</strong> — aucune source après lecture du manifest.
-                    </p>
-                  ) : null}
+                  <video
+                    ref={mediaRef as RefObject<HTMLVideoElement | null>}
+                    className="player-viewport-video"
+                    src={mediaSrc}
+                    preload="metadata"
+                    playsInline
+                    controls={false}
+                    {...mediaHandlers}
+                  />
                 </div>
-              )}
+              ) : null}
+              {mediaSrc && !isVideo ? (
+                <div
+                  className="player-audio-mini-bar"
+                  onClick={() => {
+                    if (!transportDisabled) {
+                      void togglePlayPause();
+                    }
+                  }}
+                  role="button"
+                  tabIndex={-1}
+                  title="Clic pour lecture / pause"
+                >
+                  <span className="player-audio-mini-bar__icon" aria-hidden>{playing ? "⏸" : "▶"}</span>
+                  <span className="player-audio-mini-bar__name mono">
+                    {mediaPath ? fileBasename(mediaPath) : "Audio"}
+                  </span>
+                  <audio
+                    ref={mediaRef as RefObject<HTMLAudioElement | null>}
+                    className="player-viewport-audio"
+                    src={mediaSrc}
+                    preload="metadata"
+                    muted={muted || wf.webAudioMode}
+                    {...mediaHandlers}
+                  />
+                </div>
+              ) : null}
+              {!mediaSrc ? (
+                <div className="player-media-stage__surface">
+                  <p className="player-viewport-placeholder">
+                    <strong>Média</strong> — aucune source après lecture du manifest.
+                  </p>
+                </div>
+              ) : null}
+              {mediaSrc && mediaPath && runDir ? (
+                <PlayerWaveformPanel
+                  wf={wf}
+                  mediaPath={mediaPath}
+                  pauseCsvPaths={pauseCsvPaths}
+                  isVideo={isVideo}
+                  compact={waveformCompact}
+                  onToggleCompact={() => setWaveformCompact((c) => !c)}
+                />
+              ) : null}
               {mediaSrc ? (
                 <PlayerMediaTransport
                   disabled={transportDisabled}
@@ -1171,16 +1212,6 @@ export function PlayerWorkspaceSection({
                   durLabel={durLabel}
                   copyPositionHint={copyPositionHint}
                   onCopyPlayhead={copyPlayheadToClipboard}
-                />
-              ) : null}
-              {mediaSrc && mediaPath && runDir ? (
-                <PlayerWaveformPanel
-                  wf={wf}
-                  mediaPath={mediaPath}
-                  pauseCsvPaths={pauseCsvPaths}
-                  isVideo={isVideo}
-                  compact={waveformCompact}
-                  onToggleCompact={() => setWaveformCompact((c) => !c)}
                 />
               ) : null}
             </div>
@@ -1636,6 +1667,50 @@ export function PlayerWorkspaceSection({
                 </p>
               </div>
             </div>,
+            document.body,
+          )
+        : null}
+      {fullscreenMode && typeof document !== "undefined"
+        ? createPortal(
+            <PlayerFullscreenView
+              onExit={() => setFullscreenMode(false)}
+              playing={playing}
+              currentTimeSec={currentTimeSec}
+              durationSec={durationSec}
+              playbackRate={playbackRate}
+              volume={volume}
+              muted={muted}
+              onTogglePlayPause={togglePlayPause}
+              onSeek={seek}
+              onSeekRelative={seekRelative}
+              onNudgePlaybackRate={nudgePlaybackRate}
+              onVolumeChange={(v) => {
+                setVolume(v);
+                if (v > 0) setMuted(false);
+              }}
+              onToggleMute={toggleMute}
+              viewportMode={viewportMode}
+              onSetViewportMode={setViewportMode}
+              slice={runWindow.slice}
+              playheadMs={playheadMs}
+              loading={runWindow.loading}
+              queryError={runWindow.error}
+              wordsLayerActive={wordsLayerActive}
+              followPlayhead={followPlayhead}
+              loopAsec={loopAsec}
+              loopBsec={loopBsec}
+              onSetLoopRange={setLoopRange}
+              editMode={editMode}
+              editorSegments={te.editorSegments}
+              activeSegmentIndex={te.activeSegmentIndex}
+              setActiveSegmentIndex={te.setActiveSegmentIndex}
+              updateEditorSegmentText={te.updateEditorSegmentText}
+              updateEditorSegmentBoundary={te.updateEditorSegmentBoundary}
+              focusSegment={te.focusSegment}
+              runSpeakerIds={runSpeakerIds}
+              speakerSolo={speakerSolo}
+              onSetSpeakerSolo={setSpeakerSolo}
+            />,
             document.body,
           )
         : null}

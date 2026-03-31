@@ -118,7 +118,21 @@ export function PlayerMediaTransport({
       </div>
 
       <div className="player-media-transport__row">
-        {/* ── Seek & Play ── */}
+        {/* ── Timecode (gauche) ── */}
+        <div className="player-media-transport__time mono small">
+          <span
+            className="player-timecode player-timecode--dblcopy"
+            title="Double-clic pour copier la position"
+            onDoubleClick={() => void onCopyPlayhead()}
+          >
+            {posLabel} / {durLabel}
+          </span>
+          {copyPositionHint ? (
+            <span className="player-copy-hint" aria-live="polite">Copié</span>
+          ) : null}
+        </div>
+
+        {/* ── Seek & Play (centre) ── */}
         <div className="player-media-transport__primary">
           <button
             type="button"
@@ -189,21 +203,7 @@ export function PlayerMediaTransport({
           </button>
         </div>
 
-        {/* ── Timecode ── */}
-        <div className="player-media-transport__time mono small">
-          <span
-            className="player-timecode player-timecode--dblcopy"
-            title="Double-clic pour copier la position"
-            onDoubleClick={() => void onCopyPlayhead()}
-          >
-            {posLabel} / {durLabel}
-          </span>
-          {copyPositionHint ? (
-            <span className="player-copy-hint" aria-live="polite">Copié</span>
-          ) : null}
-        </div>
-
-        {/* ── Speed / Volume / Follow ── */}
+        {/* ── Speed / Volume / Follow (droite) ── */}
         <div className="player-media-transport__secondary">
           <div className="player-speed-group" title="Vitesse de lecture">
             <button

@@ -243,12 +243,23 @@ export function useWaveformCanvas(
 
     const playheadX = Math.floor(toX(Math.max(0, mediaCurrentSec)));
     if (playheadX >= -2 && playheadX <= widthCss + 2) {
+      const px = playheadX + 0.5;
+      // Ligne verticale
       ctx.strokeStyle = colors.playhead;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(playheadX + 0.5, 0);
-      ctx.lineTo(playheadX + 0.5, heightCss);
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, heightCss);
       ctx.stroke();
+      // Triangle marqueur en haut
+      const triSize = compact ? 4 : 6;
+      ctx.fillStyle = colors.playhead;
+      ctx.beginPath();
+      ctx.moveTo(px - triSize, 0);
+      ctx.lineTo(px + triSize, 0);
+      ctx.lineTo(px, triSize * 1.4);
+      ctx.closePath();
+      ctx.fill();
     }
 
     if (waveformCursorSec !== null) {
