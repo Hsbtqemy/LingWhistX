@@ -336,6 +336,7 @@ export function PlayerFullscreenView({
           updateEditorSegmentText={updateEditorSegmentText}
           updateEditorSegmentBoundary={updateEditorSegmentBoundary}
           focusSegment={focusSegment}
+          runSpeakerIds={runSpeakerIds}
         />
       </div>
     </div>

@@ -1316,6 +1316,7 @@ export function PlayerWorkspaceSection({
                 updateEditorSegmentText={te.updateEditorSegmentText}
                 updateEditorSegmentBoundary={te.updateEditorSegmentBoundary}
                 focusSegment={te.focusSegment}
+                runSpeakerIds={runSpeakerIds}
               />
             </div>
             {runDir ? <p className="small mono player-viewport-path">{runDir}</p> : null}

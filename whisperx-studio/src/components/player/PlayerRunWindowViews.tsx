@@ -61,6 +61,8 @@ type Props = {
     value: number,
   ) => void;
   focusSegment?: (index: number) => void;
+  /** Liste complète des locuteurs du run (pour les lanes karaoké). */
+  runSpeakerIds?: string[];
 };
 
 /**
@@ -84,6 +86,7 @@ export function PlayerRunWindowViews({
   activeSegmentIndex,
   updateEditorSegmentText,
   focusSegment,
+  runSpeakerIds,
 }: Props) {
   if (queryError) {
     return null;
@@ -143,6 +146,7 @@ export function PlayerRunWindowViews({
         activeSegmentIndex={activeSegmentIndex ?? null}
         onFocusSegment={focusSegment}
         onUpdateText={updateEditorSegmentText}
+        runSpeakerIds={runSpeakerIds}
       />
     );
   }
@@ -274,19 +278,17 @@ function buildKaraokeSegments(
   return result;
 }
 
-const KARAOKE_SEG_WINDOW = 300;
-
 function PlayerKaraokeBody({
   slice,
   playheadMs,
   wordsLayerActive,
   onSeekToMs,
-  followPlayhead,
   editMode = false,
   editorSegments,
   activeSegmentIndex,
   onFocusSegment,
   onUpdateText,
+  runSpeakerIds,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
@@ -298,62 +300,29 @@ function PlayerKaraokeBody({
   activeSegmentIndex?: number | null;
   onFocusSegment?: (index: number) => void;
   onUpdateText?: (index: number, text: string) => void;
+  runSpeakerIds?: string[];
 }) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const activeSegRef = useRef<HTMLDivElement | null>(null);
-  const [followActive, setFollowActive] = useState(true);
-  const [editingIpuId, setEditingIpuId] = useState<number | null>(null);
-  const programmaticScrollRef = useRef(false);
-
   const allSegments = useMemo(() => buildKaraokeSegments(slice), [slice]);
+  const [editingIpuId, setEditingIpuId] = useState<number | null>(null);
 
-  const activeSegIdx = useMemo(() => {
-    for (let i = 0; i < allSegments.length; i++) {
-      if (playheadMs >= allSegments[i].startMs && playheadMs < allSegments[i].endMs) return i;
+  const speakers = useMemo(() => {
+    const fromSegs = allSegments.map((s) => s.speaker);
+    const all = runSpeakerIds && runSpeakerIds.length > 0
+      ? [...runSpeakerIds]
+      : [...fromSegs];
+    return Array.from(new Set(all)).sort();
+  }, [allSegments, runSpeakerIds]);
+
+  const speakerSegments = useMemo(() => {
+    const map = new Map<string, KaraokeSegment[]>();
+    for (const sp of speakers) map.set(sp, []);
+    for (const seg of allSegments) {
+      const list = map.get(seg.speaker);
+      if (list) list.push(seg);
+      else map.set(seg.speaker, [seg]);
     }
-    let best = -1;
-    for (let i = 0; i < allSegments.length; i++) {
-      if (allSegments[i].startMs <= playheadMs) best = i;
-    }
-    return best;
-  }, [allSegments, playheadMs]);
-
-  const visibleSegments = useMemo(() => {
-    if (allSegments.length <= KARAOKE_SEG_WINDOW) return allSegments;
-    const center = activeSegIdx >= 0 ? activeSegIdx : 0;
-    const half = Math.floor(KARAOKE_SEG_WINDOW / 2);
-    const from = Math.max(0, center - half);
-    const to = Math.min(allSegments.length, from + KARAOKE_SEG_WINDOW);
-    return allSegments.slice(from, to);
-  }, [allSegments, activeSegIdx]);
-
-  const activeWordId = useMemo(() => {
-    if (activeSegIdx < 0) return -1;
-    const seg = allSegments[activeSegIdx];
-    for (const w of seg.words) {
-      if (playheadMs >= w.startMs && playheadMs < w.endMs) return w.id;
-    }
-    return -1;
-  }, [allSegments, activeSegIdx, playheadMs]);
-
-  useEffect(() => {
-    if (!followPlayhead || !followActive || activeSegIdx < 0) return;
-    const el = activeSegRef.current;
-    const container = scrollRef.current;
-    if (!el || !container || typeof container.scrollTo !== "function") return;
-    programmaticScrollRef.current = true;
-    const containerH = container.clientHeight;
-    const elTop = el.offsetTop;
-    const targetScroll = elTop - containerH * 0.33;
-    container.scrollTo({ top: targetScroll, behavior: "smooth" });
-    const tid = window.setTimeout(() => { programmaticScrollRef.current = false; }, 400);
-    return () => window.clearTimeout(tid);
-  }, [followPlayhead, followActive, activeSegIdx]);
-
-  const handleScroll = () => {
-    if (programmaticScrollRef.current) return;
-    if (followActive) setFollowActive(false);
-  };
+    return map;
+  }, [allSegments, speakers]);
 
   if (!wordsLayerActive) {
     return (
@@ -363,77 +332,182 @@ function PlayerKaraokeBody({
     );
   }
 
-  const speakers = Array.from(new Set(allSegments.map((s) => s.speaker)));
+  if (allSegments.length === 0) {
+    return <p className="small player-empty-message">Aucun segment dans cette fenêtre.</p>;
+  }
 
   return (
     <div className="karaoke-v2" aria-label="Vue karaoké">
-      <div className="karaoke-v2-header">
-        <span className="karaoke-v2-header-info small mono">
-          {allSegments.length} segments · {speakers.length} loc.
-          {slice.truncated.ipus ? " \u00b7 tronqué" : ""}
-        </span>
-        {!followActive && (
-          <button
-            type="button"
-            className="karaoke-v2-follow-btn small"
-            onClick={() => setFollowActive(true)}
-          >
-            Reprendre le suivi
-          </button>
-        )}
+      {speakers.map((sp, spIdx) => (
+        <KaraokeLane
+          key={sp}
+          speaker={sp}
+          speakerIndex={spIdx}
+          segments={speakerSegments.get(sp) || []}
+          playheadMs={playheadMs}
+          onSeekToMs={onSeekToMs}
+          editMode={editMode}
+          editorSegments={editorSegments}
+          activeSegmentIndex={activeSegmentIndex}
+          onFocusSegment={onFocusSegment}
+          onUpdateText={onUpdateText}
+          editingIpuId={editingIpuId}
+          setEditingIpuId={setEditingIpuId}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Lane karaoké individuelle pour un locuteur.
+ * Affiche la ligne active avec highlight mot par mot, les lignes passées (colorées)
+ * au-dessus, et les lignes à venir (dim) en dessous.
+ * Le contenu défile en interne, la lane reste fixe dans le layout.
+ */
+function KaraokeLane({
+  speaker,
+  speakerIndex,
+  segments,
+  playheadMs,
+  onSeekToMs,
+  editMode,
+  editorSegments,
+  activeSegmentIndex,
+  onFocusSegment,
+  onUpdateText,
+  editingIpuId,
+  setEditingIpuId,
+}: {
+  speaker: string;
+  speakerIndex: number;
+  segments: KaraokeSegment[];
+  playheadMs: number;
+  onSeekToMs?: (ms: number) => void;
+  editMode: boolean;
+  editorSegments?: EditableSegment[];
+  activeSegmentIndex?: number | null;
+  onFocusSegment?: (index: number) => void;
+  onUpdateText?: (index: number, text: string) => void;
+  editingIpuId: number | null;
+  setEditingIpuId: (id: number | null) => void;
+}) {
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const activeLineRef = useRef<HTMLDivElement | null>(null);
+
+  const activeIdx = useMemo(() => {
+    for (let i = 0; i < segments.length; i++) {
+      if (playheadMs >= segments[i].startMs && playheadMs < segments[i].endMs) return i;
+    }
+    let best = -1;
+    for (let i = 0; i < segments.length; i++) {
+      if (segments[i].startMs <= playheadMs) best = i;
+    }
+    return best;
+  }, [segments, playheadMs]);
+
+  const isSpeaking = activeIdx >= 0 && playheadMs >= segments[activeIdx].startMs && playheadMs < segments[activeIdx].endMs;
+
+  const activeWordId = useMemo(() => {
+    if (activeIdx < 0) return -1;
+    const seg = segments[activeIdx];
+    for (const w of seg.words) {
+      if (playheadMs >= w.startMs && playheadMs < w.endMs) return w.id;
+    }
+    return -1;
+  }, [segments, activeIdx, playheadMs]);
+
+  useEffect(() => {
+    const el = activeLineRef.current;
+    const container = contentRef.current;
+    if (!el || !container || typeof container.scrollTo !== "function") return;
+    const containerH = container.clientHeight;
+    const elTop = el.offsetTop;
+    const elH = el.offsetHeight;
+    const targetScroll = elTop - (containerH - elH) / 2;
+    container.scrollTo({ top: targetScroll, behavior: "smooth" });
+  }, [activeIdx]);
+
+  const hasNotStarted = activeIdx < 0 && segments.length > 0;
+  const nextSegIdx = useMemo(() => {
+    if (!hasNotStarted) return -1;
+    for (let i = 0; i < segments.length; i++) {
+      if (segments[i].startMs > playheadMs) return i;
+    }
+    return -1;
+  }, [hasNotStarted, segments, playheadMs]);
+
+  const WINDOW_BEFORE = 2;
+  const WINDOW_AFTER = 2;
+  const renderedSegs = useMemo(() => {
+    if (hasNotStarted) return [];
+    const from = Math.max(0, activeIdx - WINDOW_BEFORE);
+    const to = Math.min(segments.length, activeIdx + WINDOW_AFTER + 1);
+    return segments.slice(from, to).map((seg, i) => ({ seg, globalIdx: from + i }));
+  }, [hasNotStarted, segments, activeIdx]);
+
+  const color = speakerColor(speakerIndex);
+
+  const findEditorIdx = (seg: KaraokeSegment): number | null => {
+    if (!editMode || !editorSegments) return null;
+    for (let i = 0; i < editorSegments.length; i++) {
+      const sMs = Math.round(editorSegments[i].start * 1000);
+      const eMs = Math.round(editorSegments[i].end * 1000);
+      if (eMs > seg.startMs && sMs < seg.endMs) return i;
+    }
+    return null;
+  };
+
+  const timeUntilSec = hasNotStarted && nextSegIdx >= 0
+    ? Math.max(0, Math.round((segments[nextSegIdx].startMs - playheadMs) / 1000))
+    : 0;
+
+  return (
+    <div className={`karaoke-lane${isSpeaking ? " is-speaking" : ""}${hasNotStarted ? " is-waiting" : ""}`} style={{ "--lane-color": color } as React.CSSProperties}>
+      <div className="karaoke-lane-label mono" style={{ color }}>
+        {speaker}
+        {hasNotStarted && timeUntilSec > 0 ? (
+          <span className="karaoke-lane-countdown"> · dans {timeUntilSec}s</span>
+        ) : null}
       </div>
+      <div className="karaoke-lane-content" ref={contentRef}>
+        {renderedSegs.length === 0 ? (
+          <div className="karaoke-lane-empty" />
+        ) : (
+          renderedSegs.map(({ seg, globalIdx: si }) => {
+            const isActive = si === activeIdx;
+            const isPast = activeIdx >= 0 && si < activeIdx;
+            const isFuture = !isActive && !isPast;
+            const isUpcoming = false;
+            const editorIdx = findEditorIdx(seg);
+            const isEditingThis = editMode && editingIpuId === seg.ipuId;
+            const isFocused = editMode && editorIdx != null && activeSegmentIndex === editorIdx;
 
-      <div className="karaoke-v2-scroll" ref={scrollRef} onScroll={handleScroll} role="list">
-        {visibleSegments.map((seg) => {
-          const si = allSegments.indexOf(seg);
-          const isActive = si === activeSegIdx;
-          const isPast = activeSegIdx >= 0 && si < activeSegIdx;
+            let cls = "karaoke-line";
+            if (isActive) cls += " is-active";
+            if (isPast) cls += " is-past";
+            if (isUpcoming) cls += " is-upcoming";
+            else if (isFuture) cls += " is-future";
+            if (isFocused) cls += " is-focused";
 
-          const segIdx = editMode && editorSegments
-            ? (() => {
-              for (let i = 0; i < editorSegments.length; i++) {
-                const sMs = Math.round(editorSegments[i].start * 1000);
-                const eMs = Math.round(editorSegments[i].end * 1000);
-                if (eMs > seg.startMs && sMs < seg.endMs) return i;
-              }
-              return null;
-            })()
-            : null;
-          const isEditingThis = editMode && editingIpuId === seg.ipuId;
-          const isFocused = editMode && segIdx != null && activeSegmentIndex === segIdx;
+            const handleDoubleClick = () => {
+              if (!editMode || editorIdx == null) return;
+              onFocusSegment?.(editorIdx);
+              setEditingIpuId(seg.ipuId);
+            };
 
-          let cls = "karaoke-v2-seg";
-          if (isActive) cls += " is-active";
-          else if (isPast) cls += " is-past";
-          if (isFocused) cls += " is-focused";
-
-          const handleDoubleClick = () => {
-            if (!editMode || segIdx == null) return;
-            onFocusSegment?.(segIdx);
-            setEditingIpuId(seg.ipuId);
-          };
-
-          return (
-            <div
-              key={seg.ipuId}
-              ref={isActive ? activeSegRef : undefined}
-              className={cls}
-              role="listitem"
-              onDoubleClick={handleDoubleClick}
-            >
-              <div className="karaoke-v2-seg-left">
-                <span className="karaoke-v2-speaker mono">{seg.speaker}</span>
-                <span className="karaoke-v2-time mono">
-                  {formatClockSeconds(seg.startMs / 1000)}
-                </span>
-              </div>
-
-              <div className="karaoke-v2-seg-body">
-                {isEditingThis && segIdx != null && onUpdateText ? (
+            return (
+              <div
+                key={seg.ipuId}
+                ref={isActive ? activeLineRef : undefined}
+                className={cls}
+                onDoubleClick={handleDoubleClick}
+              >
+                {isEditingThis && editorIdx != null && onUpdateText ? (
                   <textarea
                     className="player-inline-edit-textarea"
-                    value={editorSegments![segIdx].text}
-                    onChange={(ev) => onUpdateText(segIdx, ev.target.value)}
+                    value={editorSegments![editorIdx].text}
+                    onChange={(ev) => onUpdateText(editorIdx, ev.target.value)}
                     onBlur={() => setEditingIpuId(null)}
                     onKeyDown={(ev) => {
                       if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); setEditingIpuId(null); }
@@ -441,14 +515,16 @@ function PlayerKaraokeBody({
                     }}
                     onClick={(ev) => ev.stopPropagation()}
                     autoFocus
-                    rows={Math.max(2, Math.ceil((editorSegments![segIdx].text.length || 1) / 60))}
+                    rows={2}
                   />
                 ) : seg.words.length > 0 ? (
-                  <span className="karaoke-v2-seg-words">
+                  <span className="karaoke-line-words">
                     {seg.words.map((w) => {
-                      const wActive = w.id === activeWordId;
-                      let wCls = "karaoke-v2-word";
-                      if (wActive) wCls += " is-active";
+                      const wSpoken = isPast || (isActive && playheadMs >= w.startMs);
+                      const wCurrent = isActive && w.id === activeWordId;
+                      let wCls = "karaoke-word";
+                      if (wSpoken) wCls += " is-spoken";
+                      if (wCurrent) wCls += " is-current";
                       if (!w.aligned) wCls += " is-unaligned";
                       return (
                         <button
@@ -466,7 +542,7 @@ function PlayerKaraokeBody({
                 ) : (
                   <button
                     type="button"
-                    className="karaoke-v2-seg-text"
+                    className="karaoke-line-text"
                     disabled={!onSeekToMs}
                     onClick={() => onSeekToMs?.(seg.startMs)}
                   >
@@ -474,29 +550,8 @@ function PlayerKaraokeBody({
                   </button>
                 )}
               </div>
-
-              <div className="karaoke-v2-seg-right">
-                {seg.pauseBefore != null && (
-                  <span className="karaoke-v2-badge karaoke-v2-badge--pause" title={`Pause ${seg.pauseBefore} ms`}>
-                    ⏸ {(seg.pauseBefore / 1000).toFixed(1)}s
-                  </span>
-                )}
-                {seg.hasOverlap && (
-                  <span className="karaoke-v2-badge karaoke-v2-badge--overlap" title="Chevauchement">
-                    ⟷
-                  </span>
-                )}
-                {seg.hasUnaligned && (
-                  <span className="karaoke-v2-badge karaoke-v2-badge--unaligned" title="Mots interpolés">
-                    ≈
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-        {allSegments.length === 0 && (
-          <p className="small player-empty-message">Aucun segment dans cette fenêtre.</p>
+            );
+          })
         )}
       </div>
     </div>

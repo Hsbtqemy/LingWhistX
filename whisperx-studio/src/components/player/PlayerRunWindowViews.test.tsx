@@ -137,6 +137,6 @@ describe("PlayerRunWindowViews", () => {
     expect(screen.getByText("monde")).toBeInTheDocument();
     expect(document.querySelector(".karaoke-v2")).toBeTruthy();
     const monde = screen.getByText("monde").closest("button");
-    expect(monde).toHaveClass("is-active");
+    expect(monde).toHaveClass("is-current");
   });
 });
