@@ -59,7 +59,7 @@ export type ViewportQueryContract = {
  * | columns  | —     | ✓     | —      | —     | 60s      |
  * | rythmo   | —     | ✓     | ✓      | ✓     | 60s      |
  * | karaoke  | ✓     | ✓     | ✓      | ✓     | 30s      |
- * | stats    | —     | ✓     | ✓      | ✓     | full run |
+ * | stats    | ✓     | ✓     | ✓      | ✓     | full run |
  */
 export const VIEWPORT_QUERY_CONTRACTS: Record<PlayerViewportMode, ViewportQueryContract> = {
   lanes: {
@@ -86,10 +86,10 @@ export const VIEWPORT_QUERY_CONTRACTS: Record<PlayerViewportMode, ViewportQueryC
     queryPreset: "words_detail",
     layers: { words: true, turns: true, pauses: true, ipus: true },
   },
-  /** WX-667 — stats prosodiques par locuteur (full run). */
+  /** WX-667/710/711 — stats prosodiques par locuteur (full run, mots pour confiance). */
   stats: {
     queryPreset: "full_run",
-    layers: { words: false, turns: true, pauses: true, ipus: true },
+    layers: { words: true, turns: true, pauses: true, ipus: true },
   },
 } as const;
 

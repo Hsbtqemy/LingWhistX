@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clampNumber, formatClockSeconds } from "../../appUtils";
 import {
   buildTimeBins,
@@ -7,8 +7,20 @@ import {
 } from "../../player/playerColumnsBins";
 import { isWordAligned } from "../../player/karaokeWords";
 import {
+  buildFullStatsCsv,
+  buildFullStatsExport,
   buildPauseHistogram,
+  buildSpeechTimeline,
+  computeOverlaps as computeTurnOverlaps,
   computeSpeakerStats,
+  computeSpeechDensity,
+  computeSpeechRate,
+  computeTransitions,
+} from "../../player/playerSpeakerStats";
+import type {
+  DensityPoint,
+  SpeechRateSeries,
+  TimelineSegment,
 } from "../../player/playerSpeakerStats";
 import type {
   EditableSegment,
@@ -169,6 +181,7 @@ export function PlayerRunWindowViews({
         slice={slice}
         playheadMs={playheadMs}
         durationSec={durationSec}
+        onSeekToMs={onSeekToMs}
       />
     );
   }
@@ -1953,12 +1966,27 @@ function PlayerWordsEditBody({
 }
 
 // ---------------------------------------------------------------------------
-// WX-667 — Vue statistiques prosodiques par locuteur
+// WX-667/710/711 — Vue statistiques prosodiques par locuteur
 // ---------------------------------------------------------------------------
 
 const STATS_HISTOGRAM_BINS = 12;
 const STATS_HISTOGRAM_W = 200;
 const STATS_HISTOGRAM_H = 56;
+
+const SPEAKER_COLORS = [
+  "var(--lx-accent)",
+  "#e67e22",
+  "#27ae60",
+  "#8e44ad",
+  "#e74c3c",
+  "#16a085",
+  "#d35400",
+  "#2980b9",
+];
+
+function speakerColor(idx: number): string {
+  return SPEAKER_COLORS[idx % SPEAKER_COLORS.length];
+}
 
 function PauseHistogramCanvas({
   durationsMs,
@@ -1975,15 +2003,21 @@ function PauseHistogramCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const bins = buildPauseHistogram(durationsMs, STATS_HISTOGRAM_BINS);
-    const W = STATS_HISTOGRAM_W;
+    const rect = canvas.getBoundingClientRect();
+    const W = Math.round(rect.width) || STATS_HISTOGRAM_W;
     const H = STATS_HISTOGRAM_H;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+
+    const bins = buildPauseHistogram(durationsMs, STATS_HISTOGRAM_BINS);
     ctx.clearRect(0, 0, W, H);
 
     if (bins.length === 0) {
       ctx.fillStyle = "#888";
       ctx.font = "10px sans-serif";
-      ctx.fillText("—", 4, H / 2 + 4);
+      ctx.fillText("\u2014", 4, H / 2 + 4);
       return;
     }
 
@@ -2004,26 +2038,524 @@ function PauseHistogramCanvas({
       width={STATS_HISTOGRAM_W}
       height={STATS_HISTOGRAM_H}
       className="stats-histogram-canvas"
-      title="Distribution durées de pauses"
+      title="Distribution dur\u00e9es de pauses"
     />
   );
 }
+
+// ─── WX-710 : Barre empil\u00e9e du temps de parole ──────────────────────────────────
+
+function SpeechBarCanvas({
+  stats,
+  totalDurationMs,
+  activeSpeaker,
+}: {
+  stats: { speaker: string; speechMs: number }[];
+  totalDurationMs: number;
+  activeSpeaker: string | null;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const W = Math.round(rect.width) || 600;
+    const H = 38;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+
+    ctx.clearRect(0, 0, W, H);
+    if (totalDurationMs <= 0) return;
+
+    const totalSpeech = stats.reduce((s, st) => s + st.speechMs, 0);
+    const silenceMs = Math.max(0, totalDurationMs - totalSpeech);
+
+    let x = 0;
+    const barH = H - 12;
+
+    for (let i = 0; i < stats.length; i++) {
+      const s = stats[i];
+      const w = (s.speechMs / totalDurationMs) * W;
+      if (w < 1) continue;
+      ctx.fillStyle = speakerColor(i);
+      if (activeSpeaker && s.speaker !== activeSpeaker) ctx.globalAlpha = 0.35;
+      else ctx.globalAlpha = 1;
+      ctx.fillRect(x, 0, w, barH);
+      ctx.globalAlpha = 1;
+
+      if (w > 30) {
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(s.speaker, x + w / 2, barH / 2 + 4);
+      }
+      x += w;
+    }
+
+    if (silenceMs > 0) {
+      const sw = (silenceMs / totalDurationMs) * W;
+      ctx.fillStyle = "rgba(128,128,128,0.15)";
+      ctx.fillRect(x, 0, sw, barH);
+      if (sw > 30) {
+        ctx.fillStyle = "#888";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("silence", x + sw / 2, barH / 2 + 4);
+      }
+    }
+
+    ctx.font = "9px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillStyle = "var(--lx-text-2, #888)";
+    x = 0;
+    for (let i = 0; i < stats.length; i++) {
+      const s = stats[i];
+      const w = (s.speechMs / totalDurationMs) * W;
+      if (w > 40) {
+        const pct = ((s.speechMs / totalDurationMs) * 100).toFixed(0);
+        ctx.fillText(`${pct}%`, x + 3, barH + 10);
+      }
+      x += w;
+    }
+  }, [stats, totalDurationMs, activeSpeaker]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={600}
+      height={38}
+      className="stats-speech-bar-canvas"
+      title="R\u00e9partition temps de parole"
+    />
+  );
+}
+
+// ─── WX-710 : Timeline alternances de parole ─────────────────────────────────
+
+function SpeechTimelineCanvas({
+  timeline,
+  speakers,
+  totalDurationMs,
+  playheadMs,
+  onSeekToMs,
+  overlapSegments,
+}: {
+  timeline: TimelineSegment[];
+  speakers: string[];
+  totalDurationMs: number;
+  playheadMs: number;
+  onSeekToMs?: (ms: number) => void;
+  overlapSegments?: { startMs: number; endMs: number }[];
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const W_REF = 600;
+  const H = 60;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const W = Math.round(rect.width) || W_REF;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+
+    ctx.clearRect(0, 0, W, H);
+    if (totalDurationMs <= 0) return;
+
+    const laneH = speakers.length > 0 ? Math.min(20, (H - 10) / speakers.length) : 20;
+    const contentH = speakers.length * laneH;
+
+    for (let si = 0; si < speakers.length; si++) {
+      const y = si * laneH + 2;
+      ctx.fillStyle = "rgba(128,128,128,0.06)";
+      ctx.fillRect(0, y, W, laneH - 2);
+
+      ctx.fillStyle = "#888";
+      ctx.font = "9px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(speakers[si], 2, y + laneH / 2 + 3);
+    }
+
+    for (const seg of timeline) {
+      const si = speakers.indexOf(seg.speaker);
+      if (si < 0) continue;
+      const x = (seg.startMs / totalDurationMs) * W;
+      const w = Math.max(1, ((seg.endMs - seg.startMs) / totalDurationMs) * W);
+      const y = si * laneH + 2;
+      ctx.fillStyle = speakerColor(si);
+      ctx.globalAlpha = 0.7;
+      ctx.fillRect(x, y, w, laneH - 3);
+      ctx.globalAlpha = 1;
+    }
+
+    if (overlapSegments && overlapSegments.length > 0) {
+      for (const ov of overlapSegments) {
+        const x = (ov.startMs / totalDurationMs) * W;
+        const w = Math.max(1, ((ov.endMs - ov.startMs) / totalDurationMs) * W);
+        ctx.fillStyle = "rgba(217, 83, 79, 0.25)";
+        ctx.fillRect(x, 0, w, contentH + 2);
+        ctx.strokeStyle = "rgba(217, 83, 79, 0.6)";
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, 0, w, contentH + 2);
+      }
+    }
+
+    const px = (playheadMs / totalDurationMs) * W;
+    ctx.strokeStyle = "var(--lx-accent, #3498db)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(px, 0);
+    ctx.lineTo(px, H);
+    ctx.stroke();
+  }, [timeline, speakers, totalDurationMs, playheadMs, overlapSegments]);
+
+  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!onSeekToMs || totalDurationMs <= 0) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const ms = (x / rect.width) * totalDurationMs;
+    onSeekToMs(Math.max(0, Math.round(ms)));
+  };
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={W_REF}
+      height={H}
+      className="stats-timeline-canvas"
+      title="Timeline alternances de parole — clic pour seek"
+      onClick={handleClick}
+      style={{ cursor: onSeekToMs ? "pointer" : "default" }}
+    />
+  );
+}
+
+// ─── WX-711 : Courbe d\u00e9bit de parole ────────────────────────────────────────────
+
+function SpeechRateCanvas({
+  series,
+  speakers,
+  totalDurationMs,
+  playheadMs,
+  onSeekToMs,
+}: {
+  series: SpeechRateSeries[];
+  speakers: string[];
+  totalDurationMs: number;
+  playheadMs: number;
+  onSeekToMs?: (ms: number) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const W_REF = 600;
+  const H = 120;
+  const PAD_TOP = 20;
+  const PAD_BOTTOM = 22;
+  const PAD_LEFT = 42;
+  const PAD_RIGHT = 10;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const W = Math.round(rect.width) || W_REF;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+
+    ctx.clearRect(0, 0, W, H);
+    if (series.length === 0 || totalDurationMs <= 0) return;
+
+    const plotW = W - PAD_LEFT - PAD_RIGHT;
+    const plotH = H - PAD_TOP - PAD_BOTTOM;
+
+    let maxRate = 0;
+    for (const s of series) {
+      for (const p of s.points) {
+        if (p.wordsPerMin > maxRate) maxRate = p.wordsPerMin;
+      }
+    }
+    maxRate = Math.max(maxRate, 10);
+    const yMax = Math.ceil(maxRate / 20) * 20;
+
+    ctx.strokeStyle = "rgba(128,128,128,0.15)";
+    ctx.lineWidth = 0.5;
+    ctx.font = "9px sans-serif";
+    ctx.fillStyle = "#888";
+    ctx.textAlign = "right";
+    const gridSteps = 4;
+    for (let i = 0; i <= gridSteps; i++) {
+      const val = (yMax / gridSteps) * i;
+      const y = PAD_TOP + plotH - (val / yMax) * plotH;
+      ctx.beginPath();
+      ctx.moveTo(PAD_LEFT, y);
+      ctx.lineTo(W - PAD_RIGHT, y);
+      ctx.stroke();
+      ctx.fillText(`${Math.round(val)}`, PAD_LEFT - 4, y + 3);
+    }
+
+    ctx.textAlign = "center";
+    const timeSteps = Math.min(6, Math.floor(totalDurationMs / 60000));
+    for (let i = 0; i <= Math.max(timeSteps, 1); i++) {
+      const tMs = (totalDurationMs / Math.max(timeSteps, 1)) * i;
+      const x = PAD_LEFT + (tMs / totalDurationMs) * plotW;
+      const min = Math.floor(tMs / 60000);
+      const sec = Math.floor((tMs % 60000) / 1000);
+      ctx.fillText(`${min}:${sec.toString().padStart(2, "0")}`, x, H - 4);
+    }
+
+    ctx.save();
+    ctx.translate(10, PAD_TOP + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#888";
+    ctx.font = "9px sans-serif";
+    ctx.fillText("mots/min", 0, 0);
+    ctx.restore();
+
+    for (let si = 0; si < series.length; si++) {
+      const s = series[si];
+      if (s.points.length === 0) continue;
+      const spIdx = speakers.indexOf(s.speaker);
+      ctx.strokeStyle = speakerColor(spIdx >= 0 ? spIdx : si);
+      ctx.lineWidth = 2;
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      for (let pi = 0; pi < s.points.length; pi++) {
+        const p = s.points[pi];
+        const x = PAD_LEFT + (p.timeMs / totalDurationMs) * plotW;
+        const y = PAD_TOP + plotH - (Math.min(p.wordsPerMin, yMax) / yMax) * plotH;
+        if (pi === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    const px = PAD_LEFT + (playheadMs / totalDurationMs) * plotW;
+    ctx.strokeStyle = "var(--lx-accent, #3498db)";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(px, PAD_TOP);
+    ctx.lineTo(px, PAD_TOP + plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }, [series, speakers, totalDurationMs, playheadMs]);
+
+  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!onSeekToMs || totalDurationMs <= 0) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const plotW = rect.width - PAD_LEFT - PAD_RIGHT;
+    const ms = ((x - PAD_LEFT) / plotW) * totalDurationMs;
+    onSeekToMs(Math.max(0, Math.round(ms)));
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const tip = tooltipRef.current;
+    const canvas = canvasRef.current;
+    if (!tip || !canvas || totalDurationMs <= 0) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const plotW = rect.width - PAD_LEFT - PAD_RIGHT;
+    const ms = ((x - PAD_LEFT) / plotW) * totalDurationMs;
+    if (ms < 0 || ms > totalDurationMs) { tip.style.display = "none"; return; }
+
+    let text = `${formatClockSeconds(ms / 1000)}\n`;
+    for (let si = 0; si < series.length; si++) {
+      const s = series[si];
+      let closest = s.points[0];
+      let minDist = Infinity;
+      for (const p of s.points) {
+        const d = Math.abs(p.timeMs - ms);
+        if (d < minDist) { minDist = d; closest = p; }
+      }
+      if (closest) text += `${s.speaker}: ${closest.wordsPerMin.toFixed(0)} m/min\n`;
+    }
+    tip.textContent = text.trim();
+    tip.style.display = "block";
+    tip.style.left = `${Math.min(x + 8, rect.width - 120)}px`;
+    tip.style.top = `${e.clientY - rect.top - 40}px`;
+  };
+
+  const handleMouseLeave = () => {
+    if (tooltipRef.current) tooltipRef.current.style.display = "none";
+  };
+
+  return (
+    <div className="stats-rate-chart-wrap" style={{ position: "relative" }}>
+      <canvas
+        ref={canvasRef}
+        width={W_REF}
+        height={H}
+        className="stats-rate-canvas"
+        title="D\u00e9bit de parole (mots/min) \u2014 clic pour seek"
+        onClick={handleClick}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{ cursor: onSeekToMs ? "crosshair" : "default" }}
+      />
+      <div
+        ref={tooltipRef}
+        className="stats-rate-tooltip"
+        style={{ display: "none", position: "absolute", pointerEvents: "none" }}
+      />
+    </div>
+  );
+}
+
+// ─── Densité de parole ───────────────────────────────────────────────────────
+
+function SpeechDensityCanvas({
+  points,
+  totalDurationMs,
+  playheadMs,
+  onSeekToMs,
+}: {
+  points: DensityPoint[];
+  totalDurationMs: number;
+  playheadMs: number;
+  onSeekToMs?: (ms: number) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const W_REF = 600;
+  const H = 70;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const W = Math.round(rect.width) || W_REF;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+
+    if (totalDurationMs <= 0 || points.length === 0) return;
+
+    const padL = 28;
+    const padR = 6;
+    const padT = 4;
+    const padB = 14;
+    const gW = W - padL - padR;
+    const gH = H - padT - padB;
+
+    ctx.strokeStyle = "rgba(128,128,128,0.15)";
+    ctx.lineWidth = 0.5;
+    for (const pct of [0.25, 0.5, 0.75, 1]) {
+      const y = padT + gH * (1 - pct);
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(padL + gW, y);
+      ctx.stroke();
+      ctx.fillStyle = "#888";
+      ctx.font = "8px sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(`${Math.round(pct * 100)}%`, padL - 3, y + 3);
+    }
+
+    ctx.beginPath();
+    let started = false;
+    for (const pt of points) {
+      const x = padL + (pt.timeMs / totalDurationMs) * gW;
+      const y = padT + gH * (1 - pt.density);
+      if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = "rgba(52, 152, 219, 0.9)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    const last = points[points.length - 1];
+    if (last) {
+      ctx.lineTo(padL + (last.timeMs / totalDurationMs) * gW, padT + gH);
+      ctx.lineTo(padL + (points[0].timeMs / totalDurationMs) * gW, padT + gH);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(52, 152, 219, 0.08)";
+      ctx.fill();
+    }
+
+    const px = padL + (playheadMs / totalDurationMs) * gW;
+    ctx.strokeStyle = "var(--lx-accent, #3498db)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(px, padT);
+    ctx.lineTo(px, padT + gH);
+    ctx.stroke();
+  }, [points, totalDurationMs, playheadMs]);
+
+  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!onSeekToMs || totalDurationMs <= 0) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const padL = 28;
+    const padR = 6;
+    const gW = rect.width - padL - padR;
+    const x = e.clientX - rect.left - padL;
+    if (x < 0 || x > gW) return;
+    onSeekToMs(Math.max(0, Math.round((x / gW) * totalDurationMs)));
+  };
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={W_REF}
+      height={H}
+      className="stats-density-canvas"
+      title="Densité de parole — clic pour seek"
+      onClick={handleClick}
+      style={{ cursor: onSeekToMs ? "pointer" : "default" }}
+    />
+  );
+}
+
+// ─── PlayerStatsBody : vue principale ────────────────────────────────────────
 
 function PlayerStatsBody({
   slice,
   playheadMs,
   durationSec,
+  onSeekToMs,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
   durationSec?: number | null;
+  onSeekToMs?: (ms: number) => void;
 }) {
   const totalDurationMs =
     durationSec != null && Number.isFinite(durationSec) ? durationSec * 1000 : undefined;
 
+  const hasWords = slice.words.length > 0;
+
   const stats = useMemo(
-    () => computeSpeakerStats(slice.turns, slice.pauses, slice.ipus, totalDurationMs),
-    [slice.turns, slice.pauses, slice.ipus, totalDurationMs],
+    () => computeSpeakerStats(
+      slice.turns, slice.pauses, slice.ipus, totalDurationMs,
+      hasWords ? slice.words : undefined,
+    ),
+    [slice.turns, slice.pauses, slice.ipus, slice.words, totalDurationMs, hasWords],
   );
 
   const activeSpeaker = useMemo(() => {
@@ -2033,64 +2565,387 @@ function PlayerStatsBody({
     return activeTurn?.speaker ?? null;
   }, [slice.turns, playheadMs]);
 
+  const speakers = useMemo(() => stats.map((s) => s.speaker), [stats]);
+
+  const timeline = useMemo(
+    () => buildSpeechTimeline(slice.turns),
+    [slice.turns],
+  );
+
+  const durMs = totalDurationMs ?? Math.max(0, ...slice.turns.map((t) => t.endMs));
+
+  const overlaps = useMemo(
+    () => computeTurnOverlaps(slice.turns, durMs),
+    [slice.turns, durMs],
+  );
+
+  const rateSeries = useMemo(
+    () => computeSpeechRate(slice.ipus, durMs),
+    [slice.ipus, durMs],
+  );
+
+  const transitions = useMemo(
+    () => computeTransitions(slice.turns),
+    [slice.turns],
+  );
+
+  const densityPoints = useMemo(
+    () => computeSpeechDensity(slice.turns, durMs),
+    [slice.turns, durMs],
+  );
+
+  const [collapsedSpeakers, setCollapsedSpeakers] = useState<Set<string>>(new Set());
+  const toggleCollapse = useCallback((sp: string) => {
+    setCollapsedSpeakers((prev) => {
+      const next = new Set(prev);
+      if (next.has(sp)) next.delete(sp); else next.add(sp);
+      return next;
+    });
+  }, []);
+
+  const totalSpeechMs = stats.reduce((s, st) => s + st.speechMs, 0);
+  const totalWords = stats.reduce((s, st) => s + st.nWords, 0);
+  const silenceMs = Math.max(0, durMs - totalSpeechMs);
+  const globalRate = totalSpeechMs > 0 ? (totalWords / (totalSpeechMs / 1000)) * 60 : 0;
+
+  const qualityScore = useMemo(() => {
+    const confScores = stats.filter((s) => s.meanConfidence != null).map((s) => s.meanConfidence!);
+    const avgConf = confScores.length > 0 ? confScores.reduce((a, b) => a + b, 0) / confScores.length : null;
+    const totalAligned = stats.reduce((sum, s) => sum + (s.alignmentDist["aligned"] ?? 0), 0);
+    const totalAlignmentWords = stats.reduce((sum, s) => sum + Object.values(s.alignmentDist).reduce((a, b) => a + b, 0), 0);
+    const alignedRatio = totalAlignmentWords > 0 ? totalAligned / totalAlignmentWords : null;
+    const overlapPenalty = Math.max(0, 1 - overlaps.ratio * 5);
+
+    if (avgConf == null && alignedRatio == null) return null;
+    const confPart = avgConf ?? 0.8;
+    const alignPart = alignedRatio ?? 0.8;
+    return Math.round(confPart * 40 + alignPart * 40 + overlapPenalty * 20);
+  }, [stats, overlaps.ratio]);
+
   if (stats.length === 0) {
     return (
       <p className="player-viewport-placeholder small">
-        Aucune donnée de locuteurs disponible dans ce run.
+        Aucune donn\u00e9e de locuteurs disponible dans ce run.
       </p>
     );
   }
 
   return (
     <div className="player-stats-body">
-      <p className="player-stats-header small">
-        Statistiques prosodiques — {stats.length} locuteur(s)
-        {durationSec != null ? ` · durée totale ${Math.round(durationSec)}s` : ""}
-      </p>
-      <div className="player-stats-grid">
-        {stats.map((s) => {
-          const isActive = s.speaker === activeSpeaker;
-          return (
-            <div
-              key={s.speaker}
-              className={`player-stats-card${isActive ? " is-active" : ""}`}
-              aria-current={isActive ? "true" : undefined}
-            >
-              <div className="player-stats-card-header">
-                <span className="player-stats-speaker">{s.speaker}</span>
-                {isActive && <span className="player-stats-active-badge">en cours</span>}
-              </div>
-              <dl className="player-stats-dl">
-                <dt>Parole</dt>
-                <dd>{formatClockSeconds(s.speechMs / 1000)}</dd>
-                <dt>Ratio p/s</dt>
-                <dd>{(s.speechRatio * 100).toFixed(1)} %</dd>
-                <dt>IPU</dt>
-                <dd>{s.nIpus}</dd>
-                <dt>Mots</dt>
-                <dd>{s.nWords}</dd>
-                <dt>Débit</dt>
-                <dd>{s.speechRateWordsPerSec.toFixed(1)} mots/s</dd>
-                <dt>Pauses</dt>
-                <dd>{s.nPauses}</dd>
-                <dt>Pause moy.</dt>
-                <dd>{s.meanPauseDurMs > 0 ? `${Math.round(s.meanPauseDurMs)} ms` : "—"}</dd>
-              </dl>
-              {s.nPauses > 0 && (
-                <div className="player-stats-histogram">
-                  <p className="player-stats-histogram-label small">
-                    Distribution pauses ({s.nPauses})
-                  </p>
-                  <PauseHistogramCanvas
-                    durationsMs={s.pauseDurationsMs}
-                    activeColor={isActive ? "var(--lx-accent)" : "var(--lx-text-2)"}
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
+      {/* R\u00e9sum\u00e9 global */}
+      <div className="stats-summary">
+        <div className="stats-summary-item">
+          <span className="stats-summary-value mono">{formatClockSeconds(durMs / 1000)}</span>
+          <span className="stats-summary-label">Dur\u00e9e totale</span>
+        </div>
+        <div className="stats-summary-item">
+          <span className="stats-summary-value mono">{formatClockSeconds(totalSpeechMs / 1000)}</span>
+          <span className="stats-summary-label">Temps de parole</span>
+        </div>
+        <div className="stats-summary-item">
+          <span className="stats-summary-value mono">{formatClockSeconds(silenceMs / 1000)}</span>
+          <span className="stats-summary-label">Silence</span>
+        </div>
+        <div className="stats-summary-item">
+          <span className="stats-summary-value mono">{stats.length}</span>
+          <span className="stats-summary-label">Locuteurs</span>
+        </div>
+        <div className="stats-summary-item">
+          <span className="stats-summary-value mono">{slice.turns.length}</span>
+          <span className="stats-summary-label">Tours</span>
+        </div>
+        <div className="stats-summary-item">
+          <span className="stats-summary-value mono">{overlaps.count}</span>
+          <span className="stats-summary-label">Overlaps</span>
+        </div>
+        <div className="stats-summary-item">
+          <span className="stats-summary-value mono">{Math.round(globalRate)}</span>
+          <span className="stats-summary-label">Mots/min global</span>
+        </div>
+        <div className="stats-summary-item">
+          <span className="stats-summary-value mono">{totalWords}</span>
+          <span className="stats-summary-label">Mots total</span>
+        </div>
+        {qualityScore != null && (
+          <div className={`stats-summary-item${qualityScore >= 80 ? " quality-good" : qualityScore >= 60 ? " quality-ok" : " quality-low"}`}>
+            <span className="stats-summary-value mono">{qualityScore}</span>
+            <span className="stats-summary-label">Qualit{"\u00e9"} /100</span>
+          </div>
+        )}
       </div>
+
+      {/* Export */}
+      <div className="stats-export-bar">
+        <button
+          type="button"
+          className="stats-export-btn"
+          onClick={() => {
+            const fullExport = buildFullStatsExport(
+              stats, overlaps, transitions, densityPoints, rateSeries, qualityScore,
+              durMs, totalSpeechMs, totalWords,
+              slice.turns, slice.pauses, slice.ipus, slice.words,
+            );
+            void navigator.clipboard.writeText(buildFullStatsCsv(fullExport));
+          }}
+        >
+          {"\u2913"} CSV complet
+        </button>
+        <button
+          type="button"
+          className="stats-export-btn"
+          onClick={() => {
+            const fullExport = buildFullStatsExport(
+              stats, overlaps, transitions, densityPoints, rateSeries, qualityScore,
+              durMs, totalSpeechMs, totalWords,
+              slice.turns, slice.pauses, slice.ipus, slice.words,
+            );
+            void navigator.clipboard.writeText(JSON.stringify(fullExport, null, 2));
+          }}
+        >
+          {"\u2913"} JSON complet
+        </button>
+      </div>
+
+      {/* R\u00e9partition du temps de parole */}
+      <div className="player-stats-section">
+        <h4 className="player-stats-section-title">R\u00e9partition du temps de parole</h4>
+        <div className="player-stats-legend">
+          {stats.map((s, i) => (
+            <span key={s.speaker} className="player-stats-legend-item">
+              <span className="player-stats-legend-dot" style={{ background: speakerColor(i) }} />
+              <span className="player-stats-legend-label">{s.speaker}</span>
+              <span className="player-stats-legend-pct mono">
+                {((s.speechMs / Math.max(durMs, 1)) * 100).toFixed(1)}%
+              </span>
+            </span>
+          ))}
+        </div>
+        <SpeechBarCanvas stats={stats} totalDurationMs={durMs} activeSpeaker={activeSpeaker} />
+      </div>
+
+      {/* Timeline alternances + overlaps */}
+      <div className="player-stats-section">
+        <h4 className="player-stats-section-title">
+          Timeline des alternances
+          {overlaps.count > 0 && (
+            <span className="stats-overlap-badge">
+              {overlaps.count} overlap{overlaps.count > 1 ? "s" : ""} \u00b7{" "}
+              {formatClockSeconds(overlaps.totalMs / 1000)} ({(overlaps.ratio * 100).toFixed(1)}%)
+            </span>
+          )}
+        </h4>
+        <SpeechTimelineCanvas
+          timeline={timeline}
+          speakers={speakers}
+          totalDurationMs={durMs}
+          playheadMs={playheadMs}
+          onSeekToMs={onSeekToMs}
+          overlapSegments={overlaps.segments}
+        />
+      </div>
+
+      {/* D\u00e9bit de parole */}
+      {rateSeries.length > 0 && (
+        <div className="player-stats-section">
+          <h4 className="player-stats-section-title">D\u00e9bit de parole (mots/min)</h4>
+          <div className="player-stats-legend">
+            {rateSeries.map((s) => {
+              const si = speakers.indexOf(s.speaker);
+              return (
+                <span key={s.speaker} className="player-stats-legend-item">
+                  <span className="player-stats-legend-dot" style={{ background: speakerColor(si >= 0 ? si : 0) }} />
+                  <span className="player-stats-legend-label">{s.speaker}</span>
+                </span>
+              );
+            })}
+          </div>
+          <SpeechRateCanvas
+            series={rateSeries}
+            speakers={speakers}
+            totalDurationMs={durMs}
+            playheadMs={playheadMs}
+            onSeekToMs={onSeekToMs}
+          />
+        </div>
+      )}
+
+      {/* Densité de parole */}
+      {densityPoints.length > 0 && (
+        <div className="player-stats-section">
+          <h4 className="player-stats-section-title">Densit{"\u00e9"} de parole (activit{"\u00e9"} vocale)</h4>
+          <SpeechDensityCanvas
+            points={densityPoints}
+            totalDurationMs={durMs}
+            playheadMs={playheadMs}
+            onSeekToMs={onSeekToMs}
+          />
+        </div>
+      )}
+
+      {/* Transitions entre speakers */}
+      {transitions.length > 0 && (
+        <div className="player-stats-section">
+          <h4 className="player-stats-section-title">Transitions entre locuteurs</h4>
+          <div className="stats-transitions-grid">
+            {transitions.map((tr) => (
+              <div key={`${tr.from}→${tr.to}`} className="stats-transition-item">
+                <span className="stats-transition-pair">
+                  <span className="stats-transition-speaker">{tr.from}</span>
+                  <span className="stats-transition-arrow">{"\u2192"}</span>
+                  <span className="stats-transition-speaker">{tr.to}</span>
+                </span>
+                <span className="stats-transition-stats mono">
+                  {tr.count}x {"\u00b7"} m\u00e9d. {Math.round(tr.medianGapMs)} ms
+                  {tr.medianGapMs < 0 && <span className="stats-transition-overlap"> (overlap)</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* D\u00e9tail par locuteur */}
+      <div className="player-stats-section">
+        <h4 className="player-stats-section-title">D\u00e9tail par locuteur</h4>
+        <div className="player-stats-grid">
+          {stats.map((s, si) => {
+            const isActive = s.speaker === activeSpeaker;
+            const isCollapsed = collapsedSpeakers.has(s.speaker);
+            const pauseTypeEntries = Object.entries(s.pausesByType).sort((a, b) => b[1].count - a[1].count);
+            return (
+              <div
+                key={s.speaker}
+                className={`player-stats-card${isActive ? " is-active" : ""}${isCollapsed ? " is-collapsed" : ""}`}
+                style={{ borderLeftColor: speakerColor(si) }}
+                aria-current={isActive ? "true" : undefined}
+              >
+                <button
+                  type="button"
+                  className="player-stats-card-header"
+                  onClick={() => toggleCollapse(s.speaker)}
+                  title={isCollapsed ? "D\u00e9plier" : "Replier"}
+                >
+                  <span className="player-stats-speaker">{s.speaker}</span>
+                  <span className="stats-card-collapse-icon">{isCollapsed ? "\u25B6" : "\u25BC"}</span>
+                  {isActive && <span className="player-stats-active-badge">en cours</span>}
+                </button>
+
+                {!isCollapsed && <>
+                {/* Stats principales */}
+                <dl className="player-stats-dl">
+                  <dt>Parole</dt>
+                  <dd>{formatClockSeconds(s.speechMs / 1000)}</dd>
+                  <dt>Ratio parole</dt>
+                  <dd>{(s.speechRatio * 100).toFixed(1)} %</dd>
+                  <dt>Mots</dt>
+                  <dd>{s.nWords}</dd>
+                  <dt>D\u00e9bit</dt>
+                  <dd>{s.speechRateWordsPerSec.toFixed(1)} mots/s</dd>
+                  <dt>Tours</dt>
+                  <dd>{s.nTurns}{s.meanTurnDurMs > 0 ? ` (moy. ${(s.meanTurnDurMs / 1000).toFixed(1)}s)` : ""}</dd>
+                  {s.ttr != null && (
+                    <>
+                      <dt>Diversit\u00e9 lex.</dt>
+                      <dd>{(s.ttr * 100).toFixed(0)} % TTR ({s.nUniqueTokens} uniques / {s.nWords})</dd>
+                    </>
+                  )}
+                </dl>
+
+                {/* IPU */}
+                <div className="player-stats-subsection">
+                  <p className="player-stats-subsection-title small">IPU ({s.nIpus})</p>
+                  <dl className="player-stats-dl">
+                    <dt>Dur\u00e9e moy.</dt>
+                    <dd>{s.meanIpuDurMs > 0 ? `${Math.round(s.meanIpuDurMs)} ms` : "\u2014"}</dd>
+                    <dt>Min / Max</dt>
+                    <dd>{s.nIpus > 0 ? `${Math.round(s.minIpuDurMs)} / ${Math.round(s.maxIpuDurMs)} ms` : "\u2014"}</dd>
+                  </dl>
+                  {s.topIpus.length > 0 && (
+                    <div className="stats-top-ipus">
+                      <p className="player-stats-subsection-title small">Top {s.topIpus.length} IPU</p>
+                      {s.topIpus.map((ti, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="stats-top-ipu-item"
+                          disabled={!onSeekToMs}
+                          onClick={() => onSeekToMs?.(ti.startMs)}
+                          title={`${formatClockSeconds(ti.startMs / 1000)} \u2014 ${ti.nWords} mots, ${Math.round(ti.durMs)} ms`}
+                        >
+                          <span className="stats-top-ipu-dur mono">{(ti.durMs / 1000).toFixed(1)}s</span>
+                          <span className="stats-top-ipu-text">{ti.text.length > 60 ? ti.text.slice(0, 60) + "\u2026" : ti.text || "\u2014"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Pauses */}
+                <div className="player-stats-subsection">
+                  <p className="player-stats-subsection-title small">Pauses ({s.nPauses})</p>
+                  <dl className="player-stats-dl">
+                    <dt>Total pauses</dt>
+                    <dd>{s.totalPauseMs > 0 ? formatClockSeconds(s.totalPauseMs / 1000) : "\u2014"}</dd>
+                    <dt>Moy. / M\u00e9d.</dt>
+                    <dd>
+                      {s.meanPauseDurMs > 0
+                        ? `${Math.round(s.meanPauseDurMs)} / ${Math.round(s.medianPauseDurMs)} ms`
+                        : "\u2014"}
+                    </dd>
+                    <dt>P90</dt>
+                    <dd>{s.p90PauseDurMs > 0 ? `${Math.round(s.p90PauseDurMs)} ms` : "\u2014"}</dd>
+                    <dt>Ratio pause</dt>
+                    <dd>{(s.pauseRatio * 100).toFixed(1)} %</dd>
+                  </dl>
+                  {pauseTypeEntries.length > 0 && (
+                    <div className="stats-pause-types">
+                      {pauseTypeEntries.map(([type, val]) => (
+                        <span key={type} className="stats-pause-type-chip small">
+                          {type}: {val.count} ({Math.round(val.totalMs)} ms)
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {s.nPauses > 0 && (
+                    <div className="player-stats-histogram">
+                      <p className="player-stats-histogram-label small">Distribution pauses</p>
+                      <PauseHistogramCanvas
+                        durationsMs={s.pauseDurationsMs}
+                        activeColor={speakerColor(si)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Confiance + alignement (si mots charg\u00e9s) */}
+                {s.meanConfidence != null && (
+                  <div className="player-stats-subsection">
+                    <p className="player-stats-subsection-title small">Qualit\u00e9 transcript</p>
+                    <dl className="player-stats-dl">
+                      <dt>Confiance moy.</dt>
+                      <dd>{(s.meanConfidence * 100).toFixed(0)} %</dd>
+                      <dt>Mots &lt; 70%</dt>
+                      <dd>{s.lowConfidencePct != null ? `${(s.lowConfidencePct * 100).toFixed(1)} %` : "\u2014"}</dd>
+                    </dl>
+                    {Object.keys(s.alignmentDist).length > 0 && (
+                      <div className="stats-alignment-dist">
+                        {Object.entries(s.alignmentDist).sort((a, b) => b[1] - a[1]).map(([status, count]) => (
+                          <span key={status} className="stats-alignment-chip small">
+                            {status}: {count}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                </>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
     </div>
   );
 }
+

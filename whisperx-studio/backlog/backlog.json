@@ -3941,11 +3941,17 @@
                 "Barre de transport visible et accessible : play/pause, prev/next segment, vitesse.",
                 "Boucle A-B configurable par glisser-déposer ou raccourcis.",
                 "Affichage timecode courant / durée totale.",
-                "Raccourcis clavier documentés dans tooltip."
+                "Raccourcis clavier documentés dans tooltip.",
+                "SPIKE — Barre de lecture sticky : évaluer la faisabilité et l'intérêt d'une barre de lecture persistante en bas ou en haut de la fenêtre, toujours visible quel que soit le scroll ou la vue active.",
+                "Analyser les options : (A) barre sticky en bas de la fenêtre (style Spotify/podcast), (B) barre sticky en haut du panneau player, (C) barre flottante compacte repositionnable.",
+                "Pour chaque option : impact sur la hauteur utile des vues, compatibilité avec la waveform, comportement en mode plein écran (WX-720), interaction avec l'éditeur.",
+                "Évaluer l'intérêt : permet de contrôler la lecture sans revenir au haut de la page, feedback visuel permanent (timecode, speaker actif), cohérence UX avec les apps audio de référence.",
+                "Si retenue : implémenter la barre sticky avec mini-waveform, timecode, play/pause, seek, indicateur speaker actif, volume, vitesse."
             ],
             "acceptance": [
                 "npm run build propre.",
-                "Lecture fluide avec changement de vitesse et boucle A-B fonctionnels."
+                "Lecture fluide avec changement de vitesse et boucle A-B fonctionnels.",
+                "Document de décision sur la barre sticky (option retenue, justification, maquette si applicable)."
             ]
         },
         {
@@ -4312,6 +4318,172 @@
             "acceptance": [
                 "npm run build et cargo check propres.",
                 "Rapport HTML ouvrable dans un navigateur, lisible et complet."
+            ]
+        },
+        {
+            "id": "WX-718",
+            "title": "Mode annotation/analyse directe : importer un fichier audio sans passer par le pipeline ASR complet",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "3d",
+            "dependsOn": [],
+            "scope": [
+                "src/App.tsx",
+                "src/hooks/useStudioWorkspace.ts",
+                "src/components/player/PlayerWorkspaceSection.tsx",
+                "src-tauri/src/lib.rs",
+                "src-tauri/src/run_commands.rs",
+                "whisperx/cli.py"
+            ],
+            "execute": [
+                "npm run build",
+                "cargo check",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "L'utilisateur peut ouvrir un fichier audio (wav, mp3, flac, etc.) sans lancer de transcription.",
+                "Le player charge le fichier avec la waveform et permet la lecture.",
+                "Un mode 'annotation manuelle' permet de créer des segments de texte manuellement (sans ASR).",
+                "L'utilisateur peut ajouter, éditer et supprimer des segments avec timestamps manuels ou par sélection waveform.",
+                "Possibilité d'importer un transcript existant (SRT, VTT, JSON) pour l'associer à l'audio sans re-transcription.",
+                "Possibilité de lancer l'analyse prosodique (pauses, IPU, tours) sur un transcript importé sans re-transcription.",
+                "Le mode analyse directe génère un run directory standard avec manifeste, compatible avec toutes les vues du player."
+            ],
+            "acceptance": [
+                "npm run build et cargo check propres.",
+                "Ouvrir un fichier audio seul affiche la waveform et le player.",
+                "Importer un SRT existant l'affiche correctement dans les vues du player.",
+                "L'analyse prosodique fonctionne sur un transcript importé.",
+                "Les segments créés manuellement sont sauvegardables et exportables."
+            ]
+        },
+        {
+            "id": "WX-719",
+            "title": "Mode annotation post-traitement : conventions prédéfinies et personnalisables appliquées après transcription",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "3d",
+            "dependsOn": [
+                "WX-697"
+            ],
+            "scope": [
+                "src/types.ts",
+                "src/constants.ts",
+                "src/components/player/PlayerWorkspaceSection.tsx",
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/hooks/transcript/transcriptSegmentMutations.ts",
+                "src/styles/main.css",
+                "src-tauri/src/transcript_commands.rs",
+                "src-tauri/src/lib.rs"
+            ],
+            "execute": [
+                "npm run build",
+                "cargo check",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Système de conventions d'annotation configurable : un jeu de conventions est un ensemble de tags, symboles et règles applicables au texte transcrit.",
+                "Conventions prédéfinies fournies : ICOR (ICAR Lyon), CHAT (CHILDES/TalkBank), conventions minimalistes (pauses, chevauchements, troncations).",
+                "L'utilisateur peut créer ses propres conventions (nom, symboles, couleurs, raccourcis clavier) via un éditeur de conventions dans les paramètres.",
+                "Les conventions sont stockées en JSON dans le profil utilisateur et associables par run.",
+                "Mode annotation activable post-traitement dans le Player : une toolbar contextuelle apparaît avec les symboles de la convention active.",
+                "Insertion rapide de marques d'annotation : pauses chronométrées (ex. (0.5)), chevauchements (ex. [ ]), allongements (ex. ::), montées/descentes intonatives, troncations (ex. mot-), etc.",
+                "Les annotations sont intégrées inline dans le texte des segments et préservées à l'export (SRT, ELAN, TextGrid).",
+                "Highlight visuel des marques d'annotation dans les vues du player (couleur/style distinct du texte brut).",
+                "Raccourcis clavier configurables pour chaque symbole d'annotation."
+            ],
+            "acceptance": [
+                "npm run build et cargo check propres.",
+                "Sélectionner une convention prédéfinie (ex. ICOR) ajoute la toolbar correspondante.",
+                "Insérer un symbole de pause (0.5) dans un segment est visible dans toutes les vues.",
+                "Créer une convention personnalisée avec 3+ symboles, la sauvegarder, la recharger.",
+                "Exporter en ELAN un transcript annoté conserve les marques d'annotation.",
+                "Les raccourcis clavier fonctionnent en mode édition."
+            ]
+        },
+        {
+            "id": "WX-720",
+            "title": "Mode plein écran : player immersif avec suivi synchronisé du texte",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "2.5d",
+            "dependsOn": [
+                "WX-697",
+                "WX-704"
+            ],
+            "scope": [
+                "src/App.tsx",
+                "src/components/player/PlayerWorkspaceSection.tsx",
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/components/player/PlayerFullscreenView.tsx",
+                "src/hooks/usePlayerPlayback.ts",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "cargo check",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Un bouton 'Plein écran' dans le player déclenche un mode immersif qui occupe toute la fenêtre.",
+                "Le mode plein écran affiche le player audio/vidéo, la waveform, et un panneau de texte synchronisé en dessous.",
+                "Le texte défile automatiquement pour suivre la position du playhead (auto-scroll).",
+                "Le segment actif est mis en surbrillance, le mot actif est souligné ou en gras.",
+                "Les segments passés sont grisés, les segments futurs ont une opacité normale.",
+                "Identification visuelle du locuteur actif (couleur, nom affiché).",
+                "Contrôles de lecture accessibles en overlay : play/pause, seek, volume, vitesse.",
+                "Raccourci clavier pour entrer/sortir du plein écran (ex. F11 ou Cmd+Shift+F).",
+                "Clic sur un segment dans le texte = seek à ce timestamp.",
+                "Mode focus : possibilité de n'afficher qu'un seul locuteur à la fois avec un sélecteur.",
+                "Le mode plein écran fonctionne aussi bien avec un fichier audio qu'avec une vidéo.",
+                "Sortie du plein écran restaure l'état précédent du player (vue, position, zoom)."
+            ],
+            "acceptance": [
+                "npm run build et cargo check propres.",
+                "Entrer en plein écran affiche le player et le texte synchronisé sur toute la fenêtre.",
+                "Le texte scroll automatiquement pour suivre la lecture.",
+                "Clic sur un mot dans le texte seek à la bonne position.",
+                "Raccourci clavier F11 bascule le plein écran.",
+                "Sortir du plein écran revient à la vue normale sans perte d'état."
+            ]
+        },
+        {
+            "id": "WX-721",
+            "title": "Spike : évaluer un onglet Édition dédié pour séparer la correction/annotation de la consultation",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1d",
+            "dependsOn": [
+                "WX-697",
+                "WX-719"
+            ],
+            "scope": [
+                "src/types.ts",
+                "src/App.tsx",
+                "src/hooks/useStudioWorkspace.ts",
+                "src/components/player/PlayerWorkspaceSection.tsx",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "cargo check"
+            ],
+            "definitionOfDone": [
+                "SPIKE — livrable : document de décision + prototype minimal si la conclusion est favorable.",
+                "Analyser le couplage actuel entre le mode édition (toggle) et les 6 vues du player (lanes, chat, mots, colonnes, rythmo, karaoke).",
+                "Identifier les irritants UX du mode édition intégré : toggle facile à oublier, toolbar contextuelle absente selon la vue, perte de contexte entre lecture et correction.",
+                "Évaluer l'option A : onglet Édition séparé dans la barre de navigation principale (au même niveau que Workspace, Jobs, Player, About).",
+                "Évaluer l'option B : panneau Édition en split-view à côté du player, avec synchronisation bidirectionnelle.",
+                "Évaluer l'option C : garder le toggle actuel mais enrichir avec une toolbar d'édition/annotation persistante et un panneau latéral d'outils.",
+                "Pour chaque option : impact sur le routage, sur la gestion d'état (hooks), sur la cohabitation avec WX-719 (conventions d'annotation), sur WX-720 (plein écran).",
+                "Documenter les avantages/inconvénients : séparation des responsabilités lecture vs édition, simplification des vues consultation, place pour la toolbar d'annotation, risque de duplication de code, impact sur la navigation.",
+                "Prototyper l'option retenue : ajouter l'onglet ou le panneau dans App.tsx, vérifier que le transcript s'ouvre et que les modifications sont sauvegardées.",
+                "Recommandation finale avec justification."
+            ],
+            "acceptance": [
+                "npm run build et cargo check propres.",
+                "Document de décision rédigé (avantages/inconvénients de chaque option, recommandation).",
+                "Si prototype : l'onglet ou le panneau s'ouvre, affiche le transcript, et les éditions sont persistées."
             ]
         }
     ]
