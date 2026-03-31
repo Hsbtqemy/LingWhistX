@@ -20,6 +20,7 @@ import { derivePlayerAlerts } from "../../player/derivePlayerAlerts";
 import type { PlayerDerivedAlertKind } from "../../player/derivePlayerAlerts";
 import type {
   AnnotationTier,
+  EditableSegment,
   ExportRunTimingPackResponse,
   ImportAnnotationResult,
   RecomputePlayerAlertsResponse,
@@ -32,6 +33,15 @@ import {
   VIEWPORT_QUERY_CONTRACTS,
   type ViewportQueryContract,
 } from "./playerViewportContract";
+import {
+  buildFullStatsCsv,
+  buildFullStatsExport,
+  computeOverlaps,
+  computeSpeakerStats,
+  computeSpeechDensity,
+  computeSpeechRate,
+  computeTransitions,
+} from "../../player/playerSpeakerStats";
 import { PlayerJumpPanel } from "./PlayerJumpPanel";
 import { PlayerMediaTransport } from "./PlayerMediaTransport";
 import { PlayerTopBar } from "./PlayerTopBar";
@@ -144,6 +154,7 @@ export function PlayerWorkspaceSection({
   });
 
   const [editMode, setEditMode] = useState(initialEditMode);
+  const [waveformCompact, setWaveformCompact] = useState(true);
 
   const noopRefreshJobs = useCallback(async () => {}, []);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -155,14 +166,6 @@ export function PlayerWorkspaceSection({
     previewOutput: noopPreviewOutput,
     selectedJobId: runDir ? `player:${runDir}` : "player-idle",
   });
-
-  useWaveformCanvas(
-    wf,
-    editMode ? te.editorSegments : [],
-    editMode ? te.focusedSegmentIndex : null,
-    editMode ? te.hoveredSegmentEdge : null,
-    editMode ? te.dragSegmentState : null,
-  );
 
   const [transcriptJsonPath, setTranscriptJsonPath] = useState<string | null>(null);
 
@@ -314,6 +317,30 @@ export function PlayerWorkspaceSection({
     speakersFilter: speakerSolo ? [speakerSolo] : null,
     refreshEpoch: eventsRefreshEpoch,
   });
+
+  // WX-725 — overlay turns/segments sur la waveform (édition → editor segs, sinon → tours SQL)
+  const overlaySegments = useMemo((): EditableSegment[] => {
+    if (editMode) return te.editorSegments;
+    return (
+      runWindow.slice?.turns.map((t) => ({
+        start: t.startMs / 1000,
+        end: t.endMs / 1000,
+        text: "",
+        speaker: t.speaker,
+      })) ?? []
+    );
+  }, [editMode, te.editorSegments, runWindow.slice]);
+
+  useWaveformCanvas(
+    wf,
+    overlaySegments,
+    editMode ? te.focusedSegmentIndex : null,
+    editMode ? te.hoveredSegmentEdge : null,
+    editMode ? te.dragSegmentState : null,
+    loopAsec,
+    loopBsec,
+    waveformCompact,
+  );
 
   const derivedAlertsFromTs = useMemo(
     () => (runWindow.slice ? derivePlayerAlerts(runWindow.slice, { longPauseMs }) : []),
@@ -770,21 +797,26 @@ export function PlayerWorkspaceSection({
           mediaPath={mediaPath}
           shortcutsHelpOpen={shortcutsHelpOpen}
           onToggleShortcutsHelp={() => setShortcutsHelpOpen((v) => !v)}
-          transportDisabled={transportDisabled}
-          loopHint={loopHint}
-          onMarkLoopA={markLoopA}
-          onMarkLoopB={markLoopB}
-          onClearLoop={clearLoop}
-          loopAsec={loopAsec}
-          loopBsec={loopBsec}
-          qcSummary={qcSummary}
-          exportFolderError={exportFolderError}
-          exportPackError={exportPackError}
-          exportPackHint={exportPackHint}
-          exportPackBusy={exportPackBusy}
-          onOpenRunFolder={openRunFolder}
-          onExportRunTimingPack={exportRunTimingPack}
         />
+        {runDir && (
+          <div className="player-loop-bar">
+            <span className="player-loop-bar-hint small mono">{loopHint}</span>
+            <button type="button" className="ghost small" onClick={markLoopA} disabled={transportDisabled}>
+              Marquer A
+            </button>
+            <button type="button" className="ghost small" onClick={markLoopB} disabled={transportDisabled}>
+              Marquer B
+            </button>
+            <button
+              type="button"
+              className="ghost small"
+              onClick={clearLoop}
+              disabled={transportDisabled || (!loopAsec && !loopBsec)}
+            >
+              Effacer boucle
+            </button>
+          </div>
+        )}
         {runDir && summary && summary.artifactKeys.length > 0 ? (
           <PlayerRunArtifactsStrip runDir={runDir} artifactKeys={summary.artifactKeys} />
         ) : null}
@@ -951,7 +983,7 @@ export function PlayerWorkspaceSection({
                   Mode édition
                 </label>
               ) : (
-                <p className="small" style={{ color: "var(--lx-text-2)", margin: 0 }}>
+                <p className="small player-hint">
                   Aucun transcript chargé — lancer un run pour éditer.
                 </p>
               )}
@@ -1023,7 +1055,7 @@ export function PlayerWorkspaceSection({
 
             <div className="player-panel-box">
               <h4 className="player-panel-box-title">Filtres</h4>
-              <p className="small" style={{ margin: 0 }}>
+              <p className="small player-hint">
                 Locuteur : <span className="mono">{speakerSolo ?? "tous"}</span>
                 {runSpeakerIds.length > 0 ? (
                   <> · 1–9 (réappuyer = off) · 0 = tous</>
@@ -1048,6 +1080,8 @@ export function PlayerWorkspaceSection({
             </div>
           </aside>
           <main className={`player-viewport${editMode ? " player-viewport--edit" : ""}`}>
+            {/* WX-725 — Zone sticky : media + transport + waveform toujours visibles */}
+            <div className="player-sticky-zone">
             <div className={`player-media-stage${editMode ? " player-media-stage--compact" : ""}`}>
               {editMode && mediaSrc && !isVideo ? (
                 <audio
@@ -1139,15 +1173,20 @@ export function PlayerWorkspaceSection({
                   onCopyPlayhead={copyPlayheadToClipboard}
                 />
               ) : null}
-              {mediaSrc && mediaPath && runDir && !editMode ? (
+              {mediaSrc && mediaPath && runDir ? (
                 <PlayerWaveformPanel
                   wf={wf}
                   mediaPath={mediaPath}
                   pauseCsvPaths={pauseCsvPaths}
                   isVideo={isVideo}
+                  compact={waveformCompact}
+                  onToggleCompact={() => setWaveformCompact((c) => !c)}
                 />
               ) : null}
             </div>
+            </div>{/* /player-sticky-zone */}
+            {/* WX-725 — Zone défilable : toolbar édition + événements */}
+            <div className="player-content-zone">
             {editMode ? (
               <div className="player-edit-toolbar" role="toolbar" aria-label="Outils d'édition">
                 <span className="player-edit-toolbar-label small">
@@ -1249,97 +1288,264 @@ export function PlayerWorkspaceSection({
               />
             </div>
             {runDir ? <p className="small mono player-viewport-path">{runDir}</p> : null}
+            </div>{/* /player-content-zone */}
           </main>
           <aside className="player-panel player-panel--right">
-            <h4 className="player-panel-title">Alertes (fenêtre)</h4>
-            <details className="player-alerts-advanced small">
-              <summary className="player-alerts-advanced-summary">Avancé — seuils (IPC)</summary>
-              <div className="player-alerts-advanced-body">
-                <label className="player-alerts-advanced-label">
-                  Pause longue ≥ (ms)
-                  <input
-                    type="range"
-                    min={500}
-                    max={30000}
-                    step={100}
-                    value={longPauseMs}
-                    onChange={(e) => setLongPauseMs(Number(e.target.value))}
-                    aria-label="Seuil pause longue en millisecondes"
-                  />
-                  <span className="mono">{longPauseMs}</span>
-                </label>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={!runWindow.slice}
-                  loading={recomputeBusy}
-                  onClick={() => void recomputePlayerAlertsIpc()}
-                >
-                  Recalculer (IPC)
-                </Button>
-                {recomputeError ? (
-                  <p className="small player-alerts-recompute-error" role="alert">
-                    {recomputeError}
-                  </p>
+            {/* Run : QC + export */}
+            <details className="player-panel-section" open>
+              <summary className="player-panel-section-summary">Run</summary>
+              <div className="player-panel-run-body small">
+                <span className="player-qc-badge" title="Heuristiques fenêtre + manifest">
+                  QC : {qcSummary}
+                </span>
+                <div className="player-panel-run-actions">
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={!runDir}
+                    title="Ouvre le dossier du run (⌃⇧O / ⌘⇧O)"
+                    onClick={() => void openRunFolder()}
+                  >
+                    Dossier run
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={!runDir || exportPackBusy}
+                    title="JSON + SRT + CSV (⌃⇧E / ⌘⇧E)"
+                    onClick={() => void exportRunTimingPack()}
+                  >
+                    {exportPackBusy ? "Export…" : "Export pack"}
+                  </button>
+                </div>
+                {exportFolderError ? (
+                  <span className="player-export-error" role="alert">{exportFolderError}</span>
                 ) : null}
-                {lastRecomputeStats ? (
-                  <p className="small mono player-alerts-qc-stats">
-                    QC Rust : {lastRecomputeStats.nOverlapTurn} chev. · {lastRecomputeStats.nLongPause}{" "}
-                    pauses · {lastRecomputeStats.nTurnsInWindow} tours ·{" "}
-                    {lastRecomputeStats.nPausesInWindow} pauses (fenêtre)
-                  </p>
+                {exportPackError ? (
+                  <span className="player-export-error" role="alert">{exportPackError}</span>
+                ) : null}
+                {exportPackHint ? (
+                  <span className="player-export-hint mono" title={exportPackHint}>
+                    {exportPackHint.length > 80 ? `${exportPackHint.slice(0, 80)}…` : exportPackHint}
+                  </span>
                 ) : null}
               </div>
             </details>
-            <label className="player-alert-filter small">
-              Liste :{" "}
-              <select
-                value={alertListFilter}
-                onChange={(e) =>
-                  runInTransition(() => setAlertListFilter(e.target.value as AlertListFilter))
-                }
-                aria-label="Filtrer le type d’alertes dans la liste"
-              >
-                <option value="all">Toutes</option>
-                <option value="overlap_turn">Chevauchements</option>
-                <option value="long_pause">Pauses longues</option>
-              </select>
-            </label>
-            {derivedAlerts.length === 0 ? (
-              <p className="small">
-                Aucune alerte détectée (chevauchements de tours, pauses ≥{" "}
-                {(longPauseMs / 1000).toFixed(1).replace(/\.0$/, "")} s).
-              </p>
-            ) : displayedAlerts.length === 0 ? (
-              <p className="small">Aucune alerte pour ce filtre.</p>
-            ) : (
-              <ul className="player-alert-list">
-                {displayedAlerts.slice(0, 40).map((a) => (
-                  <li key={a.id}>
-                    <button
-                      type="button"
-                      className="player-alert-item"
-                      title={`Aller à ${a.startMs} ms`}
-                      onClick={() => seek(a.startMs / 1000)}
-                    >
-                      {a.message}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+
+            {/* WX-706 — Segment sélectionné */}
+            <details className="player-panel-section" open>
+              <summary className="player-panel-section-summary">Segment sélectionné</summary>
+              {editMode && te.activeSegmentIndex !== null ? (
+                (() => {
+                  const seg = te.editorSegments[te.activeSegmentIndex];
+                  if (!seg) return <p className="small">Aucun segment actif.</p>;
+                  const durMs = Math.round((seg.end - seg.start) * 1000);
+                  const nWords = seg.words?.length ?? null;
+                  const scoredWords = seg.words?.filter((w) => w.score != null) ?? [];
+                  const avgScore =
+                    scoredWords.length > 0
+                      ? scoredWords.reduce((s, w) => s + w.score!, 0) / scoredWords.length
+                      : null;
+                  return (
+                    <dl className="player-segment-info small">
+                      <dt>Locuteur</dt>
+                      <dd>{seg.speaker ?? "—"}</dd>
+                      <dt>Durée</dt>
+                      <dd className="mono">{durMs} ms</dd>
+                      {nWords !== null && (
+                        <>
+                          <dt>Mots</dt>
+                          <dd>{nWords}</dd>
+                        </>
+                      )}
+                      {avgScore !== null && (
+                        <>
+                          <dt>Score moy.</dt>
+                          <dd className="mono">{avgScore.toFixed(2)}</dd>
+                        </>
+                      )}
+                    </dl>
+                  );
+                })()
+              ) : (
+                (() => {
+                  const turn = runWindow.slice?.turns.find(
+                    (t) => t.startMs <= playheadMs && playheadMs < t.endMs
+                  );
+                  if (!turn) return <p className="small">Aucun tour au curseur.</p>;
+                  const durMs = turn.endMs - turn.startMs;
+                  return (
+                    <dl className="player-segment-info small">
+                      <dt>Locuteur</dt>
+                      <dd>{turn.speaker}</dd>
+                      <dt>Durée</dt>
+                      <dd className="mono">{durMs} ms</dd>
+                      {turn.confidence != null && (
+                        <>
+                          <dt>Conf.</dt>
+                          <dd className="mono">{turn.confidence.toFixed(2)}</dd>
+                        </>
+                      )}
+                    </dl>
+                  );
+                })()
+              )}
+            </details>
+
+            {/* Alertes */}
+            <details className="player-panel-section" open>
+              <summary className="player-panel-section-summary">
+                Alertes{" "}
+                {derivedAlerts.length > 0 && (
+                  <span className="player-panel-section-badge">{derivedAlerts.length}</span>
+                )}
+              </summary>
+              <details className="player-alerts-advanced small">
+                <summary className="player-alerts-advanced-summary">Avancé — seuils (IPC)</summary>
+                <div className="player-alerts-advanced-body">
+                  <label className="player-alerts-advanced-label">
+                    Pause longue ≥ (ms)
+                    <input
+                      type="range"
+                      min={500}
+                      max={30000}
+                      step={100}
+                      value={longPauseMs}
+                      onChange={(e) => setLongPauseMs(Number(e.target.value))}
+                      aria-label="Seuil pause longue en millisecondes"
+                    />
+                    <span className="mono">{longPauseMs}</span>
+                  </label>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={!runWindow.slice}
+                    loading={recomputeBusy}
+                    onClick={() => void recomputePlayerAlertsIpc()}
+                  >
+                    Recalculer (IPC)
+                  </Button>
+                  {recomputeError ? (
+                    <p className="small player-alerts-recompute-error" role="alert">
+                      {recomputeError}
+                    </p>
+                  ) : null}
+                  {lastRecomputeStats ? (
+                    <p className="small mono player-alerts-qc-stats">
+                      QC Rust : {lastRecomputeStats.nOverlapTurn} chev. · {lastRecomputeStats.nLongPause}{" "}
+                      pauses · {lastRecomputeStats.nTurnsInWindow} tours ·{" "}
+                      {lastRecomputeStats.nPausesInWindow} pauses (fenêtre)
+                    </p>
+                  ) : null}
+                </div>
+              </details>
+              <label className="player-alert-filter small">
+                Liste :{" "}
+                <select
+                  value={alertListFilter}
+                  onChange={(e) =>
+                    runInTransition(() => setAlertListFilter(e.target.value as AlertListFilter))
+                  }
+                  aria-label="Filtrer le type d’alertes dans la liste"
+                >
+                  <option value="all">Toutes</option>
+                  <option value="overlap_turn">Chevauchements</option>
+                  <option value="long_pause">Pauses longues</option>
+                </select>
+              </label>
+              {derivedAlerts.length === 0 ? (
+                <p className="small">
+                  Aucune alerte détectée (chevauchements de tours, pauses ≥{" "}
+                  {(longPauseMs / 1000).toFixed(1).replace(/\.0$/, "")} s).
+                </p>
+              ) : displayedAlerts.length === 0 ? (
+                <p className="small">Aucune alerte pour ce filtre.</p>
+              ) : (
+                <ul className="player-alert-list">
+                  {displayedAlerts.slice(0, 40).map((a) => (
+                    <li key={a.id}>
+                      <button
+                        type="button"
+                        className="player-alert-item"
+                        title={`Aller à ${a.startMs} ms`}
+                        onClick={() => seek(a.startMs / 1000)}
+                      >
+                        {a.message}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </details>
+
+            {/* Export stats (vue stats uniquement) */}
+            {viewportMode === "stats" && runWindow.slice && (
+              <details className="player-panel-section" open>
+                <summary className="player-panel-section-summary">Export stats</summary>
+                <div className="player-panel-export-group">
+                  <button
+                    type="button"
+                    className="player-panel-export-btn"
+                    onClick={() => {
+                      const sl = runWindow.slice!;
+                      const durMs = durationSec != null && Number.isFinite(durationSec)
+                        ? durationSec * 1000
+                        : Math.max(0, ...sl.turns.map((t) => t.endMs));
+                      const hasWords = sl.words.length > 0;
+                      const stats = computeSpeakerStats(sl.turns, sl.pauses, sl.ipus, durMs, hasWords ? sl.words : undefined);
+                      const overlaps = computeOverlaps(sl.turns, durMs);
+                      const transitions = computeTransitions(sl.turns);
+                      const density = computeSpeechDensity(sl.turns, durMs);
+                      const rate = computeSpeechRate(sl.ipus, durMs);
+                      const totalSpeechMs = stats.reduce((s, st) => s + st.speechMs, 0);
+                      const totalWords = stats.reduce((s, st) => s + st.nWords, 0);
+                      const full = buildFullStatsExport(stats, overlaps, transitions, density, rate, null, durMs, totalSpeechMs, totalWords, sl.turns, sl.pauses, sl.ipus, sl.words);
+                      void navigator.clipboard.writeText(buildFullStatsCsv(full));
+                    }}
+                  >
+                    {"\u2913"} CSV complet
+                  </button>
+                  <button
+                    type="button"
+                    className="player-panel-export-btn"
+                    onClick={() => {
+                      const sl = runWindow.slice!;
+                      const durMs = durationSec != null && Number.isFinite(durationSec)
+                        ? durationSec * 1000
+                        : Math.max(0, ...sl.turns.map((t) => t.endMs));
+                      const hasWords = sl.words.length > 0;
+                      const stats = computeSpeakerStats(sl.turns, sl.pauses, sl.ipus, durMs, hasWords ? sl.words : undefined);
+                      const overlaps = computeOverlaps(sl.turns, durMs);
+                      const transitions = computeTransitions(sl.turns);
+                      const density = computeSpeechDensity(sl.turns, durMs);
+                      const rate = computeSpeechRate(sl.ipus, durMs);
+                      const totalSpeechMs = stats.reduce((s, st) => s + st.speechMs, 0);
+                      const totalWords = stats.reduce((s, st) => s + st.nWords, 0);
+                      const full = buildFullStatsExport(stats, overlaps, transitions, density, rate, null, durMs, totalSpeechMs, totalWords, sl.turns, sl.pauses, sl.ipus, sl.words);
+                      void navigator.clipboard.writeText(JSON.stringify(full, null, 2));
+                    }}
+                  >
+                    {"\u2913"} JSON complet
+                  </button>
+                </div>
+              </details>
             )}
-            <h4 className="player-panel-title">Contrôles</h4>
-            <p className="small">
-              Lecture, saut ±1 s / ±5 s, progression et volume sont sous le média. Boucle A–B et export
-              en haut.
-            </p>
-            <p className="small player-shortcuts-hint">
-              Espace · Home / Fin · ⌃⇧C copier · ⌃⇧O dossier · ⌃⇧E export · ← → (±1 s) · Shift+← →
-              (±5 s) · Alt+← → (±0,1 s) · +/− vitesse · M muet · Alt+Entrée plein écran (vidéo) · F
-              suivi · W mots · L boucle · ⌃1–6 vues · N / P alertes · 0 / 1–9 locuteur · Aller au temps
-              (gauche) · <strong>?</strong> aide
-            </p>
+
+            {/* Contrôles — replié par défaut */}
+            <details className="player-panel-section">
+              <summary className="player-panel-section-summary">Contrôles</summary>
+              <p className="small">
+                Lecture, saut ±1 s / ±5 s, progression et volume sont sous le média. Boucle A–B et
+                export en haut.
+              </p>
+              <p className="small player-shortcuts-hint">
+                Espace · Home / Fin · ⌃⇧C copier · ⌃⇧O dossier · ⌃⇧E export · ← → (±1 s) · Shift+←
+                → (±5 s) · Alt+← → (±0,1 s) · +/− vitesse · M muet · Alt+Entrée plein écran (vidéo) ·
+                F suivi · W mots · L boucle · ⌃1–6 vues · N / P alertes · 0 / 1–9 locuteur · Aller au
+                temps (gauche) · <strong>?</strong> aide
+              </p>
+            </details>
           </aside>
         </div>
       )}

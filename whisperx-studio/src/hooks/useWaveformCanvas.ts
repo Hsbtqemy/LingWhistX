@@ -14,6 +14,9 @@ export function useWaveformCanvas(
   focusedSegmentIndex: number | null,
   hoveredSegmentEdge: SegmentEdge | null,
   dragSegmentState: SegmentDragState | null,
+  loopAsec?: number | null,
+  loopBsec?: number | null,
+  compact?: boolean,
 ): void {
   const {
     waveformCanvasRef,
@@ -43,7 +46,7 @@ export function useWaveformCanvas(
     const colors = getWaveformCanvasThemeColors();
 
     const widthCss = Math.max(320, Math.floor(canvas.clientWidth));
-    const heightCss = 200;
+    const heightCss = compact ? 80 : 200;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.floor(widthCss * dpr);
     canvas.height = Math.floor(heightCss * dpr);
@@ -169,6 +172,9 @@ export function useWaveformCanvas(
     if (rangeDragPreviewSec) {
       drawRangeBand(rangeDragPreviewSec.start, rangeDragPreviewSec.end, colors.rangePreview);
     }
+    if (loopAsec != null && loopBsec != null && loopBsec > loopAsec) {
+      drawRangeBand(loopAsec, loopBsec, colors.loopBand);
+    }
 
     const centerY = heightCss / 2;
     ctx.strokeStyle = colors.gridLine;
@@ -276,5 +282,8 @@ export function useWaveformCanvas(
     rangeDragPreviewSec,
     pauseOverlayIntervals,
     pauseOverlayVisible,
+    loopAsec,
+    loopBsec,
+    compact,
   ]);
 }

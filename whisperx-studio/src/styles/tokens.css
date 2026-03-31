@@ -42,6 +42,7 @@
   --lx-waveform-pause-overlay: color-mix(in srgb, #6e4b9b 13%, transparent);
   --lx-waveform-range-valid: color-mix(in srgb, var(--lx-accent-secondary) 22%, transparent);
   --lx-waveform-range-preview: color-mix(in srgb, var(--lx-warning) 20%, transparent);
+  --lx-waveform-loop-band: color-mix(in srgb, var(--lx-warning) 18%, transparent);
   --lx-waveform-handle-cold: color-mix(in srgb, #1a6fb0 100%, transparent);
   --lx-waveform-handle-hot: color-mix(in srgb, var(--lx-warning) 90%, transparent);
   /* Accent & états */
@@ -70,21 +71,29 @@
   --lx-font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Bahnschrift", "Trebuchet MS", sans-serif;
   --lx-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --lx-text-2xs: 0.65rem;
   --lx-text-xs: 0.72rem;
   --lx-text-sm: 0.85rem;
   --lx-text-md: 1rem;
   --lx-text-lg: 1.125rem;
+  --lx-text-inverse: #fff;
   /* Espacement (échelle §C.1 ; 30px = rythme shell bas) */
   --lx-space-1: 4px;
+  --lx-space-1-5: 6px;
   --lx-space-2: 8px;
+  --lx-space-2-5: 10px;
   --lx-space-3: 12px;
   --lx-space-4: 16px;
   --lx-space-5: 24px;
   --lx-space-shell-bottom: 30px;
   /* Rayons & ombre */
+  --lx-radius-xs: 4px;
   --lx-radius-sm: 8px;
   --lx-radius-md: 12px;
   --lx-radius-lg: 20px;
+  --lx-radius-pill: 999px;
+  /* Couleur texte avertissement (plus foncé que --lx-warning en mode clair) */
+  --lx-warning-text: #b45309;
   --lx-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.92) inset, 0 22px 48px rgba(15, 23, 42, 0.07);
   /* Anneau focus — surface + accent (contraste sur clair et sombre via réassignation thème) */
   --lx-focus-ring-color: var(--lx-accent);
@@ -226,6 +235,7 @@ html {
     --lx-accent-secondary: #34d399;
     --lx-danger: #f87171;
     --lx-warning: #fbbf24;
+    --lx-warning-text: var(--lx-warning);
     --lx-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 22px 48px rgba(0, 0, 0, 0.4);
     --lx-focus-ring-surface: #0f1419;
     --lx-focus-ring-color: #5eead4;
@@ -340,6 +350,7 @@ html {
   --lx-accent-secondary: #34d399;
   --lx-danger: #f87171;
   --lx-warning: #fbbf24;
+  --lx-warning-text: var(--lx-warning);
   --lx-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 22px 48px rgba(0, 0, 0, 0.4);
   --lx-focus-ring-surface: #0f1419;
   --lx-focus-ring-color: #5eead4;

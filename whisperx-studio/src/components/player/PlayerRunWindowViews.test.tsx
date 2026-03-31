@@ -57,8 +57,8 @@ describe("PlayerRunWindowViews", () => {
       />,
     );
     expect(screen.getByRole("toolbar", { name: /Mode colonnes/i })).toBeInTheDocument();
-    expect(screen.getByText(/Mode/i)).toBeInTheDocument();
-    expect(screen.getByText("Temps")).toBeInTheDocument();
+    expect(screen.getByText("Grille")).toBeInTheDocument();
+    expect(screen.getByText("Tours")).toBeInTheDocument();
   });
 
   it("mode Rythmo avec IPU affiche la piste et le scrub", () => {
@@ -90,7 +90,7 @@ describe("PlayerRunWindowViews", () => {
         onSeekToMs={onSeekToMs}
       />,
     );
-    const btn = screen.getByTitle(/1000–5000 ms/i);
+    const btn = screen.getByTitle(/cliquer pour lire/i);
     fireEvent.click(btn);
     expect(onSeekToMs).toHaveBeenCalledTimes(1);
     expect(onSeekToMs).toHaveBeenCalledWith(1000);

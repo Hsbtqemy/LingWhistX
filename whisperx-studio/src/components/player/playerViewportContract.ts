@@ -54,9 +54,9 @@ export type ViewportQueryContract = {
  * | Vue      | words | turns | pauses | ipus  | fenêtre  |
  * |----------|-------|-------|--------|-------|----------|
  * | lanes    | —     | ✓     | ✓      | ✓     | 60s      |
- * | chat     | —     | —     | —      | ✓     | 60s      |
+ * | chat     | —     | ✓     | —      | ✓     | 60s      |
  * | words    | ✓     | —     | —      | —     | 30s      |
- * | columns  | —     | ✓     | —      | —     | 60s      |
+ * | columns  | —     | ✓     | —      | ✓     | 60s      |
  * | rythmo   | —     | ✓     | ✓      | ✓     | 60s      |
  * | karaoke  | ✓     | ✓     | ✓      | ✓     | 30s      |
  * | stats    | ✓     | ✓     | ✓      | ✓     | full run |
@@ -68,7 +68,7 @@ export const VIEWPORT_QUERY_CONTRACTS: Record<PlayerViewportMode, ViewportQueryC
   },
   chat: {
     queryPreset: "standard",
-    layers: { words: false, turns: false, pauses: false, ipus: true },
+    layers: { words: false, turns: true, pauses: false, ipus: true },
   },
   words: {
     queryPreset: "words_detail",
@@ -76,7 +76,7 @@ export const VIEWPORT_QUERY_CONTRACTS: Record<PlayerViewportMode, ViewportQueryC
   },
   columns: {
     queryPreset: "standard",
-    layers: { words: false, turns: true, pauses: false, ipus: false },
+    layers: { words: false, turns: true, pauses: false, ipus: true },
   },
   rythmo: {
     queryPreset: "standard",

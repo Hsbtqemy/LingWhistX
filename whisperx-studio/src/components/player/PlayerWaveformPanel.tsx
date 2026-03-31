@@ -24,12 +24,15 @@ export type PlayerWaveformPanelProps = {
   mediaPath: string;
   pauseCsvPaths: string[];
   isVideo: boolean;
+  /** Mode compact — canvas réduit, contrôles détaillés masqués. */
+  compact?: boolean;
+  onToggleCompact?: () => void;
 };
 
 /**
  * Ondeforme + overview + outils Studio (zoom, snap, Web Audio, plage WX-622, pauses CSV) pour le Player.
  */
-export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo }: PlayerWaveformPanelProps) {
+export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo, compact, onToggleCompact }: PlayerWaveformPanelProps) {
   const [wx623Hint, setWx623Hint] = useState<string | null>(null);
   const [selectedPauseCsvPath, setSelectedPauseCsvPath] = useState("");
 
@@ -141,14 +144,31 @@ export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo }: P
   }
 
   return (
-    <section className="player-waveform-panel alignment-panel" aria-label="Ondeforme et outils">
-      <h4 className="player-panel-title player-waveform-panel__title">Ondeforme</h4>
-      <p className="small player-waveform-panel__lead">
-        Même outils que l’alignement Studio : zoom (molette + <kbd>Ctrl</kbd>/<kbd>⌘</kbd>), overview,
-        snap, lecture Web Audio (audio), plage d’écoute, pauses CSV.
-      </p>
+    <section
+      className={`player-waveform-panel alignment-panel${compact ? " player-waveform-panel--compact" : ""}`}
+      aria-label="Ondeforme et outils"
+    >
+      <div className="player-waveform-panel__header">
+        <h4 className="player-panel-title player-waveform-panel__title">Ondeforme</h4>
+        {onToggleCompact ? (
+          <button
+            type="button"
+            className="ghost small player-waveform-compact-toggle"
+            onClick={onToggleCompact}
+            title={compact ? "Étendre l’ondeforme" : "Réduire l’ondeforme"}
+          >
+            {compact ? "↕ Étendre" : "↕ Réduire"}
+          </button>
+        ) : null}
+      </div>
+      {!compact ? (
+        <p className="small player-waveform-panel__lead">
+          Même outils que l’alignement Studio : zoom (molette + <kbd>Ctrl</kbd>/<kbd>⌘</kbd>), overview,
+          snap, lecture Web Audio (audio), plage d’écoute, pauses CSV.
+        </p>
+      ) : null}
 
-      {!isVideo ? (
+      {!compact && !isVideo ? (
         <label
           className="checkbox-row web-audio-toggle player-waveform-panel__web-audio"
           title="Lecture via Web Audio API : extrait WAV mono 16 kHz (ffmpeg), fenêtre d’environ ±10 s autour du playhead."
@@ -161,12 +181,12 @@ export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo }: P
           Lecture Web Audio
         </label>
       ) : null}
-      {!isVideo && wf.webAudioError ? (
+      {!compact && !isVideo && wf.webAudioError ? (
         <ErrorBanner>
           <p className="error-banner-text">{wf.webAudioError}</p>
         </ErrorBanner>
       ) : null}
-      {!isVideo && wf.webAudioMode ? (
+      {!compact && !isVideo && wf.webAudioMode ? (
         <div className="web-audio-actions">
           <button type="button" className="ghost" onClick={() => void wf.toggleMediaPlayback()}>
             Play / Pause (Web Audio)
@@ -175,7 +195,7 @@ export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo }: P
         </div>
       ) : null}
 
-      <div className="alignment-toolbar">
+      {!compact ? <div className="alignment-toolbar">
         <label>
           Resolution waveform (bins/s)
           <select
@@ -300,9 +320,9 @@ export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo }: P
             <option value="40">40 ms</option>
           </select>
         </label>
-      </div>
+      </div> : null}
 
-      {wf.isWaveformLoading ? (
+      {!compact && wf.isWaveformLoading ? (
         <div>
           <div className="progress-track progress-track--active">
             <div
@@ -323,13 +343,17 @@ export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo }: P
         </div>
       ) : null}
 
-      <p className="small">
-        <kbd>Ctrl</kbd> ou <kbd>⌘</kbd> + molette sur la courbe : zoom horizontal. Clic : seek (aligné
-        sur le transport).
-      </p>
-      <p className="small mono">{mediaPath}</p>
+      {!compact ? (
+        <>
+          <p className="small">
+            <kbd>Ctrl</kbd> ou <kbd>⌘</kbd> + molette sur la courbe : zoom horizontal. Clic : seek
+            (aligné sur le transport).
+          </p>
+          <p className="small mono">{mediaPath}</p>
+        </>
+      ) : null}
 
-      <div className="waveform-range-preview">
+      {!compact ? <div className="waveform-range-preview">
         <p className="small">
           <strong>Plage (WX-622)</strong> — lecture Web Audio sur la fenêtre WAV dérivée (ffmpeg).
         </p>
@@ -492,7 +516,7 @@ export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo }: P
             Bypass effets (chaîne neutre)
           </label>
         </div>
-      </div>
+      </div> : null}
 
       {wf.waveformError ? (
         <ErrorBanner>
@@ -505,7 +529,7 @@ export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo }: P
         </ErrorBanner>
       ) : null}
 
-      <div className="alignment-pause-csv">
+      {!compact ? <div className="alignment-pause-csv">
         <p className="small">
           <strong>Pauses CSV</strong> — bandes violettes (<code>*.pauses.csv</code> du run). Premier
           fichier chargé automatiquement si présent.
@@ -563,7 +587,7 @@ export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo }: P
             {wf.pauseOverlayLoadError}
           </p>
         ) : null}
-      </div>
+      </div> : null}
 
       {!wf.waveform ? (
         <p className="small">Chargement automatique de l’ondeforme à l’ouverture du run…</p>
@@ -592,21 +616,23 @@ export function PlayerWaveformPanel({ wf, mediaPath, pauseCsvPaths, isVideo }: P
             onWheel={wf.onWaveformWheel}
             onKeyDown={onWaveformKeyDown}
           />
-          <p className="small">
-            Durée : {formatClockSeconds(wf.waveform.durationSec)} | Lecture :{" "}
-            {formatClockSeconds(wf.mediaCurrentSec)} | Curseur :{" "}
-            {formatClockSeconds(wf.waveformCursorSec ?? wf.mediaCurrentSec)} | Zoom : ×
-            {wf.waveformZoom.toFixed(2)} | Fenêtre : {formatClockSeconds(wf.waveformViewStartSec)}-
-            {formatClockSeconds(Math.min(wf.waveformViewEndSec, wf.waveform.durationSec))} | Snap :{" "}
-            {wf.snapEnabled ? `${wf.snapStepMs} ms` : "désactivé"} | Cache :{" "}
-            {wf.waveform.cached ? "oui" : "non"} | Segments overlay :{" "}
-            {wf.waveformVisibleDurationSec <= 60 ? "oui (≤60s)" : "non (>60s)"} | Mots timeline :{" "}
-            {wf.waveformVisibleDurationSec > 60
-              ? "masqués (>60s)"
-              : wordLabelsLimitedToDenseView(wf.waveformVisibleDurationSec)
-                ? "≤30s (limite future)"
-                : "31–60s"}
-          </p>
+          {!compact ? (
+            <p className="small">
+              Durée : {formatClockSeconds(wf.waveform.durationSec)} | Lecture :{" "}
+              {formatClockSeconds(wf.mediaCurrentSec)} | Curseur :{" "}
+              {formatClockSeconds(wf.waveformCursorSec ?? wf.mediaCurrentSec)} | Zoom : ×
+              {wf.waveformZoom.toFixed(2)} | Fenêtre : {formatClockSeconds(wf.waveformViewStartSec)}-
+              {formatClockSeconds(Math.min(wf.waveformViewEndSec, wf.waveform.durationSec))} | Snap :{" "}
+              {wf.snapEnabled ? `${wf.snapStepMs} ms` : "désactivé"} | Cache :{" "}
+              {wf.waveform.cached ? "oui" : "non"} | Segments overlay :{" "}
+              {wf.waveformVisibleDurationSec <= 60 ? "oui (≤60s)" : "non (>60s)"} | Mots timeline :{" "}
+              {wf.waveformVisibleDurationSec > 60
+                ? "masqués (>60s)"
+                : wordLabelsLimitedToDenseView(wf.waveformVisibleDurationSec)
+                  ? "≤30s (limite future)"
+                  : "31–60s"}
+            </p>
+          ) : null}
         </>
       )}
     </section>

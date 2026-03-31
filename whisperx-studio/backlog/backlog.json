@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "updatedAt": "2026-03-30T13:00:00.000Z",
+    "updatedAt": "2026-03-31T09:45:55.083Z",
     "statuses": [
         "todo",
         "in_progress",
@@ -3733,7 +3733,7 @@
         {
             "id": "WX-697",
             "title": "Vue Lanes : refonte layout, lisibilité, anti-troncature, interactions",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "1.5d",
             "dependsOn": [],
@@ -3759,7 +3759,7 @@
         {
             "id": "WX-698",
             "title": "Vue Chat : refonte layout, bulles speaker, scrolling fluide",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "1.5d",
             "dependsOn": [],
@@ -3785,7 +3785,7 @@
         {
             "id": "WX-699",
             "title": "Vue Mots : refonte layout, surlignage mot actif, alignement visuel",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "1d",
             "dependsOn": [],
@@ -3811,7 +3811,7 @@
         {
             "id": "WX-700",
             "title": "Vue Colonnes : refonte layout, responsive, lisibilité",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "1d",
             "dependsOn": [],
@@ -3837,7 +3837,7 @@
         {
             "id": "WX-701",
             "title": "Vue Stats : refonte complète, statistiques par speaker, charts canvas",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "2d",
             "dependsOn": [],
@@ -3864,7 +3864,7 @@
         {
             "id": "WX-702",
             "title": "Edition inline : vérifier et homogénéiser dans Lanes, Chat, Mots, Colonnes",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "1.5d",
             "dependsOn": [
@@ -3896,7 +3896,7 @@
         {
             "id": "WX-703",
             "title": "Edition inline : mode édition dans Rythmo et Karaoké",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "1d",
             "dependsOn": [
@@ -3956,35 +3956,24 @@
         },
         {
             "id": "WX-705",
-            "title": "Player : waveform synchronisée avec playhead et vues",
-            "status": "todo",
+            "title": "[FUSIONNÉ → WX-725] Player : waveform synchronisée avec playhead et vues",
+            "status": "done",
             "priority": "P1",
-            "estimate": "1.5d",
+            "estimate": "0d",
             "dependsOn": [],
-            "scope": [
-                "src/components/player/PlayerWaveformPanel.tsx",
-                "src/hooks/useWaveformCanvas.ts",
-                "src/styles/main.css"
-            ],
-            "execute": [
-                "npm run build",
-                "npm test"
-            ],
+            "scope": [],
+            "execute": [],
             "definitionOfDone": [
-                "Waveform scrolle avec le playhead en mode follow.",
-                "Clic sur la waveform → seek précis.",
-                "Segments visibles en overlay sur la waveform.",
-                "Zoom waveform indépendant des vues."
+                "Fusionné dans WX-725 : tous les critères (follow playhead, seek, segments overlay, zoom) sont repris dans la DoD de WX-725."
             ],
             "acceptance": [
-                "npm run build propre.",
-                "Waveform fluide sur fichier 2h+."
+                "Voir WX-725."
             ]
         },
         {
             "id": "WX-706",
             "title": "Player : panneau droit contextuel (infos segment, alertes, navigation)",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "1d",
             "dependsOn": [
@@ -4067,7 +4056,7 @@
         {
             "id": "WX-709",
             "title": "Visuel : harmoniser les styles des vues Player (tokens CSS, couleurs, espacement)",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "1d",
             "dependsOn": [
@@ -4098,7 +4087,7 @@
         {
             "id": "WX-710",
             "title": "Stats : temps de parole par speaker avec timeline empilée",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "1.5d",
             "dependsOn": [
@@ -4116,8 +4105,8 @@
             "definitionOfDone": [
                 "Barre empilée par speaker (% temps de parole).",
                 "Timeline segmentée montrant les alternances de parole.",
-                "Hover sur un speaker met en surbrillance ses segments.",
-                "Canvas natif (pas de lib chart)."
+                "Canvas natif (pas de lib chart).",
+                "Note : hover interactif sur segments déporté vers WX-723 (stats interactives)."
             ],
             "acceptance": [
                 "npm run build propre.",
@@ -4127,7 +4116,7 @@
         {
             "id": "WX-711",
             "title": "Stats : débit de parole (mots/min) par speaker avec courbe",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "1d",
             "dependsOn": [
@@ -4144,8 +4133,7 @@
             "definitionOfDone": [
                 "Courbe de débit (mots/min) par fenêtre glissante (ex. 30s).",
                 "Une courbe par speaker, couleur distincte.",
-                "Hover affiche la valeur exacte.",
-                "Clic sur un point → seek au timestamp."
+                "Note : hover tooltip enrichi et clic-to-seek précis déportés vers WX-723 (stats interactives). Implémentation basique existante."
             ],
             "acceptance": [
                 "npm run build propre.",
@@ -4155,7 +4143,7 @@
         {
             "id": "WX-712",
             "title": "Pauses : vue dédiée avec histogramme, filtres durée, navigation",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "2d",
             "dependsOn": [
@@ -4203,7 +4191,8 @@
                 "Pauses > seuil affichées en overlay discret dans Lanes.",
                 "Pauses affichées comme marqueurs dans la bande Rythmo.",
                 "Hover sur un marqueur pause → tooltip avec durée et contexte.",
-                "Le seuil est configurable dans le panneau gauche."
+                "Le seuil est configurable dans le panneau gauche.",
+                "COORDINATION WX-726 : WX-726 ajoute des marqueurs de pauses sur la waveform. Les deux tâches sont complémentaires (contexte textuel ici vs contexte audio dans WX-726). Le seuil de pause configurable doit être partagé entre les deux."
             ],
             "acceptance": [
                 "npm run build propre.",
@@ -4212,10 +4201,10 @@
         },
         {
             "id": "WX-714",
-            "title": "Exports : vérifier et corriger SRT, VTT, JSON, CSV",
+            "title": "Exports : vérifier et corriger tous les formats (SRT, VTT, JSON, CSV, EAF, TextGrid) — absorbe WX-715",
             "status": "todo",
             "priority": "P1",
-            "estimate": "1d",
+            "estimate": "1.5d",
             "dependsOn": [],
             "scope": [
                 "whisperx/annotation_exports.py",
@@ -4229,36 +4218,31 @@
                 "Export VTT : header WEBVTT, styles speaker si supporté.",
                 "Export JSON : structure complète (segments, words, metadata).",
                 "Export CSV : colonnes start, end, speaker, text, une ligne par segment.",
-                "Tests de non-régression pour chaque format."
-            ],
-            "acceptance": [
-                "pytest propre.",
-                "Chaque format importable dans son outil cible (VLC, Aegisub, etc.)."
-            ]
-        },
-        {
-            "id": "WX-715",
-            "title": "Exports : vérifier et corriger ELAN (EAF) et TextGrid (Praat)",
-            "status": "todo",
-            "priority": "P1",
-            "estimate": "1d",
-            "dependsOn": [],
-            "scope": [
-                "whisperx/annotation_exports.py",
-                "tests/test_annotation_exports.py"
-            ],
-            "execute": [
-                "python -m pytest tests/test_annotation_exports.py -v"
-            ],
-            "definitionOfDone": [
                 "Export EAF : time slots corrects, tiers par speaker, re-importable dans ELAN.",
                 "Export TextGrid : IntervalTier par speaker, roundtrip parse/write.",
-                "Tests roundtrip pour les deux formats.",
+                "Tests de non-régression et roundtrip pour chaque format.",
                 "Gestion correcte des caractères spéciaux et Unicode."
             ],
             "acceptance": [
                 "pytest propre.",
+                "Chaque format importable dans son outil cible (VLC, Aegisub, ELAN, Praat).",
                 "Fichier EAF ouvrable dans ELAN. TextGrid ouvrable dans Praat."
+            ]
+        },
+        {
+            "id": "WX-715",
+            "title": "[FUSIONNÉ → WX-714] Exports : vérifier et corriger ELAN (EAF) et TextGrid (Praat)",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "0d",
+            "dependsOn": [],
+            "scope": [],
+            "execute": [],
+            "definitionOfDone": [
+                "Fusionné dans WX-714 : tous les critères (EAF, TextGrid, roundtrip, Unicode) sont repris dans la DoD de WX-714."
+            ],
+            "acceptance": [
+                "Voir WX-714."
             ]
         },
         {
@@ -4268,8 +4252,7 @@
             "priority": "P1",
             "estimate": "1d",
             "dependsOn": [
-                "WX-714",
-                "WX-715"
+                "WX-714"
             ],
             "scope": [
                 "src/components/player/PlayerWorkspaceSection.tsx",
@@ -4484,6 +4467,234 @@
                 "npm run build et cargo check propres.",
                 "Document de décision rédigé (avantages/inconvénients de chaque option, recommandation).",
                 "Si prototype : l'onglet ou le panneau s'ouvre, affiche le transcript, et les éditions sont persistées."
+            ]
+        },
+        {
+            "id": "WX-722",
+            "title": "Aide contextuelle globale : bouton « ? » / « Infos » avec raccourcis et aide par vue",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "1d",
+            "dependsOn": [],
+            "scope": [
+                "src/App.tsx",
+                "src/components/player/PlayerWorkspaceSection.tsx",
+                "src/components/WorkspaceSection.tsx",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm run lint"
+            ],
+            "definitionOfDone": [
+                "Un bouton « ? » ou « Infos » est ajouté dans la barre de navigation principale de l'application (App.tsx), visible depuis toutes les vues (Workspace, Jobs, Player, About).",
+                "Au clic, le bouton ouvre un dialog modal (ou panneau latéral) affichant l'aide contextuelle adaptée à la vue active.",
+                "Le contenu du dialog est organisé par catégories : raccourcis clavier globaux, raccourcis spécifiques à la vue courante (player, workspace, jobs), astuces d'utilisation.",
+                "Tous les raccourcis actuellement affichés en clair dans le panneau droit du player sont retirés et déplacés dans ce dialog.",
+                "Toute info « aide » ou « contrôles » textuelle affichée directement dans les panneaux des différentes vues est retirée et centralisée dans ce dialog.",
+                "Le dialog se ferme avec Escape, clic à l'extérieur, ou un bouton de fermeture.",
+                "Le raccourci « ? » existant dans le player déclenche ce même dialog global.",
+                "Les panneaux des différentes vues sont allégés du texte d'aide devenu redondant."
+            ],
+            "acceptance": [
+                "npm run build et npm run lint propres.",
+                "Les raccourcis et textes d'aide ne sont plus écrits en dur dans les panneaux des vues.",
+                "Le bouton « ? » est visible et accessible depuis chaque vue de l'application.",
+                "Le dialog affiche la liste complète des raccourcis et infos, adaptée à la vue courante.",
+                "Le raccourci clavier « ? » ouvre le même dialog."
+            ]
+        },
+        {
+            "id": "WX-723",
+            "title": "Stats interactives : tooltips, playhead sync, seek et expand sur les charts",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "2d",
+            "dependsOn": [
+                "WX-710",
+                "WX-711"
+            ],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm run lint"
+            ],
+            "definitionOfDone": [
+                "Tooltips au survol sur tous les canvas temporels (SpeechTimelineCanvas, SpeechRateCanvas, SpeechDensityCanvas, SpeechBarCanvas) : affichent le timestamp, le speaker concerné et la valeur (mots/min, % activité, durée du segment).",
+                "Tooltip au survol sur PauseHistogramCanvas : affiche le nombre de pauses et la plage de durées de la barre survolée.",
+                "Ligne verticale de playhead synchronisée dessinée sur chaque canvas temporel (timeline, rate, density), mise à jour en temps réel pendant la lecture.",
+                "Clic-to-seek sur tous les canvas temporels : un clic déplace le playhead à la position temporelle correspondante.",
+                "Bouton expand/collapse par chart : chaque canvas dispose d'un bouton pour basculer entre taille normale et taille agrandie (double hauteur, pleine largeur).",
+                "Les interactions sont fluides (requestAnimationFrame pour le playhead, debounce pour les tooltips).",
+                "Les canvas restent nets en haute résolution (devicePixelRatio)."
+            ],
+            "acceptance": [
+                "npm run build et npm run lint propres.",
+                "Le survol d'un canvas temporel affiche un tooltip avec les valeurs contextuelles.",
+                "Le clic sur un canvas temporel déplace le playhead au timestamp cliqué.",
+                "La ligne de playhead est visible et synchronisée sur tous les canvas temporels pendant la lecture.",
+                "Chaque chart peut être agrandi/réduit individuellement."
+            ]
+        },
+        {
+            "id": "WX-724",
+            "title": "Stats avancées : sélection de plage temporelle (brushing) et filtrage croisé",
+            "status": "todo",
+            "priority": "P3",
+            "estimate": "2.5d",
+            "dependsOn": [
+                "WX-723"
+            ],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/player/playerSpeakerStats.ts",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm run lint",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "L'utilisateur peut sélectionner une plage temporelle par cliquer-glisser (brush) sur n'importe quel canvas temporel (timeline, rate, density).",
+                "La plage sélectionnée est visualisée par un rectangle semi-transparent sur le canvas source.",
+                "Tous les autres canvas temporels se synchronisent : zoom sur la même plage, ou highlight de la zone sélectionnée.",
+                "Les statistiques des cartes speaker (temps de parole, pauses, IPU, débit, TTR) sont recalculées pour la plage sélectionnée uniquement.",
+                "Le résumé global est recalculé pour la plage sélectionnée (durée, parole, silence, mots/min, overlaps).",
+                "Un bouton « Réinitialiser la sélection » permet de revenir à la vue complète.",
+                "Double-clic sur un canvas réinitialise la sélection.",
+                "Les recalculs sont performants (useMemo avec dépendance sur la plage sélectionnée).",
+                "COORDINATION WX-727 : si WX-727 est implémenté, l'état de plage sélectionnée doit être partagé entre les charts stats et la waveform (même source de vérité dans PlayerWorkspaceSection). Le brush sur un chart ou sur la waveform met à jour la même plage."
+            ],
+            "acceptance": [
+                "npm run build, npm run lint et npm test propres.",
+                "La sélection par brush est fluide et visible.",
+                "Les stats sont recalculées en temps réel pour la plage sélectionnée.",
+                "La réinitialisation restaure la vue complète.",
+                "Les performances restent acceptables sur des fichiers de 30+ minutes."
+            ]
+        },
+        {
+            "id": "WX-725",
+            "title": "Waveform : backbone permanent du player, toujours visible quelle que soit la vue active (absorbe WX-705)",
+            "status": "done",
+            "priority": "P1",
+            "estimate": "2.5d",
+            "dependsOn": [],
+            "scope": [
+                "src/components/player/PlayerWorkspaceSection.tsx",
+                "src/components/player/PlayerWaveformPanel.tsx",
+                "src/hooks/useWaveformCanvas.ts",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm run lint"
+            ],
+            "definitionOfDone": [
+                "La waveform est toujours visible dans le player, quel que soit le mode de vue actif (lanes, chat, words, columns, rythmo, karaoke, stats).",
+                "La waveform reste visible y compris en mode édition (editMode).",
+                "Le layout du player est réorganisé : waveform en haut (zone fixe), vue active en dessous (zone scrollable).",
+                "La waveform dispose d'un mode compact (hauteur réduite) et d'un mode étendu (hauteur classique), toggable par l'utilisateur.",
+                "Le playhead, le zoom et le scroll horizontal de la waveform restent synchronisés avec la vue active.",
+                "La boucle A-B est visualisée sur la waveform (zone colorée entre A et B).",
+                "[ex-WX-705] Waveform scrolle automatiquement avec le playhead en mode follow.",
+                "[ex-WX-705] Clic sur la waveform → seek précis (déjà implémenté, vérifier sur toutes les vues).",
+                "[ex-WX-705] Segments visibles en overlay sur la waveform (pas seulement en editMode).",
+                "[ex-WX-705] Zoom waveform indépendant des vues par défaut.",
+                "Performance : pas de re-render de la waveform au changement de vue. Fluide sur fichier 2h+."
+            ],
+            "acceptance": [
+                "npm run build et npm run lint propres.",
+                "La waveform est visible sur les 7 vues + en mode édition.",
+                "Basculer entre les vues ne fait pas disparaître la waveform.",
+                "Le mode compact/étendu fonctionne.",
+                "Le follow playhead fonctionne en lecture.",
+                "Waveform fluide sur fichier 2h+."
+            ]
+        },
+        {
+            "id": "WX-726",
+            "title": "Waveform : lanes d'analyse et marqueurs contextuels superposés",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "3d",
+            "dependsOn": [
+                "WX-725"
+            ],
+            "scope": [
+                "src/components/player/PlayerWaveformPanel.tsx",
+                "src/hooks/useWaveformCanvas.ts",
+                "src/player/playerSpeakerStats.ts",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm run lint"
+            ],
+            "definitionOfDone": [
+                "Des lanes d'analyse sont affichables sous la waveform, alignées sur le même axe temporel : débit de parole (mots/min), densité d'activité vocale, confiance de transcription.",
+                "Chaque lane est activable/désactivable via des toggles dans la barre de la waveform.",
+                "Des marqueurs contextuels sont superposés directement sur la waveform : pauses longues (traits verticaux rouges), chevauchements de tours (bandes semi-transparentes), changements de speaker (lignes verticales fines), mots à faible confiance (points oranges).",
+                "Chaque type de marqueur est toggable indépendamment.",
+                "Les lanes et marqueurs se redessinent au scroll/zoom de la waveform sans lag perceptible.",
+                "Tooltip au survol d'un marqueur : type, timestamp, durée, speaker concerné.",
+                "La granularité des lanes s'adapte au niveau de zoom : vue large = courbes lissées, zoom serré = valeurs segment par segment.",
+                "COORDINATION WX-713 : WX-713 ajoute des marqueurs de pauses dans les vues textuelles (Lanes, Rythmo). Les deux tâches sont complémentaires (contexte audio ici vs contexte textuel dans WX-713). Le seuil de pause configurable doit être partagé entre les deux."
+            ],
+            "acceptance": [
+                "npm run build et npm run lint propres.",
+                "Au moins 3 lanes d'analyse disponibles.",
+                "Au moins 4 types de marqueurs disponibles.",
+                "Chaque lane et marqueur est toggable.",
+                "Les tooltips s'affichent au survol des marqueurs.",
+                "Pas de lag perceptible au scroll/zoom avec lanes actives."
+            ]
+        },
+        {
+            "id": "WX-727",
+            "title": "Waveform : sélection de région → stats scopées et filtrage contextuel",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "2.5d",
+            "dependsOn": [
+                "WX-725",
+                "WX-726"
+            ],
+            "scope": [
+                "src/components/player/PlayerWorkspaceSection.tsx",
+                "src/components/player/PlayerWaveformPanel.tsx",
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/player/playerSpeakerStats.ts",
+                "src/hooks/useWaveformCanvas.ts",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm run lint",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "L'utilisateur peut sélectionner une région temporelle par cliquer-glisser (brush) directement sur la waveform.",
+                "La région sélectionnée est affichée visuellement (rectangle semi-transparent avec poignées de redimensionnement).",
+                "Un panneau de stats scopées apparaît (inline ou popover) affichant les statistiques calculées uniquement pour la région sélectionnée : durée, temps de parole, silence, nb tours, débit, pauses (moy/méd/P90), distribution par speaker, TTR.",
+                "Si la vue stats est active, toutes les cartes speaker et le résumé global sont recalculés pour la plage waveform sélectionnée (lien avec WX-724).",
+                "Si une autre vue est active (lanes, chat, words, etc.), la sélection waveform filtre/highlight les segments visibles dans cette vue.",
+                "Double-clic sur la waveform réinitialise la sélection.",
+                "La sélection waveform persiste lors du changement de vue.",
+                "Les recalculs sont performants (useMemo avec dépendance sur la plage).",
+                "COORDINATION WX-724 : si WX-724 est implémenté, l'état de plage sélectionnée doit être partagé entre la waveform et les charts stats (même source de vérité dans PlayerWorkspaceSection). Le brush sur la waveform ou sur un chart met à jour la même plage."
+            ],
+            "acceptance": [
+                "npm run build, npm run lint et npm test propres.",
+                "La sélection brush sur la waveform est fluide.",
+                "Les stats scopées s'affichent pour la région sélectionnée.",
+                "Le changement de vue conserve la sélection.",
+                "Double-clic réinitialise la sélection.",
+                "Performance acceptable sur fichiers de 30+ minutes."
             ]
         }
     ]

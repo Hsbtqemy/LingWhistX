@@ -65,7 +65,7 @@ export type SpeakerStats = {
   alignmentDist: Record<string, number>;
 };
 
-function percentile(sorted: number[], p: number): number {
+export function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
   const idx = (p / 100) * (sorted.length - 1);
   const lo = Math.floor(idx);

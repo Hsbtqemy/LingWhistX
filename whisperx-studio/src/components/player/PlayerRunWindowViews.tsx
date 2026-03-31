@@ -7,8 +7,6 @@ import {
 } from "../../player/playerColumnsBins";
 import { isWordAligned } from "../../player/karaokeWords";
 import {
-  buildFullStatsCsv,
-  buildFullStatsExport,
   buildPauseHistogram,
   buildSpeechTimeline,
   computeOverlaps as computeTurnOverlaps,
@@ -16,6 +14,7 @@ import {
   computeSpeechDensity,
   computeSpeechRate,
   computeTransitions,
+  percentile,
 } from "../../player/playerSpeakerStats";
 import type {
   DensityPoint,
@@ -103,7 +102,16 @@ export function PlayerRunWindowViews({
 
   if (mode === "columns") {
     return (
-      <PlayerColumnsBody slice={slice} playheadMs={playheadMs} onSeekToMs={onSeekToMs} />
+      <PlayerColumnsBody
+        slice={slice}
+        playheadMs={playheadMs}
+        onSeekToMs={onSeekToMs}
+        editMode={editMode}
+        editorSegments={editorSegments}
+        activeSegmentIndex={activeSegmentIndex ?? null}
+        onFocusSegment={focusSegment}
+        onUpdateText={updateEditorSegmentText}
+      />
     );
   }
   if (mode === "rythmo") {
@@ -123,17 +131,6 @@ export function PlayerRunWindowViews({
     );
   }
   if (mode === "karaoke") {
-    if (editMode && editorSegments) {
-      return (
-        <PlayerKaraokeEditBody
-          segments={editorSegments}
-          playheadMs={playheadMs}
-          onSeekToMs={onSeekToMs}
-          followPlayhead={followPlayhead}
-          durationSec={durationSec}
-        />
-      );
-    }
     return (
       <PlayerKaraokeBody
         slice={slice}
@@ -141,6 +138,11 @@ export function PlayerRunWindowViews({
         wordsLayerActive={wordsLayerActive}
         onSeekToMs={onSeekToMs}
         followPlayhead={followPlayhead}
+        editMode={editMode}
+        editorSegments={editorSegments}
+        activeSegmentIndex={activeSegmentIndex ?? null}
+        onFocusSegment={focusSegment}
+        onUpdateText={updateEditorSegmentText}
       />
     );
   }
@@ -156,24 +158,29 @@ export function PlayerRunWindowViews({
         loopBsec={loopBsec}
         editorSegments={editorSegments}
         onSetLoopRange={onSetLoopRange}
+        followPlayhead={followPlayhead}
+        editMode={editMode}
+        activeSegmentIndex={activeSegmentIndex ?? null}
+        onFocusSegment={focusSegment}
+        onUpdateText={updateEditorSegmentText}
       />
     );
   }
   if (mode === "chat") {
-    if (editMode && editorSegments) {
-      return (
-        <PlayerChatEditBody
-          segments={editorSegments}
-          playheadMs={playheadMs}
-          activeSegmentIndex={activeSegmentIndex ?? null}
-          onSeekToMs={onSeekToMs}
-          onFocusSegment={focusSegment}
-          onUpdateText={updateEditorSegmentText}
-          durationSec={durationSec}
-        />
-      );
-    }
-    return <PlayerChatBody slice={slice} playheadMs={playheadMs} onSeekToMs={onSeekToMs} />;
+    return (
+      <PlayerChatBody
+        slice={slice}
+        playheadMs={playheadMs}
+        onSeekToMs={onSeekToMs}
+        followPlayhead={followPlayhead}
+        editorSegments={editorSegments}
+        editMode={editMode}
+        activeSegmentIndex={activeSegmentIndex ?? null}
+        onFocusSegment={focusSegment}
+        onUpdateText={updateEditorSegmentText}
+        durationSec={durationSec}
+      />
+    );
   }
   if (mode === "stats") {
     return (
@@ -185,25 +192,19 @@ export function PlayerRunWindowViews({
       />
     );
   }
-  if (editMode && editorSegments && mode === "words") {
-    return (
-      <PlayerWordsEditBody
-        segments={editorSegments}
-        playheadMs={playheadMs}
-        activeSegmentIndex={activeSegmentIndex ?? null}
-        onSeekToMs={onSeekToMs}
-        onFocusSegment={focusSegment}
-        onUpdateText={updateEditorSegmentText}
-        durationSec={durationSec}
-      />
-    );
-  }
   return (
     <PlayerWordsBody
       slice={slice}
       playheadMs={playheadMs}
       wordsLayerActive={wordsLayerActive}
       onSeekToMs={onSeekToMs}
+      followPlayhead={followPlayhead}
+      editMode={editMode}
+      editorSegments={editorSegments}
+      activeSegmentIndex={activeSegmentIndex ?? null}
+      onFocusSegment={focusSegment}
+      onUpdateText={updateEditorSegmentText}
+      durationSec={durationSec}
     />
   );
 }
@@ -281,16 +282,27 @@ function PlayerKaraokeBody({
   wordsLayerActive,
   onSeekToMs,
   followPlayhead,
+  editMode = false,
+  editorSegments,
+  activeSegmentIndex,
+  onFocusSegment,
+  onUpdateText,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
   wordsLayerActive: boolean;
   onSeekToMs?: (ms: number) => void;
   followPlayhead: boolean;
+  editMode?: boolean;
+  editorSegments?: EditableSegment[];
+  activeSegmentIndex?: number | null;
+  onFocusSegment?: (index: number) => void;
+  onUpdateText?: (index: number, text: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const activeSegRef = useRef<HTMLDivElement | null>(null);
   const [followActive, setFollowActive] = useState(true);
+  const [editingIpuId, setEditingIpuId] = useState<number | null>(null);
   const programmaticScrollRef = useRef(false);
 
   const allSegments = useMemo(() => buildKaraokeSegments(slice), [slice]);
@@ -346,7 +358,7 @@ function PlayerKaraokeBody({
   if (!wordsLayerActive) {
     return (
       <p className="player-viewport-placeholder small">
-        Active <strong>Charger les mots</strong> dans le panneau de gauche pour afficher la vue Karaok\u00e9.
+        Active <strong>Charger les mots</strong> dans le panneau de gauche pour afficher la vue Karaoké.
       </p>
     );
   }
@@ -354,11 +366,11 @@ function PlayerKaraokeBody({
   const speakers = Array.from(new Set(allSegments.map((s) => s.speaker)));
 
   return (
-    <div className="karaoke-v2" aria-label="Vue karaok\u00e9">
+    <div className="karaoke-v2" aria-label="Vue karaoké">
       <div className="karaoke-v2-header">
         <span className="karaoke-v2-header-info small mono">
-          {allSegments.length} segments \u00b7 {speakers.length} loc.
-          {slice.truncated.ipus ? " \u00b7 tronqu\u00e9" : ""}
+          {allSegments.length} segments · {speakers.length} loc.
+          {slice.truncated.ipus ? " \u00b7 tronqué" : ""}
         </span>
         {!followActive && (
           <button
@@ -376,9 +388,30 @@ function PlayerKaraokeBody({
           const si = allSegments.indexOf(seg);
           const isActive = si === activeSegIdx;
           const isPast = activeSegIdx >= 0 && si < activeSegIdx;
+
+          const segIdx = editMode && editorSegments
+            ? (() => {
+              for (let i = 0; i < editorSegments.length; i++) {
+                const sMs = Math.round(editorSegments[i].start * 1000);
+                const eMs = Math.round(editorSegments[i].end * 1000);
+                if (eMs > seg.startMs && sMs < seg.endMs) return i;
+              }
+              return null;
+            })()
+            : null;
+          const isEditingThis = editMode && editingIpuId === seg.ipuId;
+          const isFocused = editMode && segIdx != null && activeSegmentIndex === segIdx;
+
           let cls = "karaoke-v2-seg";
           if (isActive) cls += " is-active";
           else if (isPast) cls += " is-past";
+          if (isFocused) cls += " is-focused";
+
+          const handleDoubleClick = () => {
+            if (!editMode || segIdx == null) return;
+            onFocusSegment?.(segIdx);
+            setEditingIpuId(seg.ipuId);
+          };
 
           return (
             <div
@@ -386,6 +419,7 @@ function PlayerKaraokeBody({
               ref={isActive ? activeSegRef : undefined}
               className={cls}
               role="listitem"
+              onDoubleClick={handleDoubleClick}
             >
               <div className="karaoke-v2-seg-left">
                 <span className="karaoke-v2-speaker mono">{seg.speaker}</span>
@@ -395,7 +429,21 @@ function PlayerKaraokeBody({
               </div>
 
               <div className="karaoke-v2-seg-body">
-                {seg.words.length > 0 ? (
+                {isEditingThis && segIdx != null && onUpdateText ? (
+                  <textarea
+                    className="player-inline-edit-textarea"
+                    value={editorSegments![segIdx].text}
+                    onChange={(ev) => onUpdateText(segIdx, ev.target.value)}
+                    onBlur={() => setEditingIpuId(null)}
+                    onKeyDown={(ev) => {
+                      if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); setEditingIpuId(null); }
+                      if (ev.key === "Escape") setEditingIpuId(null);
+                    }}
+                    onClick={(ev) => ev.stopPropagation()}
+                    autoFocus
+                    rows={Math.max(2, Math.ceil((editorSegments![segIdx].text.length || 1) / 60))}
+                  />
+                ) : seg.words.length > 0 ? (
                   <span className="karaoke-v2-seg-words">
                     {seg.words.map((w) => {
                       const wActive = w.id === activeWordId;
@@ -430,17 +478,17 @@ function PlayerKaraokeBody({
               <div className="karaoke-v2-seg-right">
                 {seg.pauseBefore != null && (
                   <span className="karaoke-v2-badge karaoke-v2-badge--pause" title={`Pause ${seg.pauseBefore} ms`}>
-                    \u23f8 {(seg.pauseBefore / 1000).toFixed(1)}s
+                    ⏸ {(seg.pauseBefore / 1000).toFixed(1)}s
                   </span>
                 )}
                 {seg.hasOverlap && (
                   <span className="karaoke-v2-badge karaoke-v2-badge--overlap" title="Chevauchement">
-                    \u27f7
+                    ⟷
                   </span>
                 )}
                 {seg.hasUnaligned && (
-                  <span className="karaoke-v2-badge karaoke-v2-badge--unaligned" title="Mots interpol\u00e9s">
-                    \u2248
+                  <span className="karaoke-v2-badge karaoke-v2-badge--unaligned" title="Mots interpolés">
+                    ≈
                   </span>
                 )}
               </div>
@@ -448,7 +496,7 @@ function PlayerKaraokeBody({
           );
         })}
         {allSegments.length === 0 && (
-          <p className="small" style={{ padding: "16px" }}>Aucun segment dans cette fen\u00eatre.</p>
+          <p className="small player-empty-message">Aucun segment dans cette fenêtre.</p>
         )}
       </div>
     </div>
@@ -462,13 +510,24 @@ function PlayerColumnsBody({
   slice,
   playheadMs,
   onSeekToMs,
+  editMode = false,
+  editorSegments,
+  activeSegmentIndex,
+  onFocusSegment,
+  onUpdateText,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
   onSeekToMs?: (ms: number) => void;
+  editMode?: boolean;
+  editorSegments?: EditableSegment[];
+  activeSegmentIndex?: number | null;
+  onFocusSegment?: (index: number) => void;
+  onUpdateText?: (index: number, text: string) => void;
 }) {
   const [layout, setLayout] = useState<ColumnsLayoutMode>("time");
   const [binSec, setBinSec] = useState<1 | 2 | 5>(2);
+  const [editingTurnId, setEditingTurnId] = useState<number | null>(null);
 
   const speakers = useMemo(() => uniqueSpeakersFromTurns(slice.turns), [slice.turns]);
   const bins = useMemo(
@@ -480,125 +539,224 @@ function PlayerColumnsBody({
     [slice.turns],
   );
 
+  const ordinalIndex = useMemo(
+    () => (editorSegments ? buildOrdinalSegmentIndex(slice.turns, editorSegments) : null),
+    [slice.turns, editorSegments],
+  );
+
+  const turnTextCache = useMemo(() => {
+    const cache = new Map<number, string>();
+    for (const t of slice.turns) {
+      let text = turnTextFromIpus(t, slice.ipus);
+      if (!text && editorSegments) {
+        text = turnTextFromSegments(t, editorSegments);
+      }
+      cache.set(t.id, text);
+    }
+    return cache;
+  }, [slice.turns, slice.ipus, editorSegments]);
+
+  const activeIndex = useMemo(() => {
+    for (let i = sortedTurns.length - 1; i >= 0; i--) {
+      if (playheadMs >= sortedTurns[i].startMs && playheadMs < sortedTurns[i].endMs) return i;
+    }
+    return -1;
+  }, [sortedTurns, playheadMs]);
+
   return (
     <div className="player-columns">
-      <p className="player-lanes-meta small mono">
-        Fenêtre {slice.t0Ms}–{slice.t1Ms} ms · {slice.turns.length} tours ·{" "}
-        {slice.truncated.turns ? "tronqué · " : ""}
-        {layout === "time" ? `${bins.length} colonnes (${binSec}s)` : "mode Tours"}
-      </p>
-      <div className="player-columns-toolbar" role="toolbar" aria-label="Mode colonnes">
-        <span className="small">Mode</span>
-        <button
-          type="button"
-          className={`ghost small ${layout === "time" ? "player-columns-tool--on" : ""}`}
-          onClick={() => setLayout("time")}
-        >
-          Temps
-        </button>
-        <button
-          type="button"
-          className={`ghost small ${layout === "turn" ? "player-columns-tool--on" : ""}`}
-          onClick={() => setLayout("turn")}
-        >
-          Tours
-        </button>
-        {layout === "time" ? (
-          <>
-            <span className="small">Pas</span>
-            {([1, 2, 5] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                className={`ghost small ${binSec === s ? "player-columns-tool--on" : ""}`}
-                onClick={() => setBinSec(s)}
-              >
-                {s}s
-              </button>
-            ))}
-          </>
-        ) : null}
-      </div>
-      {layout === "time" ? (
-        <div className="player-columns-time-scroll">
-          <table className="player-columns-time-table">
-            <thead>
-              <tr>
-                <th className="player-columns-corner" scope="col" />
-                {bins.map((bin) => (
-                  <th key={bin.startMs} scope="col" className="mono player-columns-bin-head">
-                    {formatClockSeconds(bin.startMs / 1000)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {speakers.map((sp) => (
-                <tr key={sp}>
-                  <th scope="row" className="player-columns-speaker">
-                    {sp}
-                  </th>
-                  {bins.map((bin) => {
-                    const inBin = turnsForSpeakerInBin(slice.turns, sp, bin.startMs, bin.endMs);
-                    const first = inBin[0];
-                    const playHeadHere =
-                      playheadMs >= bin.startMs &&
-                      playheadMs < bin.endMs &&
-                      inBin.some((t) => playheadMs >= t.startMs && playheadMs < t.endMs);
-                    const seekTo = first
-                      ? Math.max(bin.startMs, Math.min(first.startMs, bin.endMs - 1))
-                      : bin.startMs;
-                    return (
-                      <td key={bin.startMs} className="player-columns-td">
-                        <button
-                          type="button"
-                          className={`player-columns-cell ${first ? "has-turn" : ""} ${playHeadHere ? "is-active" : ""}`}
-                          disabled={!onSeekToMs}
-                          title={
-                            first
-                              ? `${inBin.length} tour(s) — seek ${seekTo} ms`
-                              : `Seek ${bin.startMs} ms`
-                          }
-                          onClick={() => onSeekToMs?.(seekTo)}
-                        >
-                          {first ? "●" : ""}
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <ul className="player-columns-turn-list">
-          {sortedTurns.map((t) => {
-            const active = playheadMs >= t.startMs && playheadMs < t.endMs;
-            return (
-              <li key={t.id}>
+      <div className="player-columns-header">
+        <span className="player-columns-meta small mono">
+          {slice.turns.length} tours · {speakers.length} loc.
+          {slice.truncated.turns ? " · tronqué" : ""}
+          {layout === "time" ? ` · ${bins.length} col. (${binSec}s)` : ""}
+        </span>
+        <div className="player-columns-toolbar" role="toolbar" aria-label="Mode colonnes">
+          <div className="player-lanes-mode-toggle" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={layout === "time"}
+              className={`player-lanes-mode-btn small${layout === "time" ? " is-active" : ""}`}
+              onClick={() => setLayout("time")}
+            >
+              Grille
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={layout === "turn"}
+              className={`player-lanes-mode-btn small${layout === "turn" ? " is-active" : ""}`}
+              onClick={() => setLayout("turn")}
+            >
+              Tours
+            </button>
+          </div>
+          {layout === "time" && (
+            <div className="player-lanes-mode-toggle" role="tablist">
+              {([1, 2, 5] as const).map((s) => (
                 <button
+                  key={s}
                   type="button"
-                  className={`player-columns-turn-row ${active ? "is-active" : ""}`}
+                  role="tab"
+                  aria-selected={binSec === s}
+                  className={`player-lanes-mode-btn small${binSec === s ? " is-active" : ""}`}
+                  onClick={() => setBinSec(s)}
+                >
+                  {s}s
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="player-columns-scroll">
+        {layout === "time" ? (
+          <div className="player-columns-time-scroll">
+            <table className="player-columns-time-table">
+              <thead>
+                <tr>
+                  <th className="player-columns-corner" scope="col" />
+                  {bins.map((bin) => (
+                    <th key={bin.startMs} scope="col" className="mono player-columns-bin-head">
+                      {formatClockSeconds(bin.startMs / 1000)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {speakers.map((sp) => {
+                  const spIdx = speakers.indexOf(sp);
+                  return (
+                    <tr key={sp}>
+                      <th
+                        scope="row"
+                        className="player-columns-speaker mono"
+                        style={{ color: speakerColor(spIdx) }}
+                      >
+                        {sp}
+                      </th>
+                      {bins.map((bin) => {
+                        const inBin = turnsForSpeakerInBin(slice.turns, sp, bin.startMs, bin.endMs);
+                        const first = inBin[0];
+                        const playHeadHere =
+                          playheadMs >= bin.startMs &&
+                          playheadMs < bin.endMs &&
+                          inBin.some((t) => playheadMs >= t.startMs && playheadMs < t.endMs);
+                        const isPast =
+                          activeIndex >= 0 && bin.endMs <= playheadMs && !playHeadHere;
+                        const seekTo = first
+                          ? Math.max(bin.startMs, Math.min(first.startMs, bin.endMs - 1))
+                          : bin.startMs;
+                        const preview = first ? (turnTextCache.get(first.id) ?? "").slice(0, 30) : "";
+
+                        let cellCls = "player-columns-cell";
+                        if (first) cellCls += " has-turn";
+                        if (playHeadHere) cellCls += " is-active";
+                        else if (isPast) cellCls += " is-past";
+
+                        return (
+                          <td key={bin.startMs} className="player-columns-td">
+                            <button
+                              type="button"
+                              className={cellCls}
+                              disabled={!onSeekToMs}
+                              title={
+                                first
+                                  ? `${inBin.length} tour(s) · ${preview || "…"}`
+                                  : `Seek ${formatClockSeconds(bin.startMs / 1000)}`
+                              }
+                              onClick={() => onSeekToMs?.(seekTo)}
+                            >
+                              {first ? (
+                                <span className="player-columns-cell-content">
+                                  {inBin.length > 1 ? `${inBin.length}×` : preview ? preview.split(" ").slice(0, 3).join(" ") : "●"}
+                                </span>
+                              ) : ""}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="player-columns-turn-grid">
+            {sortedTurns.map((t, i) => {
+              const isActive = i === activeIndex;
+              const isPast = activeIndex >= 0 && i < activeIndex;
+              const spIdx = speakers.indexOf(t.speaker || "\u2014");
+              const text = turnTextCache.get(t.id) ?? "";
+              const durMs = t.endMs - t.startMs;
+              const isEditingThis = editMode && editingTurnId === t.id;
+              const segIdx = editMode && editorSegments
+                ? findSegmentIndexForTurn(t, editorSegments, ordinalIndex, slice.turns)
+                : null;
+              const isFocused = editMode && segIdx != null && activeSegmentIndex === segIdx;
+
+              let cls = "player-columns-turn-card";
+              if (isActive) cls += " is-active";
+              else if (isPast) cls += " is-past";
+              if (isFocused) cls += " is-focused";
+
+              const handleDoubleClick = () => {
+                if (!editMode || segIdx == null) return;
+                onFocusSegment?.(segIdx);
+                setEditingTurnId(t.id);
+              };
+
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={cls}
                   disabled={!onSeekToMs}
                   onClick={() => onSeekToMs?.(t.startMs)}
+                  onDoubleClick={handleDoubleClick}
+                  title={`${formatClockSeconds(t.startMs / 1000)} – ${formatClockSeconds(t.endMs / 1000)} · cliquer pour lire`}
                 >
-                  <span className="player-columns-turn-sp">{t.speaker || "—"}</span>
-                  <span className="mono player-columns-turn-time">
-                    {formatClockSeconds(t.startMs / 1000)} → {formatClockSeconds(t.endMs / 1000)}
+                  <span className="player-columns-turn-sp mono" style={{ color: speakerColor(spIdx) }}>
+                    {t.speaker || "\u2014"}
+                  </span>
+                  {isEditingThis && segIdx != null && onUpdateText ? (
+                    <textarea
+                      className="player-inline-edit-textarea"
+                      value={editorSegments![segIdx].text}
+                      onChange={(ev) => onUpdateText(segIdx, ev.target.value)}
+                      onBlur={() => setEditingTurnId(null)}
+                      onKeyDown={(ev) => {
+                        if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); setEditingTurnId(null); }
+                        if (ev.key === "Escape") setEditingTurnId(null);
+                      }}
+                      onClick={(ev) => ev.stopPropagation()}
+                      autoFocus
+                      rows={Math.max(2, Math.ceil((editorSegments![segIdx].text.length || 1) / 60))}
+                    />
+                  ) : (
+                    <span className="player-columns-turn-text">{text || "\u2026"}</span>
+                  )}
+                  <span className="player-columns-turn-info mono">
+                    <span>{formatClockSeconds(t.startMs / 1000)}</span>
+                    <span className="player-columns-turn-dur">
+                      {durMs >= 1000 ? `${(durMs / 1000).toFixed(1)}s` : `${Math.round(durMs)}ms`}
+                    </span>
                   </span>
                 </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {layout === "time" && speakers.length === 0 ? (
-        <p className="small">Aucun locuteur dans cette fenêtre.</p>
-      ) : null}
-      {layout === "turn" && sortedTurns.length === 0 ? (
-        <p className="small">Aucun tour dans cette fenêtre.</p>
-      ) : null}
+              );
+            })}
+          </div>
+        )}
+        {layout === "time" && speakers.length === 0 && (
+          <p className="small player-empty-message">Aucun locuteur dans cette fenêtre.</p>
+        )}
+        {layout === "turn" && sortedTurns.length === 0 && (
+          <p className="small player-empty-message">Aucun tour dans cette fenêtre.</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -1304,6 +1462,25 @@ function turnTextFromSegments(
     .join(" ");
 }
 
+function findSegmentIndexForTurn(
+  turn: EventTurnRow,
+  segments: EditableSegment[],
+  ordinalIndex: Map<number, number> | null,
+  allTurns: EventTurnRow[],
+): number | null {
+  for (let i = 0; i < segments.length; i++) {
+    const sMs = Math.round(segments[i].start * 1000);
+    const eMs = Math.round(segments[i].end * 1000);
+    if (eMs > turn.startMs && sMs < turn.endMs) return i;
+  }
+  if (ordinalIndex) {
+    const globalIdx = allTurns.indexOf(turn);
+    const segIdx = ordinalIndex.get(globalIdx);
+    if (segIdx != null) return segIdx;
+  }
+  return null;
+}
+
 /**
  * Pré-calcule un index ordinal turn→segment (global par ordre).
  * Fallback quand le matching temporel échoue (timestamps corrompus).
@@ -1319,6 +1496,50 @@ function buildOrdinalSegmentIndex(
   return result;
 }
 
+type LanesLayoutMode = "timeline" | "columns";
+
+type LanesTurnEnriched = {
+  turn: EventTurnRow;
+  text: string;
+  durMs: number;
+  pauseBeforeMs: number | null;
+  hasOverlap: boolean;
+  speakerIndex: number;
+};
+
+function enrichTurns(
+  slice: QueryWindowResult,
+  editorSegments: EditableSegment[] | undefined,
+): { enriched: LanesTurnEnriched[]; speakers: string[] } {
+  const sorted = [...slice.turns].sort((a, b) => a.startMs - b.startMs);
+  const speakers = Array.from(new Set(sorted.map((t) => t.speaker || "\u2014"))).sort();
+
+  const enriched: LanesTurnEnriched[] = sorted.map((t, i) => {
+    let text = turnTextFromIpus(t, slice.ipus);
+    if (!text && editorSegments) {
+      text = turnTextFromSegments(t, editorSegments);
+    }
+
+    const durMs = t.endMs - t.startMs;
+
+    let pauseBeforeMs: number | null = null;
+    const matchedPause = slice.pauses.find(
+      (p) => p.endMs >= t.startMs - 50 && p.endMs <= t.startMs + 50 && p.durMs >= 300,
+    );
+    if (matchedPause) pauseBeforeMs = matchedPause.durMs;
+
+    const prev = i > 0 ? sorted[i - 1] : null;
+    const hasOverlap = prev != null && prev.speaker !== t.speaker && prev.endMs > t.startMs + 50;
+
+    const sp = t.speaker || "\u2014";
+    const speakerIndex = speakers.indexOf(sp);
+
+    return { turn: t, text, durMs, pauseBeforeMs, hasOverlap, speakerIndex };
+  });
+
+  return { enriched, speakers };
+}
+
 function PlayerLanesBody({
   slice,
   playheadMs,
@@ -1328,6 +1549,11 @@ function PlayerLanesBody({
   loopBsec,
   onSetLoopRange,
   editorSegments,
+  followPlayhead = true,
+  editMode = false,
+  activeSegmentIndex,
+  onFocusSegment,
+  onUpdateText,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
@@ -1337,23 +1563,200 @@ function PlayerLanesBody({
   loopBsec?: number | null;
   onSetLoopRange?: (aSec: number, bSec: number) => void;
   editorSegments?: EditableSegment[];
+  followPlayhead?: boolean;
+  editMode?: boolean;
+  activeSegmentIndex?: number | null;
+  onFocusSegment?: (index: number) => void;
+  onUpdateText?: (index: number, text: string) => void;
 }) {
-  const bySpeaker = new Map<string, EventTurnRow[]>();
-  for (const turn of slice.turns) {
-    const sp = turn.speaker || "—";
-    const list = bySpeaker.get(sp) ?? [];
-    list.push(turn);
-    bySpeaker.set(sp, list);
-  }
-  const speakers = Array.from(bySpeaker.keys()).sort();
+  const [layoutMode, setLayoutMode] = useState<LanesLayoutMode>("timeline");
+  const [followActive, setFollowActive] = useState(true);
+  const [editingTurnId, setEditingTurnId] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLDivElement>(null);
+  const programmaticScrollRef = useRef(false);
+
+  const { enriched, speakers } = useMemo(
+    () => enrichTurns(slice, editorSegments),
+    [slice, editorSegments],
+  );
+
+  const activeIndex = useMemo(() => {
+    for (let i = enriched.length - 1; i >= 0; i--) {
+      const t = enriched[i].turn;
+      if (playheadMs >= t.startMs && playheadMs < t.endMs) return i;
+    }
+    return -1;
+  }, [enriched, playheadMs]);
+
+  useEffect(() => {
+    if (!followPlayhead || !followActive || activeIndex < 0) return;
+    const el = activeRef.current;
+    if (!el) return;
+    programmaticScrollRef.current = true;
+    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    requestAnimationFrame(() => {
+      programmaticScrollRef.current = false;
+    });
+  }, [followPlayhead, followActive, activeIndex]);
+
+  const handleScroll = () => {
+    if (programmaticScrollRef.current) return;
+    if (followActive) setFollowActive(false);
+  };
+
+  const ordinalIndex = useMemo(
+    () => (editorSegments ? buildOrdinalSegmentIndex(slice.turns, editorSegments) : null),
+    [slice.turns, editorSegments],
+  );
+
+  const bySpeaker = useMemo(() => {
+    const map = new Map<string, LanesTurnEnriched[]>();
+    for (const e of enriched) {
+      const sp = e.turn.speaker || "\u2014";
+      const list = map.get(sp) ?? [];
+      list.push(e);
+      map.set(sp, list);
+    }
+    return map;
+  }, [enriched]);
+
+  const renderTurnCard = (e: LanesTurnEnriched, _idx: number, isActive: boolean, isPast: boolean, showSpeaker: boolean) => {
+    const isEditing = editMode && editingTurnId === e.turn.id;
+    const segIdx = editMode && editorSegments
+      ? findSegmentIndexForTurn(e.turn, editorSegments, ordinalIndex, slice.turns)
+      : null;
+    const isFocused = editMode && segIdx != null && activeSegmentIndex === segIdx;
+
+    let cls = "player-lanes-turn";
+    if (isActive) cls += " is-active";
+    else if (isPast) cls += " is-past";
+    if (isFocused) cls += " is-focused";
+
+    const handleDoubleClick = () => {
+      if (!editMode || segIdx == null) return;
+      onFocusSegment?.(segIdx);
+      setEditingTurnId(e.turn.id);
+    };
+
+    const handleBlur = () => {
+      setEditingTurnId(null);
+    };
+
+    const handleKeyDown = (ev: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (ev.key === "Enter" && !ev.shiftKey) {
+        ev.preventDefault();
+        setEditingTurnId(null);
+      }
+      if (ev.key === "Escape") {
+        setEditingTurnId(null);
+      }
+    };
+
+    return (
+      <div
+        key={e.turn.id}
+        ref={isActive ? activeRef : undefined}
+        className={cls}
+        role="listitem"
+        onDoubleClick={handleDoubleClick}
+      >
+        <button
+          type="button"
+          className="player-lanes-turn-btn"
+          disabled={!onSeekToMs}
+          onClick={() => onSeekToMs?.(e.turn.startMs)}
+          title={`${formatClockSeconds(e.turn.startMs / 1000)} – ${formatClockSeconds(e.turn.endMs / 1000)} · cliquer pour lire`}
+        >
+          <div className="player-lanes-turn-left">
+            {showSpeaker && (
+              <span
+                className="player-lanes-turn-speaker mono"
+                style={{ color: speakerColor(e.speakerIndex) }}
+              >
+                {e.turn.speaker || "\u2014"}
+              </span>
+            )}
+            <span className="player-lanes-turn-time mono">
+              {formatClockSeconds(e.turn.startMs / 1000)}
+            </span>
+            <span className="player-lanes-turn-dur mono">
+              {e.durMs >= 1000 ? `${(e.durMs / 1000).toFixed(1)}s` : `${Math.round(e.durMs)}ms`}
+            </span>
+          </div>
+          <div className="player-lanes-turn-body">
+            {isEditing && segIdx != null && onUpdateText ? (
+              <textarea
+                className="player-inline-edit-textarea"
+                value={editorSegments![segIdx].text}
+                onChange={(ev) => onUpdateText(segIdx, ev.target.value)}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                onClick={(ev) => ev.stopPropagation()}
+                autoFocus
+                rows={Math.max(2, Math.ceil((editorSegments![segIdx].text.length || 1) / 60))}
+              />
+            ) : (
+              e.text || "\u2026"
+            )}
+          </div>
+          <div className="player-lanes-turn-badges">
+            {e.pauseBeforeMs != null && (
+              <span className="player-lanes-badge player-lanes-badge--pause" title={`Pause ${Math.round(e.pauseBeforeMs)} ms`}>
+                ⏸ {(e.pauseBeforeMs / 1000).toFixed(1)}s
+              </span>
+            )}
+            {e.hasOverlap && (
+              <span className="player-lanes-badge player-lanes-badge--overlap" title="Chevauchement">
+                ⟷
+              </span>
+            )}
+          </div>
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="player-lanes">
-      <p className="player-lanes-meta small mono">
-        Fenêtre {slice.t0Ms}–{slice.t1Ms} ms · {slice.turns.length} tours ·{" "}
-        {slice.truncated.turns ? "tronqué · " : ""}
-        {slice.pauses.length} pauses · {slice.ipus.length} IPU
-      </p>
+      <div className="player-lanes-header">
+        <span className="player-lanes-meta small mono">
+          {slice.turns.length} tours · {speakers.length} loc.
+          {slice.truncated.turns ? " · tronqué" : ""}
+        </span>
+        <div className="player-lanes-header-actions">
+          <div className="player-lanes-mode-toggle" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={layoutMode === "timeline"}
+              className={`player-lanes-mode-btn small${layoutMode === "timeline" ? " is-active" : ""}`}
+              onClick={() => setLayoutMode("timeline")}
+            >
+              Chronologique
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={layoutMode === "columns"}
+              className={`player-lanes-mode-btn small${layoutMode === "columns" ? " is-active" : ""}`}
+              onClick={() => setLayoutMode("columns")}
+            >
+              Par locuteur
+            </button>
+          </div>
+          {!followActive && (
+            <button
+              type="button"
+              className="player-lanes-follow-btn small"
+              onClick={() => setFollowActive(true)}
+            >
+              Reprendre le suivi
+            </button>
+          )}
+        </div>
+      </div>
+
       <PlayerLanesMiniMap
         durationSec={durationSec}
         t0Ms={slice.t0Ms}
@@ -1364,59 +1767,39 @@ function PlayerLanesBody({
         onSeekToMs={onSeekToMs}
         onSetLoopRange={onSetLoopRange}
       />
-      <div className="player-lanes-grid">
-        {speakers.map((sp) => {
-          const spTurns = bySpeaker.get(sp) ?? [];
-          const ordinalIndex = editorSegments
-            ? buildOrdinalSegmentIndex(slice.turns, editorSegments)
-            : null;
-          return (
-            <div key={sp} className="player-lanes-column">
-              <div className="player-lanes-column-title">{sp}</div>
-              <ul className="player-lanes-turns">
-                {spTurns.map((t) => {
-                  const active = playheadMs >= t.startMs && playheadMs < t.endMs;
-                  let text = "";
-                  if (editorSegments) {
-                    text = turnTextFromSegments(t, editorSegments);
-                    if (!text && ordinalIndex) {
-                      const globalIdx = slice.turns.indexOf(t);
-                      const segIdx = ordinalIndex.get(globalIdx);
-                      if (segIdx != null && editorSegments[segIdx]) {
-                        text = editorSegments[segIdx].text?.trim() || "";
-                      }
-                    }
-                  }
-                  if (!text) {
-                    text = turnTextFromIpus(t, slice.ipus);
-                  }
-                  return (
-                    <li key={t.id}>
-                      <button
-                        type="button"
-                        className={`player-lanes-turn ${active ? "is-active" : ""}`}
-                        title={`${t.startMs}–${t.endMs} ms — cliquer pour lire depuis ce tour`}
-                        disabled={!onSeekToMs}
-                        onClick={() => onSeekToMs?.(t.startMs)}
-                      >
-                        <span className="mono player-lanes-turn-time">
-                          {formatClockSeconds(t.startMs / 1000)} → {formatClockSeconds(t.endMs / 1000)}
-                        </span>
-                        {text ? (
-                          <span className="player-lanes-turn-text">{text}</span>
-                        ) : null}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          );
-        })}
+
+      <div className="player-lanes-scroll" ref={scrollRef} onScroll={handleScroll} role="list">
+        {layoutMode === "timeline" ? (
+          <div className="player-lanes-timeline">
+            {enriched.map((e, i) =>
+              renderTurnCard(e, i, i === activeIndex, activeIndex >= 0 && i < activeIndex, true),
+            )}
+          </div>
+        ) : (
+          <div className="player-lanes-grid">
+            {speakers.map((sp) => {
+              const spTurns = bySpeaker.get(sp) ?? [];
+              const spIdx = speakers.indexOf(sp);
+              return (
+                <div key={sp} className="player-lanes-column">
+                  <div className="player-lanes-column-title" style={{ color: speakerColor(spIdx) }}>
+                    {sp}
+                  </div>
+                  {spTurns.map((e) => {
+                    const globalIdx = enriched.indexOf(e);
+                    const isActive = globalIdx === activeIndex;
+                    const isPast = activeIndex >= 0 && globalIdx < activeIndex;
+                    return renderTurnCard(e, globalIdx, isActive, isPast, false);
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {slice.turns.length === 0 && (
+          <p className="small player-empty-message">Aucun tour de parole dans cette fenêtre.</p>
+        )}
       </div>
-      {slice.turns.length === 0 ? (
-        <p className="small">Aucun tour de parole dans cette fenêtre.</p>
-      ) : null}
     </div>
   );
 }
@@ -1426,45 +1809,150 @@ function PlayerWordsBody({
   playheadMs,
   wordsLayerActive,
   onSeekToMs,
+  followPlayhead = true,
+  editMode = false,
+  editorSegments,
+  onFocusSegment,
+  onUpdateText,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
   wordsLayerActive: boolean;
   onSeekToMs?: (ms: number) => void;
+  followPlayhead?: boolean;
+  editMode?: boolean;
+  editorSegments?: EditableSegment[];
+  activeSegmentIndex?: number | null;
+  onFocusSegment?: (index: number) => void;
+  onUpdateText?: (index: number, text: string) => void;
+  durationSec?: number | null;
 }) {
+  const [followActive, setFollowActive] = useState(true);
+  const [editingSegIdx, setEditingSegIdx] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLSpanElement>(null);
+  const programmaticScrollRef = useRef(false);
+
+  const activeWordId = useMemo(() => {
+    for (let i = slice.words.length - 1; i >= 0; i--) {
+      const w = slice.words[i];
+      if (playheadMs >= w.startMs && playheadMs < w.endMs) return w.id;
+    }
+    return -1;
+  }, [slice.words, playheadMs]);
+
+  useEffect(() => {
+    if (!followPlayhead || !followActive || activeWordId < 0) return;
+    const el = activeRef.current;
+    if (!el) return;
+    programmaticScrollRef.current = true;
+    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    requestAnimationFrame(() => {
+      programmaticScrollRef.current = false;
+    });
+  }, [followPlayhead, followActive, activeWordId]);
+
+  const handleScroll = () => {
+    if (programmaticScrollRef.current) return;
+    if (followActive) setFollowActive(false);
+  };
+
   if (!wordsLayerActive) {
     return (
       <p className="player-viewport-placeholder small">
         Active <strong>Fenêtre mots (30s)</strong> dans le panneau de gauche pour charger les tokens
-        dans une fenêtre ≤ 30s (spec WX-624).
+        dans une fenêtre ≤ 30s.
       </p>
     );
   }
+
+  const speakers = Array.from(new Set(slice.words.map((w) => w.speaker || "\u2014").filter(Boolean))).sort();
+
   return (
     <div className="player-words">
-      <p className="player-lanes-meta small mono">
-        Fenêtre {slice.t0Ms}–{slice.t1Ms} ms · {slice.words.length} mots
-        {slice.truncated.words ? " · tronqué (zoom / réduire la fenêtre)" : ""}
-      </p>
-      <ul className="player-words-strip">
+      <div className="player-words-header">
+        <span className="player-words-meta small mono">
+          {slice.words.length} mots
+          {slice.truncated.words ? " · tronqué" : ""}
+        </span>
+        {!followActive && (
+          <button
+            type="button"
+            className="player-lanes-follow-btn small"
+            onClick={() => setFollowActive(true)}
+          >
+            Reprendre le suivi
+          </button>
+        )}
+      </div>
+
+      <div className="player-words-flow" ref={scrollRef} onScroll={handleScroll}>
+        {editMode && editingSegIdx != null && editorSegments && onUpdateText ? (
+          <div className="player-words-edit-inline">
+            <span className="player-words-edit-label small mono">
+              {editorSegments[editingSegIdx]?.speaker ?? "\u2014"} · {formatClockSeconds(editorSegments[editingSegIdx]?.start ?? 0)}
+            </span>
+            <textarea
+              className="player-inline-edit-textarea"
+              value={editorSegments[editingSegIdx].text}
+              onChange={(ev) => onUpdateText(editingSegIdx, ev.target.value)}
+              onBlur={() => setEditingSegIdx(null)}
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); setEditingSegIdx(null); }
+                if (ev.key === "Escape") setEditingSegIdx(null);
+              }}
+              autoFocus
+              rows={Math.max(2, Math.ceil((editorSegments[editingSegIdx].text.length || 1) / 60))}
+            />
+          </div>
+        ) : null}
         {slice.words.map((w) => {
-          const active = playheadMs >= w.startMs && playheadMs < w.endMs;
+          const isActive = w.id === activeWordId;
+          const isPast = activeWordId >= 0 && w.startMs < playheadMs && !isActive;
+          const isUnaligned = w.alignmentStatus === "interpolated" || w.alignmentStatus === "unaligned";
+          const isLowConf = w.confidence != null && w.confidence < 0.5;
+          const spIdx = speakers.indexOf(w.speaker || "\u2014");
+
+          let cls = "player-word-token";
+          if (isActive) cls += " is-active";
+          else if (isPast) cls += " is-past";
+          if (isUnaligned) cls += " is-unaligned";
+          if (isLowConf) cls += " is-low-conf";
+
+          const handleWordDoubleClick = () => {
+            if (!editMode || !editorSegments) return;
+            for (let si = 0; si < editorSegments.length; si++) {
+              const sMs = Math.round(editorSegments[si].start * 1000);
+              const eMs = Math.round(editorSegments[si].end * 1000);
+              if (w.startMs >= sMs && w.startMs < eMs) {
+                onFocusSegment?.(si);
+                setEditingSegIdx(si);
+                return;
+              }
+            }
+          };
+
           return (
-            <li key={w.id}>
-              <button
-                type="button"
-                className={`player-word-chip ${active ? "is-active" : ""}`}
-                title={`${w.startMs}–${w.endMs} ms — cliquer pour seek`}
-                disabled={!onSeekToMs}
-                onClick={() => onSeekToMs?.(w.startMs)}
-              >
-                {w.token?.trim() || "…"}
-              </button>
-            </li>
+            <span
+              key={w.id}
+              ref={isActive ? activeRef : undefined}
+              className={cls}
+              role="button"
+              tabIndex={onSeekToMs ? 0 : -1}
+              onClick={() => onSeekToMs?.(w.startMs)}
+              onDoubleClick={handleWordDoubleClick}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSeekToMs?.(w.startMs); }}
+              title={`${formatClockSeconds(w.startMs / 1000)} – ${formatClockSeconds(w.endMs / 1000)}${isUnaligned ? " · non aligné" : ""}${isLowConf ? ` · conf. ${((w.confidence ?? 0) * 100).toFixed(0)}%` : ""}`}
+              style={isActive ? { borderBottomColor: speakerColor(spIdx) } : undefined}
+            >
+              {w.token?.trim() || "\u2026"}
+            </span>
           );
         })}
-      </ul>
-      {slice.words.length === 0 ? <p className="small">Aucun mot dans cette fenêtre.</p> : null}
+      </div>
+      {slice.words.length === 0 && (
+        <p className="small player-empty-message">Aucun mot dans cette fenêtre.</p>
+      )}
     </div>
   );
 }
@@ -1473,52 +1961,182 @@ function PlayerChatBody({
   slice,
   playheadMs,
   onSeekToMs,
+  followPlayhead = true,
+  editorSegments,
+  editMode = false,
+  activeSegmentIndex,
+  onFocusSegment,
+  onUpdateText,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
   onSeekToMs?: (ms: number) => void;
+  followPlayhead?: boolean;
+  editorSegments?: EditableSegment[];
+  editMode?: boolean;
+  activeSegmentIndex?: number | null;
+  onFocusSegment?: (index: number) => void;
+  onUpdateText?: (index: number, text: string) => void;
+  durationSec?: number | null;
 }) {
-  const activeRef = useRef<HTMLButtonElement | null>(null);
-  const activeId = useMemo(() => {
-    const hit = slice.ipus.find((ipu) => playheadMs >= ipu.startMs && playheadMs < ipu.endMs);
-    return hit?.id ?? null;
-  }, [slice.ipus, playheadMs]);
+  const [followActive, setFollowActive] = useState(true);
+  const [editingTurnId, setEditingTurnId] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLDivElement>(null);
+  const programmaticScrollRef = useRef(false);
+
+  const speakers = useMemo(
+    () => Array.from(new Set(slice.turns.map((t) => t.speaker || "\u2014"))).sort(),
+    [slice.turns],
+  );
+
+  const sortedTurns = useMemo(
+    () => [...slice.turns].sort((a, b) => a.startMs - b.startMs),
+    [slice.turns],
+  );
+
+  const ordinalIndex = useMemo(
+    () => (editorSegments ? buildOrdinalSegmentIndex(slice.turns, editorSegments) : null),
+    [slice.turns, editorSegments],
+  );
+
+  const activeIndex = useMemo(() => {
+    for (let i = sortedTurns.length - 1; i >= 0; i--) {
+      const t = sortedTurns[i];
+      if (playheadMs >= t.startMs && playheadMs < t.endMs) return i;
+    }
+    return -1;
+  }, [sortedTurns, playheadMs]);
 
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [activeId]);
+    if (!followPlayhead || !followActive || activeIndex < 0) return;
+    const el = activeRef.current;
+    if (!el) return;
+    programmaticScrollRef.current = true;
+    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    requestAnimationFrame(() => {
+      programmaticScrollRef.current = false;
+    });
+  }, [followPlayhead, followActive, activeIndex]);
+
+  const handleScroll = () => {
+    if (programmaticScrollRef.current) return;
+    if (followActive) setFollowActive(false);
+  };
+
+  const getTurnText = useCallback(
+    (turn: EventTurnRow): string => {
+      const ipuText = turnTextFromIpus(turn, slice.ipus);
+      if (ipuText) return ipuText;
+      if (editorSegments) {
+        return turnTextFromSegments(turn, editorSegments);
+      }
+      return "";
+    },
+    [editorSegments, slice.ipus],
+  );
 
   return (
     <div className="player-chat">
-      <p className="player-lanes-meta small mono">
-        Fenêtre {slice.t0Ms}–{slice.t1Ms} ms · {slice.ipus.length} IPU
-        {slice.truncated.ipus ? " · tronqué" : ""}
-      </p>
-      <div className="player-chat-thread" role="log">
-        {slice.ipus.map((ipu) => {
-          const active = playheadMs >= ipu.startMs && playheadMs < ipu.endMs;
+      <div className="player-chat-header">
+        <span className="player-chat-meta small mono">
+          {sortedTurns.length} tours · {speakers.length} loc.
+          {slice.truncated.turns ? " · tronqué" : ""}
+        </span>
+        {!followActive && (
+          <button
+            type="button"
+            className="player-lanes-follow-btn small"
+            onClick={() => setFollowActive(true)}
+          >
+            Reprendre le suivi
+          </button>
+        )}
+      </div>
+
+      <div className="player-chat-thread" ref={scrollRef} onScroll={handleScroll} role="log">
+        {sortedTurns.map((turn, i) => {
+          const isActive = i === activeIndex;
+          const isPast = activeIndex >= 0 && i < activeIndex;
+          const prevSpeaker = i > 0 ? sortedTurns[i - 1].speaker : null;
+          const sameSpeaker = turn.speaker === prevSpeaker && i > 0;
+          const spIdx = speakers.indexOf(turn.speaker || "\u2014");
+          const text = getTurnText(turn);
+          const durMs = turn.endMs - turn.startMs;
+          const isEditingThis = editMode && editingTurnId === turn.id;
+          const segIdx = editMode && editorSegments
+            ? findSegmentIndexForTurn(turn, editorSegments, ordinalIndex, slice.turns)
+            : null;
+          const isFocused = editMode && segIdx != null && activeSegmentIndex === segIdx;
+
+          let cls = "player-chat-bubble";
+          if (isActive) cls += " is-active";
+          else if (isPast) cls += " is-past";
+          if (isFocused) cls += " is-focused";
+
+          const handleDoubleClick = () => {
+            if (!editMode || segIdx == null) return;
+            onFocusSegment?.(segIdx);
+            setEditingTurnId(turn.id);
+          };
+
           return (
-            <button
-              key={ipu.id}
-              ref={active ? activeRef : undefined}
-              type="button"
-              className={`player-chat-bubble ${active ? "is-active" : ""}`}
-              title="Cliquer pour lire depuis ce bloc"
-              disabled={!onSeekToMs}
-              onClick={() => onSeekToMs?.(ipu.startMs)}
+            <div
+              key={turn.id}
+              ref={isActive ? activeRef : undefined}
+              className={cls}
+              onDoubleClick={handleDoubleClick}
             >
-              <div className="player-chat-bubble-head">
-                <span className="player-chat-speaker">{ipu.speaker ?? "—"}</span>
-                <span className="mono small player-chat-time">
-                  {formatClockSeconds(ipu.startMs / 1000)}
-                </span>
-              </div>
-              <p className="player-chat-text">{ipu.text?.trim() || "…"}</p>
-            </button>
+              <button
+                type="button"
+                className="player-chat-bubble-btn"
+                disabled={!onSeekToMs}
+                onClick={() => onSeekToMs?.(turn.startMs)}
+                title={`${formatClockSeconds(turn.startMs / 1000)} – ${formatClockSeconds(turn.endMs / 1000)} · cliquer pour lire`}
+              >
+                {!sameSpeaker && (
+                  <div
+                    className="player-chat-speaker-tag mono"
+                    style={{ color: speakerColor(spIdx) }}
+                  >
+                    {turn.speaker || "\u2014"}
+                  </div>
+                )}
+                <div className="player-chat-body">
+                  {isEditingThis && segIdx != null && onUpdateText ? (
+                    <textarea
+                      className="player-inline-edit-textarea"
+                      value={editorSegments![segIdx].text}
+                      onChange={(ev) => onUpdateText(segIdx, ev.target.value)}
+                      onBlur={() => setEditingTurnId(null)}
+                      onKeyDown={(ev) => {
+                        if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); setEditingTurnId(null); }
+                        if (ev.key === "Escape") setEditingTurnId(null);
+                      }}
+                      onClick={(ev) => ev.stopPropagation()}
+                      autoFocus
+                      rows={Math.max(2, Math.ceil((editorSegments![segIdx].text.length || 1) / 60))}
+                    />
+                  ) : (
+                    <p className="player-chat-text">{text || "\u2026"}</p>
+                  )}
+                </div>
+                <div className="player-chat-meta-row mono">
+                  <span className="player-chat-time">
+                    {formatClockSeconds(turn.startMs / 1000)}
+                  </span>
+                  <span className="player-chat-dur">
+                    {durMs >= 1000 ? `${(durMs / 1000).toFixed(1)}s` : `${Math.round(durMs)}ms`}
+                  </span>
+                </div>
+              </button>
+            </div>
           );
         })}
+        {sortedTurns.length === 0 && (
+          <p className="small player-empty-message">Aucun tour de parole dans cette fenêtre.</p>
+        )}
       </div>
-      {slice.ipus.length === 0 ? <p className="small">Aucun IPU dans cette fenêtre.</p> : null}
     </div>
   );
 }
@@ -1527,443 +2145,16 @@ function PlayerChatBody({
 // Karaoke edit — derives segments from editor JSON segments
 // ---------------------------------------------------------------------------
 
-type KaraokeWord = {
-  segIdx: number;
-  wordIdx: number;
-  word: string;
-  speaker: string;
-  startMs: number;
-  endMs: number;
-};
-
-function areTimestampsCorrupted(segments: EditableSegment[], durationMs: number): boolean {
-  if (segments.length === 0 || durationMs <= 0) return false;
-  const lastEnd = Math.round(segments[segments.length - 1].end * 1000);
-  const firstStart = Math.round(segments[0].start * 1000);
-  const span = lastEnd - firstStart;
-  return span > durationMs * 2 || firstStart > durationMs;
-}
-
-function buildKaraokeWords(segments: EditableSegment[], durationMs: number): KaraokeWord[] {
-  const result: KaraokeWord[] = [];
-  if (segments.length === 0) return result;
-
-  const corrupted = durationMs > 0 && areTimestampsCorrupted(segments, durationMs);
-
-  let totalWords = 0;
-  for (const seg of segments) {
-    totalWords += (seg.words?.length ?? seg.text.split(/\s+/).filter(Boolean).length);
-  }
-  if (totalWords === 0) return result;
-
-  let globalWordIdx = 0;
-  for (let si = 0; si < segments.length; si++) {
-    const seg = segments[si];
-    const hasRealWords = seg.words && seg.words.length > 0;
-    const textWords = seg.text.split(/\s+/).filter(Boolean);
-    const wordCount = hasRealWords ? seg.words!.length : textWords.length;
-    if (wordCount === 0) continue;
-
-    for (let wi = 0; wi < wordCount; wi++) {
-      let wStart: number;
-      let wEnd: number;
-      let wText: string;
-
-      if (corrupted) {
-        wStart = Math.round((globalWordIdx / totalWords) * durationMs);
-        wEnd = Math.round(((globalWordIdx + 1) / totalWords) * durationMs);
-        wText = hasRealWords ? seg.words![wi].word : textWords[wi];
-      } else if (hasRealWords) {
-        const rw = seg.words![wi];
-        wStart = Math.round(rw.start * 1000);
-        wEnd = Math.round(rw.end * 1000);
-        wText = rw.word;
-      } else {
-        const segStartMs = Math.round(seg.start * 1000);
-        const segEndMs = Math.round(seg.end * 1000);
-        const segDurMs = segEndMs - segStartMs;
-        wStart = segStartMs + Math.round((wi / wordCount) * segDurMs);
-        wEnd = segStartMs + Math.round(((wi + 1) / wordCount) * segDurMs);
-        wText = textWords[wi];
-      }
-
-      result.push({
-        segIdx: si,
-        wordIdx: wi,
-        word: wText,
-        speaker: seg.speaker ?? "\u2014",
-        startMs: wStart,
-        endMs: wEnd,
-      });
-      globalWordIdx++;
-    }
-  }
-  return result;
-}
-
-type KaraokeEditSegGroup = {
-  segIdx: number;
-  speaker: string;
-  startMs: number;
-  words: KaraokeWord[];
-};
-
-function PlayerKaraokeEditBody({
-  segments,
-  playheadMs,
-  onSeekToMs,
-  followPlayhead,
-  durationSec,
-}: {
-  segments: EditableSegment[];
-  playheadMs: number;
-  onSeekToMs?: (ms: number) => void;
-  followPlayhead?: boolean;
-  durationSec?: number | null;
-}) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const activeSegRef = useRef<HTMLDivElement | null>(null);
-  const [followActive, setFollowActive] = useState(true);
-  const programmaticScrollRef = useRef(false);
-
-  const durationMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
-    ? durationSec * 1000
-    : 0;
-  const words = useMemo(() => buildKaraokeWords(segments, durationMs), [segments, durationMs]);
-
-  const activeIdx = useMemo(() => {
-    for (let i = 0; i < words.length; i++) {
-      if (playheadMs >= words[i].startMs && playheadMs < words[i].endMs) return i;
-    }
-    if (durationMs > 0 && words.length > 0) {
-      const ratio = Math.max(0, Math.min(playheadMs / durationMs, 1));
-      return Math.min(Math.floor(ratio * words.length), words.length - 1);
-    }
-    return -1;
-  }, [words, playheadMs, durationMs]);
-
-  const segGroups = useMemo(() => {
-    const groups: KaraokeEditSegGroup[] = [];
-    let cur: KaraokeEditSegGroup | null = null;
-    for (const w of words) {
-      if (!cur || cur.segIdx !== w.segIdx) {
-        const seg = segments[w.segIdx];
-        cur = { segIdx: w.segIdx, speaker: w.speaker, startMs: Math.round(seg.start * 1000), words: [] };
-        groups.push(cur);
-      }
-      cur.words.push(w);
-    }
-    return groups;
-  }, [words, segments]);
-
-  const activeSegGroupIdx = useMemo(() => {
-    if (activeIdx < 0) return -1;
-    let offset = 0;
-    for (let gi = 0; gi < segGroups.length; gi++) {
-      if (activeIdx >= offset && activeIdx < offset + segGroups[gi].words.length) return gi;
-      offset += segGroups[gi].words.length;
-    }
-    return -1;
-  }, [segGroups, activeIdx]);
-
-  useEffect(() => {
-    if (!followPlayhead || !followActive || activeSegGroupIdx < 0) return;
-    const el = activeSegRef.current;
-    const container = scrollRef.current;
-    if (!el || !container || typeof container.scrollTo !== "function") return;
-    programmaticScrollRef.current = true;
-    const containerH = container.clientHeight;
-    const elTop = el.offsetTop;
-    const targetScroll = elTop - containerH * 0.33;
-    container.scrollTo({ top: targetScroll, behavior: "smooth" });
-    const tid = window.setTimeout(() => { programmaticScrollRef.current = false; }, 400);
-    return () => window.clearTimeout(tid);
-  }, [followPlayhead, followActive, activeSegGroupIdx]);
-
-  const handleScroll = () => {
-    if (programmaticScrollRef.current) return;
-    if (followActive) setFollowActive(false);
-  };
-
-  return (
-    <div className="karaoke-v2 karaoke-v2--edit" aria-label="Vue karaok\u00e9 \u00e9dition">
-      <div className="karaoke-v2-header">
-        <span className="karaoke-v2-header-info small mono">
-          Mode \u00e9dition \u00b7 {words.length} mots \u00b7 {segments.length} segments
-        </span>
-        {!followActive && (
-          <button
-            type="button"
-            className="karaoke-v2-follow-btn small"
-            onClick={() => setFollowActive(true)}
-          >
-            Reprendre le suivi
-          </button>
-        )}
-      </div>
-      <div className="karaoke-v2-scroll" ref={scrollRef} onScroll={handleScroll} role="list">
-        {segGroups.map((group, gi) => {
-          const isActive = gi === activeSegGroupIdx;
-          const isPast = activeSegGroupIdx >= 0 && gi < activeSegGroupIdx;
-          let cls = "karaoke-v2-seg";
-          if (isActive) cls += " is-active";
-          else if (isPast) cls += " is-past";
-
-          let wordOffset = 0;
-          for (let k = 0; k < gi; k++) wordOffset += segGroups[k].words.length;
-
-          return (
-            <div
-              key={group.segIdx}
-              ref={isActive ? activeSegRef : undefined}
-              className={cls}
-              role="listitem"
-            >
-              <div className="karaoke-v2-seg-left">
-                <span className="karaoke-v2-speaker mono">{group.speaker}</span>
-                <span className="karaoke-v2-time mono">
-                  {formatClockSeconds(group.startMs / 1000)}
-                </span>
-              </div>
-              <div className="karaoke-v2-seg-body">
-                <span className="karaoke-v2-seg-words">
-                  {group.words.map((w, wi) => {
-                    const globalIdx = wordOffset + wi;
-                    const wActive = globalIdx === activeIdx;
-                    let wCls = "karaoke-v2-word";
-                    if (wActive) wCls += " is-active";
-                    return (
-                      <button
-                        key={wi}
-                        type="button"
-                        className={wCls}
-                        disabled={!onSeekToMs}
-                        onClick={() => onSeekToMs?.(w.startMs)}
-                      >
-                        {w.word}
-                      </button>
-                    );
-                  })}
-                </span>
-              </div>
-              <div className="karaoke-v2-seg-right" />
-            </div>
-          );
-        })}
-        {words.length === 0 && (
-          <p className="small" style={{ padding: "16px" }}>Aucun mot dans le transcript.</p>
-        )}
-      </div>
-    </div>
-  );
-}
+/* KaraokeWord, buildKaraokeWords, PlayerKaraokeEditBody removed — editing is now inline in PlayerKaraokeBody (WX-703) */
 
 
 // ---------------------------------------------------------------------------
 // Vues éditables — segments JSON (mode édition)
 // ---------------------------------------------------------------------------
 
-function findPlayheadSegment(
-  segments: EditableSegment[],
-  playheadMs: number,
-  durationMs: number,
-): number | null {
-  if (segments.length === 0) return null;
-  for (let i = 0; i < segments.length; i++) {
-    const sMs = Math.round(segments[i].start * 1000);
-    const eMs = Math.round(segments[i].end * 1000);
-    if (playheadMs >= sMs && playheadMs < eMs) return i;
-  }
-  if (durationMs > 0 && areTimestampsCorrupted(segments, durationMs)) {
-    const ratio = Math.max(0, Math.min(playheadMs / durationMs, 1));
-    return Math.min(Math.floor(ratio * segments.length), segments.length - 1);
-  }
-  return null;
-}
+/* findPlayheadSegment and EditViewProps removed — no longer needed after WX-702 inline editing integration */
 
-type EditViewProps = {
-  segments: EditableSegment[];
-  playheadMs: number;
-  activeSegmentIndex: number | null;
-  onSeekToMs?: (ms: number) => void;
-  onFocusSegment?: (index: number) => void;
-  onUpdateText?: (index: number, text: string) => void;
-  durationSec?: number | null;
-};
-
-function PlayerChatEditBody({
-  segments,
-  playheadMs,
-  activeSegmentIndex,
-  onFocusSegment,
-  onUpdateText,
-  durationSec,
-}: EditViewProps) {
-  const activeRef = useRef<HTMLDivElement | null>(null);
-  const durationMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
-    ? durationSec * 1000 : 0;
-  const playheadSegIdx = useMemo(
-    () => findPlayheadSegment(segments, playheadMs, durationMs),
-    [segments, playheadMs, durationMs],
-  );
-
-  const scrollTarget = playheadSegIdx ?? activeSegmentIndex;
-
-  useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [scrollTarget]);
-
-  return (
-    <div className="player-chat player-chat--edit">
-      <p className="player-lanes-meta small mono">
-        Mode édition · {segments.length} segment{segments.length === 1 ? "" : "s"}
-      </p>
-      <div className="player-chat-thread" role="log">
-        {segments.map((seg, i) => {
-          const active = playheadSegIdx === i;
-          const focused = activeSegmentIndex === i;
-          return (
-            <div
-              key={i}
-              ref={active || focused ? activeRef : undefined}
-              className={`player-chat-bubble player-chat-bubble--edit ${active ? "is-active" : ""} ${focused ? "is-focused" : ""}`}
-              onClick={() => {
-                onFocusSegment?.(i);
-              }}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  onFocusSegment?.(i);
-                }
-              }}
-            >
-              <div className="player-chat-bubble-head">
-                <span className="player-chat-speaker">{seg.speaker ?? "—"}</span>
-                <span className="mono small player-chat-time">
-                  {formatClockSeconds(seg.start)}
-                </span>
-              </div>
-              {focused && onUpdateText ? (
-                <textarea
-                  className="player-chat-edit-textarea"
-                  value={seg.text}
-                  onChange={(e) => onUpdateText(i, e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  autoFocus
-                  rows={Math.max(2, Math.ceil(seg.text.length / 60))}
-                />
-              ) : (
-                <p className="player-chat-text">{seg.text?.trim() || "…"}</p>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {segments.length === 0 ? <p className="small">Aucun segment dans le transcript.</p> : null}
-    </div>
-  );
-}
-
-/* PlayerRythmoEditBody removed — replaced by PlayerRythmoView */
-
-function PlayerWordsEditBody({
-  segments,
-  playheadMs,
-  activeSegmentIndex,
-  onFocusSegment,
-  onUpdateText,
-  durationSec,
-}: EditViewProps) {
-  const activeRef = useRef<HTMLDivElement | null>(null);
-  const durationMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
-    ? durationSec * 1000 : 0;
-  const playheadSegIdx = useMemo(
-    () => findPlayheadSegment(segments, playheadMs, durationMs),
-    [segments, playheadMs, durationMs],
-  );
-
-  const scrollTarget = playheadSegIdx ?? activeSegmentIndex;
-
-  useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [scrollTarget]);
-
-  // Compute active word index within the active segment using real word timestamps
-  const activeWordInfo = useMemo(() => {
-    if (playheadSegIdx == null || playheadSegIdx < 0) return null;
-    const seg = segments[playheadSegIdx];
-    if (!seg) return null;
-    const wds = seg.words;
-    if (wds && wds.length > 0) {
-      for (let i = 0; i < wds.length; i++) {
-        const ws = Math.round(wds[i].start * 1000);
-        const we = Math.round(wds[i].end * 1000);
-        if (playheadMs >= ws && playheadMs < we) return { segIdx: playheadSegIdx, wordIdx: i };
-      }
-    }
-    return null;
-  }, [segments, playheadSegIdx, playheadMs]);
-
-  return (
-    <div className="player-words player-words--edit">
-      <p className="player-lanes-meta small mono">
-        Mode édition · mots par segment
-      </p>
-      {segments.map((seg, i) => {
-        const active = playheadSegIdx === i;
-        const focused = activeSegmentIndex === i;
-        const textWords = seg.text.split(/\s+/).filter(Boolean);
-        const hasRealWords = seg.words && seg.words.length > 0;
-        const displayWords = hasRealWords ? seg.words!.map((w) => w.word) : textWords;
-        return (
-          <div
-            key={i}
-            ref={active || focused ? activeRef : undefined}
-            className={`player-words-segment ${active ? "is-active" : ""} ${focused ? "is-focused" : ""}`}
-            onClick={() => {
-              onFocusSegment?.(i);
-            }}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                onFocusSegment?.(i);
-              }
-            }}
-          >
-            <span className="player-words-segment-head small mono">
-              {seg.speaker ?? "—"} · {formatClockSeconds(seg.start)}
-            </span>
-            {focused && onUpdateText ? (
-              <textarea
-                className="player-words-edit-textarea"
-                value={seg.text}
-                onChange={(e) => onUpdateText(i, e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                autoFocus
-                rows={2}
-              />
-            ) : (
-              <ul className="player-word-list">
-                {displayWords.map((w, wi) => {
-                  const isActiveWord = activeWordInfo?.segIdx === i && activeWordInfo?.wordIdx === wi;
-                  return (
-                    <li key={wi}>
-                      <span className={`player-word-chip${isActiveWord ? " is-active" : ""}`}>{w}</span>
-                    </li>
-                  );
-                })}
-                {displayWords.length === 0 ? <li className="small">…</li> : null}
-              </ul>
-            )}
-          </div>
-        );
-      })}
-      {segments.length === 0 ? <p className="small">Aucun segment.</p> : null}
-    </div>
-  );
-}
+/* PlayerChatEditBody and PlayerWordsEditBody removed — editing is now inline in the refactored views (WX-702) */
 
 // ---------------------------------------------------------------------------
 // WX-667/710/711 — Vue statistiques prosodiques par locuteur
@@ -2038,12 +2229,12 @@ function PauseHistogramCanvas({
       width={STATS_HISTOGRAM_W}
       height={STATS_HISTOGRAM_H}
       className="stats-histogram-canvas"
-      title="Distribution dur\u00e9es de pauses"
+      title="Distribution durées de pauses"
     />
   );
 }
 
-// ─── WX-710 : Barre empil\u00e9e du temps de parole ──────────────────────────────────
+// ─── WX-710 : Barre empilée du temps de parole ──────────────────────────────────
 
 function SpeechBarCanvas({
   stats,
@@ -2131,7 +2322,7 @@ function SpeechBarCanvas({
       width={600}
       height={38}
       className="stats-speech-bar-canvas"
-      title="R\u00e9partition temps de parole"
+      title="Répartition temps de parole"
     />
   );
 }
@@ -2243,7 +2434,7 @@ function SpeechTimelineCanvas({
   );
 }
 
-// ─── WX-711 : Courbe d\u00e9bit de parole ────────────────────────────────────────────
+// ─── WX-711 : Courbe débit de parole ────────────────────────────────────────────
 
 function SpeechRateCanvas({
   series,
@@ -2408,7 +2599,7 @@ function SpeechRateCanvas({
         width={W_REF}
         height={H}
         className="stats-rate-canvas"
-        title="D\u00e9bit de parole (mots/min) \u2014 clic pour seek"
+        title="Débit de parole (mots/min) — clic pour seek"
         onClick={handleClick}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -2603,6 +2794,51 @@ function PlayerStatsBody({
     });
   }, []);
 
+  const [pauseMinMs, setPauseMinMs] = useState(0);
+  const [pauseSpeakerFilter, setPauseSpeakerFilter] = useState<string>("__all__");
+  const [pauseTypeFilter, setPauseTypeFilter] = useState<string>("__all__");
+  const [pauseListExpanded, setPauseListExpanded] = useState(false);
+
+  const allPauses = slice.pauses;
+  const sortedWords = useMemo(
+    () => [...slice.words].sort((a, b) => a.startMs - b.startMs),
+    [slice.words],
+  );
+
+  const filteredPauses = useMemo(() => {
+    let result = allPauses.filter((p) => p.durMs >= pauseMinMs);
+    if (pauseSpeakerFilter !== "__all__") {
+      result = result.filter((p) => (p.speaker ?? "?") === pauseSpeakerFilter);
+    }
+    if (pauseTypeFilter !== "__all__") {
+      result = result.filter((p) => (p.type ?? "unknown") === pauseTypeFilter);
+    }
+    return result.sort((a, b) => a.startMs - b.startMs);
+  }, [allPauses, pauseMinMs, pauseSpeakerFilter, pauseTypeFilter]);
+
+  const allPauseDurationsMs = useMemo(
+    () => filteredPauses.map((p) => p.durMs),
+    [filteredPauses],
+  );
+
+  const pauseTypes = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of allPauses) s.add(p.type ?? "unknown");
+    return [...s].sort();
+  }, [allPauses]);
+
+  const pauseContextLookup = useCallback(
+    (p: EventPauseRow) => {
+      const before = sortedWords.filter((w) => w.endMs <= p.startMs + 30).slice(-3);
+      const after = sortedWords.filter((w) => w.startMs >= p.endMs - 30).slice(0, 3);
+      return {
+        before: before.map((w) => w.token ?? "").join(" "),
+        after: after.map((w) => w.token ?? "").join(" "),
+      };
+    },
+    [sortedWords],
+  );
+
   const totalSpeechMs = stats.reduce((s, st) => s + st.speechMs, 0);
   const totalWords = stats.reduce((s, st) => s + st.nWords, 0);
   const silenceMs = Math.max(0, durMs - totalSpeechMs);
@@ -2625,26 +2861,26 @@ function PlayerStatsBody({
   if (stats.length === 0) {
     return (
       <p className="player-viewport-placeholder small">
-        Aucune donn\u00e9e de locuteurs disponible dans ce run.
+        Aucune donnée de locuteurs disponible dans ce run.
       </p>
     );
   }
 
   return (
     <div className="player-stats-body">
-      {/* R\u00e9sum\u00e9 global */}
+      {/* Résumé global */}
       <div className="stats-summary">
         <div className="stats-summary-item">
           <span className="stats-summary-value mono">{formatClockSeconds(durMs / 1000)}</span>
-          <span className="stats-summary-label">Dur\u00e9e totale</span>
+          <span className="stats-summary-label">Durée totale</span>
         </div>
         <div className="stats-summary-item">
           <span className="stats-summary-value mono">{formatClockSeconds(totalSpeechMs / 1000)}</span>
-          <span className="stats-summary-label">Temps de parole</span>
+          <span className="stats-summary-label">Parole ({durMs > 0 ? ((totalSpeechMs / durMs) * 100).toFixed(1) : "0"}%)</span>
         </div>
         <div className="stats-summary-item">
           <span className="stats-summary-value mono">{formatClockSeconds(silenceMs / 1000)}</span>
-          <span className="stats-summary-label">Silence</span>
+          <span className="stats-summary-label">Silence ({durMs > 0 ? ((silenceMs / durMs) * 100).toFixed(1) : "0"}%)</span>
         </div>
         <div className="stats-summary-item">
           <span className="stats-summary-value mono">{stats.length}</span>
@@ -2669,46 +2905,14 @@ function PlayerStatsBody({
         {qualityScore != null && (
           <div className={`stats-summary-item${qualityScore >= 80 ? " quality-good" : qualityScore >= 60 ? " quality-ok" : " quality-low"}`}>
             <span className="stats-summary-value mono">{qualityScore}</span>
-            <span className="stats-summary-label">Qualit{"\u00e9"} /100</span>
+            <span className="stats-summary-label">Qualit{"é"} /100</span>
           </div>
         )}
       </div>
 
-      {/* Export */}
-      <div className="stats-export-bar">
-        <button
-          type="button"
-          className="stats-export-btn"
-          onClick={() => {
-            const fullExport = buildFullStatsExport(
-              stats, overlaps, transitions, densityPoints, rateSeries, qualityScore,
-              durMs, totalSpeechMs, totalWords,
-              slice.turns, slice.pauses, slice.ipus, slice.words,
-            );
-            void navigator.clipboard.writeText(buildFullStatsCsv(fullExport));
-          }}
-        >
-          {"\u2913"} CSV complet
-        </button>
-        <button
-          type="button"
-          className="stats-export-btn"
-          onClick={() => {
-            const fullExport = buildFullStatsExport(
-              stats, overlaps, transitions, densityPoints, rateSeries, qualityScore,
-              durMs, totalSpeechMs, totalWords,
-              slice.turns, slice.pauses, slice.ipus, slice.words,
-            );
-            void navigator.clipboard.writeText(JSON.stringify(fullExport, null, 2));
-          }}
-        >
-          {"\u2913"} JSON complet
-        </button>
-      </div>
-
-      {/* R\u00e9partition du temps de parole */}
+      {/* Répartition du temps de parole */}
       <div className="player-stats-section">
-        <h4 className="player-stats-section-title">R\u00e9partition du temps de parole</h4>
+        <h4 className="player-stats-section-title">Répartition du temps de parole</h4>
         <div className="player-stats-legend">
           {stats.map((s, i) => (
             <span key={s.speaker} className="player-stats-legend-item">
@@ -2729,7 +2933,7 @@ function PlayerStatsBody({
           Timeline des alternances
           {overlaps.count > 0 && (
             <span className="stats-overlap-badge">
-              {overlaps.count} overlap{overlaps.count > 1 ? "s" : ""} \u00b7{" "}
+              {overlaps.count} overlap{overlaps.count > 1 ? "s" : ""} ·{" "}
               {formatClockSeconds(overlaps.totalMs / 1000)} ({(overlaps.ratio * 100).toFixed(1)}%)
             </span>
           )}
@@ -2744,10 +2948,10 @@ function PlayerStatsBody({
         />
       </div>
 
-      {/* D\u00e9bit de parole */}
+      {/* Débit de parole */}
       {rateSeries.length > 0 && (
         <div className="player-stats-section">
-          <h4 className="player-stats-section-title">D\u00e9bit de parole (mots/min)</h4>
+          <h4 className="player-stats-section-title">Débit de parole (mots/min)</h4>
           <div className="player-stats-legend">
             {rateSeries.map((s) => {
               const si = speakers.indexOf(s.speaker);
@@ -2772,7 +2976,7 @@ function PlayerStatsBody({
       {/* Densité de parole */}
       {densityPoints.length > 0 && (
         <div className="player-stats-section">
-          <h4 className="player-stats-section-title">Densit{"\u00e9"} de parole (activit{"\u00e9"} vocale)</h4>
+          <h4 className="player-stats-section-title">Densit{"é"} de parole (activit{"é"} vocale)</h4>
           <SpeechDensityCanvas
             points={densityPoints}
             totalDurationMs={durMs}
@@ -2795,7 +2999,7 @@ function PlayerStatsBody({
                   <span className="stats-transition-speaker">{tr.to}</span>
                 </span>
                 <span className="stats-transition-stats mono">
-                  {tr.count}x {"\u00b7"} m\u00e9d. {Math.round(tr.medianGapMs)} ms
+                  {tr.count}x · méd. {Math.round(tr.medianGapMs)} ms
                   {tr.medianGapMs < 0 && <span className="stats-transition-overlap"> (overlap)</span>}
                 </span>
               </div>
@@ -2804,9 +3008,142 @@ function PlayerStatsBody({
         </div>
       )}
 
-      {/* D\u00e9tail par locuteur */}
+      {/* Pauses — section dédiée */}
+      {allPauses.length > 0 && (
+        <div className="player-stats-section">
+          <h4 className="player-stats-section-title">
+            Pauses ({filteredPauses.length}{filteredPauses.length !== allPauses.length ? ` / ${allPauses.length}` : ""})
+          </h4>
+
+          {/* Filtres */}
+          <div className="stats-pause-filters">
+            <label className="stats-pause-filter small">
+              Seuil min
+              <select
+                value={pauseMinMs}
+                onChange={(e) => setPauseMinMs(Number(e.target.value))}
+              >
+                <option value={0}>Toutes</option>
+                <option value={200}>{"\u2265"} 200 ms</option>
+                <option value={300}>{"\u2265"} 300 ms</option>
+                <option value={500}>{"\u2265"} 500 ms</option>
+                <option value={1000}>{"\u2265"} 1 s</option>
+                <option value={2000}>{"\u2265"} 2 s</option>
+                <option value={5000}>{"\u2265"} 5 s</option>
+              </select>
+            </label>
+            <label className="stats-pause-filter small">
+              Locuteur
+              <select
+                value={pauseSpeakerFilter}
+                onChange={(e) => setPauseSpeakerFilter(e.target.value)}
+              >
+                <option value="__all__">Tous</option>
+                {speakers.map((sp) => (
+                  <option key={sp} value={sp}>{sp}</option>
+                ))}
+              </select>
+            </label>
+            <label className="stats-pause-filter small">
+              Type
+              <select
+                value={pauseTypeFilter}
+                onChange={(e) => setPauseTypeFilter(e.target.value)}
+              >
+                <option value="__all__">Tous</option>
+                {pauseTypes.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {/* Histogramme agrégé */}
+          {allPauseDurationsMs.length > 0 && (
+            <div className="player-stats-histogram">
+              <PauseHistogramCanvas
+                durationsMs={allPauseDurationsMs}
+                activeColor="var(--lx-accent)"
+              />
+            </div>
+          )}
+
+          {/* Stats résumées */}
+          {filteredPauses.length > 0 && (() => {
+            const sorted = [...allPauseDurationsMs].sort((a, b) => a - b);
+            const total = sorted.reduce((s, d) => s + d, 0);
+            const mean = total / sorted.length;
+            const med = percentile(sorted, 50);
+            const p90 = percentile(sorted, 90);
+            const min = sorted[0];
+            const max = sorted[sorted.length - 1];
+            return (
+              <dl className="player-stats-dl stats-pause-summary-dl">
+                <dt>Total</dt><dd>{formatClockSeconds(total / 1000)}</dd>
+                <dt>Moy.</dt><dd>{Math.round(mean)} ms</dd>
+                <dt>Méd.</dt><dd>{Math.round(med)} ms</dd>
+                <dt>P90</dt><dd>{Math.round(p90)} ms</dd>
+                <dt>Min / Max</dt><dd>{Math.round(min)} / {Math.round(max)} ms</dd>
+              </dl>
+            );
+          })()}
+
+          {/* Liste navigable */}
+          <div className="stats-pause-list-header">
+            <button
+              type="button"
+              className="stats-pause-list-toggle small"
+              onClick={() => setPauseListExpanded((v) => !v)}
+            >
+              {pauseListExpanded ? "\u25BC" : "\u25B6"} Liste des pauses ({filteredPauses.length})
+            </button>
+          </div>
+          {pauseListExpanded && (
+            <ul className="stats-pause-list">
+              {filteredPauses.slice(0, 200).map((p) => {
+                const ctx = pauseContextLookup(p);
+                const typeLabel = p.type ?? "unknown";
+                const spLabel = p.speaker ?? "?";
+                return (
+                  <li key={p.id} className="stats-pause-list-item">
+                    <button
+                      type="button"
+                      className="stats-pause-list-btn"
+                      onClick={() => onSeekToMs?.(p.startMs)}
+                      title={`Aller à ${formatClockSeconds(p.startMs / 1000)}`}
+                    >
+                      <span className="stats-pause-list-time mono">
+                        {formatClockSeconds(p.startMs / 1000)}
+                      </span>
+                      <span className="stats-pause-list-dur mono">
+                        {p.durMs >= 1000 ? `${(p.durMs / 1000).toFixed(1)}s` : `${Math.round(p.durMs)}ms`}
+                      </span>
+                      <span className={`stats-pause-list-type${typeLabel.includes("inter") ? " is-inter" : ""}`}>
+                        {typeLabel}
+                      </span>
+                      <span className="stats-pause-list-speaker">{spLabel}</span>
+                      <span className="stats-pause-list-context" title={`${ctx.before} ▏ ${ctx.after}`}>
+                        {ctx.before && <span className="stats-pause-ctx-before">{ctx.before}</span>}
+                        <span className="stats-pause-ctx-sep">{"\u258F"}</span>
+                        {ctx.after && <span className="stats-pause-ctx-after">{ctx.after}</span>}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+              {filteredPauses.length > 200 && (
+                <li className="stats-pause-list-more small">
+                  … et {filteredPauses.length - 200} pauses supplémentaires
+                </li>
+              )}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Détail par locuteur */}
       <div className="player-stats-section">
-        <h4 className="player-stats-section-title">D\u00e9tail par locuteur</h4>
+        <h4 className="player-stats-section-title">Détail par locuteur</h4>
         <div className="player-stats-grid">
           {stats.map((s, si) => {
             const isActive = s.speaker === activeSpeaker;
@@ -2823,7 +3160,7 @@ function PlayerStatsBody({
                   type="button"
                   className="player-stats-card-header"
                   onClick={() => toggleCollapse(s.speaker)}
-                  title={isCollapsed ? "D\u00e9plier" : "Replier"}
+                  title={isCollapsed ? "Déplier" : "Replier"}
                 >
                   <span className="player-stats-speaker">{s.speaker}</span>
                   <span className="stats-card-collapse-icon">{isCollapsed ? "\u25B6" : "\u25BC"}</span>
@@ -2839,13 +3176,13 @@ function PlayerStatsBody({
                   <dd>{(s.speechRatio * 100).toFixed(1)} %</dd>
                   <dt>Mots</dt>
                   <dd>{s.nWords}</dd>
-                  <dt>D\u00e9bit</dt>
+                  <dt>Débit</dt>
                   <dd>{s.speechRateWordsPerSec.toFixed(1)} mots/s</dd>
                   <dt>Tours</dt>
                   <dd>{s.nTurns}{s.meanTurnDurMs > 0 ? ` (moy. ${(s.meanTurnDurMs / 1000).toFixed(1)}s)` : ""}</dd>
                   {s.ttr != null && (
                     <>
-                      <dt>Diversit\u00e9 lex.</dt>
+                      <dt>Diversité lex.</dt>
                       <dd>{(s.ttr * 100).toFixed(0)} % TTR ({s.nUniqueTokens} uniques / {s.nWords})</dd>
                     </>
                   )}
@@ -2855,7 +3192,7 @@ function PlayerStatsBody({
                 <div className="player-stats-subsection">
                   <p className="player-stats-subsection-title small">IPU ({s.nIpus})</p>
                   <dl className="player-stats-dl">
-                    <dt>Dur\u00e9e moy.</dt>
+                    <dt>Durée moy.</dt>
                     <dd>{s.meanIpuDurMs > 0 ? `${Math.round(s.meanIpuDurMs)} ms` : "\u2014"}</dd>
                     <dt>Min / Max</dt>
                     <dd>{s.nIpus > 0 ? `${Math.round(s.minIpuDurMs)} / ${Math.round(s.maxIpuDurMs)} ms` : "\u2014"}</dd>
@@ -2886,7 +3223,7 @@ function PlayerStatsBody({
                   <dl className="player-stats-dl">
                     <dt>Total pauses</dt>
                     <dd>{s.totalPauseMs > 0 ? formatClockSeconds(s.totalPauseMs / 1000) : "\u2014"}</dd>
-                    <dt>Moy. / M\u00e9d.</dt>
+                    <dt>Moy. / Méd.</dt>
                     <dd>
                       {s.meanPauseDurMs > 0
                         ? `${Math.round(s.meanPauseDurMs)} / ${Math.round(s.medianPauseDurMs)} ms`
@@ -2917,10 +3254,10 @@ function PlayerStatsBody({
                   )}
                 </div>
 
-                {/* Confiance + alignement (si mots charg\u00e9s) */}
+                {/* Confiance + alignement (si mots chargés) */}
                 {s.meanConfidence != null && (
                   <div className="player-stats-subsection">
-                    <p className="player-stats-subsection-title small">Qualit\u00e9 transcript</p>
+                    <p className="player-stats-subsection-title small">Qualité transcript</p>
                     <dl className="player-stats-dl">
                       <dt>Confiance moy.</dt>
                       <dd>{(s.meanConfidence * 100).toFixed(0)} %</dd>

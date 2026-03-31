@@ -17,6 +17,7 @@ export type WaveformCanvasThemeColors = {
   pauseOverlay: string;
   rangeValid: string;
   rangePreview: string;
+  loopBand: string;
   handleCold: string;
   handleHot: string;
 };
@@ -37,6 +38,7 @@ function readWaveformCanvasThemeColors(): WaveformCanvasThemeColors {
     pauseOverlay: v("--lx-waveform-pause-overlay", "rgba(110, 75, 155, 0.13)"),
     rangeValid: v("--lx-waveform-range-valid", "rgba(52, 140, 88, 0.22)"),
     rangePreview: v("--lx-waveform-range-preview", "rgba(210, 165, 40, 0.2)"),
+    loopBand: v("--lx-waveform-loop-band", "rgba(138, 75, 22, 0.18)"),
     handleCold: v("--lx-waveform-handle-cold", "#1a6fb0"),
     handleHot: v("--lx-waveform-handle-hot", "#e06b2f"),
   };
