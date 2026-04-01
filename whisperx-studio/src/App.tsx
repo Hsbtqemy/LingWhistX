@@ -11,6 +11,7 @@ import { StudioWorkspaceSection } from "./components/StudioWorkspaceSection";
 import { useAppErrorStack } from "./hooks/useAppErrorStack";
 import { useRuntimeDiagnostics } from "./hooks/useRuntimeDiagnostics";
 import { useStudioWorkspace } from "./hooks/useStudioWorkspace";
+import { fileBasename } from "./appUtils";
 import type { StudioView, UiWhisperxOptions } from "./types";
 
 const VIEW_STORAGE_KEY = "lx-studio-view";
@@ -66,6 +67,14 @@ function App() {
     setActiveView(view);
   }, []);
 
+  // WX-708 — auto-open Player quand un job passe running → done
+  const handleJobBecameDone = useCallback(
+    (job: import("./types").Job) => {
+      handleOpenPlayer(job.outputDir, fileBasename(job.inputPath) || job.id);
+    },
+    [handleOpenPlayer],
+  );
+
   const { runtimeReady, runtimeCoreReady, localRuntimePanelProps, runtimeStatus } =
     useRuntimeDiagnostics({
       setError,
@@ -99,6 +108,7 @@ function App() {
     onJobCreated: () => setActiveView("workspace"),
     injectAudioPipelineSegmentsJson,
     onOpenPlayerRun: handleOpenPlayer,
+    onJobBecameDone: handleJobBecameDone,
     onNavigateToWorkspace: () => setActiveView("workspace"),
     onAnnotationWrittenToPlayer: handleAnnotationWrittenToPlayer,
   });

@@ -7,8 +7,6 @@ export type PlayerTopBarProps = {
   mediaPath: string | null;
   shortcutsHelpOpen: boolean;
   onToggleShortcutsHelp: () => void;
-  fullscreenMode?: boolean;
-  onToggleFullscreen?: () => void;
 };
 
 /**
@@ -22,7 +20,6 @@ export function PlayerTopBar({
   mediaPath,
   shortcutsHelpOpen,
   onToggleShortcutsHelp,
-  onToggleFullscreen,
 }: PlayerTopBarProps) {
   return (
     <header className="player-topbar">
@@ -36,16 +33,6 @@ export function PlayerTopBar({
         <span className="player-media-hint small mono" title={mediaPath}>
           {fileBasename(mediaPath)}
         </span>
-      ) : null}
-      {onToggleFullscreen ? (
-        <button
-          type="button"
-          className="ghost small"
-          onClick={onToggleFullscreen}
-          title="Mode immersif (F11)"
-        >
-          Immersif
-        </button>
       ) : null}
       <button
         type="button"

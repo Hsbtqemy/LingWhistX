@@ -166,7 +166,7 @@ fn normalize_segments(segments: &[EditableSegment]) -> Vec<EditableSegment> {
                 end: (end * 1000.0).round() / 1000.0,
                 text: segment.text.clone(),
                 speaker: segment.speaker.clone(),
-                words: None,
+                words: segment.words.clone(),
             }
         })
         .collect()
@@ -302,6 +302,22 @@ pub(crate) fn build_transcript_json(
                 if !speaker.trim().is_empty() {
                     map.insert("speaker".into(), serde_json::json!(speaker));
                 }
+            }
+            if let Some(words) = &segment.words {
+                let word_values: Vec<serde_json::Value> = words
+                    .iter()
+                    .map(|w| {
+                        let mut wm = serde_json::Map::new();
+                        wm.insert("word".into(), serde_json::json!(w.word));
+                        wm.insert("start".into(), serde_json::json!(w.start));
+                        wm.insert("end".into(), serde_json::json!(w.end));
+                        if let Some(score) = w.score {
+                            wm.insert("score".into(), serde_json::json!(score));
+                        }
+                        serde_json::Value::Object(wm)
+                    })
+                    .collect();
+                map.insert("words".into(), serde_json::Value::Array(word_values));
             }
             serde_json::Value::Object(map)
         })
@@ -461,7 +477,7 @@ pub(crate) fn to_csv_text(segments: &[EditableSegment]) -> String {
     for segment in &normalized {
         let sp = segment.speaker.as_deref().unwrap_or("");
         out.push_str(&format!(
-            "{:.6},{},{},{}\n",
+            "{:.6},{:.6},{},{}\n",
             segment.start,
             segment.end,
             csv_escape_cell(&segment.text),

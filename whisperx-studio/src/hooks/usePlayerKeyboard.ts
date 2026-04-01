@@ -2,6 +2,7 @@ import { useCallback, type Dispatch, type KeyboardEvent, type SetStateAction } f
 import { PLAYBACK_RATE_STEP } from "./usePlayerPlayback";
 import type { PlayerDerivedAlert } from "../player/derivePlayerAlerts";
 import type { PlayerViewportMode } from "../components/player/PlayerRunWindowViews";
+import type { EditableSegment } from "../types";
 
 function nextAlertIndex(alerts: PlayerDerivedAlert[], playheadMs: number): number {
   for (let i = 0; i < alerts.length; i++) {
@@ -64,6 +65,7 @@ export type UsePlayerKeyboardOptions = {
   setSpeakerSolo: Dispatch<SetStateAction<string | null>>;
   fullscreenMode?: boolean;
   setFullscreenMode?: Dispatch<SetStateAction<boolean>>;
+  editorSegments?: EditableSegment[];
 };
 
 export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
@@ -242,6 +244,34 @@ export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
           o.markLoopB();
         } else {
           o.clearLoop();
+        }
+        return;
+      }
+      if (e.code === "BracketLeft" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        const segs = o.editorSegments;
+        if (segs && segs.length > 0) {
+          const playheadSec = o.playheadMs / 1000;
+          for (let i = segs.length - 1; i >= 0; i--) {
+            if (segs[i].start < playheadSec - 0.08) {
+              o.seek(segs[i].start);
+              break;
+            }
+          }
+        }
+        return;
+      }
+      if (e.code === "BracketRight" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        const segs = o.editorSegments;
+        if (segs && segs.length > 0) {
+          const playheadSec = o.playheadMs / 1000;
+          for (const seg of segs) {
+            if (seg.start > playheadSec + 0.08) {
+              o.seek(seg.start);
+              break;
+            }
+          }
         }
         return;
       }

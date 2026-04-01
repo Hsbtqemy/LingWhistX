@@ -52,6 +52,30 @@ import { ErrorBanner } from "../ErrorBanner";
 import { NewJobDropZone } from "../NewJobDropZone";
 import { Button } from "../ui";
 
+function findPrevSegmentStart(segments: EditableSegment[], playheadSec: number): number | null {
+  for (let i = segments.length - 1; i >= 0; i--) {
+    if (segments[i].start < playheadSec - 0.08) return segments[i].start;
+  }
+  return null;
+}
+
+function findNextSegmentStart(segments: EditableSegment[], playheadSec: number): number | null {
+  for (const seg of segments) {
+    if (seg.start > playheadSec + 0.08) return seg.start;
+  }
+  return null;
+}
+
+function findActiveSpeaker(segments: EditableSegment[], playheadSec: number): string | null {
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const seg = segments[i];
+    if (seg.start <= playheadSec + 0.05 && seg.end >= playheadSec - 0.05) {
+      return seg.speaker ?? null;
+    }
+  }
+  return null;
+}
+
 /** Import média depuis l’état vide Player — même état que « Nouveau job » puis bascule Studio. */
 export type PlayerWorkspaceSectionImportMediaProps = {
   inputPath: string;
@@ -92,6 +116,8 @@ export function PlayerWorkspaceSection({
   const [exportPackBusy, setExportPackBusy] = useState(false);
   const [exportPackError, setExportPackError] = useState("");
   const [exportPackHint, setExportPackHint] = useState("");
+  const [exportFormatMenuOpen, setExportFormatMenuOpen] = useState(false);
+  const [exportSingleBusy, setExportSingleBusy] = useState(false);
   const [followPlayhead, setFollowPlayhead] = useState(true);
   const [speakerSolo, setSpeakerSolo] = useState<string | null>(null);
   const [runSpeakerIds, setRunSpeakerIds] = useState<string[]>([]);
@@ -287,13 +313,6 @@ export function PlayerWorkspaceSection({
       .map((k) => joinPathSegments(runDir, k));
   }, [runDir, summary?.artifactKeys]);
 
-  useEffect(() => {
-    if (wf.webAudioMode && !isVideo) {
-      return;
-    }
-    wf.setMediaCurrentSec(currentTimeSec);
-  }, [currentTimeSec, isVideo, wf]);
-
   const runWindowEnabled = Boolean(runDir && !manifestLoading && !manifestError);
 
   // WX-660 : contrat de vue — tables et fenêtre dédiées par mode.
@@ -345,9 +364,11 @@ export function PlayerWorkspaceSection({
   );
 
   // WX-725 — sync transport → waveform : le canvas lit wf.mediaCurrentSec, pas currentTimeSec
+  // webAudioMode (audio) : la position courante vient du Web Audio, pas du timeupdate natif
   useEffect(() => {
+    if (wf.webAudioMode && !isVideo) return;
     wf.setMediaCurrentSec(currentTimeSec);
-  }, [currentTimeSec, wf.setMediaCurrentSec]);
+  }, [currentTimeSec, isVideo, wf.setMediaCurrentSec, wf.webAudioMode]);
 
   // WX-725 — follow playhead : scroll waveform pour garder le playhead visible
   useEffect(() => {
@@ -517,13 +538,29 @@ export function PlayerWorkspaceSection({
       const r = await invoke<ExportRunTimingPackResponse>("export_run_timing_pack", {
         request: { runDir },
       });
-      setExportPackHint(`Pack exporté (JSON + SRT + CSV) · dernier fichier : ${r.lastOutputPath}`);
+      setExportPackHint(`Pack exporté (JSON+SRT+VTT+CSV) · ${r.lastOutputPath}`);
     } catch (e) {
       setExportPackError(String(e));
     } finally {
       setExportPackBusy(false);
     }
   }, [runDir]);
+
+  type ExportFormat = "json" | "srt" | "vtt" | "txt" | "csv" | "textgrid" | "eaf";
+
+  const exportSingleFormat = useCallback(async (format: ExportFormat) => {
+    setExportPackError("");
+    setExportPackHint("");
+    setExportSingleBusy(true);
+    try {
+      await te.exportEditedTranscript(format);
+      setExportFormatMenuOpen(false);
+    } catch (e) {
+      setExportPackError(String(e));
+    } finally {
+      setExportSingleBusy(false);
+    }
+  }, [te]);
 
   useEffect(() => {
     setSpeakerSolo(null);
@@ -743,6 +780,7 @@ export function PlayerWorkspaceSection({
       setSpeakerSolo,
       fullscreenMode,
       setFullscreenMode,
+      editorSegments: editMode ? te.editorSegments : undefined,
     }),
     [
       shortcutsHelpOpen,
@@ -778,6 +816,8 @@ export function PlayerWorkspaceSection({
       setSpeakerSolo,
       fullscreenMode,
       setFullscreenMode,
+      editMode,
+      te.editorSegments,
     ],
   );
 
@@ -830,8 +870,6 @@ export function PlayerWorkspaceSection({
           mediaPath={mediaPath}
           shortcutsHelpOpen={shortcutsHelpOpen}
           onToggleShortcutsHelp={() => setShortcutsHelpOpen((v) => !v)}
-          fullscreenMode={fullscreenMode}
-          onToggleFullscreen={runDir ? () => setFullscreenMode((v) => !v) : undefined}
         />
         {runDir && (
           <div className="player-loop-bar">
@@ -874,11 +912,12 @@ export function PlayerWorkspaceSection({
               Aucun run ouvert pour la lecture
             </h3>
             <p className="empty-state-card-text">
-              Depuis le Studio, section <strong>Ouvrir un run sur disque</strong>, ouvre un dossier
-              de run (manifest) puis utilise <strong>Ouvrir le Player</strong>.
+              Lance un run dans le <strong>Studio</strong> — il s&apos;ouvrira automatiquement ici
+              une fois terminé.
               <br />
-              Tu peux aussi sélectionner un job avec média dans le détail du run et ouvrir le Player
-              depuis les fichiers de sortie.
+              Tu peux aussi ouvrir un run existant depuis l&apos;<strong>Historique</strong> (fichiers
+              de sortie → Ouvrir le Player) ou depuis le Studio (section{" "}
+              <em>Ouvrir un run sur disque</em>).
             </p>
             {importMedia ? (
               <div className="player-empty-import">
@@ -929,105 +968,78 @@ export function PlayerWorkspaceSection({
       ) : (
         <div className="player-body">
           <aside className="player-panel player-panel--left">
-            <div className="player-panel-box">
-              <h4 className="player-panel-box-title">Vues</h4>
-              <div className="player-view-mode" role="tablist" aria-label="Mode de viewport">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={viewportMode === "lanes"}
-                  className={`player-view-mode-btn ${viewportMode === "lanes" ? "is-active" : ""}`}
-                  onClick={() => setViewportMode("lanes")}
-                >
-                  1 Lanes
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={viewportMode === "chat"}
-                  className={`player-view-mode-btn ${viewportMode === "chat" ? "is-active" : ""}`}
-                  onClick={() => setViewportMode("chat")}
-                >
-                  2 Chat
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={viewportMode === "words"}
-                  className={`player-view-mode-btn ${viewportMode === "words" ? "is-active" : ""}`}
-                  onClick={() => setViewportMode("words")}
-                >
-                  3 Mots
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={viewportMode === "columns"}
-                  className={`player-view-mode-btn ${viewportMode === "columns" ? "is-active" : ""}`}
-                  onClick={() => setViewportMode("columns")}
-                >
-                  4 Colonnes
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={viewportMode === "rythmo"}
-                  className={`player-view-mode-btn ${viewportMode === "rythmo" ? "is-active" : ""}`}
-                  onClick={() => setViewportMode("rythmo")}
-                >
-                  5 Rythmo
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={viewportMode === "karaoke"}
-                  className={`player-view-mode-btn ${viewportMode === "karaoke" ? "is-active" : ""}`}
-                  onClick={() => setViewportMode("karaoke")}
-                >
-                  6 Karaoké
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={viewportMode === "stats"}
-                  className={`player-view-mode-btn ${viewportMode === "stats" ? "is-active" : ""}`}
-                  onClick={() => setViewportMode("stats")}
-                >
-                  7 Stats
-                </button>
+            {/* ── 1. Vues ── */}
+            <details className="player-panel-box" open>
+              <summary className="player-panel-box-title">Vues</summary>
+              <div className="player-view-grid" role="tablist" aria-label="Mode de vue">
+                {([
+                  ["lanes", "Lanes", "1"],
+                  ["chat", "Chat", "2"],
+                  ["words", "Mots", "3"],
+                  ["columns", "Colonnes", "4"],
+                  ["rythmo", "Rythmo", "5"],
+                  ["karaoke", "Karaoké", "6"],
+                  ["stats", "Stats", "7"],
+                ] as const).map(([mode, label, key]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="tab"
+                    aria-selected={viewportMode === mode}
+                    className={`player-view-grid-btn${viewportMode === mode ? " is-active" : ""}`}
+                    onClick={() => setViewportMode(mode)}
+                    title={`⌃${key}`}
+                  >
+                    <span className="player-view-grid-key">{key}</span> {label}
+                  </button>
+                ))}
               </div>
-              <label className="player-words-toggle small">
+            </details>
+
+            {/* ── 2. Affichage ── */}
+            <details className="player-panel-box" open>
+              <summary className="player-panel-box-title">Affichage</summary>
+              <label className="player-panel-toggle small">
                 <input
                   type="checkbox"
                   checked={wordsWindowEnabled}
                   onChange={(e) => runInTransition(() => setWordsWindowEnabled(e.target.checked))}
                 />
-                Charger les mots (requis pour Mots et Karaoké)
+                Afficher les mots
               </label>
-            </div>
+              <label className="player-panel-toggle small">
+                <input
+                  type="checkbox"
+                  checked={followPlayhead}
+                  onChange={(e) => runInTransition(() => setFollowPlayhead(e.target.checked))}
+                />
+                Suivre la lecture
+              </label>
+            </details>
 
-            <div className="player-panel-box">
-              <h4 className="player-panel-box-title">Édition</h4>
+            {/* ── 3. Édition ── */}
+            <details className="player-panel-box" open>
+              <summary className="player-panel-box-title">Édition</summary>
               {transcriptJsonPath ? (
-                <label className="player-words-toggle small">
+                <label className="player-panel-toggle small">
                   <input
                     type="checkbox"
                     checked={editMode}
                     onChange={(e) => runInTransition(() => setEditMode(e.target.checked))}
                   />
-                  Mode édition
+                  Mode correction
                 </label>
               ) : (
                 <p className="small player-hint">
-                  Aucun transcript chargé — lancer un run pour éditer.
+                  Aucun transcript — lancer un run.
                 </p>
               )}
               {editMode && te.editorDirty ? (
-                <span className="player-edit-dirty-badge small">Modifications non sauvegardées</span>
+                <span className="player-edit-dirty-badge small">Non sauvegardé</span>
               ) : null}
               <button
                 type="button"
-                className="player-import-annot-btn ghost small"
+                className="ghost small player-panel-action-btn"
                 disabled={annotImporting}
                 onClick={() => void handleAnnotImport()}
                 title="Importer un fichier EAF (ELAN) ou TextGrid (Praat)"
@@ -1086,22 +1098,43 @@ export function PlayerWorkspaceSection({
                   </div>
                 </div>
               ) : null}
-            </div>
+            </details>
 
-            <div className="player-panel-box">
-              <h4 className="player-panel-box-title">Filtres</h4>
-              <p className="small player-hint">
-                Locuteur : <span className="mono">{speakerSolo ?? "tous"}</span>
+            {/* ── 4. Filtres ── */}
+            <details className="player-panel-box" open>
+              <summary className="player-panel-box-title">Filtres</summary>
+              <div className="player-panel-filter-speaker small">
+                <span>Locuteur :</span>
                 {runSpeakerIds.length > 0 ? (
-                  <> · 1–9 (réappuyer = off) · 0 = tous</>
+                  <div className="player-speaker-chips">
+                    <button
+                      type="button"
+                      className={`player-speaker-chip${speakerSolo === null ? " is-active" : ""}`}
+                      onClick={() => setSpeakerSolo(null)}
+                    >
+                      Tous
+                    </button>
+                    {runSpeakerIds.map((id, i) => (
+                      <button
+                        key={id}
+                        type="button"
+                        className={`player-speaker-chip${speakerSolo === id ? " is-active" : ""}`}
+                        onClick={() => setSpeakerSolo(speakerSolo === id ? null : id)}
+                        title={`Touche ${i + 1}`}
+                      >
+                        {id}
+                      </button>
+                    ))}
+                  </div>
                 ) : (
-                  <> — indexer le run pour le solo clavier</>
+                  <span className="player-hint"> aucun locuteur indexé</span>
                 )}
-              </p>
-            </div>
+              </div>
+            </details>
 
-            <div className="player-panel-box">
-              <h4 className="player-panel-box-title">Navigateur</h4>
+            {/* ── 5. Navigation ── */}
+            <details className="player-panel-box" open>
+              <summary className="player-panel-box-title">Navigation</summary>
               <PlayerJumpPanel
                 jumpTimeInput={jumpTimeInput}
                 onJumpTimeInputChange={(v) => {
@@ -1112,7 +1145,7 @@ export function PlayerWorkspaceSection({
                 disabled={transportDisabled}
                 onCommit={commitJumpToTime}
               />
-            </div>
+            </details>
           </aside>
           <main className={`player-viewport${editMode ? " player-viewport--edit" : ""}`}>
             {/* WX-725 — Zone sticky : media + transport + waveform toujours visibles */}
@@ -1212,6 +1245,19 @@ export function PlayerWorkspaceSection({
                   durLabel={durLabel}
                   copyPositionHint={copyPositionHint}
                   onCopyPlayhead={copyPlayheadToClipboard}
+                  onPrevSegment={editMode && te.editorSegments.length > 0 ? () => {
+                    const sec = findPrevSegmentStart(te.editorSegments, currentTimeSec);
+                    if (sec != null) seek(sec);
+                  } : undefined}
+                  onNextSegment={editMode && te.editorSegments.length > 0 ? () => {
+                    const sec = findNextSegmentStart(te.editorSegments, currentTimeSec);
+                    if (sec != null) seek(sec);
+                  } : undefined}
+                  activeSpeaker={editMode && te.editorSegments.length > 0
+                    ? findActiveSpeaker(te.editorSegments, currentTimeSec)
+                    : null}
+                  fullscreenMode={fullscreenMode}
+                  onToggleFullscreen={runDir ? () => setFullscreenMode((v) => !v) : undefined}
                 />
               ) : null}
             </div>
@@ -1344,12 +1390,46 @@ export function PlayerWorkspaceSection({
                     type="button"
                     className="ghost"
                     disabled={!runDir || exportPackBusy}
-                    title="JSON + SRT + CSV (⌃⇧E / ⌘⇧E)"
+                    title="JSON+SRT+VTT+CSV (⌃⇧E / ⌘⇧E)"
                     onClick={() => void exportRunTimingPack()}
                   >
                     {exportPackBusy ? "Export…" : "Export pack"}
                   </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={!editMode || !te.editorSourcePath || exportSingleBusy}
+                    title="Exporter un format individuel"
+                    onClick={() => setExportFormatMenuOpen((v) => !v)}
+                  >
+                    {exportSingleBusy ? "Export…" : "Export ▾"}
+                  </button>
                 </div>
+                {exportFormatMenuOpen && editMode && te.editorSourcePath ? (
+                  <div className="player-export-format-menu">
+                    {(
+                      [
+                        ["srt", "SRT"],
+                        ["vtt", "VTT"],
+                        ["json", "JSON"],
+                        ["txt", "TXT"],
+                        ["csv", "CSV"],
+                        ["textgrid", "TextGrid"],
+                        ["eaf", "EAF"],
+                      ] as const
+                    ).map(([fmt, label]) => (
+                      <button
+                        key={fmt}
+                        type="button"
+                        className="ghost player-export-format-btn"
+                        disabled={exportSingleBusy || te.isEditorSaving}
+                        onClick={() => void exportSingleFormat(fmt)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 {exportFolderError ? (
                   <span className="player-export-error" role="alert">{exportFolderError}</span>
                 ) : null}
@@ -1359,6 +1439,16 @@ export function PlayerWorkspaceSection({
                 {exportPackHint ? (
                   <span className="player-export-hint mono" title={exportPackHint}>
                     {exportPackHint.length > 80 ? `${exportPackHint.slice(0, 80)}…` : exportPackHint}
+                  </span>
+                ) : null}
+                {te.editorStatus ? (
+                  <span className="player-export-hint mono">{te.editorStatus}</span>
+                ) : null}
+                {te.editorLastOutputPath && !te.editorStatus ? (
+                  <span className="player-export-hint mono" title={te.editorLastOutputPath}>
+                    {te.editorLastOutputPath.length > 70
+                      ? `…${te.editorLastOutputPath.slice(-70)}`
+                      : te.editorLastOutputPath}
                   </span>
                 ) : null}
               </div>
@@ -1574,8 +1664,8 @@ export function PlayerWorkspaceSection({
               <p className="small player-shortcuts-hint">
                 Espace · Home / Fin · ⌃⇧C copier · ⌃⇧O dossier · ⌃⇧E export · ← → (±1 s) · Shift+←
                 → (±5 s) · Alt+← → (±0,1 s) · +/− vitesse · M muet · Alt+Entrée plein écran (vidéo) ·
-                F suivi · W mots · L boucle · ⌃1–6 vues · N / P alertes · 0 / 1–9 locuteur · Aller au
-                temps (gauche) · <strong>?</strong> aide
+                F suivi · W mots · L boucle · [ / ] segment préc./suiv. · ⌃1–7 vues · N / P alertes ·
+                0 / 1–9 locuteur · Aller au temps (gauche) · <strong>?</strong> aide
               </p>
             </details>
           </aside>
@@ -1646,7 +1736,11 @@ export function PlayerWorkspaceSection({
                     +<kbd className="player-kbd">Entrée</kbd> Plein écran (vidéo)
                   </li>
                   <li>
-                    <kbd className="player-kbd">⌃1</kbd>–<kbd className="player-kbd">6</kbd> Vues
+                    <kbd className="player-kbd">⌃1</kbd>–<kbd className="player-kbd">7</kbd> Vues
+                  </li>
+                  <li>
+                    <kbd className="player-kbd">[</kbd> / <kbd className="player-kbd">]</kbd> Segment
+                    préc. / suiv.
                   </li>
                   <li>
                     <kbd className="player-kbd">N</kbd> / <kbd className="player-kbd">P</kbd> Alerte
@@ -1684,6 +1778,7 @@ export function PlayerWorkspaceSection({
               onTogglePlayPause={togglePlayPause}
               onSeek={seek}
               onSeekRelative={seekRelative}
+              onStop={stop}
               onNudgePlaybackRate={nudgePlaybackRate}
               onVolumeChange={(v) => {
                 setVolume(v);
@@ -1701,6 +1796,20 @@ export function PlayerWorkspaceSection({
               loopAsec={loopAsec}
               loopBsec={loopBsec}
               onSetLoopRange={setLoopRange}
+              onMarkLoopA={markLoopA}
+              onMarkLoopB={markLoopB}
+              onClearLoop={clearLoop}
+              onPrevSegment={editMode && te.editorSegments.length > 0 ? () => {
+                const sec = findPrevSegmentStart(te.editorSegments, currentTimeSec);
+                if (sec != null) seek(sec);
+              } : undefined}
+              onNextSegment={editMode && te.editorSegments.length > 0 ? () => {
+                const sec = findNextSegmentStart(te.editorSegments, currentTimeSec);
+                if (sec != null) seek(sec);
+              } : undefined}
+              activeSpeaker={editMode && te.editorSegments.length > 0
+                ? findActiveSpeaker(te.editorSegments, currentTimeSec)
+                : null}
               editMode={editMode}
               editorSegments={te.editorSegments}
               activeSegmentIndex={te.activeSegmentIndex}

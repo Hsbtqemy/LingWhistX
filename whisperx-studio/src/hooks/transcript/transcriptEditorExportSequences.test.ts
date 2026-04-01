@@ -22,7 +22,7 @@ const emptyReport = (): ExportCorrectionReport => ({
 });
 
 describe("exportTimingPackSequential", () => {
-  it("enchaîne json, srt, csv", async () => {
+  it("enchaîne json, srt, vtt, csv", async () => {
     let n = 0;
     vi.mocked(invoke).mockImplementation(async () => {
       n += 1;
@@ -37,11 +37,12 @@ describe("exportTimingPackSequential", () => {
       rules,
     });
 
-    expect(n).toBe(3);
-    expect(r.lastPath).toBe("/out-3.x");
+    expect(n).toBe(4);
+    expect(r.lastPath).toBe("/out-4.x");
     expect(vi.mocked(invoke).mock.calls.map((c) => c[1])).toEqual([
       expect.objectContaining({ request: expect.objectContaining({ format: "json" }) }),
       expect.objectContaining({ request: expect.objectContaining({ format: "srt" }) }),
+      expect.objectContaining({ request: expect.objectContaining({ format: "vtt" }) }),
       expect.objectContaining({ request: expect.objectContaining({ format: "csv" }) }),
     ]);
   });

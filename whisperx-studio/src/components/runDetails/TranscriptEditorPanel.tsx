@@ -34,7 +34,7 @@ export type TranscriptEditorPanelProps = {
   draftAutosaveSec: number;
   purgeTranscriptDraft: (manual: boolean) => void;
   saveEditedJson: (overwriteSource: boolean) => void;
-  exportEditedTranscript: (format: "srt" | "vtt" | "txt" | "json") => void;
+  exportEditedTranscript: (format: "srt" | "vtt" | "txt" | "json" | "csv" | "textgrid" | "eaf") => void;
   exportRules: ExportTimingRules;
   setExportRules: Dispatch<SetStateAction<ExportTimingRules>>;
   lastExportReport: ExportCorrectionReport | null;
@@ -257,6 +257,30 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
           onClick={() => exportEditedTranscript("json")}
         >
           Export JSON
+        </button>
+        <button
+          type="button"
+          className="ghost"
+          disabled={isEditorSaving || isEditorLoading}
+          onClick={() => exportEditedTranscript("csv")}
+        >
+          Export CSV
+        </button>
+        <button
+          type="button"
+          className="ghost"
+          disabled={isEditorSaving || isEditorLoading}
+          onClick={() => exportEditedTranscript("textgrid")}
+        >
+          Export TextGrid
+        </button>
+        <button
+          type="button"
+          className="ghost"
+          disabled={isEditorSaving || isEditorLoading}
+          onClick={() => exportEditedTranscript("eaf")}
+        >
+          Export EAF
         </button>
       </div>
       </section>

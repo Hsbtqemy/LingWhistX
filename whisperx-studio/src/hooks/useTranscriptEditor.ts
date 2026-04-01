@@ -464,7 +464,7 @@ export function useTranscriptEditor({
     }
   }
 
-  async function exportEditedTranscript(format: "json" | "srt" | "vtt" | "txt" | "csv") {
+  async function exportEditedTranscript(format: "json" | "srt" | "vtt" | "txt" | "csv" | "textgrid" | "eaf") {
     if (!isTranscriptEditorReadyForIo(editorSourcePath, editorSegmentsRef.current.length)) {
       setEditorError(TRANSCRIPT_EDITOR_NOT_LOADED_ERROR);
       return;

@@ -332,7 +332,7 @@ pub fn export_run_timing_pack(
     let mut last_path = String::new();
     let mut last_report = None;
 
-    for format in ["json", "srt", "csv"] {
+    for format in ["json", "srt", "vtt", "csv"] {
         let r = export_transcript(ExportTranscriptRequest {
             path: source_str.clone(),
             language: language.clone(),

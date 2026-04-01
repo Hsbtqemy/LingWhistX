@@ -243,8 +243,8 @@ class WriteTXT(ResultWriter):
     def write_result(self, result: dict, file: TextIO, options: dict):
         for segment in result["segments"]:
             speaker = segment.get("speaker")
-            text = segment["text"].strip()
-            if speaker is not None:
+            text = segment.get("text", "").strip()
+            if speaker:
                 print(f"[{speaker}]: {text}", file=file, flush=True)
             else:
                 print(text, file=file, flush=True)
@@ -414,7 +414,7 @@ class WriteTSV(ResultWriter):
         for segment in result["segments"]:
             print(round(1000 * segment["start"]), file=file, end="\t")
             print(round(1000 * segment["end"]), file=file, end="\t")
-            print(segment["text"].strip().replace("\t", " "), file=file, flush=True)
+            print(segment.get("text", "").strip().replace("\t", " "), file=file, flush=True)
 
 class WriteAudacity(ResultWriter):
     """
@@ -435,7 +435,10 @@ class WriteAudacity(ResultWriter):
         for segment in result["segments"]:
             print(segment["start"], file=file, end=ARROW)
             print(segment["end"], file=file, end=ARROW)
-            print( ( ("[[" + segment["speaker"] + "]]") if "speaker" in segment else "") + segment["text"].strip().replace("\t", " "), file=file, flush=True)
+            speaker = segment.get("speaker")
+            prefix = f"[[{speaker}]]" if speaker else ""
+            text = segment.get("text", "").strip().replace("\t", " ")
+            print(f"{prefix}{text}", file=file, flush=True)
 
             
 

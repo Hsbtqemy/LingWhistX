@@ -1,7 +1,7 @@
 import type { EditableSegment, ExportCorrectionReport, ExportTimingRules } from "../../types";
 import { tauriExportTranscript } from "./transcriptEditorTauri";
 
-const TIMING_PACK_FORMATS = ["json", "srt", "csv"] as const;
+const TIMING_PACK_FORMATS = ["json", "srt", "vtt", "csv"] as const;
 
 /**
  * Enchaîne JSON + SRT + CSV (même règles) pour le pack timing éditeur.

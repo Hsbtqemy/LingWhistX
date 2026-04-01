@@ -24,6 +24,11 @@ export type PlayerMediaTransportProps = {
   durLabel: string;
   copyPositionHint: boolean;
   onCopyPlayhead: () => void | Promise<void>;
+  onPrevSegment?: () => void;
+  onNextSegment?: () => void;
+  activeSpeaker?: string | null;
+  fullscreenMode?: boolean;
+  onToggleFullscreen?: () => void;
 };
 
 /* SVG icon helpers – 16×16 viewBox, stroke-based */
@@ -62,6 +67,10 @@ const IconFastFwd = () => <I d="M3 3 L8.5 8 L3 13 M7.5 3 L13 8 L7.5 13" />;
 const IconVolume = () => <I d="M2 6 L5 6 L9 2.5 L9 13.5 L5 10 L2 10 Z M11.5 5.5 Q14 8 11.5 10.5" />;
 const IconMute = () => <I d="M2 6 L5 6 L9 2.5 L9 13.5 L5 10 L2 10 Z M12 5.5 L14 10.5 M14 5.5 L12 10.5" />;
 const IconFollow = () => <I d="M8 2 L8 14 M4 6 L8 2 L12 6" />;
+const IconPrevSeg = () => <I d="M3 3 L3 13 M5 8 L13 3 L13 13 Z" fill />;
+const IconNextSeg = () => <I d="M13 3 L13 13 M11 8 L3 3 L3 13 Z" fill />;
+const IconExpand = () => <I d="M2 2 L6 2 M2 2 L2 6 M14 2 L10 2 M14 2 L14 6 M2 14 L6 14 M2 14 L2 10 M14 14 L10 14 M14 14 L14 10" />;
+const IconCollapse = () => <I d="M6 2 L6 6 L2 6 M10 2 L10 6 L14 6 M6 14 L6 10 L2 10 M10 14 L10 10 L14 10" />;
 
 export function PlayerMediaTransport({
   disabled,
@@ -87,6 +96,11 @@ export function PlayerMediaTransport({
   durLabel,
   copyPositionHint,
   onCopyPlayhead,
+  onPrevSegment,
+  onNextSegment,
+  activeSpeaker,
+  fullscreenMode,
+  onToggleFullscreen,
 }: PlayerMediaTransportProps) {
   const dur = durationSec != null && Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0;
   const scrubMax = dur > 0 ? dur : 1;
@@ -118,7 +132,7 @@ export function PlayerMediaTransport({
       </div>
 
       <div className="player-media-transport__row">
-        {/* ── Timecode (gauche) ── */}
+        {/* ── Timecode + locuteur (gauche) ── */}
         <div className="player-media-transport__time mono small">
           <span
             className="player-timecode player-timecode--dblcopy"
@@ -130,10 +144,27 @@ export function PlayerMediaTransport({
           {copyPositionHint ? (
             <span className="player-copy-hint" aria-live="polite">Copié</span>
           ) : null}
+          {activeSpeaker ? (
+            <span className="player-active-speaker-badge" title="Locuteur actif">
+              {activeSpeaker}
+            </span>
+          ) : null}
         </div>
 
         {/* ── Seek & Play (centre) ── */}
         <div className="player-media-transport__primary">
+          {onPrevSegment ? (
+            <button
+              type="button"
+              className="player-transport-btn player-transport-btn--sm"
+              onClick={onPrevSegment}
+              disabled={disabled}
+              title="Segment précédent ( [ )"
+              aria-label="Segment précédent"
+            >
+              <IconPrevSeg />
+            </button>
+          ) : null}
           <button
             type="button"
             className="player-transport-btn"
@@ -201,16 +232,29 @@ export function PlayerMediaTransport({
             <IconFastFwd />
             <span className="player-transport-btn__label">5s</span>
           </button>
+          {onNextSegment ? (
+            <button
+              type="button"
+              className="player-transport-btn player-transport-btn--sm"
+              onClick={onNextSegment}
+              disabled={disabled}
+              title="Segment suivant ( ] )"
+              aria-label="Segment suivant"
+            >
+              <IconNextSeg />
+            </button>
+          ) : null}
         </div>
 
         {/* ── Speed / Volume / Follow (droite) ── */}
         <div className="player-media-transport__secondary">
-          <div className="player-speed-group" title="Vitesse de lecture">
+          <div className="player-speed-group" title="Vitesse de lecture (+ / −)">
             <button
               type="button"
               className="player-transport-btn player-transport-btn--sm"
               onClick={() => onNudgePlaybackRate(-PLAYBACK_RATE_STEP)}
               disabled={disabled}
+              title="Ralentir (−)"
               aria-label="Ralentir"
             >
               −
@@ -221,6 +265,7 @@ export function PlayerMediaTransport({
               className="player-transport-btn player-transport-btn--sm"
               onClick={() => onNudgePlaybackRate(PLAYBACK_RATE_STEP)}
               disabled={disabled}
+              title="Accélérer (+)"
               aria-label="Accélérer"
             >
               +
@@ -267,10 +312,21 @@ export function PlayerMediaTransport({
               className={`player-transport-btn player-transport-btn--sm${videoFullscreen ? " player-transport-btn--active" : ""}`}
               onClick={() => void onToggleVideoFullscreen()}
               disabled={disabled}
-              title={videoFullscreen ? "Quitter le plein écran (Alt+Entrée)" : "Plein écran (Alt+Entrée)"}
-              aria-label={videoFullscreen ? "Quitter le plein écran" : "Plein écran"}
+              title={videoFullscreen ? "Quitter le plein écran vidéo (Alt+Entrée)" : "Plein écran vidéo (Alt+Entrée)"}
+              aria-label={videoFullscreen ? "Quitter le plein écran vidéo" : "Plein écran vidéo"}
             >
               ⛶
+            </button>
+          ) : null}
+          {onToggleFullscreen ? (
+            <button
+              type="button"
+              className={`player-transport-btn player-transport-btn--sm${fullscreenMode ? " player-transport-btn--active" : ""}`}
+              onClick={onToggleFullscreen}
+              title={fullscreenMode ? "Quitter le plein écran (F11)" : "Plein écran (F11)"}
+              aria-label={fullscreenMode ? "Quitter le plein écran" : "Plein écran"}
+            >
+              {fullscreenMode ? <IconCollapse /> : <IconExpand />}
             </button>
           ) : null}
         </div>

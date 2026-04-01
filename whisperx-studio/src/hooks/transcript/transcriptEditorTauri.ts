@@ -34,7 +34,7 @@ export type ExportTranscriptRequest = {
   path: string;
   language: string | null;
   segments: EditableSegment[];
-  format: "json" | "srt" | "vtt" | "txt" | "csv";
+  format: "json" | "srt" | "vtt" | "txt" | "csv" | "textgrid" | "eaf";
   rules: ExportTimingRules;
 };
 

@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "updatedAt": "2026-03-31T09:45:55.083Z",
+    "updatedAt": "2026-04-01T05:44:05.791Z",
     "statuses": [
         "todo",
         "in_progress",
@@ -3924,7 +3924,7 @@
         {
             "id": "WX-704",
             "title": "Player : amélioration des contrôles transport (play, seek, vitesse, boucle A-B)",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "1.5d",
             "dependsOn": [],
@@ -4001,7 +4001,7 @@
         {
             "id": "WX-707",
             "title": "Workflow : réorganiser le panneau gauche (vues, édition, filtres, navigateur)",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "1d",
             "dependsOn": [],
@@ -4027,7 +4027,7 @@
         {
             "id": "WX-708",
             "title": "Workflow : améliorer le flux lancement de run → lecture → édition → export",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "1.5d",
             "dependsOn": [
@@ -4202,7 +4202,7 @@
         {
             "id": "WX-714",
             "title": "Exports : vérifier et corriger tous les formats (SRT, VTT, JSON, CSV, EAF, TextGrid) — absorbe WX-715",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "1.5d",
             "dependsOn": [],
@@ -4248,7 +4248,7 @@
         {
             "id": "WX-716",
             "title": "Exports : bouton export depuis le Player avec choix de format",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "1d",
             "dependsOn": [

@@ -31,6 +31,8 @@ export type UseJobsListOptions = {
   onSelectedJobBecameInvalid: () => void;
   /** Ex. basculer vers l’onglet Studio après sélection depuis l’historique (onglet séparé). */
   onAfterFocusJobDetails?: () => void;
+  /** Appelé quand un job passe de `running` → `done` (WX-708 : auto-open Player). */
+  onJobBecameDone?: (job: Job) => void;
 };
 
 export function useJobsList({
@@ -38,6 +40,7 @@ export function useJobsList({
   setError,
   onSelectedJobBecameInvalid,
   onAfterFocusJobDetails,
+  onJobBecameDone,
 }: UseJobsListOptions) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobLogs, setJobLogs] = useState<Record<string, JobLogEvent[]>>({});
@@ -61,10 +64,20 @@ export function useJobsList({
     null,
   );
   const sessionRestoreOfferedRef = useRef(false);
+  /** Suivi des statuts pour détecter running → done (WX-708). */
+  const prevJobStatusRef = useRef<Record<string, string>>({});
+  const onJobBecameDoneRef = useRef(onJobBecameDone);
+  onJobBecameDoneRef.current = onJobBecameDone;
 
   const refreshJobs = useCallback(async () => {
     try {
       const nextJobs = await invoke<Job[]>("list_jobs");
+      // Seed le ref de statuts pour éviter un faux déclenchement au montage (WX-708)
+      for (const job of nextJobs) {
+        if (!(job.id in prevJobStatusRef.current)) {
+          prevJobStatusRef.current[job.id] = job.status;
+        }
+      }
       setJobs(nextJobs);
       const info = await invoke<JobsPaginationInfo>("get_jobs_pagination_info");
       setJobsPagination(info);
@@ -152,7 +165,13 @@ export function useJobsList({
   useEffect(() => {
     const unlistenJobPromise = listen<Job>("job-updated", (event) => {
       const payload = event.payload;
+      const prevStatus = prevJobStatusRef.current[payload.id];
+      prevJobStatusRef.current[payload.id] = payload.status;
       setJobs((current) => upsertJobInList(current, payload));
+      // WX-708 — auto-open Player quand un job passe running → done
+      if (prevStatus === "running" && payload.status === "done" && payload.outputDir) {
+        onJobBecameDoneRef.current?.(payload);
+      }
       const segs = payload.liveTranscriptSegments;
       if (segs?.length) {
         setLiveTranscriptByJob((prev) => {
