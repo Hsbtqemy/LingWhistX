@@ -62,6 +62,7 @@ export type PlayerFullscreenViewProps = {
   runSpeakerIds: string[];
   speakerSolo: string | null;
   onSetSpeakerSolo: (id: string | null) => void;
+  longPauseMs?: number;
 };
 
 export function PlayerFullscreenView({
@@ -106,6 +107,7 @@ export function PlayerFullscreenView({
   runSpeakerIds,
   speakerSolo,
   onSetSpeakerSolo,
+  longPauseMs = 300,
 }: PlayerFullscreenViewProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [localMode, setLocalMode] = useState<PlayerViewportMode>(viewportMode);
@@ -286,6 +288,7 @@ export function PlayerFullscreenView({
           updateEditorSegmentBoundary={updateEditorSegmentBoundary}
           focusSegment={focusSegment}
           runSpeakerIds={runSpeakerIds}
+          longPauseMs={longPauseMs}
         />
       </div>
 

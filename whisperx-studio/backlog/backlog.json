@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "updatedAt": "2026-04-01T05:44:05.791Z",
+    "updatedAt": "2026-04-01T07:49:52.000Z",
     "statuses": [
         "todo",
         "in_progress",
@@ -4173,7 +4173,7 @@
         {
             "id": "WX-713",
             "title": "Pauses : marqueurs visuels dans les vues Lanes et Rythmo",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "1d",
             "dependsOn": [
@@ -4347,7 +4347,7 @@
             "priority": "P2",
             "estimate": "3d",
             "dependsOn": [
-                "WX-697"
+                "WX-729"
             ],
             "scope": [
                 "src/types.ts",
@@ -4433,7 +4433,7 @@
         {
             "id": "WX-721",
             "title": "Spike : évaluer un onglet Édition dédié pour séparer la correction/annotation de la consultation",
-            "status": "todo",
+            "status": "done",
             "priority": "P1",
             "estimate": "1d",
             "dependsOn": [
@@ -4461,7 +4461,8 @@
                 "Pour chaque option : impact sur le routage, sur la gestion d'état (hooks), sur la cohabitation avec WX-719 (conventions d'annotation), sur WX-720 (plein écran).",
                 "Documenter les avantages/inconvénients : séparation des responsabilités lecture vs édition, simplification des vues consultation, place pour la toolbar d'annotation, risque de duplication de code, impact sur la navigation.",
                 "Prototyper l'option retenue : ajouter l'onglet ou le panneau dans App.tsx, vérifier que le transcript s'ouvre et que les modifications sont sauvegardées.",
-                "Recommandation finale avec justification."
+                "Recommandation finale avec justification.",
+                "DÉCISION PRISE : Option A retenue — architecture 3 onglets (Importer & Transcrire / Édition & Annotation / Player multi-vues). About remplacé par bouton engrenage. Bibliothèque de runs partagée entre onglets (ticket séparé). Paramètres audio migrés du player vers l'éditeur. Navigation fluide avec persistance du run actif entre onglets."
             ],
             "acceptance": [
                 "npm run build et cargo check propres.",
@@ -4695,6 +4696,166 @@
                 "Le changement de vue conserve la sélection.",
                 "Double-clic réinitialise la sélection.",
                 "Performance acceptable sur fichiers de 30+ minutes."
+            ]
+        },
+        {
+            "id": "WX-728",
+            "title": "Architecture 3 onglets : restructurer App.tsx, navigation, état partagé du run actif",
+            "status": "todo",
+            "priority": "P0",
+            "estimate": "2d",
+            "dependsOn": [],
+            "scope": [
+                "src/types.ts",
+                "src/App.tsx",
+                "src/hooks/useStudioWorkspace.ts",
+                "src/components/StudioNav.tsx",
+                "src/config/studioHubSections.ts",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "cargo check",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "StudioView réduit à 3 onglets principaux : 'import' (Importer & Transcrire), 'editor' (Édition & Annotation), 'player' (Player multi-vues).",
+                "Navigation par barre d'onglets horizontale avec les 3 onglets + bouton engrenage (⚙) pour les paramètres.",
+                "Le bouton ⚙ ouvre un panneau/modal de paramètres (coquille vide pour l'instant, prête à accueillir WX-719 conventions).",
+                "État partagé du run actif : le run sélectionné persiste quand on change d'onglet.",
+                "L'onglet 'import' fusionne l'actuel workspace + jobs (sélection fichier, config pipeline, liste des jobs, détail job).",
+                "L'onglet 'editor' est une coquille vide prête à accueillir WX-729.",
+                "L'onglet 'player' pointe vers le PlayerWorkspaceSection existant (nettoyage dans WX-730).",
+                "Suppression de la vue 'about' comme onglet — le contenu about migre dans le panneau ⚙ ou une section dédiée.",
+                "Navigation contextuelle : boutons 'Ouvrir dans l'éditeur' (player→editor) et 'Ouvrir dans le player' (editor→player) passent le run actif.",
+                "sessionStorage persiste l'onglet actif et le run actif entre rechargements."
+            ],
+            "acceptance": [
+                "npm run build et cargo check propres.",
+                "Les 3 onglets s'affichent, la navigation fonctionne.",
+                "Changer d'onglet conserve le run actif.",
+                "Le bouton ⚙ ouvre le panneau paramètres."
+            ]
+        },
+        {
+            "id": "WX-729",
+            "title": "Onglet Édition : créer EditorWorkspaceSection avec mini-player, waveform et segments éditables",
+            "status": "todo",
+            "priority": "P0",
+            "estimate": "3d",
+            "dependsOn": [
+                "WX-728"
+            ],
+            "scope": [
+                "src/components/editor/EditorWorkspaceSection.tsx",
+                "src/components/editor/EditorSegmentList.tsx",
+                "src/components/editor/EditorToolbar.tsx",
+                "src/components/editor/EditorMiniPlayer.tsx",
+                "src/hooks/useTranscriptEditor.ts",
+                "src/hooks/usePlayerPlayback.ts",
+                "src/types.ts",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "cargo check",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Nouveau composant EditorWorkspaceSection.tsx dans src/components/editor/.",
+                "Mini-player audio intégré : lecture, pause, seek, playback rate, volume — réutilise usePlayerPlayback.",
+                "Waveform avec segments affichés en overlay, bornes draggables (réutilise useWaveformCanvas).",
+                "Liste de segments éditable : texte inline, locuteur réassignable, timestamps affichés.",
+                "Toolbar d'édition : undo/redo, split, merge, sauvegarder JSON — branche les fonctions existantes de useTranscriptEditor.",
+                "Réassignation locuteur : branche le patch speaker_change existant dans useTranscriptEditor.",
+                "Zone réservée pour la toolbar d'annotation (placeholder, implémenté par WX-719).",
+                "Panneau QA : scan, liste d'issues, auto-fix — migre depuis TranscriptEditorPanel.",
+                "Exports : tous formats (JSON, SRT, VTT, CSV, TXT, TextGrid, EAF, timing pack) — migre depuis le player.",
+                "Paramètres audio (actuellement dans le player) migrés ici.",
+                "Import d'annotations (EAF, TextGrid) accessible depuis cet onglet.",
+                "Le composant reçoit le run actif depuis l'état partagé de WX-728.",
+                "Accès complet aux données events.sqlite (tours, pauses, IPUs) via les hooks existants."
+            ],
+            "acceptance": [
+                "npm run build et cargo check propres.",
+                "Ouvrir un run dans l'éditeur affiche la waveform, les segments, et permet la lecture audio.",
+                "Modifier le texte d'un segment, sauvegarder, recharger : les modifications sont persistées.",
+                "Split/merge fonctionnent depuis la toolbar.",
+                "Réassigner un locuteur fonctionne.",
+                "Exporter en SRT depuis l'éditeur produit le bon fichier."
+            ]
+        },
+        {
+            "id": "WX-730",
+            "title": "Player multi-vues : purger le mode édition, simplifier en lecteur consultation pure",
+            "status": "todo",
+            "priority": "P1",
+            "estimate": "1d",
+            "dependsOn": [
+                "WX-729"
+            ],
+            "scope": [
+                "src/components/player/PlayerWorkspaceSection.tsx",
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/components/player/PlayerMediaTransport.tsx",
+                "src/components/player/PlayerFullscreenView.tsx",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "cargo check",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Suppression complète de editMode, setEditMode et de toute logique conditionnelle associée dans PlayerWorkspaceSection.",
+                "Suppression de la toolbar d'édition (undo/redo/sauvegarder).",
+                "Suppression des props d'édition passées à PlayerRunWindowViews (updateEditorSegmentText, setActiveSegmentIndex, updateEditorSegmentBoundary).",
+                "Suppression des contrôles d'export unitaire du player (les exports vivent dans l'éditeur).",
+                "Suppression des paramètres audio du panneau gauche (migrés dans l'éditeur par WX-729).",
+                "Le panneau gauche ne contient plus que : Vues, Affichage, Filtres, Navigation.",
+                "Bouton 'Ouvrir dans l'éditeur' ajouté dans le player pour naviguer vers l'onglet Édition avec le run actif.",
+                "PlayerRunWindowViews simplifié : plus de props d'édition, vues en lecture seule.",
+                "useTranscriptEditor n'est plus importé dans PlayerWorkspaceSection."
+            ],
+            "acceptance": [
+                "npm run build et cargo check propres.",
+                "Le player fonctionne sans aucune capacité d'édition.",
+                "Les 7 vues (lanes, chat, words, columns, rythmo, karaoke, stats) restent fonctionnelles en lecture seule.",
+                "Le bouton 'Ouvrir dans l'éditeur' navigue correctement."
+            ]
+        },
+        {
+            "id": "WX-731",
+            "title": "Bibliothèque de runs : sélecteur partagé accessible depuis tous les onglets",
+            "status": "todo",
+            "priority": "P2",
+            "estimate": "2d",
+            "dependsOn": [
+                "WX-728"
+            ],
+            "scope": [
+                "src/components/shared/RunLibrary.tsx",
+                "src/hooks/useRunLibrary.ts",
+                "src/types.ts",
+                "src-tauri/src/run_commands.rs",
+                "src/styles/main.css"
+            ],
+            "execute": [
+                "npm run build",
+                "cargo check",
+                "npm test"
+            ],
+            "definitionOfDone": [
+                "Composant RunLibrary accessible depuis un bouton dans la barre de navigation (visible sur tous les onglets).",
+                "S'ouvre en panneau latéral ou modal, affiche la liste des runs précédents avec : label, date, durée, statut.",
+                "Cliquer sur un run le charge comme run actif (état partagé inter-onglets).",
+                "Filtrage et tri basiques (par date, par label, recherche texte).",
+                "Le run sélectionné est reflété dans l'onglet actif (éditeur, player, ou import).",
+                "Design à explorer : UX de la liste, prévisualisation, regroupement par média source."
+            ],
+            "acceptance": [
+                "npm run build et cargo check propres.",
+                "Ouvrir la bibliothèque depuis n'importe quel onglet, sélectionner un run, vérifier qu'il se charge dans l'onglet actif."
             ]
         }
     ]

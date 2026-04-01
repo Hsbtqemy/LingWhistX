@@ -6760,8 +6760,14 @@ details[open] > .player-panel-section-summary::before {
 }
 
 .player-lanes-badge--pause {
-  background: color-mix(in srgb, var(--lx-warning, #f0ad4e) 15%, transparent);
-  color: var(--lx-warning, #f0ad4e);
+  background: color-mix(in srgb, var(--lx-warning) 12%, transparent);
+  color: var(--lx-warning-text);
+}
+
+.player-lanes-badge--pause-inter {
+  background: color-mix(in srgb, var(--lx-warning) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lx-warning) 40%, transparent);
+  font-weight: 700;
 }
 
 .player-lanes-badge--overlap {
@@ -7527,19 +7533,38 @@ button.player-columns-cell:disabled {
   top: 2px;
   bottom: 2px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--lx-border) 25%, transparent);
-  border: 1px dashed color-mix(in srgb, var(--lx-border) 50%, transparent);
+  background: color-mix(in srgb, var(--lx-warning) 12%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--lx-warning) 35%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.player-rythmo-v2-pause:hover {
+  background: color-mix(in srgb, var(--lx-warning) 22%, transparent);
+  border-color: color-mix(in srgb, var(--lx-warning) 55%, transparent);
+}
+
+/* Pause inter-tour : couleur plus marquée */
+.player-rythmo-v2-pause--inter {
+  background: color-mix(in srgb, var(--lx-warning) 20%, transparent);
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--lx-warning) 50%, transparent);
+}
+
+.player-rythmo-v2-pause--inter:hover {
+  background: color-mix(in srgb, var(--lx-warning) 30%, transparent);
 }
 
 .player-rythmo-v2-pause-label {
   font-size: 0.52rem;
   font-family: var(--lx-font-mono, monospace);
-  color: var(--lx-text-2);
-  opacity: 0.7;
+  color: var(--lx-warning-text);
+  opacity: 0.85;
+  pointer-events: none;
 }
 
 /* Karaoke v2 — two-lane scrolling transcript with follow mode */

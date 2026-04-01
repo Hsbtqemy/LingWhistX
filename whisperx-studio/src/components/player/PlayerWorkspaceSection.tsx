@@ -1363,6 +1363,7 @@ export function PlayerWorkspaceSection({
                 updateEditorSegmentBoundary={te.updateEditorSegmentBoundary}
                 focusSegment={te.focusSegment}
                 runSpeakerIds={runSpeakerIds}
+                longPauseMs={longPauseMs}
               />
             </div>
             {runDir ? <p className="small mono player-viewport-path">{runDir}</p> : null}
@@ -1820,6 +1821,7 @@ export function PlayerWorkspaceSection({
               runSpeakerIds={runSpeakerIds}
               speakerSolo={speakerSolo}
               onSetSpeakerSolo={setSpeakerSolo}
+              longPauseMs={longPauseMs}
             />,
             document.body,
           )

@@ -63,6 +63,8 @@ type Props = {
   focusSegment?: (index: number) => void;
   /** Liste complète des locuteurs du run (pour les lanes karaoké). */
   runSpeakerIds?: string[];
+  /** WX-713 — Seuil de pause visible dans Lanes et Rythmo (ms). */
+  longPauseMs?: number;
 };
 
 /**
@@ -86,6 +88,7 @@ export function PlayerRunWindowViews({
   activeSegmentIndex,
   updateEditorSegmentText,
   focusSegment,
+  longPauseMs = 300,
   runSpeakerIds,
 }: Props) {
   if (queryError) {
@@ -130,6 +133,7 @@ export function PlayerRunWindowViews({
         onFocusSegment={focusSegment}
         onUpdateText={updateEditorSegmentText}
         durationSec={durationSec}
+        longPauseMs={longPauseMs}
       />
     );
   }
@@ -167,6 +171,7 @@ export function PlayerRunWindowViews({
         activeSegmentIndex={activeSegmentIndex ?? null}
         onFocusSegment={focusSegment}
         onUpdateText={updateEditorSegmentText}
+        longPauseMs={longPauseMs}
       />
     );
   }
@@ -1038,6 +1043,7 @@ function PlayerRythmoView({
   onFocusSegment,
   onUpdateText,
   durationSec,
+  longPauseMs = 300,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
@@ -1049,6 +1055,7 @@ function PlayerRythmoView({
   onFocusSegment?: (i: number) => void;
   onUpdateText?: (i: number, text: string) => void;
   durationSec?: number | null;
+  longPauseMs?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(600);
@@ -1090,7 +1097,10 @@ function PlayerRythmoView({
     [blocks, speakers],
   );
 
-  const pauses: EventPauseRow[] = slice.pauses ?? [];
+  const pauses: EventPauseRow[] = useMemo(
+    () => (slice.pauses ?? []).filter((p) => p.durMs >= longPauseMs),
+    [slice.pauses, longPauseMs],
+  );
 
   const visibleMs = zoomSec * 1000;
   const pxPerMs = containerWidth / visibleMs;
@@ -1267,19 +1277,25 @@ function PlayerRythmoView({
                 className="player-rythmo-v2-lane-strip"
                 style={{ transform: `translateX(${stripTranslateX}px)`, width: `${stripWidth}px` }}
               >
-                {/* Pause markers */}
+                {/* Pause markers — filtrés par longPauseMs (WX-713) */}
                 {lanePauses.map((p) => {
                   if (p.endMs < visStartMs || p.startMs > visEndMs) return null;
                   const pw = Math.max(2, (p.endMs - p.startMs) * pxPerMs);
+                  const typeLabel = p.type === "inter_turn" ? "inter-tour" : p.type === "intra_turn" ? "intra-tour" : null;
+                  const tooltip = typeLabel
+                    ? `Pause ${typeLabel} — ${(p.durMs / 1000).toFixed(2)} s`
+                    : `Pause — ${(p.durMs / 1000).toFixed(2)} s`;
                   return (
-                    <span
+                    <button
                       key={`p-${p.id}`}
-                      className="player-rythmo-v2-pause"
+                      type="button"
+                      className={`player-rythmo-v2-pause${p.type === "inter_turn" ? " player-rythmo-v2-pause--inter" : ""}`}
                       style={{ left: `${p.startMs * pxPerMs}px`, width: `${pw}px` }}
-                      title={`Pause ${p.durMs} ms`}
+                      title={tooltip}
+                      onClick={() => onSeekToMs?.(p.startMs)}
                     >
                       {pw > 28 ? <span className="player-rythmo-v2-pause-label">{(p.durMs / 1000).toFixed(1)}</span> : null}
-                    </span>
+                    </button>
                   );
                 })}
 
@@ -1558,6 +1574,7 @@ type LanesTurnEnriched = {
   text: string;
   durMs: number;
   pauseBeforeMs: number | null;
+  pauseBeforeType: string | null;
   hasOverlap: boolean;
   speakerIndex: number;
 };
@@ -1565,6 +1582,7 @@ type LanesTurnEnriched = {
 function enrichTurns(
   slice: QueryWindowResult,
   editorSegments: EditableSegment[] | undefined,
+  longPauseMs: number = 300,
 ): { enriched: LanesTurnEnriched[]; speakers: string[] } {
   const sorted = [...slice.turns].sort((a, b) => a.startMs - b.startMs);
   const speakers = Array.from(new Set(sorted.map((t) => t.speaker || "\u2014"))).sort();
@@ -1579,8 +1597,9 @@ function enrichTurns(
 
     let pauseBeforeMs: number | null = null;
     const matchedPause = slice.pauses.find(
-      (p) => p.endMs >= t.startMs - 50 && p.endMs <= t.startMs + 50 && p.durMs >= 300,
+      (p) => p.endMs >= t.startMs - 50 && p.endMs <= t.startMs + 50 && p.durMs >= longPauseMs,
     );
+    const pauseBeforeType = matchedPause?.type ?? null;
     if (matchedPause) pauseBeforeMs = matchedPause.durMs;
 
     const prev = i > 0 ? sorted[i - 1] : null;
@@ -1589,7 +1608,7 @@ function enrichTurns(
     const sp = t.speaker || "\u2014";
     const speakerIndex = speakers.indexOf(sp);
 
-    return { turn: t, text, durMs, pauseBeforeMs, hasOverlap, speakerIndex };
+    return { turn: t, text, durMs, pauseBeforeMs, pauseBeforeType, hasOverlap, speakerIndex };
   });
 
   return { enriched, speakers };
@@ -1609,6 +1628,7 @@ function PlayerLanesBody({
   activeSegmentIndex,
   onFocusSegment,
   onUpdateText,
+  longPauseMs = 300,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
@@ -1622,6 +1642,7 @@ function PlayerLanesBody({
   editMode?: boolean;
   activeSegmentIndex?: number | null;
   onFocusSegment?: (index: number) => void;
+  longPauseMs?: number;
   onUpdateText?: (index: number, text: string) => void;
 }) {
   const [layoutMode, setLayoutMode] = useState<LanesLayoutMode>("timeline");
@@ -1632,8 +1653,8 @@ function PlayerLanesBody({
   const programmaticScrollRef = useRef(false);
 
   const { enriched, speakers } = useMemo(
-    () => enrichTurns(slice, editorSegments),
-    [slice, editorSegments],
+    () => enrichTurns(slice, editorSegments, longPauseMs),
+    [slice, editorSegments, longPauseMs],
   );
 
   const activeIndex = useMemo(() => {
@@ -1756,11 +1777,20 @@ function PlayerLanesBody({
             )}
           </div>
           <div className="player-lanes-turn-badges">
-            {e.pauseBeforeMs != null && (
-              <span className="player-lanes-badge player-lanes-badge--pause" title={`Pause ${Math.round(e.pauseBeforeMs)} ms`}>
-                ⏸ {(e.pauseBeforeMs / 1000).toFixed(1)}s
-              </span>
-            )}
+            {e.pauseBeforeMs != null && (() => {
+              const typeLabel = e.pauseBeforeType === "inter_turn" ? "inter" : e.pauseBeforeType === "intra_turn" ? "intra" : null;
+              const tooltip = typeLabel
+                ? `Pause ${typeLabel}-tour — ${(e.pauseBeforeMs / 1000).toFixed(2)} s`
+                : `Pause — ${(e.pauseBeforeMs / 1000).toFixed(2)} s`;
+              return (
+                <span
+                  className={`player-lanes-badge player-lanes-badge--pause${e.pauseBeforeType === "inter_turn" ? " player-lanes-badge--pause-inter" : ""}`}
+                  title={tooltip}
+                >
+                  ⏸ {(e.pauseBeforeMs / 1000).toFixed(1)}s{typeLabel ? ` ${typeLabel}` : ""}
+                </span>
+              );
+            })()}
             {e.hasOverlap && (
               <span className="player-lanes-badge player-lanes-badge--overlap" title="Chevauchement">
                 ⟷
