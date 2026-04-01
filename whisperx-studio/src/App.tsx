@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 
+import { HelpDialog } from "./components/HelpDialog";
 import { HomeHub } from "./components/HomeHub";
 import { StudioAboutView } from "./components/StudioAboutView";
 import { STUDIO_PANEL_IDS, STUDIO_TAB_IDS, StudioNav } from "./components/StudioNav";
@@ -40,6 +41,20 @@ function App() {
   const [playerInitialEditMode, setPlayerInitialEditMode] = useState(false);
   /** WX-696 — Incrémenté après écriture de tiers annotation dans events.sqlite. */
   const [playerEventsEpoch, setPlayerEventsEpoch] = useState(0);
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
+        e.preventDefault();
+        setHelpOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   useEffect(() => {
     try {
@@ -147,14 +162,16 @@ function App() {
   const showStudioNav = activeView !== "create";
 
   return (
-    <main className="studio-shell">
+    <main className="studio-shell" data-testid="studio-app-root">
       {showStudioNav ? (
         <StudioNav
           activeView={activeView}
           onViewChange={setActiveView}
           workspaceHasActiveJobs={runningJobs > 0}
+          onToggleHelp={() => setHelpOpen((v) => !v)}
         />
       ) : null}
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} activeView={activeView} />
 
       <div className="studio-shell__main">
         <div
@@ -207,6 +224,7 @@ function App() {
               onBack={handlePlayerBack}
               eventsRefreshEpoch={playerEventsEpoch}
               initialEditMode={playerInitialEditMode}
+              onToggleHelp={() => setHelpOpen((v) => !v)}
               importMedia={{
                 inputPath: jobForm.inputPath,
                 isSubmitting: jobForm.isSubmitting,

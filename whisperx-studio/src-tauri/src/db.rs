@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::{params, Connection, Row};
 use tauri::{AppHandle, Manager};
 
+use crate::log_redaction::redact_user_home_in_text;
 use crate::models::{Job, LiveTranscriptSegment, WhisperxOptions};
 
 /// Taille d'une page de jobs (démarrage + « charger plus »).
@@ -59,9 +60,18 @@ pub(crate) fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
     let data_dir = app
         .path()
         .app_local_data_dir()
-        .map_err(|err| format!("Unable to resolve app local data dir: {err}"))?;
-    std::fs::create_dir_all(&data_dir)
-        .map_err(|err| format!("Unable to create app local data dir: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Unable to resolve app local data dir: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
+    std::fs::create_dir_all(&data_dir).map_err(|err| {
+        format!(
+            "Unable to create app local data dir: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     Ok(data_dir.join("whisperx-studio-jobs.sqlite3"))
 }
 
@@ -72,9 +82,19 @@ pub(crate) fn with_conn<T, F>(path: &Path, f: F) -> Result<T, String>
 where
     F: FnOnce(&Connection) -> Result<T, String>,
 {
-    let conn = Connection::open(path).map_err(|err| format!("DB open failed: {err}"))?;
+    let conn = Connection::open(path).map_err(|err| {
+        format!(
+            "DB open failed: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;")
-        .map_err(|err| format!("DB PRAGMA failed: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "DB PRAGMA failed: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     f(&conn)
 }
 
@@ -99,7 +119,12 @@ pub(crate) fn init_database(path: &Path) -> Result<(), String> {
             );
             ",
         )
-        .map_err(|err| format!("DB init failed: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "DB init failed: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
         migrate_schema(conn)
     })
 }
@@ -107,17 +132,37 @@ pub(crate) fn init_database(path: &Path) -> Result<(), String> {
 fn jobs_table_has_column(conn: &Connection, column: &str) -> Result<bool, String> {
     let mut stmt = conn
         .prepare("PRAGMA table_info(jobs)")
-        .map_err(|err| format!("PRAGMA table_info failed: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "PRAGMA table_info failed: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     let mut rows = stmt
         .query([])
-        .map_err(|err| format!("table_info query failed: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "table_info query failed: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     while let Some(row) = rows
         .next()
-        .map_err(|err| format!("table_info row: {err}"))?
+        .map_err(|err| {
+            format!(
+                "table_info row: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?
     {
         let name: String = row
             .get(1)
-            .map_err(|err| format!("table_info name: {err}"))?;
+            .map_err(|err| {
+                format!(
+                    "table_info name: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
         if name == column {
             return Ok(true);
         }
@@ -130,11 +175,21 @@ fn jobs_table_has_column(conn: &Connection, column: &str) -> Result<bool, String
 fn migrate_schema(conn: &Connection) -> Result<(), String> {
     let version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
-        .map_err(|err| format!("Read schema version failed: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Read schema version failed: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
 
     if version < 1 {
         conn.pragma_update(None, "user_version", 1)
-            .map_err(|err| format!("Set schema version failed: {err}"))?;
+            .map_err(|err| {
+                format!(
+                    "Set schema version failed: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
     }
 
     if version < 2 {
@@ -143,10 +198,20 @@ fn migrate_schema(conn: &Connection) -> Result<(), String> {
                 "ALTER TABLE jobs ADD COLUMN live_transcript_segments TEXT NOT NULL DEFAULT '[]'",
                 [],
             )
-            .map_err(|err| format!("Migrate v2 (live_transcript_segments) failed: {err}"))?;
+            .map_err(|err| {
+                format!(
+                    "Migrate v2 (live_transcript_segments) failed: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
         }
         conn.pragma_update(None, "user_version", 2)
-            .map_err(|err| format!("Set schema version failed: {err}"))?;
+            .map_err(|err| {
+                format!(
+                    "Set schema version failed: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
     }
 
     if version < 3 {
@@ -156,31 +221,55 @@ fn migrate_schema(conn: &Connection) -> Result<(), String> {
                 "ALTER TABLE jobs ADD COLUMN priority INTEGER NOT NULL DEFAULT 2",
                 [],
             )
-            .map_err(|err| format!("Migrate v3 (priority) failed: {err}"))?;
+            .map_err(|err| {
+                format!(
+                    "Migrate v3 (priority) failed: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
         }
         if !jobs_table_has_column(conn, "queue_order")? {
             conn.execute(
                 "ALTER TABLE jobs ADD COLUMN queue_order INTEGER NOT NULL DEFAULT 0",
                 [],
             )
-            .map_err(|err| format!("Migrate v3 (queue_order) failed: {err}"))?;
+            .map_err(|err| {
+                format!(
+                    "Migrate v3 (queue_order) failed: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
         }
         conn.pragma_update(None, "user_version", 3)
-            .map_err(|err| format!("Set schema version v3 failed: {err}"))?;
+            .map_err(|err| {
+                format!(
+                    "Set schema version v3 failed: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
     }
 
     Ok(())
 }
 
 pub(crate) fn persist_job(db_path: &Path, job: &Job) -> Result<(), String> {
-    let output_files_json = serde_json::to_string(&job.output_files)
-        .map_err(|err| format!("Serialize output_files failed: {err}"))?;
+    let output_files_json = serde_json::to_string(&job.output_files).map_err(|err| {
+        format!(
+            "Serialize output_files failed: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     let whisperx_options_json = job
         .whisperx_options
         .as_ref()
         .map(serde_json::to_string)
         .transpose()
-        .map_err(|err| format!("Serialize whisperx_options failed: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Serialize whisperx_options failed: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
 
     with_conn(db_path, |conn| {
         conn.execute(
@@ -226,7 +315,12 @@ pub(crate) fn persist_job(db_path: &Path, job: &Job) -> Result<(), String> {
                 job.queue_order
             ],
         )
-        .map_err(|err| format!("Persist job failed: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Persist job failed: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
         Ok(())
     })
 }
@@ -238,7 +332,12 @@ pub(crate) fn update_job_priority(db_path: &Path, job_id: &str, priority: u8) ->
             "UPDATE jobs SET priority = ?1, updated_at_ms = ?2 WHERE id = ?3",
             params![i64::from(priority.min(3)), crate::time_utils::now_ms() as i64, job_id],
         )
-        .map_err(|err| format!("Update job priority failed: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Update job priority failed: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
         Ok(())
     })
 }
@@ -251,7 +350,12 @@ pub(crate) fn update_jobs_queue_order(db_path: &Path, ordered_ids: &[String]) ->
                 "UPDATE jobs SET queue_order = ?1 WHERE id = ?2",
                 params![idx as i64, id],
             )
-            .map_err(|err| format!("Update queue_order failed: {err}"))?;
+            .map_err(|err| {
+                format!(
+                    "Update queue_order failed: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
         }
         Ok(())
     })
@@ -262,7 +366,12 @@ pub(crate) fn delete_job_row(db_path: &Path, job_id: &str) -> Result<bool, Strin
     with_conn(db_path, |conn| {
         let n = conn
             .execute("DELETE FROM jobs WHERE id = ?1", params![job_id])
-            .map_err(|err| format!("Delete job failed: {err}"))?;
+            .map_err(|err| {
+                format!(
+                    "Delete job failed: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
         Ok(n > 0)
     })
 }
@@ -271,7 +380,12 @@ pub(crate) fn count_jobs(db_path: &Path) -> Result<i64, String> {
     with_conn(db_path, |conn| {
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM jobs", [], |row| row.get(0))
-            .map_err(|err| format!("Count jobs failed: {err}"))?;
+            .map_err(|err| {
+                format!(
+                    "Count jobs failed: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
         Ok(count)
     })
 }
@@ -295,15 +409,30 @@ pub(crate) fn load_jobs_page(db_path: &Path, offset: i64, limit: i64) -> Result<
                 LIMIT ?1 OFFSET ?2
                 ",
             )
-            .map_err(|err| format!("Prepare load query failed: {err}"))?;
+            .map_err(|err| {
+                format!(
+                    "Prepare load query failed: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
 
         let rows = statement
             .query_map(params![limit, offset], map_job_row)
-            .map_err(|err| format!("Load query failed: {err}"))?;
+            .map_err(|err| {
+                format!(
+                    "Load query failed: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
 
         let mut jobs = Vec::new();
         for row in rows {
-            jobs.push(row.map_err(|err| format!("Load row failed: {err}"))?);
+            jobs.push(row.map_err(|err| {
+                format!(
+                    "Load row failed: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?);
         }
         Ok(jobs)
     })
@@ -348,10 +477,20 @@ mod tests {
         let path = temp_db_path();
         with_conn(&path, |conn| {
             conn.execute_batch("CREATE TABLE IF NOT EXISTS _probe (x INTEGER);")
-                .map_err(|e| format!("Create table failed: {e}"))?;
+                .map_err(|e| {
+                    format!(
+                        "Create table failed: {}",
+                        redact_user_home_in_text(&e.to_string())
+                    )
+                })?;
             let mode: String = conn
                 .query_row("PRAGMA journal_mode", [], |row| row.get(0))
-                .map_err(|e| format!("PRAGMA journal_mode failed: {e}"))?;
+                .map_err(|e| {
+                    format!(
+                        "PRAGMA journal_mode failed: {}",
+                        redact_user_home_in_text(&e.to_string())
+                    )
+                })?;
             assert_eq!(mode, "wal", "journal_mode should be WAL after with_conn");
             Ok(())
         })?;
@@ -368,7 +507,12 @@ mod tests {
         with_conn(&path, |conn| {
             let version: i32 = conn
                 .query_row("PRAGMA user_version", [], |row| row.get(0))
-                .map_err(|e| format!("Read user_version failed: {e}"))?;
+                .map_err(|e| {
+                    format!(
+                        "Read user_version failed: {}",
+                        redact_user_home_in_text(&e.to_string())
+                    )
+                })?;
             assert_eq!(version, 3, "Schema should be at version 3 after migration");
             Ok(())
         })?;
@@ -476,7 +620,12 @@ mod tests {
                     [],
                     |row| row.get(0),
                 )
-                .map_err(|e| format!("Query failed: {e}"))?;
+                .map_err(|e| {
+                    format!(
+                        "Query failed: {}",
+                        redact_user_home_in_text(&e.to_string())
+                    )
+                })?;
             assert_eq!(order, 0, "j3 should be first (queue_order = 0)");
             Ok(())
         })?;

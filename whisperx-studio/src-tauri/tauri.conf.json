@@ -37,6 +37,7 @@
     "targets": "all",
     "resources": [
       "../python/worker.py",
+      "../python/log_sanitize.py",
       "../python/studio_audio_modules.py",
       "../scripts/setup-local-runtime.ps1",
       "../scripts/setup-local-runtime.mjs"

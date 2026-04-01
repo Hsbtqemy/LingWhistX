@@ -2,6 +2,7 @@
 
 use tauri::{AppHandle, Emitter};
 
+use crate::log_redaction::redact_user_home_in_text;
 use crate::models::{
     AudioQualityReport, Job, JobLogEvent, RuntimeSetupFinishedEvent, RuntimeSetupLogEvent,
     WaveformCancelledEvent, WaveformErrorEvent, WaveformProgressEvent, WaveformReadyEvent,
@@ -21,7 +22,13 @@ pub(crate) fn emit_job_log(app: &AppHandle, log_event: &JobLogEvent) {
 }
 
 pub(crate) fn emit_waveform_progress(app: &AppHandle, event: &WaveformProgressEvent) {
-    let _ = app.emit("waveform-progress", event);
+    let event = WaveformProgressEvent {
+        task_id: event.task_id.clone(),
+        path: event.path.clone(),
+        progress: event.progress,
+        message: redact_user_home_in_text(&event.message),
+    };
+    let _ = app.emit("waveform-progress", &event);
 }
 
 pub(crate) fn emit_waveform_ready(app: &AppHandle, event: &WaveformReadyEvent) {
@@ -29,7 +36,12 @@ pub(crate) fn emit_waveform_ready(app: &AppHandle, event: &WaveformReadyEvent) {
 }
 
 pub(crate) fn emit_waveform_error(app: &AppHandle, event: &WaveformErrorEvent) {
-    let _ = app.emit("waveform-error", event);
+    let event = WaveformErrorEvent {
+        task_id: event.task_id.clone(),
+        path: event.path.clone(),
+        error: redact_user_home_in_text(&event.error),
+    };
+    let _ = app.emit("waveform-error", &event);
 }
 
 pub(crate) fn emit_waveform_cancelled(app: &AppHandle, event: &WaveformCancelledEvent) {
@@ -40,13 +52,16 @@ pub(crate) fn emit_runtime_setup_log(app: &AppHandle, stream: &str, message: &st
     let event = RuntimeSetupLogEvent {
         ts_ms: now_ms(),
         stream: stream.into(),
-        message: message.into(),
+        message: redact_user_home_in_text(message),
     };
     let _ = app.emit("runtime-setup-log", event);
 }
 
 pub(crate) fn emit_runtime_setup_finished(app: &AppHandle, success: bool, message: String) {
-    let event = RuntimeSetupFinishedEvent { success, message };
+    let event = RuntimeSetupFinishedEvent {
+        success,
+        message: redact_user_home_in_text(&message),
+    };
     let _ = app.emit("runtime-setup-finished", event);
 }
 
@@ -54,13 +69,16 @@ pub(crate) fn emit_ffmpeg_install_log(app: &AppHandle, stream: &str, message: &s
     let event = RuntimeSetupLogEvent {
         ts_ms: now_ms(),
         stream: stream.into(),
-        message: message.into(),
+        message: redact_user_home_in_text(message),
     };
     let _ = app.emit("ffmpeg-install-log", event);
 }
 
 pub(crate) fn emit_ffmpeg_install_finished(app: &AppHandle, success: bool, message: String) {
-    let event = RuntimeSetupFinishedEvent { success, message };
+    let event = RuntimeSetupFinishedEvent {
+        success,
+        message: redact_user_home_in_text(&message),
+    };
     let _ = app.emit("ffmpeg-install-finished", event);
 }
 

@@ -9,6 +9,7 @@ use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager};
 
 use crate::app_events::emit_runtime_setup_log;
+use crate::log_redaction::redact_user_home_in_text;
 
 pub(crate) const EMBEDDED_WORKER_SCRIPT: &str =
     include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../python/worker.py"));
@@ -20,6 +21,8 @@ pub(crate) const EMBEDDED_PREVIEW_PREPROCESS_SCRIPT: &str = include_str!(concat!
     env!("CARGO_MANIFEST_DIR"),
     "/../python/preview_preprocess.py"
 ));
+pub(crate) const EMBEDDED_LOG_SANITIZE: &str =
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../python/log_sanitize.py"));
 #[cfg(target_os = "windows")]
 pub(crate) const EMBEDDED_RUNTIME_SETUP_SCRIPT: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -39,13 +42,22 @@ pub(crate) fn ensure_embedded_resource_file(
     let base_dir = app
         .path()
         .app_local_data_dir()
-        .map_err(|err| format!("Unable to resolve app local data dir: {err}"))?
+        .map_err(|err| {
+            format!(
+                "Unable to resolve app local data dir: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?
         .join("embedded-resources");
     let target = base_dir.join(relative_path);
 
     if let Some(parent) = target.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("Unable to create embedded resource dir: {err}"))?;
+        std::fs::create_dir_all(parent).map_err(|err| {
+            format!(
+                "Unable to create embedded resource dir: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     }
 
     let should_write = match std::fs::read_to_string(&target) {
@@ -54,18 +66,36 @@ pub(crate) fn ensure_embedded_resource_file(
     };
 
     if should_write {
-        std::fs::write(&target, content)
-            .map_err(|err| format!("Unable to write embedded resource file: {err}"))?;
+        std::fs::write(&target, content).map_err(|err| {
+            format!(
+                "Unable to write embedded resource file: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     }
 
     Ok(target)
 }
 
-/// Garantit `studio_audio_modules.py` et `preview_preprocess.py` au même répertoire que `worker.py`.
+/// Garantit `log_sanitize.py`, `studio_audio_modules.py` et `preview_preprocess.py` au même répertoire que `worker.py`.
 fn ensure_studio_audio_modules_adjacent(worker_path: &Path) -> Result<(), String> {
     let parent = worker_path
         .parent()
         .ok_or_else(|| "Worker path has no parent directory.".to_string())?;
+
+    let log_sanitize_target = parent.join("log_sanitize.py");
+    let should_write_log_sanitize = match std::fs::read_to_string(&log_sanitize_target) {
+        Ok(existing) => existing != EMBEDDED_LOG_SANITIZE,
+        Err(_) => true,
+    };
+    if should_write_log_sanitize {
+        std::fs::write(&log_sanitize_target, EMBEDDED_LOG_SANITIZE).map_err(|err| {
+            format!(
+                "Unable to write log_sanitize.py: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
+    }
 
     let target = parent.join("studio_audio_modules.py");
     let should_write = match std::fs::read_to_string(&target) {
@@ -73,8 +103,12 @@ fn ensure_studio_audio_modules_adjacent(worker_path: &Path) -> Result<(), String
         Err(_) => true,
     };
     if should_write {
-        std::fs::write(&target, EMBEDDED_STUDIO_AUDIO_MODULES)
-            .map_err(|err| format!("Unable to write studio_audio_modules.py: {err}"))?;
+        std::fs::write(&target, EMBEDDED_STUDIO_AUDIO_MODULES).map_err(|err| {
+            format!(
+                "Unable to write studio_audio_modules.py: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     }
 
     let preview_target = parent.join("preview_preprocess.py");
@@ -83,8 +117,12 @@ fn ensure_studio_audio_modules_adjacent(worker_path: &Path) -> Result<(), String
         Err(_) => true,
     };
     if should_write_preview {
-        std::fs::write(&preview_target, EMBEDDED_PREVIEW_PREPROCESS_SCRIPT)
-            .map_err(|err| format!("Unable to write preview_preprocess.py: {err}"))?;
+        std::fs::write(&preview_target, EMBEDDED_PREVIEW_PREPROCESS_SCRIPT).map_err(|err| {
+            format!(
+                "Unable to write preview_preprocess.py: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     }
 
     Ok(())
@@ -123,7 +161,12 @@ pub(crate) fn resolve_worker_path(app: &AppHandle) -> Result<PathBuf, String> {
 
     let worker_path =
         ensure_embedded_resource_file(app, "python/worker.py", EMBEDDED_WORKER_SCRIPT).map_err(
-            |err| format!("Python worker script not found. Embedded fallback failed: {err}"),
+            |err| {
+                format!(
+                    "Python worker script not found. Embedded fallback failed: {}",
+                    redact_user_home_in_text(&err)
+                )
+            },
         )?;
     ensure_studio_audio_modules_adjacent(&worker_path)?;
     Ok(worker_path)
@@ -155,7 +198,12 @@ pub(crate) fn resolve_runtime_setup_script_path(app: &AppHandle) -> Result<PathB
         "scripts/setup-local-runtime.ps1",
         EMBEDDED_RUNTIME_SETUP_SCRIPT,
     )
-    .map_err(|err| format!("Runtime setup script not found. Embedded fallback failed: {err}"))
+    .map_err(|err| {
+        format!(
+            "Runtime setup script not found. Embedded fallback failed: {}",
+            redact_user_home_in_text(&err)
+        )
+    })
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -184,18 +232,32 @@ pub(crate) fn resolve_runtime_setup_mjs_path(app: &AppHandle) -> Result<PathBuf,
         "scripts/setup-local-runtime.mjs",
         EMBEDDED_RUNTIME_SETUP_MJS,
     )
-    .map_err(|err| format!("Runtime setup script (mjs) not found. Embedded fallback failed: {err}"))
+    .map_err(|err| {
+        format!(
+            "Runtime setup script (mjs) not found. Embedded fallback failed: {}",
+            redact_user_home_in_text(&err)
+        )
+    })
 }
 
 pub(crate) fn runtime_setup_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let path = app
         .path()
         .app_local_data_dir()
-        .map_err(|err| format!("Unable to resolve app local data dir: {err}"))?
+        .map_err(|err| {
+            format!(
+                "Unable to resolve app local data dir: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?
         .join("python-runtime");
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("Unable to create runtime parent directory: {err}"))?;
+        std::fs::create_dir_all(parent).map_err(|err| {
+            format!(
+                "Unable to create runtime parent directory: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     }
     Ok(path)
 }
@@ -250,7 +312,10 @@ pub(crate) fn run_runtime_setup_process(app: &AppHandle) -> Result<(), String> {
                 return "node not found to execute runtime setup script. Install Node.js or run `npm run runtime:setup` in whisperx-studio/.".to_string();
             }
         }
-        format!("Unable to start runtime setup process: {err}")
+        format!(
+            "Unable to start runtime setup process: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
     })?;
 
     let stdout = child
@@ -291,9 +356,12 @@ pub(crate) fn run_runtime_setup_process(app: &AppHandle) -> Result<(), String> {
         }
     });
 
-    let status = child
-        .wait()
-        .map_err(|err| format!("Unable to wait runtime setup process: {err}"))?;
+    let status = child.wait().map_err(|err| {
+        format!(
+            "Unable to wait runtime setup process: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     let _ = stdout_handle.join();
     let _ = stderr_handle.join();
 
@@ -311,7 +379,10 @@ pub(crate) fn run_runtime_setup_process(app: &AppHandle) -> Result<(), String> {
             })
             .filter(|s| !s.trim().is_empty())
             .unwrap_or_else(|| "Runtime setup failed without stderr details.".into());
-        return Err(format!("Runtime setup failed: {details}"));
+        return Err(format!(
+            "Runtime setup failed: {}",
+            redact_user_home_in_text(&details)
+        ));
     }
 
     Ok(())

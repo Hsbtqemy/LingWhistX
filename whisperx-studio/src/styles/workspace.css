@@ -48,7 +48,7 @@
   margin: 0 0 4px;
   font-size: 1.1rem;
   font-weight: 800;
-  color: var(--lx-danger, #b42318);
+  color: var(--lx-danger);
 }
 
 .run-details-error-hero__lead {
@@ -147,7 +147,7 @@
 }
 
 .runtime-setup-box {
-  border: 1px dashed rgba(10, 92, 101, 0.24);
+  border: 1px dashed color-mix(in srgb, var(--lx-accent) 26%, var(--lx-border));
   border-radius: 8px;
   padding: 8px;
   background: var(--lx-panel-workspace);
@@ -316,9 +316,9 @@ button.step-tab:disabled {
   margin: 0 0 4px;
   padding: 8px 10px;
   border-radius: 8px;
-  background: rgba(255, 196, 120, 0.22);
-  border: 1px solid rgba(180, 120, 40, 0.35);
-  color: #4a3a2a;
+  background: var(--lx-fill-import-warning);
+  border: 1px solid var(--lx-border-import-warning);
+  color: var(--lx-warning-text);
 }
 
 .path-input-row {
@@ -374,7 +374,7 @@ button {
   padding: 10px 16px;
   cursor: pointer;
   background: linear-gradient(135deg, var(--lx-accent), var(--lx-accent-secondary));
-  color: #ffffff;
+  color: var(--lx-text-inverse);
   font-weight: 700;
   transition:
     filter 0.14s ease,
@@ -386,7 +386,7 @@ button {
 
 button:hover:not(:disabled):not(.studio-nav-tab):not(.step-tab):not(.lx-btn) {
   filter: brightness(1.05);
-  box-shadow: 0 4px 12px rgba(12, 88, 96, 0.22);
+  box-shadow: var(--lx-shadow-accent-float);
 }
 
 button:focus-visible:not(.studio-nav-tab):not(.step-tab) {
@@ -415,8 +415,8 @@ button.ghost:hover:not(:disabled) {
 
 button.primary {
   background: linear-gradient(135deg, var(--lx-accent), var(--lx-accent-secondary));
-  color: #ffffff;
-  border: 1px solid rgba(12, 88, 96, 0.35);
+  color: var(--lx-text-inverse);
+  border: 1px solid var(--lx-border-cta);
 }
 
 button.inline {
@@ -425,7 +425,7 @@ button.inline {
 }
 
 button.danger {
-  background: linear-gradient(135deg, #b14d33, #c23326);
+  background: var(--lx-gradient-danger);
 }
 
 /* Composants UI — Button / Badge (WX-627, audit §C.2) */
@@ -463,13 +463,13 @@ button.lx-btn--lg {
 
 button.lx-btn--primary {
   background: linear-gradient(135deg, var(--lx-accent), var(--lx-accent-secondary));
-  color: #ffffff;
-  border: 1px solid rgba(12, 88, 96, 0.35);
+  color: var(--lx-text-inverse);
+  border: 1px solid var(--lx-border-cta);
 }
 
 button.lx-btn--primary:hover:not(:disabled) {
   filter: brightness(1.05);
-  box-shadow: 0 4px 12px rgba(12, 88, 96, 0.22);
+  box-shadow: var(--lx-shadow-accent-float);
 }
 
 button.lx-btn--secondary {
@@ -500,14 +500,14 @@ button.lx-btn--ghost:hover:not(:disabled) {
 }
 
 button.lx-btn--danger {
-  background: linear-gradient(135deg, #b14d33, #c23326);
-  color: #ffffff;
-  border: 1px solid rgba(120, 40, 30, 0.35);
+  background: var(--lx-gradient-danger);
+  color: var(--lx-text-inverse);
+  border: 1px solid var(--lx-border-danger-soft);
 }
 
 button.lx-btn--danger:hover:not(:disabled) {
   filter: brightness(1.04);
-  box-shadow: 0 4px 12px rgba(120, 40, 30, 0.2);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--lx-danger) 35%, transparent);
 }
 
 .lx-badge {
@@ -523,7 +523,7 @@ button.lx-btn--danger:hover:not(:disabled) {
 }
 
 .lx-badge--neutral {
-  background: rgba(77, 106, 115, 0.12);
+  background: color-mix(in srgb, var(--lx-text-2) 18%, var(--lx-surface-muted));
   color: var(--lx-text-1);
 }
 
@@ -533,14 +533,14 @@ button.lx-btn--danger:hover:not(:disabled) {
 }
 
 .lx-badge--warning {
-  background: rgba(255, 196, 120, 0.28);
+  background: color-mix(in srgb, var(--lx-warning) 26%, var(--lx-surface-muted));
   color: var(--lx-warning);
-  border: 1px solid rgba(180, 120, 40, 0.25);
+  border: 1px solid var(--lx-border-import-warning);
 }
 
 .lx-badge--success {
-  background: rgba(10, 160, 122, 0.18);
-  color: #0a5c44;
+  background: color-mix(in srgb, var(--lx-accent-secondary) 22%, var(--lx-surface-muted));
+  color: color-mix(in srgb, var(--lx-accent-secondary) 45%, var(--lx-text-0));
 }
 
 .option-grid {
@@ -577,7 +577,7 @@ button.lx-btn--danger:hover:not(:disabled) {
   display: grid;
   gap: 10px;
   padding-top: 8px;
-  border-top: 1px solid rgba(11, 76, 84, 0.12);
+  border-top: 1px solid color-mix(in srgb, var(--lx-accent) 12%, var(--lx-border));
 }
 
 .advanced-job-body--whisperx-sections {
@@ -598,7 +598,7 @@ button.lx-btn--danger:hover:not(:disabled) {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding-bottom: 6px;
-  border-bottom: 1px solid rgba(11, 76, 84, 0.16);
+  border-bottom: 1px solid color-mix(in srgb, var(--lx-accent) 14%, var(--lx-border));
 }
 
 .whisperx-adv-section .option-grid {
@@ -699,7 +699,7 @@ button.lx-btn--danger:hover:not(:disabled) {
 }
 
 .job-card {
-  border: 1px solid rgba(11, 72, 81, 0.18);
+  border: 1px solid var(--lx-border-accent-soft);
   border-radius: 12px;
   padding: 12px;
   background: var(--lx-panel-workspace);
@@ -730,8 +730,8 @@ button.lx-btn--danger:hover:not(:disabled) {
 }
 
 .job-card.selected {
-  border-color: rgba(14, 123, 133, 0.58);
-  box-shadow: inset 0 0 0 1px rgba(14, 123, 133, 0.2);
+  border-color: color-mix(in srgb, var(--lx-accent) 48%, var(--lx-border-strong));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lx-accent) 22%, transparent);
 }
 
 /* WX-672 — Monitoring + priorités batch */
@@ -799,8 +799,16 @@ button.lx-btn--danger:hover:not(:disabled) {
   user-select: none;
 }
 
-.job-priority-badge--p0 { background: color-mix(in srgb, #ef4444 18%, transparent); color: #ef4444; border: 1px solid color-mix(in srgb, #ef4444 40%, transparent); }
-.job-priority-badge--p1 { background: color-mix(in srgb, #f59e0b 18%, transparent); color: #c07700; border: 1px solid color-mix(in srgb, #f59e0b 40%, transparent); }
+.job-priority-badge--p0 {
+  background: color-mix(in srgb, var(--lx-danger) 18%, transparent);
+  color: var(--lx-danger);
+  border: 1px solid color-mix(in srgb, var(--lx-danger) 40%, transparent);
+}
+.job-priority-badge--p1 {
+  background: color-mix(in srgb, var(--lx-warning) 18%, transparent);
+  color: var(--lx-warning-text);
+  border: 1px solid color-mix(in srgb, var(--lx-warning) 40%, transparent);
+}
 .job-priority-badge--p2 { background: color-mix(in srgb, var(--lx-text-2) 14%, transparent); color: var(--lx-text-1); border: 1px solid var(--lx-border); }
 .job-priority-badge--p3 { background: color-mix(in srgb, var(--lx-text-2) 8%, transparent); color: var(--lx-text-2); border: 1px solid var(--lx-border); }
 
@@ -815,7 +823,7 @@ button.lx-btn--danger:hover:not(:disabled) {
   padding: 4px;
   gap: 3px;
   z-index: 20;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  box-shadow: var(--lx-shadow-dropdown);
 }
 
 .job-priority-badge:hover .job-priority-badge__arrows,
@@ -906,14 +914,14 @@ button.lx-btn--danger:hover:not(:disabled) {
 .progress-value {
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, #0091aa, #1cbf79);
+  background: linear-gradient(90deg, var(--lx-accent), var(--lx-accent-secondary));
   transition: width 0.45s ease;
 }
 
 .job-card.running .progress-value {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--lx-status-running-fg) 85%, white),
+    color-mix(in srgb, var(--lx-status-running-fg) 85%, var(--lx-surface-0)),
     var(--lx-accent-secondary)
   );
 }
@@ -968,8 +976,8 @@ button.lx-btn--danger:hover:not(:disabled) {
   display: inline-block;
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(14, 122, 134, 0.22);
-  border-top-color: var(--lx-accent, #0e7a86);
+  border: 2px solid color-mix(in srgb, var(--lx-accent) 24%, var(--lx-border));
+  border-top-color: var(--lx-accent);
   border-radius: 50%;
   animation: lx-spin 0.72s linear infinite;
   flex-shrink: 0;
@@ -1007,8 +1015,8 @@ button.lx-btn--danger:hover:not(:disabled) {
 
   .lx-spinner {
     animation: none;
-    border-color: rgba(14, 122, 134, 0.45);
-    border-top-color: var(--lx-accent, #0e7a86);
+    border-color: color-mix(in srgb, var(--lx-accent) 42%, var(--lx-border));
+    border-top-color: var(--lx-accent);
   }
 }
 
@@ -1032,16 +1040,16 @@ button.lx-btn--danger:hover:not(:disabled) {
 }
 
 .log-panel {
-  border: 1px solid rgba(8, 79, 88, 0.2);
+  border: 1px solid var(--lx-border-accent-soft);
   border-radius: 8px;
-  background: rgba(237, 247, 246, 0.75);
+  background: color-mix(in srgb, var(--lx-accent) 6%, var(--lx-surface-1));
   padding: 8px 10px;
 }
 
 .log-panel summary {
   cursor: pointer;
   font-size: 0.82rem;
-  color: #1b5964;
+  color: var(--lx-text-1);
 }
 
 .log-list {

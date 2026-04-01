@@ -5,6 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::log_redaction::redact_user_home_in_text;
 use crate::time_utils::now_ms;
 use crate::transcript_commands::{
     export_transcript, load_transcript_document, save_transcript_json,
@@ -67,16 +68,21 @@ fn run_mock_worker_for_smoke(
         .arg("--mode")
         .arg("mock");
 
-    let output = command
-        .output()
-        .map_err(|err| format!("Failed to execute worker smoke command: {err}"))?;
+    let output = command.output().map_err(|err| {
+        format!(
+            "Failed to execute worker smoke command: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
 
     if !output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         return Err(format!(
-            "Mock worker failed with status {}. stdout='{stdout}' stderr='{stderr}'",
-            output.status
+            "Mock worker failed with status {}. stdout='{}' stderr='{}'",
+            output.status,
+            redact_user_home_in_text(&stdout),
+            redact_user_home_in_text(&stderr)
         ));
     }
 
@@ -107,7 +113,7 @@ fn smoke_mock_edit_export_flow() -> Result<(), String> {
     if !worker_path.exists() {
         return Err(format!(
             "Worker script not found for smoke test: {}",
-            worker_path.display()
+            redact_user_home_in_text(&worker_path.to_string_lossy())
         ));
     }
 
@@ -117,12 +123,20 @@ fn smoke_mock_edit_export_flow() -> Result<(), String> {
         std::process::id()
     ));
     let worker_output_dir = temp_root.join("worker-output");
-    fs::create_dir_all(&worker_output_dir)
-        .map_err(|err| format!("Unable to create smoke output dir: {err}"))?;
+    fs::create_dir_all(&worker_output_dir).map_err(|err| {
+        format!(
+            "Unable to create smoke output dir: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
 
     let input_path = temp_root.join("mock-input.wav");
-    fs::write(&input_path, b"smoke")
-        .map_err(|err| format!("Unable to create smoke input media file: {err}"))?;
+    fs::write(&input_path, b"smoke").map_err(|err| {
+        format!(
+            "Unable to create smoke input media file: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
 
     let worker_result =
         run_mock_worker_for_smoke(&worker_path, &input_path, &worker_output_dir, "smoke-job")?;
@@ -178,7 +192,10 @@ fn smoke_mock_edit_export_flow() -> Result<(), String> {
         overwrite: Some(false),
     })?;
     if !Path::new(&saved_path).exists() {
-        return Err(format!("Edited transcript not saved: {saved_path}"));
+        return Err(format!(
+            "Edited transcript not saved: {}",
+            redact_user_home_in_text(&saved_path)
+        ));
     }
 
     let rules = ExportTimingRules {
@@ -200,7 +217,7 @@ fn smoke_mock_edit_export_flow() -> Result<(), String> {
         if !Path::new(&response.output_path).exists() {
             return Err(format!(
                 "Missing exported {format} file: {}",
-                response.output_path
+                redact_user_home_in_text(&response.output_path)
             ));
         }
         if response.report.total_adjustments == 0 {
@@ -214,8 +231,12 @@ fn smoke_mock_edit_export_flow() -> Result<(), String> {
     let txt_path = exported
         .get("txt")
         .ok_or_else(|| "Missing TXT export path in smoke test".to_string())?;
-    let txt_content =
-        fs::read_to_string(txt_path).map_err(|err| format!("Unable to read TXT export: {err}"))?;
+    let txt_content = fs::read_to_string(txt_path).map_err(|err| {
+        format!(
+            "Unable to read TXT export: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     if !txt_content.contains("curated") {
         return Err("TXT export does not contain edited text marker".into());
     }
@@ -230,9 +251,19 @@ fn smoke_mock_edit_export_flow() -> Result<(), String> {
         exported.get("vtt").unwrap_or(&String::new()),
         exported.get("txt").unwrap_or(&String::new())
     );
-    fs::write(&trace_path, trace_content)
-        .map_err(|err| format!("Unable to write smoke trace: {err}"))?;
+    fs::write(&trace_path, trace_content).map_err(|err| {
+        format!(
+            "Unable to write smoke trace: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
 
-    println!("Smoke trace: {}", trace_path.display());
+    println!(
+        "Smoke trace: {}",
+        trace_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("(trace)")
+    );
     Ok(())
 }

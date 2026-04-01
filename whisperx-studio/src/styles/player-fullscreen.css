@@ -42,7 +42,7 @@
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  background: color-mix(in srgb, var(--lx-surface-0) 96%, #000);
+  background: color-mix(in srgb, var(--lx-surface-0) 94%, var(--lx-surface-2));
   color: var(--lx-text-0);
   animation: player-fs-fade-in 0.2s ease-out;
 }
@@ -131,7 +131,7 @@
 
 .player-fs-view-tab.is-active {
   background: linear-gradient(135deg, var(--lx-accent), var(--lx-accent-secondary));
-  color: #fff;
+  color: var(--lx-text-inverse);
   border-color: color-mix(in srgb, var(--lx-accent) 42%, var(--lx-border));
 }
 

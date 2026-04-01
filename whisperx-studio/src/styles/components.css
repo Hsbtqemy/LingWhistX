@@ -1,7 +1,7 @@
 /* WX-666 — sourceSeparate compute cost warning */
 .pipeline-source-separate-warn {
-  color: color-mix(in srgb, var(--lx-warning, #c87f00) 80%, var(--lx-text-1));
-  border-left: 3px solid var(--lx-warning, #c87f00);
+  color: color-mix(in srgb, var(--lx-warning) 80%, var(--lx-text-1));
+  border-left: 3px solid var(--lx-warning);
   padding-left: 8px;
   margin-top: 4px;
 }
@@ -68,7 +68,7 @@
 
 .audio-preview-panel__ab-btn.active {
   background: var(--lx-accent);
-  color: #fff;
+  color: var(--lx-text-inverse);
   font-weight: 600;
 }
 
@@ -141,7 +141,7 @@
   list-style: none;
   padding: 0;
   margin: var(--lx-space-2) 0 0;
-  color: var(--lx-warning, #f59e0b);
+  color: var(--lx-warning-text);
 }
 
 .annotation-import-warnings__item::before {
@@ -169,7 +169,7 @@
 }
 
 .player-edit-toolbar-dirty {
-  color: var(--lx-warning, #e6a817);
+  color: var(--lx-warning-text);
 }
 
 .player-edit-toolbar-status {
@@ -185,7 +185,7 @@
 .player-edit-dirty-badge {
   display: block;
   margin-top: 2px;
-  color: var(--lx-warning, #e6a817);
+  color: var(--lx-warning-text);
   font-weight: 500;
 }
 

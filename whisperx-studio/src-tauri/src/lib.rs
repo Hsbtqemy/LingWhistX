@@ -1,4 +1,5 @@
 mod db;
+mod log_redaction;
 mod models;
 mod time_utils;
 

@@ -15,6 +15,8 @@ import uuid
 from pathlib import Path
 from typing import Callable, Final, Mapping
 
+from log_sanitize import sanitize_log_line
+
 EmitLogFn = Callable[[str, str, str, int | None], None]
 
 # Clés canoniques (combinables) — alignées sur audit/pipeline-modules-multi-speaker.md
@@ -39,6 +41,7 @@ CANONICAL_KEYS: Final[frozenset[str]] = frozenset(
         "acousticPauses",
     }
 )
+
 
 def _ffmpeg_binary() -> str:
     return os.environ.get("FFMPEG_BINARY", "ffmpeg")
@@ -156,7 +159,9 @@ def _probe_stream_channels(media_path: Path) -> int:
     except FileNotFoundError as exc:
         raise RuntimeError("ffprobe introuvable (FFPROBE_BINARY).") from exc
     except subprocess.CalledProcessError as exc:
-        raise RuntimeError(f"ffprobe (channels) a échoué: {exc.stderr or exc}") from exc
+        raise RuntimeError(
+            sanitize_log_line(f"ffprobe (channels) a échoué: {exc.stderr or exc}")
+        ) from exc
     line = (proc.stdout or "").strip().splitlines()[0] if proc.stdout else ""
     try:
         n = int(float(line))
@@ -183,7 +188,7 @@ def _probe_duration_seconds(media_path: Path) -> float:
             "ffprobe introuvable (FFPROBE_BINARY). Impossible de lire la durée audio."
         ) from exc
     except subprocess.CalledProcessError as exc:
-        raise RuntimeError(f"ffprobe a échoué: {exc.stderr or exc}") from exc
+        raise RuntimeError(sanitize_log_line(f"ffprobe a échoué: {exc.stderr or exc}")) from exc
     line = (proc.stdout or "").strip().splitlines()[0] if proc.stdout else ""
     try:
         return max(0.0, float(line))
@@ -245,7 +250,9 @@ def run_pre_normalize(
         ) from exc
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or "").strip()
-        raise RuntimeError(f"ffmpeg preNormalize a échoué (code {proc.returncode}): {err}")
+        raise RuntimeError(
+            sanitize_log_line(f"ffmpeg preNormalize a échoué (code {proc.returncode}): {err}")
+        )
 
     duration_sec = _probe_duration_seconds(out_wav)
     meta = {
@@ -360,7 +367,9 @@ def run_stereo_mid_side(
         ) from exc
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or "").strip()
-        raise RuntimeError(f"ffmpeg stereoMidSide a échoué (code {proc.returncode}): {err}")
+        raise RuntimeError(
+            sanitize_log_line(f"ffmpeg stereoMidSide a échoué (code {proc.returncode}): {err}")
+        )
 
     duration_sec = _probe_duration_seconds(out_wav)
     mode_label = "mid"
@@ -492,7 +501,9 @@ def run_best_channel(
         ) from exc
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or "").strip()
-        raise RuntimeError(f"ffmpeg bestChannel a échoué (code {proc.returncode}): {err}")
+        raise RuntimeError(
+            sanitize_log_line(f"ffmpeg bestChannel a échoué (code {proc.returncode}): {err}")
+        )
 
     duration_sec = _probe_duration_seconds(out_wav)
     meta = {
@@ -556,7 +567,7 @@ def _silencedetect_analyze(
         raise RuntimeError("ffmpeg introuvable (FFMPEG_BINARY).") from exc
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or "").strip()
-        raise RuntimeError(f"ffmpeg silencedetect a échoué: {err}")
+        raise RuntimeError(sanitize_log_line(f"ffmpeg silencedetect a échoué: {err}"))
 
     blob = (proc.stderr or "") + (proc.stdout or "")
     ivs = _parse_silencedetect_intervals(blob)
@@ -1220,7 +1231,7 @@ def run_qc_spectral(
         raise RuntimeError("ffmpeg introuvable (FFMPEG_BINARY).") from exc
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or "").strip()
-        raise RuntimeError(f"ffmpeg qcSpectral (astats) a échoué: {err}")
+        raise RuntimeError(sanitize_log_line(f"ffmpeg qcSpectral (astats) a échoué: {err}"))
 
     blob = (proc.stderr or "") + (proc.stdout or "")
     stats = _parse_astats_overall_kv(blob)
@@ -1298,7 +1309,7 @@ def _decode_mono_f32le_for_qc(
         raise RuntimeError("ffmpeg introuvable (FFMPEG_BINARY).") from exc
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or b"").decode("utf-8", errors="replace").strip()
-        raise RuntimeError(f"ffmpeg qcPitch (décodage PCM) a échoué: {err}")
+        raise RuntimeError(sanitize_log_line(f"ffmpeg qcPitch (décodage PCM) a échoué: {err}"))
     raw = proc.stdout or b""
     y = np.frombuffer(raw, dtype=np.float32).copy()
     if y.size < 64:
@@ -1509,7 +1520,9 @@ def run_spectral_denoise(
         ) from exc
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or "").strip()
-        raise RuntimeError(f"ffmpeg spectralDenoise a échoué (code {proc.returncode}): {err}")
+        raise RuntimeError(
+            sanitize_log_line(f"ffmpeg spectralDenoise a échoué (code {proc.returncode}): {err}")
+        )
 
     duration_sec = _probe_duration_seconds(out_wav)
 
@@ -1579,7 +1592,9 @@ def run_band_limit(
         ) from exc
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or "").strip()
-        raise RuntimeError(f"ffmpeg bandLimit a échoué (code {proc.returncode}): {err}")
+        raise RuntimeError(
+            sanitize_log_line(f"ffmpeg bandLimit a échoué (code {proc.returncode}): {err}")
+        )
 
     duration_sec = _probe_duration_seconds(out_wav)
 
@@ -1648,7 +1663,9 @@ def validate_audio_pipeline_segments(
         try:
             t0, t1 = _segment_time_bounds(seg)
         except RuntimeError as exc:
-            raise RuntimeError(f"audioPipelineSegments[{i}]: {exc}") from exc
+            raise RuntimeError(
+                sanitize_log_line(f"audioPipelineSegments[{i}]: {exc}")
+            ) from exc
         if t1 <= t0:
             raise RuntimeError(f"audioPipelineSegments[{i}]: endSec doit être > startSec.")
         if t1 - t0 < 0.05:
@@ -1716,7 +1733,9 @@ def _ffmpeg_extract_wav_segment(src: Path, dst: Path, start_sec: float, duration
         ) from exc
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or "").strip()
-        raise RuntimeError(f"ffmpeg extraction plage a échoué (code {proc.returncode}): {err}")
+        raise RuntimeError(
+            sanitize_log_line(f"ffmpeg extraction plage a échoué (code {proc.returncode}): {err}")
+        )
 
 
 def _ffmpeg_concat_wavs(parts: list[Path], out: Path) -> None:
@@ -1778,7 +1797,7 @@ def _ffmpeg_concat_wavs(parts: list[Path], out: Path) -> None:
         proc2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=86_400)
         if proc2.returncode != 0:
             err = (proc2.stderr or proc2.stdout or "").strip()
-            raise RuntimeError(f"ffmpeg concat a échoué: {err}")
+            raise RuntimeError(sanitize_log_line(f"ffmpeg concat a échoué: {err}"))
     try:
         list_file.unlink()
     except OSError:

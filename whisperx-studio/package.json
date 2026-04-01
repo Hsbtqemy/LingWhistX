@@ -31,6 +31,8 @@
     "build:portable-exe": "powershell -ExecutionPolicy Bypass -File .\\scripts\\build-portable-exe.ps1",
     "smoke:e2e": "powershell -ExecutionPolicy Bypass -File .\\scripts\\smoke-e2e.ps1",
     "smoke:release": "npm run smoke:e2e",
+    "smoke:browser": "node ./scripts/smoke-browser.mjs",
+    "smoke:web": "npm run build && npm run smoke:browser",
     "tauri": "tauri"
   },
   "dependencies": {

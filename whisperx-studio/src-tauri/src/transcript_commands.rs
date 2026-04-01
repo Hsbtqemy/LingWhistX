@@ -2,6 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::log_redaction::redact_user_home_in_text;
 use crate::models::{
     ExportRunTimingPackRequest, ExportRunTimingPackResponse, ExportTranscriptRequest,
     ExportTranscriptResponse, SaveTranscriptDraftRequest, SaveTranscriptDraftResponse,
@@ -17,10 +18,20 @@ use crate::transcript::{
 
 fn write_export_sidecar_file(path: &Path, content: &str, err_ctx: &str) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("Unable to create export directory: {err}"))?;
+        std::fs::create_dir_all(parent).map_err(|err| {
+            format!(
+                "Unable to create export directory: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     }
-    std::fs::write(path, content).map_err(|err| format!("{err_ctx}: {err}"))
+    std::fs::write(path, content).map_err(|err| {
+        format!(
+            "{}: {}",
+            err_ctx,
+            redact_user_home_in_text(&err.to_string())
+        )
+    })
 }
 
 #[tauri::command]
@@ -30,10 +41,18 @@ pub fn load_transcript_document(path: String) -> Result<TranscriptDocument, Stri
         "Transcript file does not exist",
         "Transcript path is not a file",
     )?;
-    let text = std::fs::read_to_string(&target)
-        .map_err(|err| format!("Unable to read transcript: {err}"))?;
-    let value: serde_json::Value = serde_json::from_str(&text)
-        .map_err(|err| format!("Invalid transcript JSON content: {err}"))?;
+    let text = std::fs::read_to_string(&target).map_err(|err| {
+        format!(
+            "Unable to read transcript: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
+    let value: serde_json::Value = serde_json::from_str(&text).map_err(|err| {
+        format!(
+            "Invalid transcript JSON content: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     let language = value
         .get("language")
         .and_then(|lang| lang.as_str())
@@ -65,10 +84,18 @@ pub fn load_transcript_draft(path: String) -> Result<Option<TranscriptDraftDocum
         return Err("Draft path exists but is not a file".into());
     }
 
-    let text = std::fs::read_to_string(&draft_path)
-        .map_err(|err| format!("Unable to read draft: {err}"))?;
-    let value: serde_json::Value =
-        serde_json::from_str(&text).map_err(|err| format!("Invalid draft JSON content: {err}"))?;
+    let text = std::fs::read_to_string(&draft_path).map_err(|err| {
+        format!(
+            "Unable to read draft: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
+    let value: serde_json::Value = serde_json::from_str(&text).map_err(|err| {
+        format!(
+            "Invalid draft JSON content: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     let language = value
         .get("language")
         .and_then(|lang| lang.as_str())
@@ -105,16 +132,28 @@ pub fn save_transcript_draft(
     )?;
     let draft_path = draft_path_for_source(&source);
     let payload = build_transcript_draft_json(&source, request.language, &request.segments);
-    let serialized = serde_json::to_string_pretty(&payload)
-        .map_err(|err| format!("Unable to serialize draft JSON: {err}"))?;
+    let serialized = serde_json::to_string_pretty(&payload).map_err(|err| {
+        format!(
+            "Unable to serialize draft JSON: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
 
     if let Some(parent) = draft_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("Unable to create draft directory: {err}"))?;
+        std::fs::create_dir_all(parent).map_err(|err| {
+            format!(
+                "Unable to create draft directory: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     }
 
-    std::fs::write(&draft_path, serialized)
-        .map_err(|err| format!("Unable to write transcript draft: {err}"))?;
+    std::fs::write(&draft_path, serialized).map_err(|err| {
+        format!(
+            "Unable to write transcript draft: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
 
     let updated_at_ms = draft_path
         .metadata()
@@ -143,8 +182,12 @@ pub fn delete_transcript_draft(path: String) -> Result<bool, String> {
     if !draft_path.is_file() {
         return Err("Draft path exists but is not a file".into());
     }
-    std::fs::remove_file(&draft_path)
-        .map_err(|err| format!("Unable to delete draft file: {err}"))?;
+    std::fs::remove_file(&draft_path).map_err(|err| {
+        format!(
+            "Unable to delete draft file: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     Ok(true)
 }
 
@@ -162,16 +205,28 @@ pub fn save_transcript_json(request: SaveTranscriptRequest) -> Result<String, St
     };
 
     let payload = build_transcript_json(request.language, &request.segments);
-    let serialized = serde_json::to_string_pretty(&payload)
-        .map_err(|err| format!("Unable to serialize transcript JSON: {err}"))?;
+    let serialized = serde_json::to_string_pretty(&payload).map_err(|err| {
+        format!(
+            "Unable to serialize transcript JSON: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
 
     if let Some(parent) = target_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("Unable to create transcript directory: {err}"))?;
+        std::fs::create_dir_all(parent).map_err(|err| {
+            format!(
+                "Unable to create transcript directory: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     }
 
-    std::fs::write(&target_path, serialized)
-        .map_err(|err| format!("Unable to write transcript JSON: {err}"))?;
+    std::fs::write(&target_path, serialized).map_err(|err| {
+        format!(
+            "Unable to write transcript JSON: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
 
     let draft_path = draft_path_for_source(&source);
     if draft_path.exists() && draft_path.is_file() {
@@ -197,8 +252,12 @@ pub fn export_transcript(
         "json" => {
             let target_path = edited_path_with_ext(&source, "json");
             let payload = build_transcript_json(request.language.clone(), &segments_for_export);
-            let serialized = serde_json::to_string_pretty(&payload)
-                .map_err(|err| format!("Unable to serialize transcript JSON: {err}"))?;
+            let serialized = serde_json::to_string_pretty(&payload).map_err(|err| {
+                format!(
+                    "Unable to serialize transcript JSON: {}",
+                    redact_user_home_in_text(&err.to_string())
+                )
+            })?;
             write_export_sidecar_file(
                 &target_path,
                 &serialized,
@@ -283,9 +342,12 @@ pub fn export_run_timing_pack(
 ) -> Result<ExportRunTimingPackResponse, String> {
     validate_path_string(&request.run_dir)?;
     let run_dir = PathBuf::from(request.run_dir.trim());
-    let run_dir = run_dir
-        .canonicalize()
-        .map_err(|e| format!("Impossible de canoniser run_dir: {e}"))?;
+    let run_dir = run_dir.canonicalize().map_err(|e| {
+        format!(
+            "Impossible de canoniser run_dir: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     let manifest_path = run_dir.join("run_manifest.json");
     if !manifest_path.is_file() {
         return Err("run_manifest.json introuvable dans ce dossier.".into());
@@ -309,9 +371,18 @@ pub fn export_run_timing_pack(
         if !p.is_file() {
             continue;
         }
-        let text = std::fs::read_to_string(&p).map_err(|e| format!("Lecture {rel}: {e}"))?;
-        let json: serde_json::Value =
-            serde_json::from_str(&text).map_err(|e| format!("JSON {rel}: {e}"))?;
+        let text = std::fs::read_to_string(&p).map_err(|e| {
+            format!(
+                "Lecture {rel}: {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
+        let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| {
+            format!(
+                "JSON {rel}: {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
         let segs = load_segments_from_json(&json);
         if !segs.is_empty() {
             source_path = Some(p);

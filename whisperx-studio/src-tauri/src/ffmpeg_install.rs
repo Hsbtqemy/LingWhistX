@@ -8,6 +8,7 @@ use tauri::AppHandle;
 
 use crate::app_events::{emit_ffmpeg_install_finished, emit_ffmpeg_install_log};
 use crate::ffmpeg_tools::{resolve_ffmpeg_tools, run_probe};
+use crate::log_redaction::redact_user_home_in_text;
 
 #[cfg(not(target_os = "windows"))]
 use std::path::PathBuf;
@@ -51,7 +52,10 @@ fn run_command_with_logs(app: &AppHandle, mut command: Command) -> Result<(), St
         if err.kind() == std::io::ErrorKind::NotFound {
             return "Executable introuvable (PATH).".to_string();
         }
-        format!("Impossible de lancer la commande: {err}")
+        format!(
+            "Impossible de lancer la commande: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
     })?;
 
     let stdout = child
@@ -92,9 +96,12 @@ fn run_command_with_logs(app: &AppHandle, mut command: Command) -> Result<(), St
         }
     });
 
-    let status = child
-        .wait()
-        .map_err(|err| format!("Attente processus: {err}"))?;
+    let status = child.wait().map_err(|err| {
+        format!(
+            "Attente processus: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     let _ = stdout_handle.join();
     let _ = stderr_handle.join();
 
@@ -104,7 +111,10 @@ fn run_command_with_logs(app: &AppHandle, mut command: Command) -> Result<(), St
             .ok()
             .and_then(|lock| lock.last().cloned())
             .unwrap_or_else(|| "echec sans detail stderr.".into());
-        return Err(format!("Commande terminee avec erreur: {details}"));
+        return Err(format!(
+            "Commande terminee avec erreur: {}",
+            redact_user_home_in_text(&details)
+        ));
     }
 
     Ok(())

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use rusqlite::Connection;
 use tauri::Manager;
 
+use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::validate_path_string;
 use crate::run_events::{open_events_connection, EVENTS_DB_FILE};
 use crate::run_events::ensure_events_sqlite_imported;
@@ -408,7 +409,12 @@ pub fn open_html_report_for_print(
     crate::path_guard::validate_path_string(&html_path)?;
     let path = std::path::PathBuf::from(html_path.trim())
         .canonicalize()
-        .map_err(|e| format!("HTML report path not found: {e}"))?;
+        .map_err(|e| {
+            format!(
+                "HTML report path not found: {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
     if !path.is_file() {
         return Err("HTML report path is not a file".into());
     }
@@ -419,9 +425,12 @@ pub fn open_html_report_for_print(
         "asset://localhost{}",
         path.to_string_lossy()
     );
-    let url: tauri::Url = asset_url_str
-        .parse()
-        .map_err(|e| format!("Invalid asset URL: {e}"))?;
+    let url: tauri::Url = asset_url_str.parse::<tauri::Url>().map_err(|e| {
+        format!(
+            "Invalid asset URL: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
 
     // Use a deterministic label so re-opening replaces the existing window.
     let label = "print-prosody-report";
@@ -444,7 +453,12 @@ pub fn open_html_report_for_print(
             });",
         )
         .build()
-        .map_err(|e| format!("Failed to open print window: {e}"))?;
+        .map_err(|e| {
+            format!(
+                "Failed to open print window: {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
 
     Ok(())
 }
@@ -455,7 +469,7 @@ pub fn export_prosody_report(run_dir: String) -> Result<ExportProsodyReportRespo
     validate_path_string(&run_dir)?;
     let run_dir_path = PathBuf::from(run_dir.trim())
         .canonicalize()
-        .map_err(|e| format!("run_dir: {e}"))?;
+        .map_err(|e| format!("run_dir: {}", redact_user_home_in_text(&e.to_string())))?;
 
     // Ensure events.sqlite is imported (lazy)
     ensure_events_sqlite_imported(&run_dir_path)?;
@@ -498,8 +512,12 @@ pub fn export_prosody_report(run_dir: String) -> Result<ExportProsodyReportRespo
     let html = build_html(&run_dir_str, &run_id, &global, &speakers, &pauses, &generated_at);
 
     let output_path = run_dir_path.join(format!("rapport-prosodique-{file_ts}.html"));
-    std::fs::write(&output_path, html.as_bytes())
-        .map_err(|e| format!("Unable to write report: {e}"))?;
+    std::fs::write(&output_path, html.as_bytes()).map_err(|e| {
+        format!(
+            "Unable to write report: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
 
     Ok(ExportProsodyReportResponse {
         output_path: output_path.to_string_lossy().to_string(),

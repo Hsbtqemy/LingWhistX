@@ -58,7 +58,9 @@ jobs:
         run: npm run format:check
 
       - name: Python syntax (Studio worker)
-        run: python -m py_compile whisperx-studio/python/worker.py
+        run: |
+          python -m py_compile whisperx-studio/python/log_sanitize.py
+          python -m py_compile whisperx-studio/python/worker.py
 
       - name: Python unit tests (Studio worker)
         working-directory: whisperx-studio
@@ -78,6 +80,10 @@ jobs:
       - name: Vitest
         working-directory: whisperx-studio
         run: npm run test
+
+      - name: Browser smoke (Puppeteer — shell SPA)
+        working-directory: whisperx-studio
+        run: npm run smoke:browser
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable

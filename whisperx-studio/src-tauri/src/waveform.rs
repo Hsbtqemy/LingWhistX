@@ -13,6 +13,7 @@ use crate::app_events::{
     emit_waveform_cancelled, emit_waveform_error, emit_waveform_progress, emit_waveform_ready,
 };
 use crate::ffmpeg_tools::{prepend_path_env, probe_duration_seconds, resolve_ffmpeg_tools};
+use crate::log_redaction::redact_user_home_in_text;
 use crate::models::{
     WaveformCancelledEvent, WaveformErrorEvent, WaveformPeaks, WaveformProgressEvent,
     WaveformReadyEvent, WaveformTaskStarted, WaveformTaskState,
@@ -56,7 +57,12 @@ fn waveform_cache_file(
 ) -> Result<PathBuf, String> {
     let metadata = source_path
         .metadata()
-        .map_err(|err| format!("Unable to read source metadata: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Unable to read source metadata: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     let modified_nanos = metadata
         .modified()
         .ok()
@@ -75,10 +81,19 @@ fn waveform_cache_file(
     let cache_root = app
         .path()
         .app_local_data_dir()
-        .map_err(|err| format!("Unable to resolve app local data dir: {err}"))?
+        .map_err(|err| {
+            format!(
+                "Unable to resolve app local data dir: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?
         .join("waveforms");
-    std::fs::create_dir_all(&cache_root)
-        .map_err(|err| format!("Unable to create waveform cache dir: {err}"))?;
+    std::fs::create_dir_all(&cache_root).map_err(|err| {
+        format!(
+            "Unable to create waveform cache dir: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
 
     Ok(cache_root.join(format!("{key}.json")))
 }
@@ -146,10 +161,18 @@ fn build_waveform_peaks_internal(
 
     let cache_file = waveform_cache_file(app, &source, bins_per_second, sample_rate)?;
     if cache_file.exists() {
-        let raw = std::fs::read_to_string(&cache_file)
-            .map_err(|err| format!("Unable to read waveform cache file: {err}"))?;
-        let mut cached: WaveformPeaks =
-            serde_json::from_str(&raw).map_err(|err| format!("Invalid waveform cache: {err}"))?;
+        let raw = std::fs::read_to_string(&cache_file).map_err(|err| {
+            format!(
+                "Unable to read waveform cache file: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
+        let mut cached: WaveformPeaks = serde_json::from_str(&raw).map_err(|err| {
+            format!(
+                "Invalid waveform cache: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
         cached.cached = true;
         emit_progress_for_task(100, "Ondeforme chargée depuis le cache.");
         return Ok(cached);
@@ -189,7 +212,10 @@ fn build_waveform_peaks_internal(
         if err.kind() == std::io::ErrorKind::NotFound {
             "ffmpeg not found. Install ffmpeg to enable waveform generation.".to_string()
         } else {
-            format!("Unable to launch ffmpeg: {err}")
+            format!(
+                "Unable to launch ffmpeg: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
         }
     })?;
 
@@ -247,7 +273,10 @@ fn build_waveform_peaks_internal(
         let read = match stdout.read(&mut chunk) {
             Ok(value) => value,
             Err(err) => {
-                generation_error = Some(format!("Unable to read ffmpeg stream: {err}"));
+                generation_error = Some(format!(
+                    "Unable to read ffmpeg stream: {}",
+                    redact_user_home_in_text(&err.to_string())
+                ));
                 break;
             }
         };
@@ -323,7 +352,12 @@ fn build_waveform_peaks_internal(
 
     let status = child
         .wait()
-        .map_err(|err| format!("Unable to wait ffmpeg process: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Unable to wait ffmpeg process: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     let stderr_output = stderr_handle
         .join()
         .unwrap_or_else(|_| "Unable to read ffmpeg stderr".into());
@@ -340,7 +374,7 @@ fn build_waveform_peaks_internal(
     }
 
     if let Some(err) = generation_error {
-        return Err(err);
+        return Err(redact_user_home_in_text(&err));
     }
 
     if !status.success() {
@@ -348,7 +382,7 @@ fn build_waveform_peaks_internal(
         return Err(if err.is_empty() {
             format!("ffmpeg failed with status: {status}")
         } else {
-            format!("ffmpeg failed: {err}")
+            format!("ffmpeg failed: {}", redact_user_home_in_text(&err))
         });
     }
 
@@ -371,10 +405,18 @@ fn build_waveform_peaks_internal(
         cached: false,
     };
 
-    let serialized = serde_json::to_string(&result)
-        .map_err(|err| format!("Unable to serialize waveform cache: {err}"))?;
-    std::fs::write(&cache_file, serialized)
-        .map_err(|err| format!("Unable to write waveform cache file: {err}"))?;
+    let serialized = serde_json::to_string(&result).map_err(|err| {
+        format!(
+            "Unable to serialize waveform cache: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
+    std::fs::write(&cache_file, serialized).map_err(|err| {
+        format!(
+            "Unable to write waveform cache file: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
 
     emit_progress_for_task(100, "Ondeforme générée.");
 

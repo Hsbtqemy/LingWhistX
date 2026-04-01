@@ -31,8 +31,6 @@ function isEditableTarget(t: EventTarget | null): boolean {
 }
 
 export type UsePlayerKeyboardOptions = {
-  shortcutsHelpOpen: boolean;
-  setShortcutsHelpOpen: Dispatch<SetStateAction<boolean>>;
   togglePlayPause: () => void | Promise<void>;
   copyPlayheadToClipboard: () => void | Promise<void>;
   exportRunTimingPack: () => void | Promise<void>;
@@ -72,16 +70,6 @@ export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
   return useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
       if (isEditableTarget(e.target)) {
-        return;
-      }
-      if (e.code === "Escape" && o.shortcutsHelpOpen) {
-        e.preventDefault();
-        o.setShortcutsHelpOpen(false);
-        return;
-      }
-      if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        e.preventDefault();
-        o.setShortcutsHelpOpen((v) => !v);
         return;
       }
       if (e.code === "F11" && o.setFullscreenMode) {

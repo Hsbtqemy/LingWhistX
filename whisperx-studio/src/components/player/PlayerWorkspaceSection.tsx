@@ -104,6 +104,8 @@ export type PlayerWorkspaceSectionProps = {
   eventsRefreshEpoch?: number;
   /** Ouvre directement le Player en mode édition (depuis le bouton Vérification → Player). */
   initialEditMode?: boolean;
+  /** Ouvre le dialogue d'aide global (géré par App.tsx). */
+  onToggleHelp?: () => void;
 };
 
 type AlertListFilter = "all" | PlayerDerivedAlertKind;
@@ -118,6 +120,7 @@ export function PlayerWorkspaceSection({
   importMedia,
   eventsRefreshEpoch = 0,
   initialEditMode = false,
+  onToggleHelp,
 }: PlayerWorkspaceSectionProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [viewportMode, setViewportMode] = useState<PlayerViewportMode>("lanes");
@@ -142,13 +145,11 @@ export function PlayerWorkspaceSection({
   const [jumpTimeInput, setJumpTimeInput] = useState("");
   const [jumpTimeError, setJumpTimeError] = useState("");
   const [copyPositionHint, setCopyPositionHint] = useState(false);
-  const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
   const [videoFullscreen, setVideoFullscreen] = useState(false);
   const [fullscreenMode, setFullscreenMode] = useState(false);
   const eventsPanelRef = useRef<HTMLDivElement | null>(null);
   const programmaticPanelScrollRef = useRef(false);
   const copyPositionHintTimeoutRef = useRef<number | null>(null);
-  const shortcutsHelpPanelRef = useRef<HTMLDivElement | null>(null);
   const pb = usePlayerPlayback(runDir);
 
   const {
@@ -378,7 +379,7 @@ export function PlayerWorkspaceSection({
   useEffect(() => {
     if (wf.webAudioMode && !isVideo) return;
     wf.setMediaCurrentSec(currentTimeSec);
-  }, [currentTimeSec, isVideo, wf.setMediaCurrentSec, wf.webAudioMode]);
+  }, [currentTimeSec, isVideo, wf.setMediaCurrentSec, wf.webAudioMode]); // eslint-disable-line react-hooks/exhaustive-deps -- wf granulaire
 
   // WX-725 — follow playhead : scroll waveform pour garder le playhead visible
   useEffect(() => {
@@ -389,7 +390,17 @@ export function PlayerWorkspaceSection({
       const idealStart = currentTimeSec - visibleDur * 0.3;
       wf.setWaveformViewStart(Math.max(0, Math.min(wf.waveformMaxViewStartSec, idealStart)));
     }
-  }, [currentTimeSec, followPlayhead, wf.waveform, wf.waveformVisibleDurationSec, wf.waveformViewStartSec, wf.waveformViewEndSec, wf.waveformMaxViewStartSec, wf.setWaveformViewStart]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- wf granulaire (pas d’objet hook entier)
+  }, [
+    currentTimeSec,
+    followPlayhead,
+    wf.waveform,
+    wf.waveformVisibleDurationSec,
+    wf.waveformViewStartSec,
+    wf.waveformViewEndSec,
+    wf.waveformMaxViewStartSec,
+    wf.setWaveformViewStart,
+  ]);
 
   const derivedAlertsFromTs = useMemo(
     () => (runWindow.slice ? derivePlayerAlerts(runWindow.slice, { longPauseMs }) : []),
@@ -472,7 +483,7 @@ export function PlayerWorkspaceSection({
     if (best !== null && best !== te.activeSegmentIndex) {
       te.setActiveSegmentIndex(best);
     }
-  }, [editMode, playheadMs, durationMs, te.editorSegments, te.activeSegmentIndex, te.setActiveSegmentIndex]);
+  }, [editMode, playheadMs, durationMs, te.editorSegments, te.activeSegmentIndex, te.setActiveSegmentIndex]); // eslint-disable-line react-hooks/exhaustive-deps -- te granulaire
 
   const qcSummary = useMemo(() => {
     const parts: string[] = [];
@@ -638,6 +649,7 @@ export function PlayerWorkspaceSection({
     programmaticPanelScrollRef.current = true;
     const reduceMotion =
       typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     target.scrollIntoView({
       block: "nearest",
@@ -717,17 +729,6 @@ export function PlayerWorkspaceSection({
   }, []);
 
   useEffect(() => {
-    if (!shortcutsHelpOpen || typeof document === "undefined") {
-      return;
-    }
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [shortcutsHelpOpen]);
-
-  useEffect(() => {
     if (!fullscreenMode || typeof document === "undefined") {
       return;
     }
@@ -738,16 +739,6 @@ export function PlayerWorkspaceSection({
     };
   }, [fullscreenMode]);
 
-  useEffect(() => {
-    if (!shortcutsHelpOpen) {
-      return;
-    }
-    const id = window.requestAnimationFrame(() => {
-      shortcutsHelpPanelRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
-    });
-    return () => window.cancelAnimationFrame(id);
-  }, [shortcutsHelpOpen]);
-
   const loopHint =
     loopAsec != null && loopBsec != null && loopBsec > loopAsec
       ? `A ${formatClockSeconds(loopAsec)} → B ${formatClockSeconds(loopBsec)}`
@@ -757,8 +748,6 @@ export function PlayerWorkspaceSection({
 
   const keyboardOptions = useMemo(
     (): UsePlayerKeyboardOptions => ({
-      shortcutsHelpOpen,
-      setShortcutsHelpOpen,
       togglePlayPause,
       copyPlayheadToClipboard,
       exportRunTimingPack,
@@ -793,8 +782,6 @@ export function PlayerWorkspaceSection({
       editorSegments: editMode ? te.editorSegments : undefined,
     }),
     [
-      shortcutsHelpOpen,
-      setShortcutsHelpOpen,
       togglePlayPause,
       copyPlayheadToClipboard,
       exportRunTimingPack,
@@ -878,8 +865,7 @@ export function PlayerWorkspaceSection({
           runLabel={runLabel ?? "Player"}
           runDir={runDir}
           mediaPath={mediaPath}
-          shortcutsHelpOpen={shortcutsHelpOpen}
-          onToggleShortcutsHelp={() => setShortcutsHelpOpen((v) => !v)}
+          onToggleHelp={onToggleHelp}
           onToggleFullscreen={runDir ? () => setFullscreenMode((v) => !v) : undefined}
           fullscreenMode={fullscreenMode}
         />
@@ -1669,117 +1655,19 @@ export function PlayerWorkspaceSection({
               </details>
             )}
 
-            {/* Contrôles — replié par défaut */}
+            {/* Contrôles — lien vers aide globale */}
             <details className="player-panel-section">
               <summary className="player-panel-section-summary">Contrôles</summary>
               <p className="small">
-                Lecture, saut ±1 s / ±5 s, progression et volume sont sous le média. Boucle A–B et
-                export en haut.
+                Lecture, saut, vitesse et volume sont sous le média. Boucle A–B et export en haut.
               </p>
-              <p className="small player-shortcuts-hint">
-                Espace · Home / Fin · ⌃⇧C copier · ⌃⇧O dossier · ⌃⇧E export · ← → (±1 s) · Shift+←
-                → (±5 s) · Alt+← → (±0,1 s) · +/− vitesse · M muet · Alt+Entrée plein écran (vidéo) ·
-                F suivi · W mots · L boucle · [ / ] segment préc./suiv. · ⌃1–7 vues · N / P alertes ·
-                0 / 1–9 locuteur · Aller au temps (gauche) · <strong>?</strong> aide
+              <p className="small">
+                Appuyez sur <kbd className="player-kbd">?</kbd> pour voir tous les raccourcis clavier.
               </p>
             </details>
           </aside>
         </div>
       )}
-      {shortcutsHelpOpen && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              className="player-shortcuts-help-overlay"
-              role="presentation"
-              onClick={() => setShortcutsHelpOpen(false)}
-            >
-              <div
-                ref={shortcutsHelpPanelRef}
-                id="player-shortcuts-help-dialog"
-                className="player-shortcuts-help-panel"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="player-shortcuts-help-title"
-                onClick={(ev) => ev.stopPropagation()}
-              >
-                <div className="player-shortcuts-help-head">
-                  <h2 id="player-shortcuts-help-title" className="player-shortcuts-help-title">
-                    Raccourcis Player
-                  </h2>
-                  <button
-                    type="button"
-                    className="ghost small"
-                    onClick={() => setShortcutsHelpOpen(false)}
-                  >
-                    Fermer
-                  </button>
-                </div>
-                <ul className="player-shortcuts-help-list small">
-                  <li>
-                    <kbd className="player-kbd">Espace</kbd> Lecture / pause
-                  </li>
-                  <li>
-                    <kbd className="player-kbd">Home</kbd> Arrêt + retour au début (barre sous le média
-                    aussi)
-                  </li>
-                  <li>
-                    <kbd className="player-kbd">Fin</kbd> Fin de média
-                  </li>
-                  <li>
-                    <kbd className="player-kbd">⌃⇧C</kbd> Copier timecode · double-clic sur le
-                    timecode
-                  </li>
-                  <li>
-                    <kbd className="player-kbd">⌃⇧O</kbd> Dossier run ·{" "}
-                    <kbd className="player-kbd">⌃⇧E</kbd> Export pack
-                  </li>
-                  <li>
-                    <kbd className="player-kbd">←</kbd> <kbd className="player-kbd">→</kbd> ±1 s ·{" "}
-                    <kbd className="player-kbd">Shift</kbd>+flèches ±5 s ·{" "}
-                    <kbd className="player-kbd">Alt</kbd>
-                    +flèches ±0,1 s
-                  </li>
-                  <li>
-                    <kbd className="player-kbd">+</kbd> / <kbd className="player-kbd">−</kbd>{" "}
-                    Vitesse
-                  </li>
-                  <li>
-                    <kbd className="player-kbd">F</kbd> Suivi viewport ·{" "}
-                    <kbd className="player-kbd">W</kbd> Fenêtre mots ·{" "}
-                    <kbd className="player-kbd">L</kbd> Boucle A→B ·{" "}
-                    <kbd className="player-kbd">M</kbd> Muet · <kbd className="player-kbd">Alt</kbd>
-                    +<kbd className="player-kbd">Entrée</kbd> Plein écran (vidéo)
-                  </li>
-                  <li>
-                    <kbd className="player-kbd">⌃1</kbd>–<kbd className="player-kbd">7</kbd> Vues
-                  </li>
-                  <li>
-                    <kbd className="player-kbd">[</kbd> / <kbd className="player-kbd">]</kbd> Segment
-                    préc. / suiv.
-                  </li>
-                  <li>
-                    <kbd className="player-kbd">N</kbd> / <kbd className="player-kbd">P</kbd> Alerte
-                    suiv. / préc.
-                  </li>
-                  <li>
-                    <kbd className="player-kbd">0</kbd>–<kbd className="player-kbd">9</kbd> Solo
-                    locuteur
-                  </li>
-                  <li>
-                    Navigateur : champ <strong>Aller au temps</strong> +{" "}
-                    <kbd className="player-kbd">Entrée</kbd>
-                  </li>
-                </ul>
-                <p className="small player-shortcuts-help-foot">
-                  <kbd className="player-kbd">?</kbd> ouvre / ferme cette aide ·{" "}
-                  <kbd className="player-kbd">Échap</kbd> ferme · détail dans{" "}
-                  <code>audit/player-multi-view.md</code>
-                </p>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
       {fullscreenMode && typeof document !== "undefined"
         ? createPortal(
             <PlayerFullscreenView

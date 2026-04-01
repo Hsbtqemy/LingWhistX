@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { formatClockSeconds } from "../../../appUtils";
+import { getStatsCanvasThemeColors } from "../../../hooks/statsCanvasTheme";
+import { useWaveformThemeRevision } from "../../../hooks/waveformCanvasTheme";
 import { buildPauseHistogram } from "../../../player/playerSpeakerStats";
 import type {
   DensityPoint,
@@ -20,6 +22,7 @@ export function PauseHistogramCanvas({
   activeColor: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const themeRev = useWaveformThemeRevision();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -27,6 +30,7 @@ export function PauseHistogramCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    const t = getStatsCanvasThemeColors();
     const rect = canvas.getBoundingClientRect();
     const W = Math.round(rect.width) || STATS_HISTOGRAM_W;
     const H = STATS_HISTOGRAM_H;
@@ -39,7 +43,7 @@ export function PauseHistogramCanvas({
     ctx.clearRect(0, 0, W, H);
 
     if (bins.length === 0) {
-      ctx.fillStyle = "#888";
+      ctx.fillStyle = t.labelMuted;
       ctx.font = "10px sans-serif";
       ctx.fillText("\u2014", 4, H / 2 + 4);
       return;
@@ -54,7 +58,7 @@ export function PauseHistogramCanvas({
       ctx.fillStyle = activeColor;
       ctx.fillRect(i * barW + pad, H - barH, barW - pad * 2, barH);
     }
-  }, [durationsMs, activeColor]);
+  }, [durationsMs, activeColor, themeRev]);
 
   return (
     <canvas
@@ -77,6 +81,7 @@ export function SpeechBarCanvas({
   activeSpeaker: string | null;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const themeRev = useWaveformThemeRevision();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -84,6 +89,7 @@ export function SpeechBarCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    const t = getStatsCanvasThemeColors();
     const rect = canvas.getBoundingClientRect();
     const W = Math.round(rect.width) || 600;
     const H = 38;
@@ -112,7 +118,7 @@ export function SpeechBarCanvas({
       ctx.globalAlpha = 1;
 
       if (w > 30) {
-        ctx.fillStyle = "#fff";
+        ctx.fillStyle = t.textInverse;
         ctx.font = "bold 10px sans-serif";
         ctx.textAlign = "center";
         ctx.fillText(s.speaker, x + w / 2, barH / 2 + 4);
@@ -122,10 +128,10 @@ export function SpeechBarCanvas({
 
     if (silenceMs > 0) {
       const sw = (silenceMs / totalDurationMs) * W;
-      ctx.fillStyle = "rgba(128,128,128,0.15)";
+      ctx.fillStyle = t.silenceBg;
       ctx.fillRect(x, 0, sw, barH);
       if (sw > 30) {
-        ctx.fillStyle = "#888";
+        ctx.fillStyle = t.labelMuted;
         ctx.font = "10px sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("silence", x + sw / 2, barH / 2 + 4);
@@ -134,7 +140,7 @@ export function SpeechBarCanvas({
 
     ctx.font = "9px sans-serif";
     ctx.textAlign = "left";
-    ctx.fillStyle = "var(--lx-text-2, #888)";
+    ctx.fillStyle = t.labelMuted;
     x = 0;
     for (let i = 0; i < stats.length; i++) {
       const s = stats[i];
@@ -145,7 +151,7 @@ export function SpeechBarCanvas({
       }
       x += w;
     }
-  }, [stats, totalDurationMs, activeSpeaker]);
+  }, [stats, totalDurationMs, activeSpeaker, themeRev]);
 
   return (
     <canvas
@@ -176,6 +182,7 @@ export function SpeechTimelineCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const W_REF = 600;
   const H = 60;
+  const themeRev = useWaveformThemeRevision();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -183,6 +190,7 @@ export function SpeechTimelineCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    const t = getStatsCanvasThemeColors();
     const rect = canvas.getBoundingClientRect();
     const W = Math.round(rect.width) || W_REF;
     const dpr = window.devicePixelRatio || 1;
@@ -198,10 +206,10 @@ export function SpeechTimelineCanvas({
 
     for (let si = 0; si < speakers.length; si++) {
       const y = si * laneH + 2;
-      ctx.fillStyle = "rgba(128,128,128,0.06)";
+      ctx.fillStyle = t.laneBg;
       ctx.fillRect(0, y, W, laneH - 2);
 
-      ctx.fillStyle = "#888";
+      ctx.fillStyle = t.labelMuted;
       ctx.font = "9px sans-serif";
       ctx.textAlign = "left";
       ctx.fillText(speakers[si], 2, y + laneH / 2 + 3);
@@ -223,22 +231,22 @@ export function SpeechTimelineCanvas({
       for (const ov of overlapSegments) {
         const x = (ov.startMs / totalDurationMs) * W;
         const w = Math.max(1, ((ov.endMs - ov.startMs) / totalDurationMs) * W);
-        ctx.fillStyle = "rgba(217, 83, 79, 0.25)";
+        ctx.fillStyle = t.overlapFill;
         ctx.fillRect(x, 0, w, contentH + 2);
-        ctx.strokeStyle = "rgba(217, 83, 79, 0.6)";
+        ctx.strokeStyle = t.overlapStroke;
         ctx.lineWidth = 0.5;
         ctx.strokeRect(x, 0, w, contentH + 2);
       }
     }
 
     const px = (playheadMs / totalDurationMs) * W;
-    ctx.strokeStyle = "var(--lx-accent, #3498db)";
+    ctx.strokeStyle = t.accent;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(px, 0);
     ctx.lineTo(px, H);
     ctx.stroke();
-  }, [timeline, speakers, totalDurationMs, playheadMs, overlapSegments]);
+  }, [timeline, speakers, totalDurationMs, playheadMs, overlapSegments, themeRev]);
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!onSeekToMs || totalDurationMs <= 0) return;
@@ -278,6 +286,7 @@ export function SpeechRateCanvas({
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const themeRev = useWaveformThemeRevision();
   const W_REF = 600;
   const H = 120;
   const PAD_TOP = 20;
@@ -301,6 +310,7 @@ export function SpeechRateCanvas({
     ctx.clearRect(0, 0, W, H);
     if (series.length === 0 || totalDurationMs <= 0) return;
 
+    const t = getStatsCanvasThemeColors();
     const plotW = W - PAD_LEFT - PAD_RIGHT;
     const plotH = H - PAD_TOP - PAD_BOTTOM;
 
@@ -313,10 +323,10 @@ export function SpeechRateCanvas({
     maxRate = Math.max(maxRate, 10);
     const yMax = Math.ceil(maxRate / 20) * 20;
 
-    ctx.strokeStyle = "rgba(128,128,128,0.15)";
+    ctx.strokeStyle = t.grid;
     ctx.lineWidth = 0.5;
     ctx.font = "9px sans-serif";
-    ctx.fillStyle = "#888";
+    ctx.fillStyle = t.labelMuted;
     ctx.textAlign = "right";
     const gridSteps = 4;
     for (let i = 0; i <= gridSteps; i++) {
@@ -343,7 +353,7 @@ export function SpeechRateCanvas({
     ctx.translate(10, PAD_TOP + plotH / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = "center";
-    ctx.fillStyle = "#888";
+    ctx.fillStyle = t.labelMuted;
     ctx.font = "9px sans-serif";
     ctx.fillText("mots/min", 0, 0);
     ctx.restore();
@@ -367,7 +377,7 @@ export function SpeechRateCanvas({
     }
 
     const px = PAD_LEFT + (playheadMs / totalDurationMs) * plotW;
-    ctx.strokeStyle = "var(--lx-accent, #3498db)";
+    ctx.strokeStyle = t.accent;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([4, 3]);
     ctx.beginPath();
@@ -375,7 +385,7 @@ export function SpeechRateCanvas({
     ctx.lineTo(px, PAD_TOP + plotH);
     ctx.stroke();
     ctx.setLineDash([]);
-  }, [series, speakers, totalDurationMs, playheadMs]);
+  }, [series, speakers, totalDurationMs, playheadMs, themeRev]);
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!onSeekToMs || totalDurationMs <= 0) return;
@@ -455,6 +465,7 @@ export function SpeechDensityCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const W_REF = 600;
   const H = 70;
+  const themeRev = useWaveformThemeRevision();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -462,6 +473,7 @@ export function SpeechDensityCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    const t = getStatsCanvasThemeColors();
     const rect = canvas.getBoundingClientRect();
     const W = Math.round(rect.width) || W_REF;
     const dpr = window.devicePixelRatio || 1;
@@ -479,7 +491,7 @@ export function SpeechDensityCanvas({
     const gW = W - padL - padR;
     const gH = H - padT - padB;
 
-    ctx.strokeStyle = "rgba(128,128,128,0.15)";
+    ctx.strokeStyle = t.grid;
     ctx.lineWidth = 0.5;
     for (const pct of [0.25, 0.5, 0.75, 1]) {
       const y = padT + gH * (1 - pct);
@@ -487,7 +499,7 @@ export function SpeechDensityCanvas({
       ctx.moveTo(padL, y);
       ctx.lineTo(padL + gW, y);
       ctx.stroke();
-      ctx.fillStyle = "#888";
+      ctx.fillStyle = t.labelMuted;
       ctx.font = "8px sans-serif";
       ctx.textAlign = "right";
       ctx.fillText(`${Math.round(pct * 100)}%`, padL - 3, y + 3);
@@ -500,7 +512,7 @@ export function SpeechDensityCanvas({
       const y = padT + gH * (1 - pt.density);
       if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = "rgba(52, 152, 219, 0.9)";
+    ctx.strokeStyle = t.densityStroke;
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
@@ -509,18 +521,18 @@ export function SpeechDensityCanvas({
       ctx.lineTo(padL + (last.timeMs / totalDurationMs) * gW, padT + gH);
       ctx.lineTo(padL + (points[0].timeMs / totalDurationMs) * gW, padT + gH);
       ctx.closePath();
-      ctx.fillStyle = "rgba(52, 152, 219, 0.08)";
+      ctx.fillStyle = t.densityFill;
       ctx.fill();
     }
 
     const px = padL + (playheadMs / totalDurationMs) * gW;
-    ctx.strokeStyle = "var(--lx-accent, #3498db)";
+    ctx.strokeStyle = t.accent;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(px, padT);
     ctx.lineTo(px, padT + gH);
     ctx.stroke();
-  }, [points, totalDurationMs, playheadMs]);
+  }, [points, totalDurationMs, playheadMs, themeRev]);
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!onSeekToMs || totalDurationMs <= 0) return;

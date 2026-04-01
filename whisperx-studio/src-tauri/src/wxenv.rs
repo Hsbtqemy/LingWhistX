@@ -15,6 +15,7 @@ use tauri::AppHandle;
 use tauri::Manager;
 
 use crate::ffmpeg_tools::{prepend_path_env, probe_duration_seconds, resolve_ffmpeg_tools};
+use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::validate_path_string;
 use crate::time_utils::now_ms;
 
@@ -124,13 +125,23 @@ pub fn write_wxenv_file(
         buf.extend_from_slice(&mn.to_le_bytes());
         buf.extend_from_slice(&mx.to_le_bytes());
     }
-    std::fs::write(path, buf).map_err(|e| format!("write wxenv: {e}"))
+    std::fs::write(path, buf).map_err(|e| {
+        format!(
+            "write wxenv: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })
 }
 
 fn wxenv_cache_dir(app: &AppHandle, source: &Path, sample_rate: u32) -> Result<PathBuf, String> {
     let metadata = source
         .metadata()
-        .map_err(|err| format!("Unable to read source metadata: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Unable to read source metadata: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     let modified_nanos = metadata
         .modified()
         .ok()
@@ -151,14 +162,27 @@ fn wxenv_cache_dir(app: &AppHandle, source: &Path, sample_rate: u32) -> Result<P
     let cache_root = app
         .path()
         .app_local_data_dir()
-        .map_err(|err| format!("Unable to resolve app local data dir: {err}"))?
+        .map_err(|err| {
+            format!(
+                "Unable to resolve app local data dir: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?
         .join("waveforms_wxenv");
-    std::fs::create_dir_all(&cache_root)
-        .map_err(|err| format!("Unable to create wxenv cache dir: {err}"))?;
+    std::fs::create_dir_all(&cache_root).map_err(|err| {
+        format!(
+            "Unable to create wxenv cache dir: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
 
     let dir = cache_root.join(key);
-    std::fs::create_dir_all(&dir)
-        .map_err(|err| format!("Unable to create wxenv run dir: {err}"))?;
+    std::fs::create_dir_all(&dir).map_err(|err| {
+        format!(
+            "Unable to create wxenv run dir: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     Ok(dir)
 }
 
@@ -207,7 +231,10 @@ pub fn build_waveform_pyramid_internal(
         if err.kind() == std::io::ErrorKind::NotFound {
             "ffmpeg not found.".to_string()
         } else {
-            format!("Unable to launch ffmpeg: {err}")
+            format!(
+                "Unable to launch ffmpeg: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
         }
     })?;
 
@@ -236,7 +263,12 @@ pub fn build_waveform_pyramid_internal(
     loop {
         let read = match stdout.read(&mut chunk) {
             Ok(value) => value,
-            Err(err) => return Err(format!("Unable to read ffmpeg stream: {err}")),
+            Err(err) => {
+                return Err(format!(
+                    "Unable to read ffmpeg stream: {}",
+                    redact_user_home_in_text(&err.to_string())
+                ));
+            }
         };
         if read == 0 {
             break;
@@ -276,7 +308,12 @@ pub fn build_waveform_pyramid_internal(
 
     let status = child
         .wait()
-        .map_err(|err| format!("Unable to wait ffmpeg: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Unable to wait ffmpeg: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     let stderr_output = stderr_handle
         .join()
         .unwrap_or_else(|_| "Unable to read stderr".into());
@@ -286,7 +323,7 @@ pub fn build_waveform_pyramid_internal(
         return Err(if err.is_empty() {
             format!("ffmpeg failed: {status}")
         } else {
-            format!("ffmpeg failed: {err}")
+            format!("ffmpeg failed: {}", redact_user_home_in_text(err))
         });
     }
 
@@ -364,7 +401,12 @@ pub fn read_wxenv_meta_from_path(path: &str) -> Result<WxenvMeta, String> {
     if !path.is_file() {
         return Err("WXENV path must be an existing file.".into());
     }
-    let raw = std::fs::read(path).map_err(|e| format!("read wxenv: {e}"))?;
+    let raw = std::fs::read(path).map_err(|e| {
+        format!(
+            "read wxenv: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     let (sample_rate, block_size, n_blocks) = parse_wxenv_header(&raw)?;
     Ok(WxenvMeta {
         sample_rate,
@@ -389,7 +431,12 @@ pub fn read_wxenv_slice_from_path(
     if !path.is_file() {
         return Err("WXENV path must be an existing file.".into());
     }
-    let raw = std::fs::read(path).map_err(|e| format!("read wxenv: {e}"))?;
+    let raw = std::fs::read(path).map_err(|e| {
+        format!(
+            "read wxenv: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     let (sample_rate, block_size, n_blocks) = parse_wxenv_header(&raw)?;
     if block_start >= n_blocks {
         return Err("block_start out of range.".into());

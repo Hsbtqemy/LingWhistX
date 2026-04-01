@@ -14,6 +14,8 @@
   --lx-surface-0: #f4f4f5;
   --lx-surface-1: rgba(255, 255, 255, 0.96);
   --lx-surface-2: rgba(228, 231, 235, 0.55);
+  /* Alias pratique (player / composants) — même surface que la carte principale */
+  --lx-surface: var(--lx-surface-1);
   /* Texte — ardoise (lisibilité sans dominante verte) */
   --lx-text-0: #0f172a;
   --lx-text-1: #334155;
@@ -26,7 +28,34 @@
   /* Panneaux Studio (jobs, éditeur, QA) — WX-646/647 : éviter hex figés ; suit les surfaces clair/sombre */
   --lx-panel-workspace: color-mix(in srgb, var(--lx-accent) 6%, var(--lx-surface-1));
   --lx-panel-workspace-deep: color-mix(in srgb, var(--lx-accent) 10%, var(--lx-surface-0));
-  --lx-panel-workspace-info: color-mix(in srgb, var(--lx-accent) 5%, color-mix(in srgb, #38bdf8 11%, var(--lx-surface-1)));
+  /* Teinte « info » (panneaux type aide / métadonnées) — réassignable en sombre */
+  --lx-info-tint: #38bdf8;
+  --lx-panel-workspace-info: color-mix(
+    in srgb,
+    var(--lx-accent) 5%,
+    color-mix(in srgb, var(--lx-info-tint) 11%, var(--lx-surface-1))
+  );
+  /*
+   * WX-647 — bordures / ombres répétées (remplace teintes teal figées dans les modules CSS).
+   * Toutes dérivent de --lx-accent / --lx-text-* → cohérent en clair et en sombre.
+   */
+  --lx-border-accent-soft: color-mix(in srgb, var(--lx-accent) 16%, var(--lx-border));
+  --lx-border-accent-mid: color-mix(in srgb, var(--lx-accent) 28%, transparent);
+  --lx-border-accent-strong: color-mix(in srgb, var(--lx-accent) 42%, transparent);
+  --lx-shadow-accent-float: 0 4px 12px color-mix(in srgb, var(--lx-accent) 28%, transparent);
+  --lx-border-cta: color-mix(in srgb, var(--lx-accent) 38%, transparent);
+  --lx-border-danger-soft: color-mix(in srgb, var(--lx-danger) 42%, transparent);
+  --lx-text-muted-soft: color-mix(in srgb, var(--lx-text-0) 68%, transparent);
+  --lx-text-muted-faint: color-mix(in srgb, var(--lx-text-0) 48%, transparent);
+  /* Alias (base.css légendes / hints) — suit le texte primaire atténué */
+  --lx-text-muted: var(--lx-text-muted-soft);
+  --lx-fill-import-warning: color-mix(in srgb, var(--lx-warning) 22%, var(--lx-surface-muted));
+  --lx-border-import-warning: color-mix(in srgb, var(--lx-warning) 38%, var(--lx-border));
+  --lx-gradient-danger: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--lx-danger) 92%, #000),
+    color-mix(in srgb, var(--lx-danger) 78%, #000)
+  );
   /*
    * Canvas waveform + overview — remplies via getComputedStyle() (pas de var() dans CanvasRenderingContext2D).
    * WX-648 : même jeu en thème clair/sombre.
@@ -92,9 +121,25 @@
   --lx-radius-md: 12px;
   --lx-radius-lg: 20px;
   --lx-radius-pill: 999px;
+  /* Alias défaut (components.css annotation import, etc.) */
+  --lx-radius: var(--lx-radius-md);
   /* Couleur texte avertissement (plus foncé que --lx-warning en mode clair) */
   --lx-warning-text: #b45309;
   --lx-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.92) inset, 0 22px 48px rgba(15, 23, 42, 0.07);
+  /* Voile modales / aide — assombrissement neutre (indépendant du texte) */
+  --lx-overlay-scrim: color-mix(in srgb, #000 45%, transparent);
+  --lx-shadow-modal: 0 16px 48px color-mix(in srgb, #000 30%, transparent);
+  --lx-shadow-dropdown: 0 4px 16px color-mix(in srgb, #000 18%, transparent);
+  /*
+   * Canvas stats (statsCanvases.tsx) — résolus via getComputedStyle, pas var() dans fillStyle.
+   */
+  --lx-stats-lane-bg: color-mix(in srgb, var(--lx-text-0) 6%, transparent);
+  --lx-stats-silence-bg: color-mix(in srgb, var(--lx-text-2) 15%, transparent);
+  --lx-stats-grid: color-mix(in srgb, var(--lx-border) 65%, transparent);
+  --lx-stats-overlap-fill: color-mix(in srgb, var(--lx-danger) 25%, transparent);
+  --lx-stats-overlap-stroke: color-mix(in srgb, var(--lx-danger) 58%, transparent);
+  --lx-stats-density-fill: color-mix(in srgb, var(--lx-accent) 12%, transparent);
+  --lx-stats-density-stroke: color-mix(in srgb, var(--lx-accent) 68%, transparent);
   /* Anneau focus — surface + accent (contraste sur clair et sombre via réassignation thème) */
   --lx-focus-ring-color: var(--lx-accent);
   --lx-focus-ring-surface: #fff;
@@ -125,13 +170,13 @@
   --lx-hub-player-bar: #ea580c;
   --lx-hub-jobs-bar: #4338ca;
   --lx-hub-about-bar: #7c3aed;
-  --lx-hub-workspace-icon-bg: color-mix(in srgb, var(--lx-hub-workspace-bar) 14%, white);
+  --lx-hub-workspace-icon-bg: color-mix(in srgb, var(--lx-hub-workspace-bar) 14%, var(--lx-text-inverse));
   --lx-hub-workspace-icon-fg: #0f766e;
-  --lx-hub-player-icon-bg: color-mix(in srgb, var(--lx-hub-player-bar) 14%, white);
+  --lx-hub-player-icon-bg: color-mix(in srgb, var(--lx-hub-player-bar) 14%, var(--lx-text-inverse));
   --lx-hub-player-icon-fg: #9a3412;
-  --lx-hub-jobs-icon-bg: color-mix(in srgb, var(--lx-hub-jobs-bar) 14%, white);
+  --lx-hub-jobs-icon-bg: color-mix(in srgb, var(--lx-hub-jobs-bar) 14%, var(--lx-text-inverse));
   --lx-hub-jobs-icon-fg: #3730a3;
-  --lx-hub-about-icon-bg: color-mix(in srgb, var(--lx-hub-about-bar) 14%, white);
+  --lx-hub-about-icon-bg: color-mix(in srgb, var(--lx-hub-about-bar) 14%, var(--lx-text-inverse));
   --lx-hub-about-icon-fg: #5b21b6;
   --lx-hub-chevron: color-mix(in srgb, var(--lx-text-2) 88%, var(--lx-hub-workspace-bar));
   --lx-hub-icon-wrap-highlight: rgba(255, 255, 255, 0.75);
@@ -150,7 +195,7 @@
   --lx-nav-tab-hover-bg: var(--lx-chrome-bg-hover);
   --lx-nav-tab-hover-border: var(--lx-border-strong);
   --lx-nav-tab-hover-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
-  --lx-nav-tab-active-bg: color-mix(in srgb, var(--lx-accent) 16%, white);
+  --lx-nav-tab-active-bg: color-mix(in srgb, var(--lx-accent) 16%, var(--lx-text-inverse));
   --lx-nav-tab-active-fg: var(--lx-text-0);
   --lx-nav-tab-active-border: color-mix(in srgb, var(--lx-accent) 32%, transparent);
   --lx-nav-tab-active-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
@@ -191,6 +236,22 @@ html {
   color-scheme: light dark;
   min-height: 100%;
   background: var(--lx-body-background);
+  /* Firefox — curseur de défilement aligné surfaces / bordures */
+  scrollbar-color: color-mix(in srgb, var(--lx-text-2) 45%, transparent) var(--lx-surface-0);
+}
+
+/* WebKit — même lecture que scrollbar-color (Chrome / Safari / Electron) */
+html::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+html::-webkit-scrollbar-track {
+  background: var(--lx-surface-0);
+}
+html::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--lx-text-2) 45%, transparent);
+  border-radius: var(--lx-radius-pill);
+  border: 2px solid var(--lx-surface-0);
 }
 
 /*
@@ -211,6 +272,7 @@ html {
     --lx-hairline: color-mix(in srgb, var(--lx-text-0) 8%, transparent);
     --lx-border-strong: color-mix(in srgb, var(--lx-text-0) 20%, transparent);
     --lx-surface-muted: color-mix(in srgb, var(--lx-text-0) 6%, transparent);
+    --lx-info-tint: #7dd3fc;
     --lx-chrome-bg: rgba(51, 65, 85, 0.48);
     --lx-chrome-bg-hover: rgba(71, 85, 105, 0.58);
     --lx-chrome-fg: #cbd5e1;
@@ -269,9 +331,26 @@ html {
     --lx-hub-jobs-icon-fg: #f5f3ff;
     --lx-hub-about-icon-bg: color-mix(in srgb, var(--lx-hub-about-bar) 26%, transparent);
     --lx-hub-about-icon-fg: #fdf4ff;
-    --lx-hub-chevron: color-mix(in srgb, var(--lx-text-2) 72%, #fff);
+    --lx-hub-chevron: color-mix(in srgb, var(--lx-text-2) 72%, var(--lx-text-inverse));
     --lx-hub-icon-wrap-highlight: rgba(255, 255, 255, 0.08);
     --lx-hero-brand-gradient: linear-gradient(118deg, #22d3ee 0%, #a78bfa 45%, #e879f9 100%);
+    /* Carte héros accueil (nav.css) — une seule source pour prefers-color-scheme + data-lx-theme */
+    --lx-hero-hub-card-border: color-mix(in srgb, var(--lx-text-inverse) 10%, transparent);
+    --lx-hero-hub-card-bg: linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--lx-surface-2) 65%, var(--lx-surface-0)) 0%,
+      color-mix(in srgb, var(--lx-surface-0) 88%, var(--lx-accent) 2%) 100%
+    );
+    --lx-hero-hub-card-shadow:
+      0 1px 0 color-mix(in srgb, var(--lx-text-inverse) 6%, transparent) inset,
+      0 22px 48px color-mix(in srgb, #000 35%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--lx-accent) 8%, transparent);
+    --lx-hero-hub-glow: radial-gradient(
+      ellipse closest-side,
+      color-mix(in srgb, var(--lx-accent) 22%, transparent),
+      color-mix(in srgb, var(--lx-hub-jobs-bar) 10%, transparent) 42%,
+      transparent 70%
+    );
     /* Pills statut jobs — fonds/teintes adaptés au sombre (évite « tout vert ») */
     --lx-status-queued-bg: rgba(148, 163, 184, 0.18);
     --lx-status-queued-fg: #cbd5e1;
@@ -306,7 +385,7 @@ html {
 /* WX-668 — Tokens karaoké (thémables) */
 :root {
   --lx-karaoke-active-bg: var(--lx-accent);
-  --lx-karaoke-active-fg: #fff;
+  --lx-karaoke-active-fg: var(--lx-text-inverse);
   --lx-karaoke-chip-bg: color-mix(in srgb, var(--lx-text-0) 7%, transparent);
   --lx-karaoke-chip-fg: var(--lx-text-1);
   --lx-karaoke-chip-hover-bg: color-mix(in srgb, var(--lx-accent) 18%, transparent);
@@ -326,6 +405,7 @@ html {
   --lx-hairline: color-mix(in srgb, var(--lx-text-0) 8%, transparent);
   --lx-border-strong: color-mix(in srgb, var(--lx-text-0) 20%, transparent);
   --lx-surface-muted: color-mix(in srgb, var(--lx-text-0) 6%, transparent);
+  --lx-info-tint: #7dd3fc;
   --lx-chrome-bg: rgba(51, 65, 85, 0.48);
   --lx-chrome-bg-hover: rgba(71, 85, 105, 0.58);
   --lx-chrome-fg: #cbd5e1;
@@ -383,9 +463,25 @@ html {
   --lx-hub-jobs-icon-fg: #f5f3ff;
   --lx-hub-about-icon-bg: color-mix(in srgb, var(--lx-hub-about-bar) 26%, transparent);
   --lx-hub-about-icon-fg: #fdf4ff;
-  --lx-hub-chevron: color-mix(in srgb, var(--lx-text-2) 72%, #fff);
+  --lx-hub-chevron: color-mix(in srgb, var(--lx-text-2) 72%, var(--lx-text-inverse));
   --lx-hub-icon-wrap-highlight: rgba(255, 255, 255, 0.08);
   --lx-hero-brand-gradient: linear-gradient(118deg, #22d3ee 0%, #a78bfa 45%, #e879f9 100%);
+  --lx-hero-hub-card-border: color-mix(in srgb, var(--lx-text-inverse) 10%, transparent);
+  --lx-hero-hub-card-bg: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--lx-surface-2) 65%, var(--lx-surface-0)) 0%,
+    color-mix(in srgb, var(--lx-surface-0) 88%, var(--lx-accent) 2%) 100%
+  );
+  --lx-hero-hub-card-shadow:
+    0 1px 0 color-mix(in srgb, var(--lx-text-inverse) 6%, transparent) inset,
+    0 22px 48px color-mix(in srgb, #000 35%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--lx-accent) 8%, transparent);
+  --lx-hero-hub-glow: radial-gradient(
+    ellipse closest-side,
+    color-mix(in srgb, var(--lx-accent) 22%, transparent),
+    color-mix(in srgb, var(--lx-hub-jobs-bar) 10%, transparent) 42%,
+    transparent 70%
+  );
   --lx-status-queued-bg: rgba(148, 163, 184, 0.18);
   --lx-status-queued-fg: #cbd5e1;
   --lx-status-queued-border: rgba(148, 163, 184, 0.38);

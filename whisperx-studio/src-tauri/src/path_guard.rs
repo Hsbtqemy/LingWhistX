@@ -13,6 +13,8 @@ use std::path::{Path, PathBuf};
 
 use tauri::{AppHandle, Manager};
 
+use crate::log_redaction::redact_user_home_in_text;
+
 /// Limite alignee sur les chemins utilisateur raisonnables (protection contre allocations excessives).
 pub const MAX_PATH_STRING_BYTES: usize = 8192;
 
@@ -37,10 +39,18 @@ pub fn validate_custom_output_dir(app: &AppHandle, raw: &str) -> Result<PathBuf,
     if !path.is_absolute() {
         return Err("outputDir must be an absolute path".into());
     }
-    std::fs::create_dir_all(path).map_err(|e| format!("Unable to create output directory: {e}"))?;
-    let canonical = path
-        .canonicalize()
-        .map_err(|e| format!("Unable to resolve output path: {e}"))?;
+    std::fs::create_dir_all(path).map_err(|e| {
+        format!(
+            "Unable to create output directory: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
+    let canonical = path.canonicalize().map_err(|e| {
+        format!(
+            "Unable to resolve output path: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     ensure_output_dir_allowed(app, &canonical)?;
     Ok(canonical)
 }
@@ -113,9 +123,12 @@ pub fn validate_delete_allowed_directory(app: &AppHandle, raw: &str) -> Result<P
     if !path.is_dir() {
         return Err("path must be a directory".into());
     }
-    let canonical = path
-        .canonicalize()
-        .map_err(|e| format!("Unable to resolve path: {e}"))?;
+    let canonical = path.canonicalize().map_err(|e| {
+        format!(
+            "Unable to resolve path: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     ensure_output_dir_allowed(app, &canonical)?;
     Ok(canonical)
 }
@@ -143,8 +156,12 @@ pub fn resolve_existing_file_path(
     if !path.is_file() {
         return Err(not_file_msg.into());
     }
-    path.canonicalize()
-        .map_err(|e| format!("Unable to resolve path: {e}"))
+    path.canonicalize().map_err(|e| {
+        format!(
+            "Unable to resolve path: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })
 }
 
 /// Chemin existant (fichier ou repertoire) pour ouverture via shell (`open` / `xdg-open` / `explorer`).
@@ -152,10 +169,17 @@ pub fn resolve_existing_path_for_open(raw: &str) -> Result<PathBuf, String> {
     validate_path_string(raw)?;
     let path = Path::new(raw.trim());
     if !path.exists() {
-        return Err(format!("Path does not exist on disk: {}", raw.trim()));
+        return Err(format!(
+            "Path does not exist on disk: {}",
+            redact_user_home_in_text(raw.trim())
+        ));
     }
-    path.canonicalize()
-        .map_err(|e| format!("Unable to resolve path: {e}"))
+    path.canonicalize().map_err(|e| {
+        format!(
+            "Unable to resolve path: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })
 }
 
 #[cfg(test)]

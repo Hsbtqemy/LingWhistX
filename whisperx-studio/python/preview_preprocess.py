@@ -15,6 +15,9 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
+
+from log_sanitize import sanitize_log_line
 
 
 def main() -> None:
@@ -36,15 +39,19 @@ def main() -> None:
     try:
         from studio_audio_modules import maybe_prepare_audio_input  # type: ignore
     except ImportError as exc:
-        print(f"ERROR: studio_audio_modules introuvable : {exc}", file=sys.stderr)
+        print(
+            sanitize_log_line(f"ERROR: studio_audio_modules introuvable : {exc}"),
+            file=sys.stderr,
+        )
         sys.exit(1)
-
-    from pathlib import Path
 
     try:
         modules = json.loads(args.modules_json)
     except json.JSONDecodeError as exc:
-        print(f"ERROR: --modules-json JSON invalide : {exc}", file=sys.stderr)
+        print(
+            sanitize_log_line(f"ERROR: --modules-json JSON invalide : {exc}"),
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if not isinstance(modules, dict) or not modules:

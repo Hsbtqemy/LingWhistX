@@ -4,16 +4,8 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="theme-color"
-      media="(prefers-color-scheme: light)"
-      content="#f8fafb"
-    />
-    <meta
-      name="theme-color"
-      media="(prefers-color-scheme: dark)"
-      content="#0f1419"
-    />
+    <!-- Valeur initiale ; `syncThemeColorMeta()` (applyStoredTheme.ts) aligne sur --lx-surface-0 après chargement CSS -->
+    <meta name="theme-color" id="lx-theme-color" content="#f4f4f5" />
     <title>LingWhistX Studio</title>
     <!--
       Thème avant premier paint : aligné sur LX_THEME_STORAGE_KEY / readStoredThemePreference

@@ -200,7 +200,7 @@ export function usePlayerRunWindow({
     };
     // contractLayersKey encode le contenu des layers ; resolvedPreset encode le preset résolu.
     // refreshEpoch force un rechargement immédiat quand il est incrémenté (WX-696).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- queryContract / centerTime via refs ; deps = clés dérivées + refreshEpoch
   }, [runDir, enabled, coarseKey, resolvedPreset, contractLayersKey, speakersKey, refreshEpoch]);
 
   return { loading, error, slice, lastT0Ms, lastT1Ms, queryPreset: resolvedPreset };

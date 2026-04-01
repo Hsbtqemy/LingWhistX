@@ -3,6 +3,7 @@
 use tauri::AppHandle;
 
 use crate::ffmpeg_tools::{resolve_ffmpeg_tools, run_probe};
+use crate::log_redaction::redact_user_home_in_text;
 use crate::models::{RuntimeStatus, TorchProbeResult};
 use crate::python_runtime::resolve_python_command;
 
@@ -31,10 +32,16 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
     ) {
         Ok(executable) => {
             python_ok = true;
-            details.push(format!("python ok: {executable}"));
+            details.push(format!(
+                "python ok: {}",
+                redact_user_home_in_text(&executable)
+            ));
         }
         Err(err) => {
-            details.push(format!("python error: {err}"));
+            details.push(format!(
+                "python error: {}",
+                redact_user_home_in_text(&err)
+            ));
         }
     }
 
@@ -53,7 +60,10 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
                 details.push(format!("whisperx ok: {version}"));
             }
             Err(err) => {
-                details.push(format!("whisperx error: {err}"));
+                details.push(format!(
+                    "whisperx error: {}",
+                    redact_user_home_in_text(&err)
+                ));
             }
         }
     }
@@ -77,14 +87,17 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
                         ));
                     }
                     Err(err) => {
-                        details.push(format!(
+                        details.push(redact_user_home_in_text(&format!(
                             "torch probe parse error: {err} (output: {trimmed})"
-                        ));
+                        )));
                     }
                 }
             }
             Err(err) => {
-                details.push(format!("torch probe error: {err}"));
+                details.push(format!(
+                    "torch probe error: {}",
+                    redact_user_home_in_text(&err)
+                ));
             }
         }
     }
@@ -111,7 +124,10 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
     }
 
     if let Some(dir) = ffmpeg_tools.ffmpeg_dir.as_deref() {
-        details.push(format!("ffmpeg dir: {}", dir.to_string_lossy()));
+        details.push(format!(
+            "ffmpeg dir: {}",
+            redact_user_home_in_text(&dir.to_string_lossy())
+        ));
     }
     match run_probe(
         &ffmpeg_tools.ffmpeg_command,
@@ -121,10 +137,16 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
         Ok(output) => {
             ffmpeg_ok = true;
             let first_line = output.lines().next().unwrap_or("ffmpeg available");
-            details.push(format!("ffmpeg ok: {first_line}"));
+            details.push(format!(
+                "ffmpeg ok: {}",
+                redact_user_home_in_text(first_line)
+            ));
         }
         Err(err) => {
-            details.push(format!("ffmpeg error: {err}"));
+            details.push(format!(
+                "ffmpeg error: {}",
+                redact_user_home_in_text(&err)
+            ));
         }
     }
 
@@ -149,5 +171,10 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
 pub async fn get_runtime_status(app: AppHandle) -> Result<RuntimeStatus, String> {
     tokio::task::spawn_blocking(move || build_runtime_status(app))
         .await
-        .map_err(|e| format!("Runtime status task failed: {e}"))
+        .map_err(|e| {
+            format!(
+                "Runtime status task failed: {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })
 }

@@ -8,6 +8,7 @@ use std::process::Command;
 
 use tauri::{AppHandle, Manager};
 
+use crate::log_redaction::redact_user_home_in_text;
 use crate::models::ResolvedFfmpegTools;
 
 pub(crate) fn env_non_empty(var_name: &str) -> Option<String> {
@@ -172,10 +173,10 @@ pub(crate) fn run_probe(
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
         if !stderr.is_empty() {
-            return Err(stderr);
+            return Err(redact_user_home_in_text(&stderr));
         }
         if !stdout.is_empty() {
-            return Err(stdout);
+            return Err(redact_user_home_in_text(&stdout));
         }
         return Err(format!("Command failed with status {}", output.status));
     }
@@ -184,7 +185,9 @@ pub(crate) fn run_probe(
     if !stdout.is_empty() {
         Ok(stdout)
     } else {
-        Ok(String::from_utf8_lossy(&output.stderr).trim().to_string())
+        Ok(redact_user_home_in_text(
+            &String::from_utf8_lossy(&output.stderr).trim().to_string(),
+        ))
     }
 }
 

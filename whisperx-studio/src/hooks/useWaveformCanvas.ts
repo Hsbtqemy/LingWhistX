@@ -58,7 +58,7 @@ export function useWaveformCanvas(
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, widthCss, heightCss);
 
-    ctx.fillStyle = "#f5fcfc";
+    ctx.fillStyle = colors.canvasBg;
     ctx.fillRect(0, 0, widthCss, heightCss);
 
     const totalDuration = Math.max(0.001, waveform.durationSec);

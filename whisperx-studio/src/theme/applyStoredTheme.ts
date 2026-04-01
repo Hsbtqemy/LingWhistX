@@ -14,6 +14,26 @@ export function notifyThemePreferenceChanged(): void {
   window.dispatchEvent(new CustomEvent(LX_THEME_CHANGED_EVENT));
 }
 
+const THEME_COLOR_META_ID = "lx-theme-color";
+
+/**
+ * Aligne la meta `theme-color` sur `--lx-surface-0` (tokens) pour la barre système / PWA.
+ * À appeler après chargement des feuilles + à chaque changement de thème effectif.
+ */
+export function syncThemeColorMeta(): void {
+  if (typeof document === "undefined") return;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--lx-surface-0").trim();
+  if (!raw) return;
+  let meta = document.getElementById(THEME_COLOR_META_ID);
+  if (!(meta instanceof HTMLMetaElement)) {
+    meta = document.createElement("meta");
+    meta.id = THEME_COLOR_META_ID;
+    meta.setAttribute("name", "theme-color");
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute("content", raw);
+}
+
 function syncDomFromPreference(pref: LxThemePreference): void {
   const root = document.documentElement;
   if (pref === "system") {
@@ -52,6 +72,7 @@ export function setThemePreference(pref: LxThemePreference): void {
 /** Applique `data-lx-theme` sur `<html>` selon {@link readStoredThemePreference}. */
 export function applyStoredTheme(): void {
   syncDomFromPreference(readStoredThemePreference());
+  syncThemeColorMeta();
 }
 
 /**
@@ -63,7 +84,7 @@ export function getEffectiveColorScheme(): "light" | "dark" {
   if (attr === "light") return "light";
   if (attr === "dark") return "dark";
   if (attr === "system" || attr == null) {
-    if (typeof window === "undefined" || !window.matchMedia) {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
       return "light";
     }
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
@@ -93,4 +114,17 @@ export function initThemeStorageSync(): void {
   themeStorageSyncRegistered = true;
 
   window.addEventListener("storage", applyThemeFromStorageEvent);
+}
+
+let themeColorMetaListeners = false;
+
+/** Écoute thème effectif (événement app + bascule OS en mode system) pour rafraîchir `theme-color`. */
+export function initThemeColorMetaSync(): void {
+  if (typeof window === "undefined" || themeColorMetaListeners) return;
+  themeColorMetaListeners = true;
+  const bump = () => syncThemeColorMeta();
+  window.addEventListener(LX_THEME_CHANGED_EVENT, bump);
+  if (typeof window.matchMedia === "function") {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", bump);
+  }
 }

@@ -6,6 +6,7 @@ use rusqlite::types::Value as SqlValue;
 use rusqlite::{Connection, Row};
 use serde::{Deserialize, Serialize};
 
+use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::validate_path_string;
 
 use super::{ensure_events_sqlite_imported, open_events_connection, EVENTS_DB_FILE};
@@ -385,7 +386,7 @@ pub fn query_run_events_window_inner(
 
     let run_dir = PathBuf::from(request.run_dir.trim())
         .canonicalize()
-        .map_err(|e| format!("run_dir: {e}"))?;
+        .map_err(|e| format!("run_dir: {}", redact_user_home_in_text(&e.to_string())))?;
     ensure_events_sqlite_imported(&run_dir)?;
     let db_path = run_dir.join(EVENTS_DB_FILE);
 

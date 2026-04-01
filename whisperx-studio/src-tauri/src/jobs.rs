@@ -27,7 +27,17 @@ use crate::models::{
     WorkerResult,
 };
 use crate::python_runtime::resolve_python_command;
+use crate::log_redaction::redact_user_home_in_text;
 use crate::time_utils::now_ms;
+
+fn python_executable_label(cmd: &str) -> String {
+    let trimmed = cmd.trim();
+    std::path::Path::new(trimmed)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| trimmed.to_string())
+}
 
 pub(crate) fn current_job_status(
     jobs: &Arc<Mutex<HashMap<String, Job>>>,
@@ -59,7 +69,10 @@ pub(crate) fn mutate_job<F>(
 
     if let Some(job) = updated_job {
         if let Err(err) = persist_job(db_path, &job) {
-            eprintln!("[persist] {err}");
+            eprintln!(
+                "[persist] {}",
+                redact_user_home_in_text(&err.to_string())
+            );
         }
         emit_job_update(app, &job);
     }
@@ -86,7 +99,10 @@ pub(crate) fn mutate_job_without_emit<F>(
 
     if let Some(job) = updated_job {
         if let Err(err) = persist_job(db_path, &job) {
-            eprintln!("[persist] {err}");
+            eprintln!(
+                "[persist] {}",
+                redact_user_home_in_text(&err.to_string())
+            );
         }
     }
 }
@@ -128,13 +144,14 @@ fn handle_worker_log(
         if stream == "stderr" { "error".into() } else { "info".into() }
     });
 
+    let message = redact_user_home_in_text(&worker_log.message);
     let event = JobLogEvent {
         job_id: job_id.into(),
         ts_ms: now_ms(),
         stream: stream.into(),
         level,
         stage: worker_log.stage.clone(),
-        message: worker_log.message.clone(),
+        message: message.clone(),
     };
     emit_job_log(app, &event);
 
@@ -155,14 +172,14 @@ fn handle_worker_log(
                 if progress > job.progress {
                     job.progress = progress;
                 }
-                job.message = worker_log.message;
+                job.message = message.clone();
             });
         } else {
             mutate_job_without_emit(db_path, jobs, job_id, |job| {
                 if progress > job.progress {
                     job.progress = progress;
                 }
-                job.message = worker_log.message;
+                job.message = message.clone();
             });
         }
     }
@@ -217,13 +234,14 @@ fn process_worker_line(
                     Some("NETWORK") => " [Aide réseau] Connexion refusée ou timeout — vérifiez le proxy/pare-feu.",
                     _ => "",
                 };
+                let safe_msg = redact_user_home_in_text(&err.message);
                 let event = JobLogEvent {
                     job_id: job_id.into(),
                     ts_ms: now_ms(),
                     stream: stream.into(),
                     level: "error".into(),
                     stage: Some("worker_error".into()),
-                    message: format!("{}{}", err.message, hint),
+                    message: format!("{}{}", safe_msg, hint),
                 };
                 emit_job_log(app, &event);
                 return;
@@ -236,13 +254,14 @@ fn process_worker_line(
 
     // Ligne plain-text (stdout sous-processus, logs Python non structurés).
     let level = if stream == "stderr" { "error" } else { "info" };
+    let safe_line = redact_user_home_in_text(line);
     let event = JobLogEvent {
         job_id: job_id.into(),
         ts_ms: now_ms(),
         stream: stream.into(),
         level: level.into(),
         stage: None,
-        message: line.into(),
+        message: safe_line,
     };
     emit_job_log(app, &event);
 }
@@ -251,8 +270,9 @@ fn record_worker_stderr_line(lines: &Arc<Mutex<Vec<String>>>, line: &str) {
     if line.is_empty() {
         return;
     }
+    let safe = redact_user_home_in_text(line);
     if let Ok(mut lock) = lines.lock() {
-        lock.push(line.to_string());
+        lock.push(safe);
         const MAX_LINES: usize = 200;
         if lock.len() > MAX_LINES {
             let drop = lock.len() - MAX_LINES;
@@ -272,7 +292,7 @@ fn append_worker_failure_context(mut message: String, stderr_tail: &str) -> Stri
             trimmed
         };
         message.push_str("\n\n--- stderr (extrait) ---\n");
-        message.push_str(slice);
+        message.push_str(&redact_user_home_in_text(slice));
     }
     let lower = stderr_tail.to_lowercase();
 
@@ -392,8 +412,12 @@ fn run_worker(
             }
         }
         // `hf_token` est retiré ci-dessus : ne jamais le remettre dans ce JSON (évite fuite dans `ps`).
-        let options_json = serde_json::to_string(&worker_options)
-            .map_err(|err| format!("Serialize worker options failed: {err}"))?;
+        let options_json = serde_json::to_string(&worker_options).map_err(|err| {
+            format!(
+                "Serialize worker options failed: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
         command.arg("--options-json").arg(options_json);
     }
 
@@ -403,7 +427,10 @@ fn run_worker(
                 "Python executable '{python_command}' not found. Install Python 3.10+ and whisperx, or set WHISPERX_STUDIO_PYTHON."
             )
         } else {
-            format!("Failed to launch worker: {err}")
+            format!(
+                "Failed to launch worker: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
         }
     })?;
     let pid = child.id();
@@ -476,9 +503,12 @@ fn run_worker(
         }
     });
 
-    let status = child
-        .wait()
-        .map_err(|err| format!("Failed waiting for worker process: {err}"))?;
+    let status = child.wait().map_err(|err| {
+        format!(
+            "Failed waiting for worker process: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
 
     let _ = stdout_handle.join();
     let _ = stderr_handle.join();
@@ -543,7 +573,10 @@ pub(crate) fn run_job_thread(
             stream: "system".into(),
             level: "info".into(),
             stage: Some("runtime".into()),
-            message: format!("Python runtime: {python_command}"),
+            message: format!(
+                "Python runtime: {}",
+                python_executable_label(&python_command)
+            ),
         },
     );
 

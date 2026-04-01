@@ -9,6 +9,11 @@ body {
   color: var(--lx-text-0);
 }
 
+::selection {
+  background: color-mix(in srgb, var(--lx-accent) 30%, var(--lx-surface-1));
+  color: var(--lx-text-0);
+}
+
 #root {
   width: 100%;
   max-width: 100vw;
@@ -357,7 +362,7 @@ body {
   );
   box-shadow:
     0 1px 0 color-mix(in srgb, var(--lx-text-0) 9%, transparent) inset,
-    0 26px 56px rgba(6, 39, 44, 0.1);
+    0 26px 56px color-mix(in srgb, var(--lx-accent) 12%, transparent);
 }
 
 .panel--home-primary::before {
@@ -428,7 +433,7 @@ body {
 .home-open-run-aside .panel--open-run {
   background: var(--lx-surface-0);
   border-color: var(--lx-border);
-  box-shadow: 0 10px 28px rgba(6, 39, 44, 0.05);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--lx-accent) 8%, transparent);
 }
 
 /* Carte HF Token — uniquement si WhisperX + diarization (étape Paramètres) */
@@ -462,7 +467,7 @@ body {
   margin: 0;
   font-size: 0.85rem;
   line-height: 1.45;
-  color: var(--lx-text-muted, inherit);
+  color: var(--lx-text-muted);
 }
 
 .hf-token-card__label {
@@ -473,7 +478,7 @@ body {
 .hf-token-card__label-text {
   font-size: 0.8rem;
   font-weight: 500;
-  color: var(--lx-text-muted, inherit);
+  color: var(--lx-text-muted);
 }
 
 .hf-token-card__input {
@@ -485,7 +490,7 @@ body {
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.4;
-  color: var(--lx-text-muted, inherit);
+  color: var(--lx-text-muted);
 }
 
 .hf-token-card__help a {
@@ -509,7 +514,7 @@ body {
 
 .hf-token-card__actions-hint {
   font-size: 0.74rem;
-  color: var(--lx-text-muted, inherit);
+  color: var(--lx-text-muted);
   line-height: 1.35;
 }
 
@@ -549,7 +554,7 @@ body {
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.45;
-  color: var(--lx-text-muted, inherit);
+  color: var(--lx-text-muted);
 }
 
 .hf-token-card__credits-actions {
@@ -563,7 +568,7 @@ body {
 }
 
 .hf-token-card--required {
-  border-color: color-mix(in srgb, var(--lx-accent, #0d9488) 35%, var(--lx-border));
+  border-color: color-mix(in srgb, var(--lx-accent) 35%, var(--lx-border));
 }
 
 .hf-token-card__title-badges {
@@ -587,13 +592,13 @@ body {
 }
 
 .param-scope-badge--hf_required {
-  color: var(--lx-accent-ink, #0f172a);
-  background: color-mix(in srgb, var(--lx-accent, #14b8a6) 22%, transparent);
-  border: 1px solid color-mix(in srgb, var(--lx-accent, #14b8a6) 45%, transparent);
+  color: var(--lx-text-0);
+  background: color-mix(in srgb, var(--lx-accent) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lx-accent) 45%, transparent);
 }
 
 .param-scope-badge--hf_not_required {
-  color: var(--lx-text-muted, #475569);
+  color: var(--lx-text-2);
   background: color-mix(in srgb, var(--lx-border) 60%, transparent);
   border: 1px solid var(--lx-border);
 }
@@ -614,7 +619,7 @@ body {
   margin-top: 6px;
   font-size: 0.78rem;
   font-weight: 400;
-  color: var(--lx-text-muted, inherit);
+  color: var(--lx-text-muted);
   line-height: 1.45;
 }
 
@@ -639,7 +644,7 @@ body {
   gap: 8px;
   font-size: 0.82rem;
   line-height: 1.45;
-  color: var(--lx-text-muted, inherit);
+  color: var(--lx-text-muted);
 }
 
 .run-hf-requirements__ok {
@@ -753,7 +758,7 @@ body {
 }
 
 .open-run-summary {
-  border-top: 1px dashed rgba(11, 76, 84, 0.2);
+  border-top: 1px dashed color-mix(in srgb, var(--lx-accent) 22%, var(--lx-border));
   padding-top: 12px;
   display: grid;
   gap: 8px;
@@ -762,7 +767,7 @@ body {
 .open-run-danger-zone {
   margin-top: 8px;
   padding-top: 12px;
-  border-top: 1px dashed rgba(180, 60, 45, 0.28);
+  border-top: 1px dashed color-mix(in srgb, var(--lx-danger) 30%, var(--lx-border));
   display: grid;
   gap: 8px;
 }

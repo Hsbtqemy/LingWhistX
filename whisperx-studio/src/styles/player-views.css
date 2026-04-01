@@ -298,8 +298,8 @@
 }
 
 .player-lanes-badge--overlap {
-  background: color-mix(in srgb, var(--lx-danger, #d9534f) 15%, transparent);
-  color: var(--lx-danger, #d9534f);
+  background: color-mix(in srgb, var(--lx-danger) 15%, transparent);
+  color: var(--lx-danger);
 }
 
 /* ─── Vue Chat (WX-698 refonte) ─── */
@@ -470,11 +470,11 @@
 }
 
 .player-word-token.is-unaligned {
-  border-bottom: 2px dashed color-mix(in srgb, var(--lx-warning, #f0ad4e) 60%, transparent);
+  border-bottom: 2px dashed color-mix(in srgb, var(--lx-warning) 60%, transparent);
 }
 
 .player-word-token.is-low-conf {
-  color: color-mix(in srgb, var(--lx-warning, #f0ad4e) 70%, var(--lx-text-0));
+  color: color-mix(in srgb, var(--lx-warning-text) 75%, var(--lx-text-0));
 }
 
 .player-word-token + .player-word-token::before {

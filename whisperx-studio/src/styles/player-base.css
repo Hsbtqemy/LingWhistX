@@ -833,11 +833,6 @@ details[open] > .player-panel-section-summary::before {
   white-space: nowrap;
 }
 
-.player-shortcuts-hint {
-  color: var(--lx-text-2);
-  line-height: 1.45;
-}
-
 /* WX-709 — état vide dans les vues player */
 .player-empty-message {
   padding: var(--lx-space-4);
@@ -871,55 +866,6 @@ details[open] > .player-panel-section-summary::before {
 }
 
 /* Legacy player-view-mode removed — replaced by player-view-grid (WX-707) */
-
-.player-shortcuts-help-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 5000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: color-mix(in srgb, var(--lx-text-0) 52%, transparent);
-}
-
-.player-shortcuts-help-panel {
-  width: 100%;
-  max-width: 440px;
-  max-height: min(85vh, 560px);
-  overflow: auto;
-  padding: 18px 20px 14px;
-  border-radius: 14px;
-  border: 1px solid var(--lx-border-strong);
-  background: var(--lx-surface-1);
-  box-shadow: 0 12px 40px color-mix(in srgb, var(--lx-text-0) 28%, transparent);
-  color: var(--lx-text-1);
-}
-
-.player-shortcuts-help-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.player-shortcuts-help-title {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-
-.player-shortcuts-help-list {
-  margin: 0 0 10px;
-  padding-left: 1.15rem;
-  line-height: 1.55;
-}
-
-.player-shortcuts-help-foot {
-  margin: 0;
-  color: var(--lx-text-2);
-}
 
 .player-kbd {
   display: inline-block;

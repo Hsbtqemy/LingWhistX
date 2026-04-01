@@ -7,17 +7,27 @@
 
 use std::process::Command;
 
+use crate::log_redaction::redact_user_home_in_text;
+
 #[cfg(target_os = "windows")]
 pub(crate) fn kill_process_tree(pid: u32) -> Result<(), String> {
     let output = Command::new("taskkill")
         .args(["/PID", &pid.to_string(), "/T", "/F"])
         .output()
-        .map_err(|err| format!("Failed to execute taskkill: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Failed to execute taskkill: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     if output.status.success() {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        Err(format!("taskkill failed: {stderr}"))
+        Err(format!(
+            "taskkill failed: {}",
+            redact_user_home_in_text(&stderr)
+        ))
     }
 }
 
@@ -26,11 +36,16 @@ pub(crate) fn kill_process_tree(pid: u32) -> Result<(), String> {
     let output = Command::new("kill")
         .args(["-TERM", &pid.to_string()])
         .output()
-        .map_err(|err| format!("Failed to execute kill: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Failed to execute kill: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     if output.status.success() {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        Err(format!("kill failed: {stderr}"))
+        Err(format!("kill failed: {}", redact_user_home_in_text(&stderr)))
     }
 }

@@ -10,6 +10,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::validate_path_string;
 
 use rusqlite::{params, Connection};
@@ -45,14 +46,24 @@ fn sec_to_ms(sec: f64) -> i64 {
 }
 
 pub(crate) fn open_events_connection(db_path: &Path) -> Result<Connection, String> {
-    let conn = Connection::open(db_path).map_err(|e| format!("SQLite open: {e}"))?;
+    let conn = Connection::open(db_path).map_err(|e| {
+        format!(
+            "SQLite open: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     conn.execute_batch(
         "
         PRAGMA foreign_keys = ON;
         PRAGMA journal_mode = WAL;
         ",
     )
-    .map_err(|e| format!("SQLite pragma: {e}"))?;
+    .map_err(|e| {
+        format!(
+            "SQLite pragma: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     Ok(conn)
 }
 
@@ -117,7 +128,12 @@ fn apply_schema_v1(conn: &Connection) -> Result<(), String> {
         CREATE INDEX IF NOT EXISTS idx_ipus_window ON ipus(start_ms, end_ms);
         ",
     )
-    .map_err(|e| format!("SQLite schema: {e}"))?;
+    .map_err(|e| {
+        format!(
+            "SQLite schema: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     Ok(())
 }
 
@@ -131,7 +147,12 @@ fn clear_event_tables(conn: &Connection) -> Result<(), String> {
         DELETE FROM meta;
         ",
     )
-    .map_err(|e| format!("SQLite clear: {e}"))?;
+    .map_err(|e| {
+        format!(
+            "SQLite clear: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     Ok(())
 }
 
@@ -144,8 +165,13 @@ fn read_run_manifest_timeline_rel(run_dir: &Path) -> Result<String, String> {
     if !manifest_path.is_file() {
         return Err("run_manifest.json introuvable.".into());
     }
-    let raw = fs::read_to_string(&manifest_path).map_err(|e| e.to_string())?;
-    let v: JsonValue = serde_json::from_str(&raw).map_err(|e| format!("run_manifest JSON: {e}"))?;
+    let raw = fs::read_to_string(&manifest_path).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    let v: JsonValue = serde_json::from_str(&raw).map_err(|e| {
+        format!(
+            "run_manifest JSON: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     let artifacts = v
         .get("artifacts")
         .and_then(|a| a.as_object())
@@ -189,7 +215,7 @@ fn import_timeline_value(
         .cloned()
         .unwrap_or_default();
 
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| redact_user_home_in_text(&e.to_string()))?;
 
     {
         let mut insert_word = tx
@@ -197,7 +223,7 @@ fn import_timeline_value(
                 "INSERT INTO words (start_ms, end_ms, speaker, token, flags_json, confidence, word_id, chunk_id, alignment_status)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             )
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
         for w in &words {
             let o = w
                 .as_object()
@@ -234,7 +260,12 @@ fn import_timeline_value(
                     chunk_id,
                     alignment_status,
                 ])
-                .map_err(|e| format!("insert word: {e}"))?;
+                .map_err(|e| {
+                    format!(
+                        "insert word: {}",
+                        redact_user_home_in_text(&e.to_string())
+                    )
+                })?;
         }
     }
 
@@ -244,7 +275,7 @@ fn import_timeline_value(
                 "INSERT INTO turns (start_ms, end_ms, speaker, turn_id, flags_json, confidence)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             )
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
         for t in &turns {
             let o = t
                 .as_object()
@@ -274,7 +305,12 @@ fn import_timeline_value(
                     flags_json,
                     confidence,
                 ])
-                .map_err(|e| format!("insert turn: {e}"))?;
+                .map_err(|e| {
+                    format!(
+                        "insert turn: {}",
+                        redact_user_home_in_text(&e.to_string())
+                    )
+                })?;
         }
     }
 
@@ -284,7 +320,7 @@ fn import_timeline_value(
                 "INSERT INTO pauses (start_ms, end_ms, dur_ms, type, speaker, flags_json)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             )
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
         for p in &pauses {
             let o = p
                 .as_object()
@@ -311,7 +347,12 @@ fn import_timeline_value(
                     speaker,
                     flags_json,
                 ])
-                .map_err(|e| format!("insert pause: {e}"))?;
+                .map_err(|e| {
+                    format!(
+                        "insert pause: {}",
+                        redact_user_home_in_text(&e.to_string())
+                    )
+                })?;
         }
     }
 
@@ -321,7 +362,7 @@ fn import_timeline_value(
                 "INSERT INTO ipus (start_ms, end_ms, dur_ms, n_words, speaker, text, flags_json)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             )
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
         for ipu in &ipus {
             let o = ipu
                 .as_object()
@@ -350,7 +391,12 @@ fn import_timeline_value(
                     text,
                     flags_json,
                 ])
-                .map_err(|e| format!("insert ipu: {e}"))?;
+                .map_err(|e| {
+                    format!(
+                        "insert ipu: {}",
+                        redact_user_home_in_text(&e.to_string())
+                    )
+                })?;
         }
     }
 
@@ -358,19 +404,19 @@ fn import_timeline_value(
         "INSERT INTO meta (key, value) VALUES (?1, ?2)",
         params!["db_schema_version", EVENTS_DB_SCHEMA_VERSION.to_string()],
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     tx.execute(
         "INSERT INTO meta (key, value) VALUES (?1, ?2)",
         params!["source_timeline", source_label],
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     tx.execute(
         "INSERT INTO meta (key, value) VALUES (?1, ?2)",
         params!["imported_at_ms", imported_at_ms.to_string()],
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
 
-    tx.commit().map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| redact_user_home_in_text(&e.to_string()))?;
 
     Ok((words.len(), turns.len(), pauses.len(), ipus.len()))
 }
@@ -379,19 +425,24 @@ fn import_timeline_value(
 pub fn import_run_events_inner(run_dir: &Path) -> Result<RunEventsImportResult, String> {
     let run_dir = run_dir
         .canonicalize()
-        .map_err(|e| format!("run_dir: {e}"))?;
+        .map_err(|e| format!("run_dir: {}", redact_user_home_in_text(&e.to_string())))?;
     let timeline_rel = read_run_manifest_timeline_rel(&run_dir)?;
     let timeline_path = run_dir.join(&timeline_rel);
     if !timeline_path.is_file() {
         return Err(format!(
             "Fichier timeline introuvable: {}",
-            timeline_path.display()
+            redact_user_home_in_text(&timeline_path.to_string_lossy())
         ));
     }
 
-    let raw = fs::read_to_string(&timeline_path).map_err(|e| e.to_string())?;
+    let raw = fs::read_to_string(&timeline_path).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let timeline: JsonValue =
-        serde_json::from_str(&raw).map_err(|e| format!("timeline JSON: {e}"))?;
+        serde_json::from_str(&raw).map_err(|e| {
+            format!(
+                "timeline JSON: {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
 
     let db_path = run_dir.join(EVENTS_DB_FILE);
     let mut conn = open_events_connection(&db_path)?;
@@ -418,7 +469,7 @@ pub fn import_run_events_inner(run_dir: &Path) -> Result<RunEventsImportResult, 
 pub(crate) fn ensure_events_sqlite_imported(run_dir: &Path) -> Result<(), String> {
     let run_dir = run_dir
         .canonicalize()
-        .map_err(|e| format!("run_dir: {e}"))?;
+        .map_err(|e| format!("run_dir: {}", redact_user_home_in_text(&e.to_string())))?;
     let db_path = run_dir.join(EVENTS_DB_FILE);
     if db_path.is_file() {
         return Ok(());
@@ -439,7 +490,7 @@ pub fn list_run_speakers(run_dir: String) -> Result<Vec<String>, String> {
     validate_path_string(&run_dir)?;
     let run_dir = PathBuf::from(run_dir.trim())
         .canonicalize()
-        .map_err(|e| format!("run_dir: {e}"))?;
+        .map_err(|e| format!("run_dir: {}", redact_user_home_in_text(&e.to_string())))?;
     ensure_events_sqlite_imported(&run_dir)?;
     let db_path = run_dir.join(EVENTS_DB_FILE);
     let conn = open_events_connection(&db_path)?;
@@ -450,11 +501,11 @@ pub fn list_run_speakers(run_dir: String) -> Result<Vec<String>, String> {
              SELECT speaker FROM words WHERE speaker IS NOT NULL AND length(trim(speaker)) > 0 \
              ORDER BY speaker COLLATE NOCASE",
         )
-        .map_err(|e| e.to_string())?;
-    let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    let mut rows = stmt.query([]).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut out = Vec::new();
-    while let Some(row) = rows.next().map_err(|e| e.to_string())? {
-        let s: String = row.get(0).map_err(|e| e.to_string())?;
+    while let Some(row) = rows.next().map_err(|e| redact_user_home_in_text(&e.to_string()))? {
+        let s: String = row.get(0).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
         out.push(s);
     }
     Ok(out)

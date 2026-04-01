@@ -15,7 +15,7 @@
 .session-restore-banner__text {
   margin: 0;
   font-size: 0.95rem;
-  color: var(--lx-text-muted, #3d4f4c);
+  color: var(--lx-text-2);
 }
 
 .session-restore-banner__actions {
@@ -276,7 +276,7 @@
 
 .run-expected-exports__warn {
   margin: 8px 0 0;
-  color: var(--lx-danger, #b42318);
+  color: var(--lx-danger);
 }
 
 .run-expected-exports__chips {
@@ -408,7 +408,7 @@
   color: var(--lx-text-1);
   padding: 2px 8px;
   border-radius: var(--lx-radius-pill);
-  background: rgba(15, 126, 138, 0.12);
+  background: color-mix(in srgb, var(--lx-accent) 14%, var(--lx-surface-muted));
 }
 
 .job-pipeline-strip__message {
@@ -496,7 +496,7 @@
 }
 
 .job-pipeline-strip__step--current {
-  color: var(--lx-accent, #0e7a86);
+  color: var(--lx-accent);
   font-weight: 700;
   background: color-mix(in srgb, var(--lx-status-running-bg) 50%, var(--lx-surface-1));
   border-color: color-mix(in srgb, var(--lx-accent), transparent 55%);
@@ -506,15 +506,15 @@
 @keyframes job-pipeline-step-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(15, 138, 148, 0.12);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--lx-accent) 14%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(15, 138, 148, 0.2);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--lx-accent) 22%, transparent);
   }
 }
 
 .job-pipeline-strip__step--error .job-pipeline-strip__label {
-  color: var(--lx-danger, #b42318);
+  color: var(--lx-danger);
 }
 
 .job-pipeline-strip__step--cancelled .job-pipeline-strip__label {
@@ -543,8 +543,8 @@
 }
 
 .job-pipeline-strip__step--error .job-pipeline-strip__dot {
-  background: rgba(180, 35, 24, 0.9);
-  border-color: rgba(140, 28, 20, 0.95);
+  background: color-mix(in srgb, var(--lx-danger) 88%, var(--lx-surface-0));
+  border-color: color-mix(in srgb, var(--lx-danger) 72%, var(--lx-border-strong));
 }
 
 .job-pipeline-strip__step--cancelled .job-pipeline-strip__dot {
@@ -619,7 +619,7 @@
   color: var(--lx-text-2);
   padding: 2px 8px;
   border-radius: var(--lx-radius-pill);
-  background: rgba(15, 126, 138, 0.1);
+  background: color-mix(in srgb, var(--lx-accent) 12%, var(--lx-surface-muted));
 }
 
 .job-pipeline-strip__journal-body {
@@ -658,7 +658,7 @@
 }
 
 .job-pipeline-strip__journal-stage {
-  color: var(--lx-accent, #0e7a86);
+  color: var(--lx-accent);
   font-weight: 600;
   max-width: 100%;
   overflow: hidden;
@@ -713,7 +713,7 @@
   color: var(--lx-text-2);
   padding: 1px 6px;
   border-radius: var(--lx-radius-pill);
-  background: rgba(15, 126, 138, 0.1);
+  background: color-mix(in srgb, var(--lx-accent) 12%, var(--lx-surface-muted));
 }
 
 .job-pipeline-strip__activity-list {
@@ -744,7 +744,7 @@
 }
 
 .job-pipeline-strip__activity-stage {
-  color: var(--lx-accent, #0e7a86);
+  color: var(--lx-accent);
   font-weight: 600;
   max-width: 120px;
   overflow: hidden;
@@ -887,8 +887,8 @@
   font-size: 12px;
   padding: 4px 10px;
   border-radius: var(--lx-radius-pill);
-  background: rgba(15, 126, 138, 0.1);
-  border: 1px solid rgba(15, 126, 138, 0.22);
+  background: color-mix(in srgb, var(--lx-accent) 12%, var(--lx-surface-muted));
+  border: 1px solid var(--lx-border-accent-mid);
 }
 
 .explorer-goto {
@@ -908,7 +908,7 @@
 
 .explorer-import-hint {
   margin: 0;
-  color: rgba(7, 32, 41, 0.65);
+  color: var(--lx-text-muted-soft);
 }
 
 .explorer-workspace-grid {
@@ -966,7 +966,7 @@
   font-size: 0.88em;
   padding: 1px 5px;
   border-radius: 4px;
-  background: rgba(15, 138, 148, 0.08);
+  background: color-mix(in srgb, var(--lx-accent) 10%, var(--lx-surface-muted));
 }
 
 .explorer-layer-grid {
@@ -1029,13 +1029,13 @@
 
 .explorer-speaker-id {
   font-size: 11px;
-  color: rgba(7, 32, 41, 0.45);
+  color: var(--lx-text-muted-faint);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .explorer-solo.is-active {
-  border-color: rgba(224, 107, 47, 0.6);
+  border-color: color-mix(in srgb, var(--lx-warning) 55%, var(--lx-border-strong));
   color: var(--lx-warning-text);
 }
 

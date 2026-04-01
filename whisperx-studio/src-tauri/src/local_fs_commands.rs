@@ -4,6 +4,7 @@ use std::process::Command;
 
 use tauri::AppHandle;
 
+use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::{
     resolve_existing_file_path, resolve_existing_path_for_open, validate_delete_allowed_directory,
 };
@@ -36,7 +37,12 @@ pub fn open_local_path(path: String) -> Result<(), String> {
 
     command
         .spawn()
-        .map_err(|err| format!("Unable to open path: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Unable to open path: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     Ok(())
 }
 
@@ -49,7 +55,12 @@ pub fn read_text_preview(path: String, max_bytes: Option<usize>) -> Result<Strin
     )?;
 
     let max = max_bytes.unwrap_or(200_000).clamp(1024, 2_000_000);
-    let bytes = std::fs::read(&target).map_err(|err| format!("Unable to read file: {err}"))?;
+    let bytes = std::fs::read(&target).map_err(|err| {
+        format!(
+            "Unable to read file: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     let truncated = bytes.len() > max;
     let slice = if truncated { &bytes[..max] } else { &bytes };
     let mut content = String::from_utf8_lossy(slice).to_string();
@@ -66,10 +77,20 @@ pub fn read_text_preview(path: String, max_bytes: Option<usize>) -> Result<Strin
 #[tauri::command]
 pub fn list_directory_files(app: AppHandle, dir_path: String) -> Result<Vec<String>, String> {
     let dir = validate_delete_allowed_directory(&app, &dir_path)?;
-    let read = std::fs::read_dir(&dir).map_err(|e| format!("Unable to read directory: {e}"))?;
+    let read = std::fs::read_dir(&dir).map_err(|e| {
+        format!(
+            "Unable to read directory: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     let mut out: Vec<String> = Vec::new();
     for entry in read {
-        let entry = entry.map_err(|e| format!("Directory entry: {e}"))?;
+        let entry = entry.map_err(|e| {
+            format!(
+                "Directory entry: {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
         let p = entry.path();
         if p.is_file() {
             out.push(p.to_string_lossy().to_string());

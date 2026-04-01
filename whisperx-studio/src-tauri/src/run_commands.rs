@@ -9,6 +9,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 use tauri::Manager;
 
+use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::{validate_delete_allowed_directory, validate_path_string};
 use crate::time_utils::now_ms;
 
@@ -19,8 +20,18 @@ fn recent_runs_path(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = app
         .path()
         .app_local_data_dir()
-        .map_err(|err| format!("Unable to resolve app local data dir: {err}"))?;
-    std::fs::create_dir_all(&dir).map_err(|err| format!("Unable to create app data dir: {err}"))?;
+        .map_err(|err| {
+            format!(
+                "Unable to resolve app local data dir: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
+    std::fs::create_dir_all(&dir).map_err(|err| {
+        format!(
+            "Unable to create app data dir: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     Ok(dir.join(RECENT_RUNS_FILE))
 }
 
@@ -71,9 +82,12 @@ fn resolve_run_dir_and_manifest(input: &str) -> Result<(PathBuf, PathBuf), Strin
         return Err("Le chemin n'existe pas.".into());
     }
     if p.is_dir() {
-        let run_dir = p
-            .canonicalize()
-            .map_err(|e| format!("Impossible de canoniser le dossier: {e}"))?;
+        let run_dir = p.canonicalize().map_err(|e| {
+            format!(
+                "Impossible de canoniser le dossier: {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
         let manifest = run_dir.join("run_manifest.json");
         if !manifest.is_file() {
             return Err("run_manifest.json introuvable dans ce dossier.".into());
@@ -85,14 +99,22 @@ fn resolve_run_dir_and_manifest(input: &str) -> Result<(PathBuf, PathBuf), Strin
         if name != Some("run_manifest.json") {
             return Err("Indique un dossier de run ou le fichier run_manifest.json.".into());
         }
-        let manifest = p
-            .canonicalize()
-            .map_err(|e| format!("Impossible de canoniser le manifest: {e}"))?;
+        let manifest = p.canonicalize().map_err(|e| {
+            format!(
+                "Impossible de canoniser le manifest: {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
         let run_dir = manifest
             .parent()
             .ok_or_else(|| "Manifest sans dossier parent.".to_string())?
             .canonicalize()
-            .map_err(|e| format!("Impossible de canoniser le dossier du run: {e}"))?;
+            .map_err(|e| {
+                format!(
+                    "Impossible de canoniser le dossier du run: {}",
+                    redact_user_home_in_text(&e.to_string())
+                )
+            })?;
         return Ok((run_dir, manifest));
     }
     Err("Chemin invalide.".into())
@@ -123,9 +145,18 @@ fn parse_run_manifest_summary(
     run_dir: &Path,
     manifest_path: &Path,
 ) -> Result<RunManifestSummary, String> {
-    let text =
-        fs::read_to_string(manifest_path).map_err(|e| format!("Lecture run_manifest.json: {e}"))?;
-    let v: Value = serde_json::from_str(&text).map_err(|e| format!("JSON invalide: {e}"))?;
+    let text = fs::read_to_string(manifest_path).map_err(|e| {
+        format!(
+            "Lecture run_manifest.json: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
+    let v: Value = serde_json::from_str(&text).map_err(|e| {
+        format!(
+            "JSON invalide: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
 
     let schema_version = v
         .get("schema_version")
@@ -254,8 +285,14 @@ fn register_recent_run_inner(app: &AppHandle, summary: &RunManifestSummary) -> R
         store.entries.truncate(RECENT_RUNS_MAX);
     }
 
-    let json = serde_json::to_string_pretty(&store).map_err(|e| e.to_string())?;
-    fs::write(&path, json).map_err(|e| format!("recent_runs write failed: {e}"))?;
+    let json = serde_json::to_string_pretty(&store)
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    fs::write(&path, json).map_err(|e| {
+        format!(
+            "recent_runs write failed: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     Ok(())
 }
 
@@ -265,7 +302,7 @@ pub fn list_recent_runs(app: AppHandle) -> Result<Vec<RecentRunEntry>, String> {
     if !path.is_file() {
         return Ok(vec![]);
     }
-    let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let raw = fs::read_to_string(&path).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let store: RecentRunsStore = serde_json::from_str(&raw).unwrap_or_default();
     Ok(store.entries)
 }
@@ -274,7 +311,7 @@ pub fn list_recent_runs(app: AppHandle) -> Result<Vec<RecentRunEntry>, String> {
 pub fn clear_recent_runs(app: AppHandle) -> Result<(), String> {
     let path = recent_runs_path(&app)?;
     if path.exists() {
-        fs::remove_file(&path).map_err(|e| e.to_string())?;
+        fs::remove_file(&path).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     }
     Ok(())
 }
@@ -290,8 +327,14 @@ fn run_dirs_match(a: &str, b: &str) -> bool {
 
 fn persist_recent_store(app: &AppHandle, store: &RecentRunsStore) -> Result<(), String> {
     let path = recent_runs_path(app)?;
-    let json = serde_json::to_string_pretty(store).map_err(|e| e.to_string())?;
-    fs::write(&path, json).map_err(|e| format!("recent_runs write failed: {e}"))?;
+    let json = serde_json::to_string_pretty(store)
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    fs::write(&path, json).map_err(|e| {
+        format!(
+            "recent_runs write failed: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     Ok(())
 }
 
@@ -301,7 +344,7 @@ fn remove_recent_run_impl(app: &AppHandle, run_dir: &str) -> Result<(), String> 
     if !path.is_file() {
         return Ok(());
     }
-    let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let raw = fs::read_to_string(&path).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut store: RecentRunsStore = serde_json::from_str(&raw).unwrap_or_default();
     store.entries.retain(|e| !run_dirs_match(&e.run_dir, run_dir));
     persist_recent_store(app, &store)
@@ -317,7 +360,12 @@ pub fn remove_recent_run(app: AppHandle, run_dir: String) -> Result<(), String> 
 #[tauri::command]
 pub fn delete_run_directory(app: AppHandle, run_dir: String) -> Result<(), String> {
     let p = validate_delete_allowed_directory(&app, &run_dir)?;
-    fs::remove_dir_all(&p).map_err(|e| format!("Suppression disque impossible: {e}"))?;
+    fs::remove_dir_all(&p).map_err(|e| {
+        format!(
+            "Suppression disque impossible: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     remove_recent_run_impl(&app, &run_dir)
 }
 
@@ -329,11 +377,18 @@ pub fn find_run_transcript_json(run_dir: String) -> Result<Option<String>, Strin
     validate_path_string(&run_dir)?;
     let dir = Path::new(run_dir.trim());
     if !dir.is_dir() {
-        return Err(format!("Not a directory: {}", dir.display()));
+        return Err(format!(
+            "Not a directory: {}",
+            redact_user_home_in_text(&dir.to_string_lossy())
+        ));
     }
 
-    let entries = fs::read_dir(dir)
-        .map_err(|e| format!("Cannot read directory: {e}"))?;
+    let entries = fs::read_dir(dir).map_err(|e| {
+        format!(
+            "Cannot read directory: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
 
     let mut plain_json: Option<PathBuf> = None;
     let mut timeline_json: Option<PathBuf> = None;

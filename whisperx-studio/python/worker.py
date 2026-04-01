@@ -31,6 +31,13 @@ import sys
 import time
 from pathlib import Path
 
+from log_sanitize import (
+    format_command_for_log,
+    sanitize_exception_message,
+    sanitize_log_line,
+    sanitize_path_for_log,
+)
+
 try:
     from studio_audio_modules import maybe_prepare_audio_input
 except ImportError:
@@ -218,6 +225,7 @@ def emit_log(
     progress: int | None = None,
 ) -> None:
     """Émet une ligne JSON-lines structurée (type=progress)."""
+    message = sanitize_log_line(message)
     payload: dict[str, object] = {
         "type": "progress",
         "level": level,
@@ -485,7 +493,7 @@ def run_mock(job_id: str, input_path: str, out_dir: Path) -> list[str]:
 
     # WX-661 : rapport qualité déterministe en mode mock.
     emit_audio_quality(mock_assessment(120.0))
-    emit_log("info", "mock", f"Input: {input_path}", 5)
+    emit_log("info", "mock", f"Input: {sanitize_path_for_log(input_path)}", 5)
     for stage, label, progress in stages:
         emit_log("info", stage, f"{label} en cours...", progress)
         time.sleep(0.25)
@@ -865,18 +873,7 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
     # Lignes « Transcript: [t0 --> t1] … » sur stdout (asr.py) — nécessaire pour la retranscription en direct dans l’UI.
     command.extend(["--verbose", "True"])
 
-    visible_parts: list[str] = []
-    hide_next = False
-    for part in command:
-        if hide_next:
-            visible_parts.append("***")
-            hide_next = False
-            continue
-        visible_parts.append(part)
-        if part == "--hf_token":
-            hide_next = True
-    visible_command = " ".join(visible_parts)
-    emit_log("info", "wx_prep", f"Commande: {visible_command}", 15)
+    emit_log("info", "wx_prep", f"Commande: {format_command_for_log(command)}", 15)
     emit_log("info", "wx_prep", "Lancement du sous-processus WhisperX…", 30)
 
     process = subprocess.Popen(
@@ -925,7 +922,7 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         # en « fin de chaîne » côté UI — ainsi le code de sortie reste visible.
         summary = f"[Échec] Sous-processus whisperx terminé avec le code {return_code}."
         if whisperx_tail:
-            body = "\n".join(whisperx_tail)
+            body = "\n".join(sanitize_log_line(line) for line in whisperx_tail)
             raise RuntimeError(f"{body}\n\n{summary}")
         raise RuntimeError(summary)
 
@@ -951,8 +948,13 @@ def run_analyze_only(input_path: str, out_dir: Path, options: dict[str, object])
     ]
     append_analysis_options(command, options)
 
-    emit_log("info", "wx_prep", f"Analyse-only — source : {input_path}", 10)
-    emit_log("info", "wx_prep", f"Commande : {' '.join(command)}", 15)
+    emit_log(
+        "info",
+        "wx_prep",
+        f"Analyse-only — source : {sanitize_path_for_log(input_path)}",
+        10,
+    )
+    emit_log("info", "wx_prep", f"Commande : {format_command_for_log(command)}", 15)
     emit_log("info", "wx_analyze", "Recalcul des métriques analytiques (analyze-only)…", 40)
 
     process = subprocess.Popen(
@@ -986,7 +988,11 @@ def main() -> int:
         try:
             options = json.loads(args.options_json)
         except json.JSONDecodeError as exc:
-            print(f"Invalid --options-json payload: {exc}", file=sys.stderr, flush=True)
+            print(
+                sanitize_log_line(f"Invalid --options-json payload: {exc}"),
+                file=sys.stderr,
+                flush=True,
+            )
             return 1
 
     try:
@@ -1002,7 +1008,7 @@ def main() -> int:
         emit_result(message, outputs)
         return 0
     except Exception as exc:
-        error_message = str(exc)
+        error_message = sanitize_exception_message(exc)
         code = classify_error(error_message)
         emit_error_structured(error_message, code)
         # Garder la sortie stderr pour la compat avec append_worker_failure_context (Rust).
@@ -1012,6 +1018,7 @@ def main() -> int:
 
 def emit_error_structured(message: str, code: str | None = None) -> None:
     """Émet une erreur structurée (type=error) avec code machine-readable optionnel."""
+    message = sanitize_log_line(message)
     payload: dict[str, object] = {"type": "error", "message": message}
     if code:
         payload["code"] = code

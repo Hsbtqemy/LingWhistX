@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use tauri::{AppHandle, Manager};
 
+use crate::log_redaction::redact_user_home_in_text;
+
 /// Version courante du schéma de profil. Incrémenter lors de toute migration structurelle.
 const PROFILE_SCHEMA_VERSION: u32 = 1;
 
@@ -31,7 +33,12 @@ fn profiles_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     let base = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("appDataDir indisponible : {e}"))?;
+        .map_err(|e| {
+            format!(
+                "appDataDir indisponible : {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
     let dir = base.join("profiles");
     if !dir.exists() {
         fs::create_dir_all(&dir).map_err(|e| format!("Création profiles/ impossible : {e}"))?;
@@ -56,15 +63,33 @@ fn migrate_profile(profile: &mut UserProfileJson) -> bool {
 pub fn read_user_profiles(app: AppHandle) -> Result<Vec<UserProfileJson>, String> {
     let dir = profiles_dir(&app)?;
     let mut profiles = Vec::new();
-    let entries = fs::read_dir(&dir).map_err(|e| format!("Lecture profiles/ impossible : {e}"))?;
+    let entries = fs::read_dir(&dir).map_err(|e| {
+        format!(
+            "Lecture profiles/ impossible : {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     for entry in entries {
-        let entry = entry.map_err(|e| format!("Entrée profiles/ invalide : {e}"))?;
+        let entry = entry.map_err(|e| {
+            format!(
+                "Entrée profiles/ invalide : {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
         let path = entry.path();
         if path.extension().and_then(|s| s.to_str()) != Some("json") {
             continue;
         }
-        let raw =
-            fs::read_to_string(&path).map_err(|e| format!("Lecture {} impossible : {e}", path.display()))?;
+        let raw = fs::read_to_string(&path).map_err(|e| {
+            let label = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("(fichier)");
+            format!(
+                "Lecture {label} impossible : {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
         match serde_json::from_str::<UserProfileJson>(&raw) {
             Ok(mut profile) => {
                 if migrate_profile(&mut profile) {
@@ -77,7 +102,12 @@ pub fn read_user_profiles(app: AppHandle) -> Result<Vec<UserProfileJson>, String
             }
             Err(e) => {
                 // Fichier corrompu : on l'ignore silencieusement (log uniquement).
-                eprintln!("[profiles] Fichier ignoré {} : {e}", path.display());
+                eprintln!(
+                    "[profiles] Fichier ignoré {} : {e}",
+                    path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("(sans nom)")
+                );
             }
         }
     }
@@ -100,9 +130,14 @@ pub fn save_user_profile(app: AppHandle, mut profile: UserProfileJson) -> Result
     profile.schema_version = PROFILE_SCHEMA_VERSION;
     let dir = profiles_dir(&app)?;
     let path = dir.join(format!("{id}.json"));
-    let json = serde_json::to_string_pretty(&profile)
-        .map_err(|e| format!("Sérialisation profil impossible : {e}"))?;
-    fs::write(&path, json).map_err(|e| format!("Écriture profil impossible : {e}"))?;
+    let json = serde_json::to_string_pretty(&profile).map_err(|e| {
+        format!(
+            "Sérialisation profil impossible : {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
+    fs::write(&path, json)
+        .map_err(|e| format!("Écriture profil impossible : {}", redact_user_home_in_text(&e.to_string())))?;
     Ok(())
 }
 
@@ -121,6 +156,11 @@ pub fn delete_user_profile(app: AppHandle, id: String) -> Result<(), String> {
     if !path.exists() {
         return Ok(()); // Idempotent : pas d'erreur si déjà absent.
     }
-    fs::remove_file(&path).map_err(|e| format!("Suppression profil impossible : {e}"))?;
+    fs::remove_file(&path).map_err(|e| {
+        format!(
+            "Suppression profil impossible : {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     Ok(())
 }

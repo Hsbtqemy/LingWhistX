@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use rusqlite::params;
 use serde::Deserialize;
 
+use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::validate_path_string;
 use crate::run_events::{open_events_connection, EVENTS_DB_FILE};
 
@@ -44,7 +45,12 @@ pub fn write_annotation_tiers_to_events(
 
     let run_dir_path = PathBuf::from(run_dir.trim())
         .canonicalize()
-        .map_err(|e| format!("run_dir invalide : {e}"))?;
+        .map_err(|e| {
+            format!(
+                "run_dir invalide : {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
 
     let db_path = run_dir_path.join(EVENTS_DB_FILE);
     if !db_path.is_file() {
@@ -61,7 +67,12 @@ pub fn write_annotation_tiers_to_events(
         r#"DELETE FROM turns WHERE flags_json LIKE '%"source":"annotation"%'"#,
         [],
     )
-    .map_err(|e| format!("DELETE annotation turns : {e}"))?;
+    .map_err(|e| {
+        format!(
+            "DELETE annotation turns : {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
 
     let mut n: usize = 0;
     for tier in &tiers {

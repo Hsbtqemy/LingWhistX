@@ -58,7 +58,7 @@
 
 .player-rythmo-v2-zoom-btn.is-active {
   background: var(--lx-accent);
-  color: #fff;
+  color: var(--lx-text-inverse);
   font-weight: 600;
 }
 
@@ -150,9 +150,9 @@
 
 .player-rythmo-v2-overlap-band {
   position: absolute;
-  background: color-mix(in srgb, var(--lx-warn, #e6a817) 12%, transparent);
-  border-left: 2px solid color-mix(in srgb, var(--lx-warn, #e6a817) 40%, transparent);
-  border-right: 2px solid color-mix(in srgb, var(--lx-warn, #e6a817) 40%, transparent);
+  background: color-mix(in srgb, var(--lx-warning) 12%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--lx-warning) 40%, transparent);
+  border-right: 2px solid color-mix(in srgb, var(--lx-warning) 40%, transparent);
   border-radius: 2px;
 }
 

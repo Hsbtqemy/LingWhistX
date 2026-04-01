@@ -47,11 +47,14 @@ export function StudioPreferencesPanel() {
   useEffect(() => {
     const bump = () => setEffectiveScheme(getEffectiveColorScheme());
     window.addEventListener(LX_THEME_CHANGED_EVENT, bump);
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    mq.addEventListener("change", bump);
+    let mq: MediaQueryList | null = null;
+    if (typeof window.matchMedia === "function") {
+      mq = window.matchMedia("(prefers-color-scheme: dark)");
+      mq.addEventListener("change", bump);
+    }
     return () => {
       window.removeEventListener(LX_THEME_CHANGED_EVENT, bump);
-      mq.removeEventListener("change", bump);
+      mq?.removeEventListener("change", bump);
     };
   }, []);
 

@@ -8,6 +8,7 @@ use std::process::Command;
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 
+use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::resolve_existing_file_path;
 use crate::python_runtime::resolve_python_command;
 
@@ -79,13 +80,19 @@ pub async fn import_annotation_file(
     let output = Command::new(&python_cmd)
         .args(["-m", "whisperx", "import_annotation", &path_str])
         .output()
-        .map_err(|e| format!("Failed to launch Python for annotation import: {e}"))?;
+        .map_err(|e| {
+            format!(
+                "Failed to launch Python for annotation import: {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let short_err: String = stderr.chars().take(400).collect();
         return Err(format!(
-            "Python annotation import exited with error: {short_err}"
+            "Python annotation import exited with error: {}",
+            redact_user_home_in_text(&short_err)
         ));
     }
 
@@ -98,10 +105,18 @@ pub async fn import_annotation_file(
 
     // 4. Check for Python-reported errors
     if let Ok(err_obj) = serde_json::from_str::<PythonError>(trimmed) {
-        return Err(format!("Annotation import failed: {}", err_obj.error));
+        return Err(format!(
+            "Annotation import failed: {}",
+            redact_user_home_in_text(&err_obj.error)
+        ));
     }
 
     // 5. Deserialize the ImportedAnnotation result
     serde_json::from_str::<ImportAnnotationResponse>(trimmed)
-        .map_err(|e| format!("Failed to parse annotation import JSON: {e} — raw: {trimmed}"))
+        .map_err(|e| {
+            format!(
+                "Failed to parse annotation import JSON: {e} — raw: {}",
+                redact_user_home_in_text(trimmed)
+            )
+        })
 }

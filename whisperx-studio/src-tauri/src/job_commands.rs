@@ -14,7 +14,8 @@ use crate::models::{
     CreateJobRequest, DbState, Job, JobLogEvent, JobsPaginationInfo, JobsPaginationState,
     JobsState, LoadMoreJobsResult, RuntimeState,
 };
-use crate::path_guard::validate_custom_output_dir;
+use crate::log_redaction::redact_user_home_in_text;
+use crate::path_guard::{validate_custom_output_dir, validate_path_string};
 use crate::process_utils::kill_process_tree;
 use crate::time_utils::now_ms;
 
@@ -25,11 +26,20 @@ fn default_output_dir(app: &AppHandle, job_id: &str) -> Result<String, String> {
     let dir = app
         .path()
         .app_local_data_dir()
-        .map_err(|err| format!("Unable to resolve app local data dir: {err}"))?
+        .map_err(|err| {
+            format!(
+                "Unable to resolve app local data dir: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?
         .join("runs")
         .join(job_id);
-    std::fs::create_dir_all(&dir)
-        .map_err(|err| format!("Unable to create output directory: {err}"))?;
+    std::fs::create_dir_all(&dir).map_err(|err| {
+        format!(
+            "Unable to create output directory: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     Ok(dir.to_string_lossy().to_string())
 }
 
@@ -45,6 +55,7 @@ pub fn create_job(
     if request.input_path.trim().is_empty() {
         return Err("inputPath is required".into());
     }
+    validate_path_string(&request.input_path)?;
 
     let input_path = Path::new(request.input_path.trim());
     if !input_path.exists() {

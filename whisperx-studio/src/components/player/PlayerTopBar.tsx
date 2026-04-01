@@ -5,8 +5,7 @@ export type PlayerTopBarProps = {
   runLabel: string;
   runDir: string | null;
   mediaPath: string | null;
-  shortcutsHelpOpen: boolean;
-  onToggleShortcutsHelp: () => void;
+  onToggleHelp?: () => void;
   onToggleFullscreen?: () => void;
   fullscreenMode?: boolean;
 };
@@ -20,8 +19,7 @@ export function PlayerTopBar({
   runLabel,
   runDir,
   mediaPath,
-  shortcutsHelpOpen,
-  onToggleShortcutsHelp,
+  onToggleHelp,
   onToggleFullscreen,
   fullscreenMode,
 }: PlayerTopBarProps) {
@@ -49,16 +47,16 @@ export function PlayerTopBar({
             {fullscreenMode ? "⊡ Quitter" : "⊞ Plein écran"}
           </button>
         ) : null}
-        <button
-          type="button"
-          className="ghost small"
-          onClick={onToggleShortcutsHelp}
-          title="Raccourcis clavier (?)"
-          aria-expanded={shortcutsHelpOpen}
-          aria-controls="player-shortcuts-help-dialog"
-        >
-          Aide (?)
-        </button>
+        {onToggleHelp ? (
+          <button
+            type="button"
+            className="ghost small"
+            onClick={onToggleHelp}
+            title="Aide et raccourcis (?)"
+          >
+            Aide (?)
+          </button>
+        ) : null}
       </div>
     </header>
   );

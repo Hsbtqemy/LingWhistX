@@ -13,11 +13,16 @@ use uuid::Uuid;
 
 use crate::embedded_resources::resolve_preview_preprocess_path;
 use crate::ffmpeg_tools::{prepend_path_env, resolve_ffmpeg_tools};
+use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::{resolve_existing_file_path, validate_custom_output_dir};
 use crate::python_runtime::resolve_python_command;
 
 /// Plafond taille fichier WAV lu puis encodé en base64 pour IPC (`read_extracted_wav_window` plafonne déjà à 60 s mono 16 kHz ; marge pour en-tête WAV).
 pub const MAX_READ_WAV_BYTES_FOR_B64: u64 = 4 * 1024 * 1024;
+
+fn redact_err(e: impl std::fmt::Display) -> String {
+    redact_user_home_in_text(&e.to_string())
+}
 
 fn validate_path_under_audio_wav_cache(app: &AppHandle, raw: &str) -> Result<PathBuf, String> {
     let path = Path::new(raw.trim());
@@ -27,11 +32,11 @@ fn validate_path_under_audio_wav_cache(app: &AppHandle, raw: &str) -> Result<Pat
     let cache_root = app
         .path()
         .cache_dir()
-        .map_err(|e| e.to_string())?
+        .map_err(redact_err)?
         .join("audio_wav_windows");
     let _ = fs::create_dir_all(&cache_root);
-    let cache_root = cache_root.canonicalize().map_err(|e| e.to_string())?;
-    let p = path.canonicalize().map_err(|e| e.to_string())?;
+    let cache_root = cache_root.canonicalize().map_err(redact_err)?;
+    let p = path.canonicalize().map_err(redact_err)?;
     if !p.starts_with(&cache_root) {
         return Err("Path must be under audio_wav_windows cache".into());
     }
@@ -45,7 +50,7 @@ fn validate_path_under_audio_wav_cache(app: &AppHandle, raw: &str) -> Result<Pat
 #[tauri::command]
 pub fn read_extracted_wav_bytes_b64(app: AppHandle, path: String) -> Result<String, String> {
     let p = validate_path_under_audio_wav_cache(&app, &path)?;
-    let meta = fs::metadata(&p).map_err(|e| e.to_string())?;
+    let meta = fs::metadata(&p).map_err(redact_err)?;
     if meta.len() > MAX_READ_WAV_BYTES_FOR_B64 {
         return Err(format!(
             "WAV file too large for IPC ({} bytes, max {}).",
@@ -53,7 +58,7 @@ pub fn read_extracted_wav_bytes_b64(app: AppHandle, path: String) -> Result<Stri
             MAX_READ_WAV_BYTES_FOR_B64
         ));
     }
-    let bytes = fs::read(&p).map_err(|e| e.to_string())?;
+    let bytes = fs::read(&p).map_err(redact_err)?;
     Ok(general_purpose::STANDARD.encode(bytes))
 }
 
@@ -85,9 +90,9 @@ pub fn extract_audio_wav_window(
     let cache = app
         .path()
         .cache_dir()
-        .map_err(|e| e.to_string())?
+        .map_err(redact_err)?
         .join("audio_wav_windows");
-    fs::create_dir_all(&cache).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&cache).map_err(redact_err)?;
 
     let out = cache.join(format!("{}.wav", Uuid::new_v4()));
     let out_str = out.to_string_lossy().to_string();
@@ -121,7 +126,7 @@ pub fn extract_audio_wav_window(
         prepend_path_env(&mut cmd, prefix);
     }
 
-    let status = cmd.status().map_err(|e| format!("ffmpeg: {e}"))?;
+    let status = cmd.status().map_err(|e| format!("ffmpeg: {}", redact_err(e)))?;
     if !status.success() {
         let _ = fs::remove_file(&out);
         return Err("ffmpeg failed to extract audio window".into());
@@ -199,7 +204,7 @@ pub fn export_audio_wav_segment(
         prepend_path_env(&mut cmd, prefix);
     }
 
-    let status = cmd.status().map_err(|e| format!("ffmpeg: {e}"))?;
+    let status = cmd.status().map_err(|e| format!("ffmpeg: {}", redact_err(e)))?;
     if !status.success() {
         let _ = fs::remove_file(out);
         return Err("ffmpeg failed to export audio segment".into());
@@ -252,7 +257,7 @@ pub fn generate_preprocessed_audio_preview(
 
     // Validate modules_json is a JSON object.
     let modules_value: serde_json::Value = serde_json::from_str(&modules_json)
-        .map_err(|e| format!("modules_json: JSON invalide — {e}"))?;
+        .map_err(|e| format!("modules_json: JSON invalide — {}", redact_err(e)))?;
     if !modules_value.is_object() {
         return Err("modules_json must be a JSON object".into());
     }
@@ -260,9 +265,9 @@ pub fn generate_preprocessed_audio_preview(
     let cache = app
         .path()
         .cache_dir()
-        .map_err(|e| e.to_string())?
+        .map_err(redact_err)?
         .join("audio_wav_windows");
-    fs::create_dir_all(&cache).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&cache).map_err(redact_err)?;
 
     let session_id = Uuid::new_v4().to_string();
     let original_out = cache.join(format!("{session_id}_original.wav"));
@@ -297,7 +302,7 @@ pub fn generate_preprocessed_audio_preview(
     if let Some(prefix) = tools.ffmpeg_dir.as_deref() {
         prepend_path_env(&mut cmd, prefix);
     }
-    let status = cmd.status().map_err(|e| format!("ffmpeg: {e}"))?;
+    let status = cmd.status().map_err(|e| format!("ffmpeg: {}", redact_err(e)))?;
     if !status.success() {
         let _ = fs::remove_file(&original_out);
         return Err("ffmpeg failed to extract audio window".into());
@@ -306,7 +311,7 @@ pub fn generate_preprocessed_audio_preview(
         return Err("ffmpeg produced no output file".into());
     }
 
-    let original_bytes = fs::read(&original_out).map_err(|e| e.to_string())?;
+    let original_bytes = fs::read(&original_out).map_err(redact_err)?;
     if original_bytes.len() as u64 > MAX_READ_WAV_BYTES_FOR_B64 {
         let _ = fs::remove_file(&original_out);
         return Err(format!(
@@ -338,11 +343,11 @@ pub fn generate_preprocessed_audio_preview(
 
     // Apply preprocessing via preview_preprocess.py.
     let preview_script =
-        resolve_preview_preprocess_path(&app).map_err(|e| format!("preview script: {e}"))?;
+        resolve_preview_preprocess_path(&app).map_err(|e| format!("preview script: {}", redact_err(e)))?;
     let python = resolve_python_command(&app);
 
     let tmp_dir = cache.join(format!("{session_id}_preview_tmp"));
-    fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&tmp_dir).map_err(redact_err)?;
 
     let mut py_cmd = Command::new(&python);
     py_cmd.args([
@@ -359,7 +364,7 @@ pub fn generate_preprocessed_audio_preview(
 
     let output = py_cmd
         .output()
-        .map_err(|e| format!("Python launch failed: {e}"))?;
+        .map_err(|e| format!("Python launch failed: {}", redact_err(e)))?;
 
     // Cleanup original window (no longer needed after Python reads it).
     let _ = fs::remove_file(&original_out);
@@ -370,7 +375,7 @@ pub fn generate_preprocessed_audio_preview(
         return Err(format!(
             "preview_preprocess failed ({}): {}",
             output.status,
-            stderr.trim()
+            redact_user_home_in_text(stderr.trim())
         ));
     }
 
@@ -382,10 +387,13 @@ pub fn generate_preprocessed_audio_preview(
     let processed_file = Path::new(&processed_path);
     if !processed_file.is_file() {
         let _ = fs::remove_dir_all(&tmp_dir);
-        return Err(format!("preview_preprocess output not found: {processed_path}"));
+        return Err(format!(
+            "preview_preprocess output not found: {}",
+            redact_user_home_in_text(&processed_path)
+        ));
     }
 
-    let processed_bytes = fs::read(processed_file).map_err(|e| e.to_string())?;
+    let processed_bytes = fs::read(processed_file).map_err(redact_err)?;
     let _ = fs::remove_dir_all(&tmp_dir);
 
     if processed_bytes.len() as u64 > MAX_READ_WAV_BYTES_FOR_B64 {

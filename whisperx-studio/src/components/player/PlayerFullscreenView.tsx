@@ -130,6 +130,7 @@ export function PlayerFullscreenView({
     if (!target || !(target instanceof HTMLElement)) return;
     const reduceMotion =
       typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     target.scrollIntoView({
       block: "nearest",

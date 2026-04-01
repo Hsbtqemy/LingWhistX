@@ -74,12 +74,14 @@ export type StudioNavProps = {
   onViewChange: (view: StudioView) => void;
   /** Au moins un job `queued` ou `running` — pastille sur l’onglet Studio. */
   workspaceHasActiveJobs?: boolean;
+  onToggleHelp?: () => void;
 };
 
 export function StudioNav({
   activeView,
   onViewChange,
   workspaceHasActiveJobs = false,
+  onToggleHelp,
 }: StudioNavProps) {
   return (
     <nav className="studio-nav studio-nav--topbar" aria-label="Studio LingWhistX">
@@ -128,6 +130,17 @@ export function StudioNav({
           return <Fragment key={card.view}>{tab}</Fragment>;
         })}
       </div>
+      {onToggleHelp ? (
+        <button
+          type="button"
+          className="studio-nav-help-btn"
+          onClick={onToggleHelp}
+          title="Aide et raccourcis (?)"
+          aria-label="Aide"
+        >
+          ?
+        </button>
+      ) : null}
     </nav>
   );
 }
