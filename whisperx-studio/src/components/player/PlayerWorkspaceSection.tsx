@@ -76,6 +76,16 @@ function findActiveSpeaker(segments: EditableSegment[], playheadSec: number): st
   return null;
 }
 
+function findActiveSpeakerFromTurns(turns: { startMs: number; endMs: number; speaker: string }[], playheadMs: number): string | null {
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const t = turns[i];
+    if (t.startMs <= playheadMs + 50 && t.endMs >= playheadMs - 50) {
+      return t.speaker;
+    }
+  }
+  return null;
+}
+
 /** Import média depuis l’état vide Player — même état que « Nouveau job » puis bascule Studio. */
 export type PlayerWorkspaceSectionImportMediaProps = {
   inputPath: string;
@@ -870,6 +880,8 @@ export function PlayerWorkspaceSection({
           mediaPath={mediaPath}
           shortcutsHelpOpen={shortcutsHelpOpen}
           onToggleShortcutsHelp={() => setShortcutsHelpOpen((v) => !v)}
+          onToggleFullscreen={runDir ? () => setFullscreenMode((v) => !v) : undefined}
+          fullscreenMode={fullscreenMode}
         />
         {runDir && (
           <div className="player-loop-bar">
@@ -1253,9 +1265,11 @@ export function PlayerWorkspaceSection({
                     const sec = findNextSegmentStart(te.editorSegments, currentTimeSec);
                     if (sec != null) seek(sec);
                   } : undefined}
-                  activeSpeaker={editMode && te.editorSegments.length > 0
-                    ? findActiveSpeaker(te.editorSegments, currentTimeSec)
-                    : null}
+                  activeSpeaker={
+                    editMode && te.editorSegments.length > 0
+                      ? findActiveSpeaker(te.editorSegments, currentTimeSec)
+                      : findActiveSpeakerFromTurns(runWindow.slice?.turns ?? [], playheadMs)
+                  }
                   fullscreenMode={fullscreenMode}
                   onToggleFullscreen={runDir ? () => setFullscreenMode((v) => !v) : undefined}
                 />
@@ -1808,9 +1822,12 @@ export function PlayerWorkspaceSection({
                 const sec = findNextSegmentStart(te.editorSegments, currentTimeSec);
                 if (sec != null) seek(sec);
               } : undefined}
-              activeSpeaker={editMode && te.editorSegments.length > 0
-                ? findActiveSpeaker(te.editorSegments, currentTimeSec)
-                : null}
+              activeSpeaker={
+                editMode && te.editorSegments.length > 0
+                  ? findActiveSpeaker(te.editorSegments, currentTimeSec)
+                  : findActiveSpeakerFromTurns(runWindow.slice?.turns ?? [], playheadMs)
+              }
+              onToggleFollowPlayhead={() => setFollowPlayhead((v) => !v)}
               editMode={editMode}
               editorSegments={te.editorSegments}
               activeSegmentIndex={te.activeSegmentIndex}

@@ -89,6 +89,11 @@ export function usePlayerKeyboard(o: UsePlayerKeyboardOptions) {
         o.setFullscreenMode((v) => !v);
         return;
       }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyF" && o.setFullscreenMode) {
+        e.preventDefault();
+        o.setFullscreenMode((v) => !v);
+        return;
+      }
       if (e.code === "Space") {
         e.preventDefault();
         void o.togglePlayPause();

@@ -1,0 +1,335 @@
+/* Karaoke v2 — two-lane scrolling transcript with follow mode */
+
+/* ============================================================
+   Karaoké v2 — vrai karaoké : lanes par locuteur, highlight
+   mot par mot progressif, preview lignes à venir
+   ============================================================ */
+
+.karaoke-v2 {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--lx-surface-0);
+  gap: 0;
+}
+
+/* --- Lane par locuteur ------------------------------------ */
+.karaoke-lane {
+  flex: 1 1 0;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--lx-border) 40%, transparent);
+  overflow: hidden;
+  transition: background 0.2s;
+}
+
+.karaoke-lane:last-child {
+  border-bottom: none;
+}
+
+.karaoke-lane.is-speaking {
+  background: color-mix(in srgb, var(--lane-color, var(--lx-accent)) 5%, var(--lx-surface-0));
+}
+
+/* Étiquette locuteur — en haut, centré */
+.karaoke-lane-label {
+  flex: 0 0 auto;
+  padding: 8px 16px 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 2px solid color-mix(in srgb, var(--lane-color, var(--lx-accent)) 25%, transparent);
+  width: 100%;
+  text-align: center;
+}
+
+/* Zone contenu — rouleau vertical, overflow masqué, scroll fluide interne */
+.karaoke-lane-content {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  max-width: 72ch;
+  margin-inline: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  padding: 40px 24px;
+  gap: 10px;
+  scroll-behavior: smooth;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 15%,
+    black 85%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 15%,
+    black 85%,
+    transparent 100%
+  );
+}
+
+.karaoke-lane-content::-webkit-scrollbar {
+  display: none;
+}
+
+.karaoke-lane-empty {
+  min-height: 40px;
+}
+
+/* --- Ligne de texte (IPU) --------------------------------- */
+.karaoke-line {
+  padding: 6px 12px;
+  border-radius: 8px;
+  line-height: 1.7;
+  text-align: center;
+  width: 100%;
+  flex-shrink: 0;
+  transition: opacity 0.35s ease;
+}
+
+.karaoke-line.is-past {
+  opacity: 0.25;
+}
+
+.karaoke-line.is-active {
+  opacity: 1;
+}
+
+.karaoke-line.is-future {
+  opacity: 0.45;
+}
+
+.karaoke-line.is-upcoming {
+  opacity: 0.55;
+}
+
+.karaoke-lane.is-waiting .karaoke-lane-content {
+  justify-content: flex-start;
+}
+
+.karaoke-lane-countdown {
+  font-weight: 400;
+  font-size: 0.7rem;
+  opacity: 0.6;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.karaoke-line.is-focused {
+  border: 1px solid color-mix(in srgb, var(--lx-accent) 40%, var(--lx-border));
+  background: color-mix(in srgb, var(--lx-accent) 5%, var(--lx-surface-1));
+}
+
+/* --- Mots karaoké ----------------------------------------- */
+.karaoke-line-words {
+  display: inline;
+  word-spacing: 0.25em;
+}
+
+.karaoke-word {
+  display: inline;
+  padding: 2px 3px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--lx-text-2);
+  font: inherit;
+  font-size: 1.5rem;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+  text-decoration: none;
+}
+
+.karaoke-word:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.karaoke-word:disabled {
+  cursor: default;
+}
+
+/* Mot déjà prononcé — coloré, même poids */
+.karaoke-word.is-spoken {
+  color: var(--lane-color, var(--lx-accent));
+}
+
+/* Mot en cours de prononciation — couleur + halo + soulignement */
+.karaoke-word.is-current {
+  color: var(--lane-color, var(--lx-accent));
+  text-shadow: 0 0 14px color-mix(in srgb, var(--lane-color, var(--lx-accent)) 50%, transparent);
+  text-decoration: underline;
+  text-decoration-color: var(--lane-color, var(--lx-accent));
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+}
+
+.karaoke-word.is-unaligned {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.karaoke-word.is-unaligned.is-spoken {
+  opacity: 1;
+}
+
+/* Texte brut (fallback sans mots) */
+.karaoke-line-text {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--lx-text-2);
+  font: inherit;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.karaoke-line.is-past .karaoke-line-text {
+  color: var(--lane-color, var(--lx-accent));
+}
+
+.karaoke-line-text:hover {
+  text-decoration: underline;
+}
+
+.karaoke-line-text:disabled {
+  cursor: default;
+}
+
+
+.player-coming-soon {
+  padding: 16px 14px;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in srgb, var(--lx-accent) 32%, var(--lx-border));
+  background: color-mix(in srgb, var(--lx-accent) 7%, var(--lx-surface-muted));
+  color: var(--lx-text-1);
+}
+
+.player-coming-soon-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--lx-text-1);
+}
+
+.player-coming-soon-detail {
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+
+.player-coming-soon-hint {
+  margin: 0;
+  color: var(--lx-text-2);
+}
+
+.player-alerts-advanced {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border-radius: var(--lx-radius-sm);
+  border: 1px solid var(--lx-border);
+  background: var(--lx-surface-1);
+}
+
+.player-alerts-advanced-summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--lx-text-1);
+}
+
+.player-alerts-advanced-body {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.player-alerts-advanced-label {
+  display: grid;
+  gap: 6px;
+  color: var(--lx-text-1);
+}
+
+.player-alerts-advanced-label input[type="range"] {
+  width: 100%;
+}
+
+.player-alerts-recompute-error {
+  margin: 0;
+  color: color-mix(in srgb, var(--lx-danger) 55%, var(--lx-text-0));
+}
+
+.player-alerts-qc-stats {
+  margin: 0;
+  color: var(--lx-text-2);
+}
+
+.player-alert-filter {
+  display: block;
+  margin: 0 0 10px;
+  color: var(--lx-text-1);
+}
+
+.player-alert-filter select {
+  margin-left: 6px;
+  max-width: 100%;
+  font-size: 0.85rem;
+}
+
+.player-alert-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-height: min(220px, 32vh);
+  overflow: auto;
+}
+
+.player-alert-item {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--lx-border);
+  background: color-mix(in srgb, var(--lx-surface-1) 92%, var(--lx-accent) 4%);
+  color: var(--lx-text-1);
+  cursor: pointer;
+}
+
+.player-alert-item:hover {
+  border-color: color-mix(in srgb, var(--lx-accent) 38%, var(--lx-border));
+  background: color-mix(in srgb, var(--lx-accent) 10%, var(--lx-surface-muted));
+}
+
+.player-export-error {
+  color: color-mix(in srgb, var(--lx-danger) 35%, var(--lx-text-0));
+  max-width: 180px;
+}
+
+.player-export-hint {
+  color: var(--lx-text-2);
+  max-width: min(420px, 40vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

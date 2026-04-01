@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "updatedAt": "2026-04-01T07:49:52.000Z",
+    "updatedAt": "2026-04-01T11:49:06.000Z",
     "statuses": [
         "todo",
         "in_progress",
@@ -4296,7 +4296,8 @@
                 "Rapport HTML autonome contenant : metadata du run, stats par speaker, transcript complet.",
                 "Sections cliquables pour naviguer dans le rapport.",
                 "Graphiques embarqués en SVG inline.",
-                "Exportable en un clic depuis le Player."
+                "Exportable en un clic depuis le Player.",
+                "ÉTAT ACTUEL : rapport prosodique HTML existant (WX-671) couvre stats par locuteur + CSS inline + bouton dans RunDetailsPanel + ouverture navigateur. RESTE À FAIRE : enrichir avec metadata du run (run_manifest.json), transcript complet horodaté, sections cliquables / TOC, graphiques SVG inline, bouton export depuis le Player."
             ],
             "acceptance": [
                 "npm run build et cargo check propres.",
@@ -4387,7 +4388,7 @@
         {
             "id": "WX-720",
             "title": "Mode plein écran : player immersif avec suivi synchronisé du texte",
-            "status": "todo",
+            "status": "done",
             "priority": "P2",
             "estimate": "2.5d",
             "dependsOn": [
@@ -4419,7 +4420,9 @@
                 "Clic sur un segment dans le texte = seek à ce timestamp.",
                 "Mode focus : possibilité de n'afficher qu'un seul locuteur à la fois avec un sélecteur.",
                 "Le mode plein écran fonctionne aussi bien avec un fichier audio qu'avec une vidéo.",
-                "Sortie du plein écran restaure l'état précédent du player (vue, position, zoom)."
+                "Sortie du plein écran restaure l'état précédent du player (vue, position, zoom).",
+                "ÉTAT ACTUEL : 6/12 complets (bouton+F11, vue 100%, vue active conservée, sortie Échap/F11/✕, compatible toutes vues, timecode overlay), 3/12 partiels (raccourcis clavier manque J/K et F sort au lieu de suivre, locuteur overlay seulement en editMode, transitions faibles). RESTE À FAIRE : auto-scroll synchronisé dans l'overlay plein écran (bug: scroll sur panneau caché), contrôles masqués après inactivité souris (idle-hide), waveform miniature en bas, bouton dans la topbar.",
+                "IMPLÉMENTÉ : auto-scroll corrigé dans overlay fullscreen (contentRef propre), idle-hide des contrôles après 3s d'inactivité (topbar slide up, bottombar slide down), locuteur overlay fonctionne sans editMode (fallback via turns SQL), F = toggle follow playhead (ne sort plus du plein écran), J = seek -10s, K = play/pause, Cmd+Shift+F = toggle plein écran (dans usePlayerKeyboard + fullscreen), bouton plein écran ajouté dans PlayerTopBar, transition fade-in 0.2s à l'ouverture. REPORTÉ : waveform miniature en bas (nécessite pipeline waveform dédié)."
             ],
             "acceptance": [
                 "npm run build et cargo check propres.",
@@ -4495,7 +4498,8 @@
                 "Toute info « aide » ou « contrôles » textuelle affichée directement dans les panneaux des différentes vues est retirée et centralisée dans ce dialog.",
                 "Le dialog se ferme avec Escape, clic à l'extérieur, ou un bouton de fermeture.",
                 "Le raccourci « ? » existant dans le player déclenche ce même dialog global.",
-                "Les panneaux des différentes vues sont allégés du texte d'aide devenu redondant."
+                "Les panneaux des différentes vues sont allégés du texte d'aide devenu redondant.",
+                "ÉTAT ACTUEL : bouton « ? » + modal raccourcis dans le player + raccourci clavier « ? » existent. RESTE À FAIRE : aide globale app (accessible depuis tous les onglets, pas seulement le player), aide contextuelle par vue active, nettoyage du texte d'aide inline dans le panneau droit, tooltips systématiques sur les contrôles."
             ],
             "acceptance": [
                 "npm run build et npm run lint propres.",
@@ -4530,7 +4534,8 @@
                 "Clic-to-seek sur tous les canvas temporels : un clic déplace le playhead à la position temporelle correspondante.",
                 "Bouton expand/collapse par chart : chaque canvas dispose d'un bouton pour basculer entre taille normale et taille agrandie (double hauteur, pleine largeur).",
                 "Les interactions sont fluides (requestAnimationFrame pour le playhead, debounce pour les tooltips).",
-                "Les canvas restent nets en haute résolution (devicePixelRatio)."
+                "Les canvas restent nets en haute résolution (devicePixelRatio).",
+                "ÉTAT ACTUEL : playhead vertical sur timeline/débit/densité fait, clic→seek sur 3 canvas fait, tooltip hover sur SpeechRateCanvas fait. RESTE À FAIRE : tooltips sur histogramme pauses, SpeechDensityCanvas, SpeechBarCanvas ; expand/collapse par chart (double hauteur, pleine largeur) ; perf (rAF playhead, debounce tooltips)."
             ],
             "acceptance": [
                 "npm run build et npm run lint propres.",
@@ -4856,6 +4861,50 @@
             "acceptance": [
                 "npm run build et cargo check propres.",
                 "Ouvrir la bibliothèque depuis n'importe quel onglet, sélectionner un run, vérifier qu'il se charge dans l'onglet actif."
+            ]
+        },
+        {
+            "id": "WX-732",
+            "title": "Refactor préalable : éclater PlayerRunWindowViews (7 vues) et splitter main.css",
+            "status": "done",
+            "priority": "P0",
+            "estimate": "1d",
+            "dependsOn": [],
+            "scope": [
+                "src/components/player/PlayerRunWindowViews.tsx",
+                "src/components/player/views/LanesView.tsx",
+                "src/components/player/views/ChatView.tsx",
+                "src/components/player/views/WordsView.tsx",
+                "src/components/player/views/ColumnsView.tsx",
+                "src/components/player/views/RythmoView.tsx",
+                "src/components/player/views/KaraokeView.tsx",
+                "src/components/player/views/StatsView.tsx",
+                "src/styles/main.css",
+                "src/styles/base.css",
+                "src/styles/nav.css",
+                "src/styles/import-tab.css",
+                "src/styles/editor-tab.css",
+                "src/styles/player-tab.css",
+                "src/styles/components.css"
+            ],
+            "execute": [
+                "npm run build",
+                "npm test",
+                "npm run lint"
+            ],
+            "definitionOfDone": [
+                "PlayerRunWindowViews.tsx éclaté en 7 composants individuels dans src/components/player/views/ (LanesView, ChatView, WordsView, ColumnsView, RythmoView, KaraokeView, StatsView).",
+                "PlayerRunWindowViews.tsx réduit à un dispatcher mince (~100 lignes) qui aiguille vers le bon composant.",
+                "main.css (9000+ lignes) splitté en fichiers thématiques : base.css, nav.css, import-tab.css, editor-tab.css, player-tab.css, components.css.",
+                "main.css devient un point d'entrée avec @import des sous-fichiers.",
+                "Aucune régression visuelle ni fonctionnelle.",
+                "Build, tests et lint passent.",
+                "NOTE : le refactor a été réalisé en amont. Les 7 vues sont extraites dans src/components/player/views/, PlayerRunWindowViews.tsx est un dispatcher (~196 lignes), main.css est un agrégat @import de 15 fichiers thématiques. Écarts acceptés : noms CSS différents du DoD initial (workspace.css, player-base.css… au lieu de import-tab.css etc.), StatsView.tsx ~1120 lignes (à réduire ultérieurement)."
+            ],
+            "acceptance": [
+                "npm run build, npm test et npm run lint propres.",
+                "Les 7 vues du player fonctionnent identiquement après l'extraction.",
+                "Aucun fichier source ne dépasse 1000 lignes après le refactor (hors CSS tokens)."
             ]
         }
     ]

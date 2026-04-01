@@ -1,0 +1,276 @@
+/* WX-666 — sourceSeparate compute cost warning */
+.pipeline-source-separate-warn {
+  color: color-mix(in srgb, var(--lx-warning, #c87f00) 80%, var(--lx-text-1));
+  border-left: 3px solid var(--lx-warning, #c87f00);
+  padding-left: 8px;
+  margin-top: 4px;
+}
+
+.about-machine-missing {
+  color: var(--lx-text-2);
+}
+
+/* WX-665 — Audio A/B preview panel */
+.audio-preview-panel {
+  border: 1px solid var(--lx-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  background: var(--lx-surface-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audio-preview-panel__header {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.audio-preview-panel__title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--lx-text-1);
+}
+
+.audio-preview-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.audio-preview-panel__error {
+  color: var(--lx-danger);
+}
+
+.audio-preview-panel__ab-toggle {
+  display: inline-flex;
+  border: 1px solid var(--lx-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.audio-preview-panel__ab-btn {
+  padding: 3px 14px;
+  background: var(--lx-surface);
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--lx-text-1);
+  transition: background 0.1s, color 0.1s;
+}
+
+.audio-preview-panel__ab-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.audio-preview-panel__ab-btn.active {
+  background: var(--lx-accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.audio-preview-panel__ab-btn + .audio-preview-panel__ab-btn {
+  border-left: 1px solid var(--lx-border);
+}
+
+.audio-preview-panel__no-module-hint {
+  color: var(--lx-text-2);
+  font-style: italic;
+}
+
+.audio-preview-panel__player {
+  width: 100%;
+  height: 34px;
+}
+
+/* WX-676 — Annotation Import */
+.annotation-import-section {
+  margin-top: var(--lx-space-3);
+  padding: var(--lx-space-3);
+  border: 1px dashed var(--lx-border);
+  border-radius: var(--lx-radius);
+}
+
+.annotation-import-error {
+  margin-top: var(--lx-space-2);
+  color: var(--lx-danger);
+}
+
+.annotation-tier-picker {
+  margin-top: var(--lx-space-3);
+  padding: var(--lx-space-3);
+  background: var(--lx-surface-2);
+  border-radius: var(--lx-radius);
+  border: 1px solid var(--lx-border);
+}
+
+.annotation-tier-picker__list {
+  list-style: none;
+  margin: var(--lx-space-2) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lx-space-1);
+}
+
+.annotation-tier-picker__item label {
+  display: flex;
+  align-items: center;
+  gap: var(--lx-space-2);
+  cursor: pointer;
+}
+
+.annotation-tier-picker__id {
+  font-weight: 600;
+}
+
+.annotation-tier-picker__count {
+  color: var(--lx-text-2);
+}
+
+.annotation-tier-picker__actions {
+  display: flex;
+  gap: var(--lx-space-2);
+  margin-top: var(--lx-space-3);
+}
+
+.annotation-import-warnings {
+  list-style: none;
+  padding: 0;
+  margin: var(--lx-space-2) 0 0;
+  color: var(--lx-warning, #f59e0b);
+}
+
+.annotation-import-warnings__item::before {
+  content: "⚠ ";
+}
+
+/* ---------------------------------------------------------------------------
+   Player — mode édition inline
+   --------------------------------------------------------------------------- */
+
+.player-edit-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--lx-surface-muted);
+  border: 1px solid var(--lx-border);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.player-edit-toolbar-label {
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.player-edit-toolbar-dirty {
+  color: var(--lx-warning, #e6a817);
+}
+
+.player-edit-toolbar-status {
+  color: var(--lx-text-2);
+  margin-left: auto;
+}
+
+.player-edit-toolbar-error {
+  color: var(--lx-danger);
+  margin-left: auto;
+}
+
+.player-edit-dirty-badge {
+  display: block;
+  margin-top: 2px;
+  color: var(--lx-warning, #e6a817);
+  font-weight: 500;
+}
+
+/* ── Import annotation dans le Player ── */
+
+.player-import-annot-btn {
+  margin-top: 6px;
+  width: 100%;
+}
+
+.player-import-annot-error {
+  color: var(--lx-danger);
+  margin: 4px 0 0;
+}
+
+.player-import-annot-picker {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--lx-border);
+  background: var(--lx-surface-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.player-import-annot-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.player-import-annot-list label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.player-import-annot-warnings {
+  list-style: disc inside;
+  margin: 0;
+  padding: 0;
+  color: var(--lx-warning);
+}
+
+.player-import-annot-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.player-chat-bubble--edit {
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.player-chat-bubble--edit.is-focused {
+  border-color: var(--lx-accent);
+  background: color-mix(in srgb, var(--lx-accent) 10%, var(--lx-surface-1));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lx-accent) 20%, transparent);
+}
+
+.player-chat-edit-textarea,
+.player-words-edit-textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--lx-accent);
+  border-radius: 6px;
+  background: var(--lx-surface-0);
+  color: var(--lx-text-0);
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  resize: vertical;
+  outline: none;
+}
+
+.player-chat-edit-textarea:focus,
+.player-words-edit-textarea:focus {
+  border-color: var(--lx-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lx-accent) 30%, transparent);
+}
+

@@ -13,9 +13,10 @@ const VIEW_LABELS: { mode: PlayerViewportMode; label: string; key: string }[] = 
   { mode: "stats", label: "Stats", key: "7" },
 ];
 
+const IDLE_HIDE_DELAY_MS = 3000;
+
 export type PlayerFullscreenViewProps = {
   onExit: () => void;
-  // Playback
   playing: boolean;
   currentTimeSec: number;
   durationSec: number | null | undefined;
@@ -29,28 +30,24 @@ export type PlayerFullscreenViewProps = {
   onNudgePlaybackRate: (delta: number) => void;
   onVolumeChange: (v: number) => void;
   onToggleMute: () => void;
-  // Loop A-B
   onMarkLoopA?: () => void;
   onMarkLoopB?: () => void;
   onClearLoop?: () => void;
-  // Segment nav
   onPrevSegment?: () => void;
   onNextSegment?: () => void;
   activeSpeaker?: string | null;
-  // View
   viewportMode: PlayerViewportMode;
   onSetViewportMode: (mode: PlayerViewportMode) => void;
-  // Data (pass-through to PlayerRunWindowViews)
   slice: QueryWindowResult | null;
   playheadMs: number;
   loading: boolean;
   queryError: string | null;
   wordsLayerActive: boolean;
   followPlayhead: boolean;
+  onToggleFollowPlayhead: () => void;
   loopAsec?: number | null;
   loopBsec?: number | null;
   onSetLoopRange?: (aSec: number, bSec: number) => void;
-  // Editor (pass-through)
   editMode: boolean;
   editorSegments: EditableSegment[];
   activeSegmentIndex: number | null;
@@ -58,7 +55,6 @@ export type PlayerFullscreenViewProps = {
   updateEditorSegmentText: (index: number, text: string) => void;
   updateEditorSegmentBoundary: (index: number, edge: "start" | "end", value: number) => void;
   focusSegment: (index: number) => void;
-  // Speakers
   runSpeakerIds: string[];
   speakerSolo: string | null;
   onSetSpeakerSolo: (id: string | null) => void;
@@ -94,6 +90,7 @@ export function PlayerFullscreenView({
   queryError,
   wordsLayerActive,
   followPlayhead,
+  onToggleFollowPlayhead,
   loopAsec,
   loopBsec,
   onSetLoopRange,
@@ -110,7 +107,10 @@ export function PlayerFullscreenView({
   longPauseMs = 300,
 }: PlayerFullscreenViewProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const [localMode, setLocalMode] = useState<PlayerViewportMode>(viewportMode);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     overlayRef.current?.focus();
@@ -119,6 +119,36 @@ export function PlayerFullscreenView({
   useEffect(() => {
     setLocalMode(viewportMode);
   }, [viewportMode]);
+
+  // Auto-scroll: keep active element visible in fullscreen content
+  const followScrollKey = Math.floor(playheadMs / 250);
+  useEffect(() => {
+    if (!followPlayhead) return;
+    const root = contentRef.current;
+    if (!root) return;
+    const target = root.querySelector(".is-active");
+    if (!target || !(target instanceof HTMLElement)) return;
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+  }, [followPlayhead, followScrollKey]);
+
+  // Idle-hide: hide controls after inactivity
+  const resetIdleTimer = useCallback(() => {
+    setControlsVisible(true);
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => setControlsVisible(false), IDLE_HIDE_DELAY_MS);
+  }, []);
+
+  useEffect(() => {
+    resetIdleTimer();
+    return () => { if (idleTimerRef.current) clearTimeout(idleTimerRef.current); };
+  }, [resetIdleTimer]);
 
   const handleSetMode = useCallback(
     (mode: PlayerViewportMode) => {
@@ -132,6 +162,7 @@ export function PlayerFullscreenView({
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      resetIdleTimer();
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
 
@@ -140,14 +171,27 @@ export function PlayerFullscreenView({
         onExit();
         return;
       }
-      if (e.code === "KeyF" && !e.ctrlKey && !e.metaKey) {
+      // F = toggle follow playhead (not exit)
+      if (e.code === "KeyF" && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+        e.preventDefault();
+        onToggleFollowPlayhead();
+        return;
+      }
+      // Cmd/Ctrl+Shift+F = exit fullscreen
+      if (e.code === "KeyF" && (e.ctrlKey || e.metaKey) && e.shiftKey) {
         e.preventDefault();
         onExit();
         return;
       }
-      if (e.code === "Space") {
+      if (e.code === "Space" || e.code === "KeyK") {
         e.preventDefault();
         void onTogglePlayPause();
+        return;
+      }
+      // J = rewind 10s
+      if (e.code === "KeyJ" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        onSeekRelative(-10);
         return;
       }
       if (e.code === "Home" && !e.ctrlKey && !e.metaKey) {
@@ -206,7 +250,6 @@ export function PlayerFullscreenView({
         onToggleMute();
         return;
       }
-      // Ctrl+1-7: switch view
       if ((e.ctrlKey || e.metaKey) && e.code.startsWith("Digit")) {
         const n = Number.parseInt(e.code.replace("Digit", ""), 10);
         if (n >= 1 && n <= VIEW_LABELS.length) {
@@ -215,7 +258,6 @@ export function PlayerFullscreenView({
           return;
         }
       }
-      // 0-9 without modifier: speaker solo
       if (e.code === "Digit0" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         onSetSpeakerSolo(null);
@@ -231,19 +273,19 @@ export function PlayerFullscreenView({
         return;
       }
     },
-    [onExit, onTogglePlayPause, onSeekRelative, onStop, onSeek, durSec, onNudgePlaybackRate, onToggleMute, onSetSpeakerSolo, runSpeakerIds, speakerSolo, handleSetMode, loopAsec, loopBsec, onMarkLoopA, onMarkLoopB, onClearLoop, onPrevSegment, onNextSegment],
+    [onExit, onTogglePlayPause, onToggleFollowPlayhead, onSeekRelative, onStop, onSeek, durSec, onNudgePlaybackRate, onToggleMute, onSetSpeakerSolo, runSpeakerIds, speakerSolo, handleSetMode, loopAsec, loopBsec, onMarkLoopA, onMarkLoopB, onClearLoop, onPrevSegment, onNextSegment, resetIdleTimer],
   );
 
   return (
     <div
       ref={overlayRef}
-      className="player-fs-overlay"
+      className={`player-fs-overlay${controlsVisible ? "" : " player-fs-controls-hidden"}`}
       tabIndex={0}
       role="application"
       aria-label="Plein écran"
       onKeyDown={onKeyDown}
+      onMouseMove={resetIdleTimer}
     >
-      {/* Barre haut : onglets de vue + bouton quitter */}
       <div className="player-fs-topbar">
         <div className="player-fs-view-tabs" role="tablist" aria-label="Vue">
           {VIEW_LABELS.map((v) => (
@@ -265,8 +307,7 @@ export function PlayerFullscreenView({
         </button>
       </div>
 
-      {/* Contenu principal — vues player, centrées et agrandies */}
-      <div className={`player-fs-content player-fs-content--${localMode}`}>
+      <div ref={contentRef} className={`player-fs-content player-fs-content--${localMode}`}>
         <PlayerRunWindowViews
           mode={localMode}
           slice={slice}

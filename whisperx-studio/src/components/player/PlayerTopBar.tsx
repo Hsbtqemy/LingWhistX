@@ -7,6 +7,8 @@ export type PlayerTopBarProps = {
   mediaPath: string | null;
   shortcutsHelpOpen: boolean;
   onToggleShortcutsHelp: () => void;
+  onToggleFullscreen?: () => void;
+  fullscreenMode?: boolean;
 };
 
 /**
@@ -20,6 +22,8 @@ export function PlayerTopBar({
   mediaPath,
   shortcutsHelpOpen,
   onToggleShortcutsHelp,
+  onToggleFullscreen,
+  fullscreenMode,
 }: PlayerTopBarProps) {
   return (
     <header className="player-topbar">
@@ -34,16 +38,28 @@ export function PlayerTopBar({
           {fileBasename(mediaPath)}
         </span>
       ) : null}
-      <button
-        type="button"
-        className="ghost small"
-        onClick={onToggleShortcutsHelp}
-        title="Raccourcis clavier (?)"
-        aria-expanded={shortcutsHelpOpen}
-        aria-controls="player-shortcuts-help-dialog"
-      >
-        Aide (?)
-      </button>
+      <div className="player-topbar-actions">
+        {onToggleFullscreen ? (
+          <button
+            type="button"
+            className="ghost small"
+            onClick={onToggleFullscreen}
+            title="Plein écran (F11 / ⌘⇧F)"
+          >
+            {fullscreenMode ? "⊡ Quitter" : "⊞ Plein écran"}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="ghost small"
+          onClick={onToggleShortcutsHelp}
+          title="Raccourcis clavier (?)"
+          aria-expanded={shortcutsHelpOpen}
+          aria-controls="player-shortcuts-help-dialog"
+        >
+          Aide (?)
+        </button>
+      </div>
     </header>
   );
 }
