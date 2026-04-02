@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { runInTransition } from "../../whisperxOptionsTransitions";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import {
   clampNumber,
   fileBasename,
@@ -12,17 +11,15 @@ import {
 } from "../../appUtils";
 import { useWaveformCanvas } from "../../hooks/useWaveformCanvas";
 import { useWaveformWorkspace } from "../../hooks/useWaveformWorkspace";
-import { useTranscriptEditor } from "../../hooks/useTranscriptEditor";
 import { usePlayerPlayback } from "../../hooks/usePlayerPlayback";
 import { usePlayerKeyboard, type UsePlayerKeyboardOptions } from "../../hooks/usePlayerKeyboard";
 import { usePlayerRunWindow } from "../../hooks/usePlayerRunWindow";
 import { derivePlayerAlerts } from "../../player/derivePlayerAlerts";
 import type { PlayerDerivedAlertKind } from "../../player/derivePlayerAlerts";
 import type {
-  AnnotationTier,
   EditableSegment,
   ExportRunTimingPackResponse,
-  ImportAnnotationResult,
+  QueryWindowResult,
   RecomputePlayerAlertsResponse,
   RecomputePlayerAlertsStats,
 } from "../../types";
@@ -48,30 +45,6 @@ import { ErrorBanner } from "../ErrorBanner";
 import { NewJobDropZone } from "../NewJobDropZone";
 import { Button } from "../ui";
 
-function findPrevSegmentStart(segments: EditableSegment[], playheadSec: number): number | null {
-  for (let i = segments.length - 1; i >= 0; i--) {
-    if (segments[i].start < playheadSec - 0.08) return segments[i].start;
-  }
-  return null;
-}
-
-function findNextSegmentStart(segments: EditableSegment[], playheadSec: number): number | null {
-  for (const seg of segments) {
-    if (seg.start > playheadSec + 0.08) return seg.start;
-  }
-  return null;
-}
-
-function findActiveSpeaker(segments: EditableSegment[], playheadSec: number): string | null {
-  for (let i = segments.length - 1; i >= 0; i--) {
-    const seg = segments[i];
-    if (seg.start <= playheadSec + 0.05 && seg.end >= playheadSec - 0.05) {
-      return seg.speaker ?? null;
-    }
-  }
-  return null;
-}
-
 function findActiveSpeakerFromTurns(
   turns: { startMs: number; endMs: number; speaker: string }[],
   playheadMs: number,
@@ -83,6 +56,42 @@ function findActiveSpeakerFromTurns(
     }
   }
   return null;
+}
+
+function buildSliceExportStats(sl: QueryWindowResult, durationSec: number | null | undefined) {
+  const durMs =
+    durationSec != null && Number.isFinite(durationSec)
+      ? durationSec * 1000
+      : Math.max(0, ...sl.turns.map((t) => t.endMs));
+  const hasWords = sl.words.length > 0;
+  const stats = computeSpeakerStats(
+    sl.turns,
+    sl.pauses,
+    sl.ipus,
+    durMs,
+    hasWords ? sl.words : undefined,
+  );
+  const overlaps = computeOverlaps(sl.turns, durMs);
+  const transitions = computeTransitions(sl.turns);
+  const density = computeSpeechDensity(sl.turns, durMs);
+  const rate = computeSpeechRate(sl.ipus, durMs);
+  const totalSpeechMs = stats.reduce((s, st) => s + st.speechMs, 0);
+  const totalWords = stats.reduce((s, st) => s + st.nWords, 0);
+  return buildFullStatsExport(
+    stats,
+    overlaps,
+    transitions,
+    density,
+    rate,
+    null,
+    durMs,
+    totalSpeechMs,
+    totalWords,
+    sl.turns,
+    sl.pauses,
+    sl.ipus,
+    sl.words,
+  );
 }
 
 /** Import média depuis l’état vide Player — même état que « Nouveau job » puis bascule Studio. */
@@ -101,8 +110,6 @@ export type PlayerWorkspaceSectionProps = {
   importMedia?: PlayerWorkspaceSectionImportMediaProps;
   /** WX-696 — Incrémenter pour forcer un rechargement de la fenêtre events (annotation tiers). */
   eventsRefreshEpoch?: number;
-  /** Ouvre directement le Player en mode édition (depuis le bouton Vérification → Player). */
-  initialEditMode?: boolean;
   /** Ouvre le dialogue d'aide global (géré par App.tsx). */
   onToggleHelp?: () => void;
   /** Navigation contextuelle vers l'éditeur (WX-728). */
@@ -120,7 +127,6 @@ export function PlayerWorkspaceSection({
   onBack,
   importMedia,
   eventsRefreshEpoch = 0,
-  initialEditMode = false,
   onToggleHelp,
   onOpenEditor,
 }: PlayerWorkspaceSectionProps) {
@@ -131,8 +137,6 @@ export function PlayerWorkspaceSection({
   const [exportPackBusy, setExportPackBusy] = useState(false);
   const [exportPackError, setExportPackError] = useState("");
   const [exportPackHint, setExportPackHint] = useState("");
-  const [exportFormatMenuOpen, setExportFormatMenuOpen] = useState(false);
-  const [exportSingleBusy, setExportSingleBusy] = useState(false);
   const [followPlayhead, setFollowPlayhead] = useState(true);
   const [speakerSolo, setSpeakerSolo] = useState<string | null>(null);
   const [runSpeakerIds, setRunSpeakerIds] = useState<string[]>([]);
@@ -194,132 +198,7 @@ export function PlayerWorkspaceSection({
     playerMediaRef: mediaRef,
   });
 
-  const [editMode, setEditMode] = useState(initialEditMode);
   const [waveformCompact, setWaveformCompact] = useState(true);
-
-  const noopRefreshJobs = useCallback(async () => {}, []);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const noopPreviewOutput = useCallback(async (_path: string) => {}, []);
-
-  const te = useTranscriptEditor({
-    wf,
-    refreshJobs: noopRefreshJobs,
-    previewOutput: noopPreviewOutput,
-    selectedJobId: runDir ? `player:${runDir}` : "player-idle",
-  });
-
-  const [transcriptJsonPath, setTranscriptJsonPath] = useState<string | null>(null);
-
-  useEffect(() => {
-    setTranscriptJsonPath(null);
-    if (!runDir) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const path = await invoke<string | null>("find_run_transcript_json", { runDir });
-        if (!cancelled) setTranscriptJsonPath(path);
-      } catch {
-        if (!cancelled) setTranscriptJsonPath(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [runDir]);
-
-  const transcriptLoadedForRef = useRef<string | null>(null);
-  const loadTranscriptEditorRef = useRef(te.loadTranscriptEditor);
-  loadTranscriptEditorRef.current = te.loadTranscriptEditor;
-  const autoEnabledForRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!transcriptJsonPath) return;
-    if (autoEnabledForRef.current !== transcriptJsonPath) {
-      autoEnabledForRef.current = transcriptJsonPath;
-      setEditMode(true);
-    }
-    if (transcriptLoadedForRef.current === transcriptJsonPath) return;
-    transcriptLoadedForRef.current = transcriptJsonPath;
-    void loadTranscriptEditorRef.current(transcriptJsonPath);
-  }, [transcriptJsonPath]);
-
-  useEffect(() => {
-    setEditMode(initialEditMode);
-    transcriptLoadedForRef.current = null;
-    autoEnabledForRef.current = null;
-  }, [runDir, initialEditMode]);
-
-  // ── Annotation import (EAF / TextGrid) directly in the Player ──
-  const [annotImporting, setAnnotImporting] = useState(false);
-  const [annotError, setAnnotError] = useState<string | null>(null);
-  const [annotPending, setAnnotPending] = useState<ImportAnnotationResult | null>(null);
-  const [annotSelectedTiers, setAnnotSelectedTiers] = useState<Set<string>>(new Set());
-
-  const handleAnnotImport = useCallback(async () => {
-    setAnnotError(null);
-    const selected = await openDialog({
-      title: "Importer une annotation (.eaf / .TextGrid)",
-      filters: [{ name: "Annotation", extensions: ["eaf", "TextGrid"] }],
-      multiple: false,
-      directory: false,
-    });
-    if (!selected || typeof selected !== "string") return;
-
-    setAnnotImporting(true);
-    try {
-      const result = await invoke<ImportAnnotationResult>("import_annotation_file", {
-        path: selected,
-      });
-      if (result.tiers.length === 0) {
-        setAnnotError("Aucun tier trouvé dans ce fichier.");
-        return;
-      }
-      if (result.tiers.length === 1) {
-        const tier = result.tiers[0];
-        te.loadAnnotationTier(tier.tierId, tier.segments);
-        setEditMode(true);
-        if (runDir) {
-          void invoke("write_annotation_tiers_to_events", {
-            runDir,
-            tiers: [{ tierId: tier.tierId, segments: tier.segments }],
-          }).catch(() => {});
-        }
-      } else {
-        setAnnotPending(result);
-        setAnnotSelectedTiers(new Set(result.tiers.map((t) => t.tierId)));
-      }
-    } catch (err) {
-      setAnnotError(String(err));
-    } finally {
-      setAnnotImporting(false);
-    }
-  }, [te, runDir]);
-
-  const handleAnnotConfirm = useCallback(() => {
-    if (!annotPending) return;
-    const toLoad = annotPending.tiers.filter((t) => annotSelectedTiers.has(t.tierId));
-    for (const tier of toLoad) {
-      te.loadAnnotationTier(tier.tierId, tier.segments);
-    }
-    setEditMode(true);
-    if (runDir && toLoad.length > 0) {
-      void invoke("write_annotation_tiers_to_events", {
-        runDir,
-        tiers: toLoad.map((t) => ({ tierId: t.tierId, segments: t.segments })),
-      }).catch(() => {});
-    }
-    setAnnotPending(null);
-    setAnnotSelectedTiers(new Set());
-  }, [annotPending, annotSelectedTiers, te, runDir]);
-
-  const toggleAnnotTier = useCallback((tierId: string) => {
-    setAnnotSelectedTiers((prev) => {
-      const next = new Set(prev);
-      if (next.has(tierId)) next.delete(tierId);
-      else next.add(tierId);
-      return next;
-    });
-  }, []);
 
   const pauseCsvPaths = useMemo(() => {
     if (!runDir || !summary?.artifactKeys?.length) {
@@ -356,9 +235,7 @@ export function PlayerWorkspaceSection({
     refreshEpoch: eventsRefreshEpoch,
   });
 
-  // WX-725 — overlay turns/segments sur la waveform (édition → editor segs, sinon → tours SQL)
   const overlaySegments = useMemo((): EditableSegment[] => {
-    if (editMode) return te.editorSegments;
     return (
       runWindow.slice?.turns.map((t) => ({
         start: t.startMs / 1000,
@@ -367,18 +244,9 @@ export function PlayerWorkspaceSection({
         speaker: t.speaker,
       })) ?? []
     );
-  }, [editMode, te.editorSegments, runWindow.slice]);
+  }, [runWindow.slice?.turns]);
 
-  useWaveformCanvas(
-    wf,
-    overlaySegments,
-    editMode ? te.focusedSegmentIndex : null,
-    editMode ? te.hoveredSegmentEdge : null,
-    editMode ? te.dragSegmentState : null,
-    loopAsec,
-    loopBsec,
-    waveformCompact,
-  );
+  useWaveformCanvas(wf, overlaySegments, null, null, null, loopAsec, loopBsec, waveformCompact);
 
   // WX-725 — sync transport → waveform : le canvas lit wf.mediaCurrentSec, pas currentTimeSec
   // webAudioMode (audio) : la position courante vient du Web Audio, pas du timeupdate natif
@@ -459,46 +327,10 @@ export function PlayerWorkspaceSection({
 
   const playheadMs = Math.round(currentTimeSec * 1000);
 
-  const durationMs =
-    durationSec != null && Number.isFinite(durationSec) && durationSec > 0 ? durationSec * 1000 : 0;
-
-  useEffect(() => {
-    if (!editMode || !te.editorSegments.length) return;
-    const segs = te.editorSegments;
-
-    // Try temporal matching first
-    let best: number | null = null;
-    for (let i = 0; i < segs.length; i++) {
-      const sMs = Math.round(segs[i].start * 1000);
-      const eMs = Math.round(segs[i].end * 1000);
-      if (playheadMs >= sMs && playheadMs < eMs) {
-        best = i;
-        break;
-      }
-    }
-
-    // Fallback: proportional mapping when timestamps are corrupted
-    if (best === null && durationMs > 0) {
-      const lastEnd = Math.round(segs[segs.length - 1].end * 1000);
-      const firstStart = Math.round(segs[0].start * 1000);
-      const span = lastEnd - firstStart;
-      if (span > durationMs * 2 || firstStart > durationMs) {
-        const ratio = clampNumber(playheadMs / durationMs, 0, 1);
-        best = Math.min(Math.floor(ratio * segs.length), segs.length - 1);
-      }
-    }
-
-    if (best !== null && best !== te.activeSegmentIndex) {
-      te.setActiveSegmentIndex(best);
-    }
-  }, [
-    editMode,
-    playheadMs,
-    durationMs,
-    te.editorSegments,
-    te.activeSegmentIndex,
-    te.setActiveSegmentIndex,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps -- te granulaire
+  const activeSpeaker = useMemo(
+    () => findActiveSpeakerFromTurns(runWindow.slice?.turns ?? [], playheadMs),
+    [runWindow.slice?.turns, playheadMs],
+  );
 
   const qcSummary = useMemo(() => {
     const parts: string[] = [];
@@ -582,25 +414,6 @@ export function PlayerWorkspaceSection({
     }
   }, [runDir]);
 
-  type ExportFormat = "json" | "srt" | "vtt" | "txt" | "csv" | "textgrid" | "eaf";
-
-  const exportSingleFormat = useCallback(
-    async (format: ExportFormat) => {
-      setExportPackError("");
-      setExportPackHint("");
-      setExportSingleBusy(true);
-      try {
-        await te.exportEditedTranscript(format);
-        setExportFormatMenuOpen(false);
-      } catch (e) {
-        setExportPackError(String(e));
-      } finally {
-        setExportSingleBusy(false);
-      }
-    },
-    [te],
-  );
-
   useEffect(() => {
     setSpeakerSolo(null);
     setAlertListFilter("all");
@@ -644,10 +457,10 @@ export function PlayerWorkspaceSection({
   }, [runDir, runWindowEnabled]);
 
   useEffect(() => {
-    if (!wordsWindowEnabled && viewportMode === "words" && !editMode) {
+    if (!wordsWindowEnabled && viewportMode === "words") {
       setViewportMode("lanes");
     }
-  }, [wordsWindowEnabled, viewportMode, editMode]);
+  }, [wordsWindowEnabled, viewportMode]);
 
   const followScrollKey = Math.floor(playheadMs / 250);
   const followResyncKey = `${viewportMode}-${runWindow.slice?.t0Ms ?? 0}-${runWindow.slice?.t1Ms ?? 0}`;
@@ -797,7 +610,6 @@ export function PlayerWorkspaceSection({
       setSpeakerSolo,
       fullscreenMode,
       setFullscreenMode,
-      editorSegments: editMode ? te.editorSegments : undefined,
     }),
     [
       togglePlayPause,
@@ -831,38 +643,10 @@ export function PlayerWorkspaceSection({
       setSpeakerSolo,
       fullscreenMode,
       setFullscreenMode,
-      editMode,
-      te.editorSegments,
     ],
   );
 
   const onPlayerKeyDown = usePlayerKeyboard(keyboardOptions);
-
-  const onKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (editMode) {
-        if (e.altKey && !e.ctrlKey && !e.metaKey) {
-          if (e.key === "z" && !e.shiftKey) {
-            e.preventDefault();
-            te.undoEditorChange();
-            return;
-          }
-          if (e.key === "z" && e.shiftKey) {
-            e.preventDefault();
-            te.redoEditorChange();
-            return;
-          }
-          if (e.key === "s") {
-            e.preventDefault();
-            void te.saveEditedJson(true);
-            return;
-          }
-        }
-      }
-      onPlayerKeyDown(e as React.KeyboardEvent<HTMLDivElement>);
-    },
-    [editMode, te, onPlayerKeyDown],
-  );
 
   useEffect(() => {
     rootRef.current?.focus();
@@ -875,7 +659,7 @@ export function PlayerWorkspaceSection({
       tabIndex={0}
       role="application"
       aria-label="Lecteur multi-vues"
-      onKeyDown={onKeyDown}
+      onKeyDown={onPlayerKeyDown}
     >
       <div className="player-workspace-top">
         <PlayerTopBar
@@ -1043,83 +827,7 @@ export function PlayerWorkspaceSection({
               </label>
             </details>
 
-            {/* ── 3. Édition ── */}
-            <details className="player-panel-box" open>
-              <summary className="player-panel-box-title">Édition</summary>
-              {transcriptJsonPath ? (
-                <label className="player-panel-toggle small">
-                  <input
-                    type="checkbox"
-                    checked={editMode}
-                    onChange={(e) => runInTransition(() => setEditMode(e.target.checked))}
-                  />
-                  Mode correction
-                </label>
-              ) : (
-                <p className="small player-hint">Aucun transcript — lancer un run.</p>
-              )}
-              {editMode && te.editorDirty ? (
-                <span className="player-edit-dirty-badge small">Non sauvegardé</span>
-              ) : null}
-              <button
-                type="button"
-                className="ghost small player-panel-action-btn"
-                disabled={annotImporting}
-                onClick={() => void handleAnnotImport()}
-                title="Importer un fichier EAF (ELAN) ou TextGrid (Praat)"
-              >
-                {annotImporting ? "Import…" : "Importer .eaf / .TextGrid"}
-              </button>
-              {annotError ? <p className="player-import-annot-error small">{annotError}</p> : null}
-              {annotPending ? (
-                <div className="player-import-annot-picker">
-                  <p className="small">{annotPending.tiers.length} tiers — sélectionner :</p>
-                  <ul className="player-import-annot-list">
-                    {annotPending.tiers.map((tier: AnnotationTier) => (
-                      <li key={tier.tierId}>
-                        <label className="small">
-                          <input
-                            type="checkbox"
-                            checked={annotSelectedTiers.has(tier.tierId)}
-                            onChange={() => toggleAnnotTier(tier.tierId)}
-                          />
-                          {tier.tierId} <span className="mono">({tier.segments.length})</span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                  {annotPending.warnings.length > 0 ? (
-                    <ul className="player-import-annot-warnings small">
-                      {annotPending.warnings.map((w, i) => (
-                        <li key={i}>{w}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  <div className="player-import-annot-actions">
-                    <button
-                      type="button"
-                      className="primary small"
-                      disabled={annotSelectedTiers.size === 0}
-                      onClick={handleAnnotConfirm}
-                    >
-                      Charger {annotSelectedTiers.size} tier(s)
-                    </button>
-                    <button
-                      type="button"
-                      className="ghost small"
-                      onClick={() => {
-                        setAnnotPending(null);
-                        setAnnotSelectedTiers(new Set());
-                      }}
-                    >
-                      Annuler
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-            </details>
-
-            {/* ── 4. Filtres ── */}
+            {/* ── 3. Filtres ── */}
             <details className="player-panel-box" open>
               <summary className="player-panel-box-title">Filtres</summary>
               <div className="player-panel-filter-speaker small">
@@ -1166,11 +874,11 @@ export function PlayerWorkspaceSection({
               />
             </details>
           </aside>
-          <main className={`player-viewport${editMode ? " player-viewport--edit" : ""}`}>
+          <main className="player-viewport">
             {/* WX-725 — Zone sticky : media + transport + waveform toujours visibles */}
             <div className="player-sticky-zone">
               <div
-                className={`player-media-stage${editMode ? " player-media-stage--compact" : ""}${mediaSrc && !isVideo ? " player-media-stage--audio" : ""}`}
+                className={`player-media-stage${mediaSrc && !isVideo ? " player-media-stage--audio" : ""}`}
               >
                 {mediaSrc && isVideo ? (
                   <div
@@ -1268,27 +976,7 @@ export function PlayerWorkspaceSection({
                     durLabel={durLabel}
                     copyPositionHint={copyPositionHint}
                     onCopyPlayhead={copyPlayheadToClipboard}
-                    onPrevSegment={
-                      editMode && te.editorSegments.length > 0
-                        ? () => {
-                            const sec = findPrevSegmentStart(te.editorSegments, currentTimeSec);
-                            if (sec != null) seek(sec);
-                          }
-                        : undefined
-                    }
-                    onNextSegment={
-                      editMode && te.editorSegments.length > 0
-                        ? () => {
-                            const sec = findNextSegmentStart(te.editorSegments, currentTimeSec);
-                            if (sec != null) seek(sec);
-                          }
-                        : undefined
-                    }
-                    activeSpeaker={
-                      editMode && te.editorSegments.length > 0
-                        ? findActiveSpeaker(te.editorSegments, currentTimeSec)
-                        : findActiveSpeakerFromTurns(runWindow.slice?.turns ?? [], playheadMs)
-                    }
+                    activeSpeaker={activeSpeaker}
                     fullscreenMode={fullscreenMode}
                     onToggleFullscreen={runDir ? () => setFullscreenMode((v) => !v) : undefined}
                   />
@@ -1296,69 +984,7 @@ export function PlayerWorkspaceSection({
               </div>
             </div>
             {/* /player-sticky-zone */}
-            {/* WX-725 — Zone défilable : toolbar édition + événements */}
             <div className="player-content-zone">
-              {editMode ? (
-                <div className="player-edit-toolbar" role="toolbar" aria-label="Outils d'édition">
-                  <span className="player-edit-toolbar-label small">
-                    Édition
-                    {te.editorDirty ? (
-                      <span
-                        className="player-edit-toolbar-dirty"
-                        title="Modifications non sauvegardées"
-                      >
-                        {" "}
-                        ●
-                      </span>
-                    ) : null}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={!te.canUndoEditor}
-                    onClick={te.undoEditorChange}
-                    title="Annuler (Alt+Z)"
-                  >
-                    Annuler
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={!te.canRedoEditor}
-                    onClick={te.redoEditorChange}
-                    title="Rétablir (Alt+Shift+Z)"
-                  >
-                    Rétablir
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    disabled={!te.editorDirty || te.isEditorSaving}
-                    loading={te.isEditorSaving}
-                    onClick={() => void te.saveEditedJson(true)}
-                    title="Sauvegarder (Alt+S)"
-                  >
-                    Sauvegarder
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setEditMode(false)}
-                  >
-                    Quitter l'édition
-                  </Button>
-                  {te.editorStatus ? (
-                    <span className="player-edit-toolbar-status small">{te.editorStatus}</span>
-                  ) : null}
-                  {te.editorError ? (
-                    <span className="player-edit-toolbar-error small">{te.editorError}</span>
-                  ) : null}
-                </div>
-              ) : null}
               <div
                 ref={eventsPanelRef}
                 className="player-events-panel"
@@ -1395,13 +1021,6 @@ export function PlayerWorkspaceSection({
                   loopAsec={loopAsec}
                   loopBsec={loopBsec}
                   onSetLoopRange={setLoopRange}
-                  editMode={editMode}
-                  editorSegments={te.editorSegments}
-                  activeSegmentIndex={te.activeSegmentIndex}
-                  setActiveSegmentIndex={te.setActiveSegmentIndex}
-                  updateEditorSegmentText={te.updateEditorSegmentText}
-                  updateEditorSegmentBoundary={te.updateEditorSegmentBoundary}
-                  focusSegment={te.focusSegment}
                   runSpeakerIds={runSpeakerIds}
                   longPauseMs={longPauseMs}
                 />
@@ -1437,41 +1056,7 @@ export function PlayerWorkspaceSection({
                   >
                     {exportPackBusy ? "Export…" : "Export pack"}
                   </button>
-                  <button
-                    type="button"
-                    className="ghost"
-                    disabled={!editMode || !te.editorSourcePath || exportSingleBusy}
-                    title="Exporter un format individuel"
-                    onClick={() => setExportFormatMenuOpen((v) => !v)}
-                  >
-                    {exportSingleBusy ? "Export…" : "Export ▾"}
-                  </button>
                 </div>
-                {exportFormatMenuOpen && editMode && te.editorSourcePath ? (
-                  <div className="player-export-format-menu">
-                    {(
-                      [
-                        ["srt", "SRT"],
-                        ["vtt", "VTT"],
-                        ["json", "JSON"],
-                        ["txt", "TXT"],
-                        ["csv", "CSV"],
-                        ["textgrid", "TextGrid"],
-                        ["eaf", "EAF"],
-                      ] as const
-                    ).map(([fmt, label]) => (
-                      <button
-                        key={fmt}
-                        type="button"
-                        className="ghost player-export-format-btn"
-                        disabled={exportSingleBusy || te.isEditorSaving}
-                        onClick={() => void exportSingleFormat(fmt)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
                 {exportFolderError ? (
                   <span className="player-export-error" role="alert">
                     {exportFolderError}
@@ -1489,75 +1074,33 @@ export function PlayerWorkspaceSection({
                       : exportPackHint}
                   </span>
                 ) : null}
-                {te.editorStatus ? (
-                  <span className="player-export-hint mono">{te.editorStatus}</span>
-                ) : null}
-                {te.editorLastOutputPath && !te.editorStatus ? (
-                  <span className="player-export-hint mono" title={te.editorLastOutputPath}>
-                    {te.editorLastOutputPath.length > 70
-                      ? `…${te.editorLastOutputPath.slice(-70)}`
-                      : te.editorLastOutputPath}
-                  </span>
-                ) : null}
               </div>
             </details>
 
             {/* WX-706 — Segment sélectionné */}
             <details className="player-panel-section" open>
               <summary className="player-panel-section-summary">Segment sélectionné</summary>
-              {editMode && te.activeSegmentIndex !== null
-                ? (() => {
-                    const seg = te.editorSegments[te.activeSegmentIndex];
-                    if (!seg) return <p className="small">Aucun segment actif.</p>;
-                    const durMs = Math.round((seg.end - seg.start) * 1000);
-                    const nWords = seg.words?.length ?? null;
-                    const scoredWords = seg.words?.filter((w) => w.score != null) ?? [];
-                    const avgScore =
-                      scoredWords.length > 0
-                        ? scoredWords.reduce((s, w) => s + w.score!, 0) / scoredWords.length
-                        : null;
-                    return (
-                      <dl className="player-segment-info small">
-                        <dt>Locuteur</dt>
-                        <dd>{seg.speaker ?? "—"}</dd>
-                        <dt>Durée</dt>
-                        <dd className="mono">{durMs} ms</dd>
-                        {nWords !== null && (
-                          <>
-                            <dt>Mots</dt>
-                            <dd>{nWords}</dd>
-                          </>
-                        )}
-                        {avgScore !== null && (
-                          <>
-                            <dt>Score moy.</dt>
-                            <dd className="mono">{avgScore.toFixed(2)}</dd>
-                          </>
-                        )}
-                      </dl>
-                    );
-                  })()
-                : (() => {
-                    const turn = runWindow.slice?.turns.find(
-                      (t) => t.startMs <= playheadMs && playheadMs < t.endMs,
-                    );
-                    if (!turn) return <p className="small">Aucun tour au curseur.</p>;
-                    const durMs = turn.endMs - turn.startMs;
-                    return (
-                      <dl className="player-segment-info small">
-                        <dt>Locuteur</dt>
-                        <dd>{turn.speaker}</dd>
-                        <dt>Durée</dt>
-                        <dd className="mono">{durMs} ms</dd>
-                        {turn.confidence != null && (
-                          <>
-                            <dt>Conf.</dt>
-                            <dd className="mono">{turn.confidence.toFixed(2)}</dd>
-                          </>
-                        )}
-                      </dl>
-                    );
-                  })()}
+              {(() => {
+                const turn = runWindow.slice?.turns.find(
+                  (t) => t.startMs <= playheadMs && playheadMs < t.endMs,
+                );
+                if (!turn) return <p className="small">Aucun tour au curseur.</p>;
+                const durMs = turn.endMs - turn.startMs;
+                return (
+                  <dl className="player-segment-info small">
+                    <dt>Locuteur</dt>
+                    <dd>{turn.speaker}</dd>
+                    <dt>Durée</dt>
+                    <dd className="mono">{durMs} ms</dd>
+                    {turn.confidence != null && (
+                      <>
+                        <dt>Conf.</dt>
+                        <dd className="mono">{turn.confidence.toFixed(2)}</dd>
+                      </>
+                    )}
+                  </dl>
+                );
+              })()}
             </details>
 
             {/* Alertes */}
@@ -1656,40 +1199,7 @@ export function PlayerWorkspaceSection({
                     type="button"
                     className="player-panel-export-btn"
                     onClick={() => {
-                      const sl = runWindow.slice!;
-                      const durMs =
-                        durationSec != null && Number.isFinite(durationSec)
-                          ? durationSec * 1000
-                          : Math.max(0, ...sl.turns.map((t) => t.endMs));
-                      const hasWords = sl.words.length > 0;
-                      const stats = computeSpeakerStats(
-                        sl.turns,
-                        sl.pauses,
-                        sl.ipus,
-                        durMs,
-                        hasWords ? sl.words : undefined,
-                      );
-                      const overlaps = computeOverlaps(sl.turns, durMs);
-                      const transitions = computeTransitions(sl.turns);
-                      const density = computeSpeechDensity(sl.turns, durMs);
-                      const rate = computeSpeechRate(sl.ipus, durMs);
-                      const totalSpeechMs = stats.reduce((s, st) => s + st.speechMs, 0);
-                      const totalWords = stats.reduce((s, st) => s + st.nWords, 0);
-                      const full = buildFullStatsExport(
-                        stats,
-                        overlaps,
-                        transitions,
-                        density,
-                        rate,
-                        null,
-                        durMs,
-                        totalSpeechMs,
-                        totalWords,
-                        sl.turns,
-                        sl.pauses,
-                        sl.ipus,
-                        sl.words,
-                      );
+                      const full = buildSliceExportStats(runWindow.slice!, durationSec);
                       void navigator.clipboard.writeText(buildFullStatsCsv(full));
                     }}
                   >
@@ -1699,40 +1209,7 @@ export function PlayerWorkspaceSection({
                     type="button"
                     className="player-panel-export-btn"
                     onClick={() => {
-                      const sl = runWindow.slice!;
-                      const durMs =
-                        durationSec != null && Number.isFinite(durationSec)
-                          ? durationSec * 1000
-                          : Math.max(0, ...sl.turns.map((t) => t.endMs));
-                      const hasWords = sl.words.length > 0;
-                      const stats = computeSpeakerStats(
-                        sl.turns,
-                        sl.pauses,
-                        sl.ipus,
-                        durMs,
-                        hasWords ? sl.words : undefined,
-                      );
-                      const overlaps = computeOverlaps(sl.turns, durMs);
-                      const transitions = computeTransitions(sl.turns);
-                      const density = computeSpeechDensity(sl.turns, durMs);
-                      const rate = computeSpeechRate(sl.ipus, durMs);
-                      const totalSpeechMs = stats.reduce((s, st) => s + st.speechMs, 0);
-                      const totalWords = stats.reduce((s, st) => s + st.nWords, 0);
-                      const full = buildFullStatsExport(
-                        stats,
-                        overlaps,
-                        transitions,
-                        density,
-                        rate,
-                        null,
-                        durMs,
-                        totalSpeechMs,
-                        totalWords,
-                        sl.turns,
-                        sl.pauses,
-                        sl.ipus,
-                        sl.words,
-                      );
+                      const full = buildSliceExportStats(runWindow.slice!, durationSec);
                       void navigator.clipboard.writeText(JSON.stringify(full, null, 2));
                     }}
                   >
@@ -1790,35 +1267,8 @@ export function PlayerWorkspaceSection({
               onMarkLoopA={markLoopA}
               onMarkLoopB={markLoopB}
               onClearLoop={clearLoop}
-              onPrevSegment={
-                editMode && te.editorSegments.length > 0
-                  ? () => {
-                      const sec = findPrevSegmentStart(te.editorSegments, currentTimeSec);
-                      if (sec != null) seek(sec);
-                    }
-                  : undefined
-              }
-              onNextSegment={
-                editMode && te.editorSegments.length > 0
-                  ? () => {
-                      const sec = findNextSegmentStart(te.editorSegments, currentTimeSec);
-                      if (sec != null) seek(sec);
-                    }
-                  : undefined
-              }
-              activeSpeaker={
-                editMode && te.editorSegments.length > 0
-                  ? findActiveSpeaker(te.editorSegments, currentTimeSec)
-                  : findActiveSpeakerFromTurns(runWindow.slice?.turns ?? [], playheadMs)
-              }
+              activeSpeaker={activeSpeaker}
               onToggleFollowPlayhead={() => setFollowPlayhead((v) => !v)}
-              editMode={editMode}
-              editorSegments={te.editorSegments}
-              activeSegmentIndex={te.activeSegmentIndex}
-              setActiveSegmentIndex={te.setActiveSegmentIndex}
-              updateEditorSegmentText={te.updateEditorSegmentText}
-              updateEditorSegmentBoundary={te.updateEditorSegmentBoundary}
-              focusSegment={te.focusSegment}
               runSpeakerIds={runSpeakerIds}
               speakerSolo={speakerSolo}
               onSetSpeakerSolo={setSpeakerSolo}

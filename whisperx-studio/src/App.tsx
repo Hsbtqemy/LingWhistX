@@ -48,7 +48,6 @@ function App() {
   const { errors: appErrors, setError } = useAppErrorStack();
   const [activeView, setActiveView] = useState<StudioView>(readStoredView);
   const [activeRun, setActiveRun] = useState<ActiveRun | null>(readStoredRun);
-  const [playerInitialEditMode, setPlayerInitialEditMode] = useState(false);
   const [playerEventsEpoch, setPlayerEventsEpoch] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
 
@@ -88,14 +87,10 @@ function App() {
     }
   }, [activeRun]);
 
-  const handleOpenPlayer = useCallback(
-    (runDir: string, label?: string | null, editMode?: boolean) => {
-      setActiveRun({ runDir, label: label ?? runDir });
-      setPlayerInitialEditMode(editMode ?? false);
-      setActiveView("player");
-    },
-    [],
-  );
+  const handleOpenPlayer = useCallback((runDir: string, label?: string | null) => {
+    setActiveRun({ runDir, label: label ?? runDir });
+    setActiveView("player");
+  }, []);
 
   const handleOpenEditor = useCallback((runDir: string, label?: string | null) => {
     setActiveRun({ runDir, label: label ?? runDir });
@@ -250,7 +245,6 @@ function App() {
               runLabel={activeRun?.label ?? null}
               onBack={handlePlayerBack}
               eventsRefreshEpoch={playerEventsEpoch}
-              initialEditMode={playerInitialEditMode}
               onToggleHelp={() => setHelpOpen((v) => !v)}
               onOpenEditor={handleOpenEditor}
               importMedia={{

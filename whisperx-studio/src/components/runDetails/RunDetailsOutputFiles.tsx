@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { fileBasename, findPrimaryTranscriptJson } from "../../appUtils";
+import { fileBasename } from "../../appUtils";
 import type { Job } from "../../types";
 import { runInTransition } from "../../whisperxOptionsTransitions";
 
@@ -10,7 +10,7 @@ export type RunDetailsOutputFilesProps = {
   onPreview: (path: string) => void;
   onLoadTranscript: (path: string) => void;
   /** Passe au lecteur multi-pistes (manifest + média dans le dossier de sortie). */
-  onOpenPlayerRun?: (outputDir: string, label?: string | null, editMode?: boolean) => void;
+  onOpenPlayerRun?: (outputDir: string, label?: string | null) => void;
 };
 
 type OutputCategory = "all" | "json" | "subtitles" | "data" | "media" | "other";
@@ -202,11 +202,6 @@ export function RunDetailsOutputFiles({
     onOpenPlayerRun && job.outputDir?.trim() && job.status !== "queued" && job.status !== "running",
   );
 
-  const hasTranscriptJson = useMemo(
-    () => findPrimaryTranscriptJson(job.outputFiles) !== null,
-    [job.outputFiles],
-  );
-
   return (
     <div className="output-files-section">
       <div className="output-files-section__head">
@@ -240,17 +235,6 @@ export function RunDetailsOutputFiles({
                 }
               >
                 Ouvrir dans le Player
-              </button>
-            ) : null}
-            {canOpenPlayer && hasTranscriptJson ? (
-              <button
-                type="button"
-                className="primary"
-                onClick={() =>
-                  onOpenPlayerRun?.(job.outputDir, fileBasename(job.inputPath) || job.id, true)
-                }
-              >
-                Vérifier dans le Player
               </button>
             ) : null}
           </div>

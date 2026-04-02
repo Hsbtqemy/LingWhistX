@@ -39,7 +39,7 @@ export type RunDetailsPanelProps = {
   onLoadTranscriptEditor: (path: string) => void;
   transcriptEditor: TranscriptEditorPanelProps | null;
   /** Ouvre le dossier de sortie dans le Player (onglet Player). */
-  onOpenPlayerRun?: (outputDir: string, label?: string | null, editMode?: boolean) => void;
+  onOpenPlayerRun?: (outputDir: string, label?: string | null) => void;
   /** WX-676 — Charge un tier d'annotation EAF/TextGrid dans l'éditeur de transcript. */
   onLoadAnnotationTier?: (tierId: string, segments: AnnotationSegment[]) => void;
   /** WX-696 — Dossier de sortie du run sélectionné (pour écriture dans events.sqlite). */
@@ -540,11 +540,10 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                           onOpenPlayerRun(
                             selectedJobOutputDir,
                             selectedJob ? fileBasename(selectedJob.inputPath) : undefined,
-                            true,
                           );
                         }}
                       >
-                        Ouvrir dans le Player (mode édition)
+                        Ouvrir dans le Player
                       </button>
                     ) : (
                       <p className="small">

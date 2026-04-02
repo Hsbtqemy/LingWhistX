@@ -1,4 +1,4 @@
-import type { EditableSegment, QueryWindowResult } from "../../types";
+import type { QueryWindowResult } from "../../types";
 import type { PlayerViewportMode } from "./playerViewportContract";
 import { PlayerChatBody } from "./views/ChatView";
 import { PlayerColumnsBody } from "./views/ColumnsView";
@@ -28,13 +28,6 @@ type Props = {
   loopAsec?: number | null;
   loopBsec?: number | null;
   onSetLoopRange?: (aSec: number, bSec: number) => void;
-  editMode?: boolean;
-  editorSegments?: EditableSegment[];
-  activeSegmentIndex?: number | null;
-  setActiveSegmentIndex?: (i: number | null) => void;
-  updateEditorSegmentText?: (index: number, text: string) => void;
-  updateEditorSegmentBoundary?: (index: number, edge: "start" | "end", value: number) => void;
-  focusSegment?: (index: number) => void;
   /** Liste complète des locuteurs du run (pour les lanes karaoké). */
   runSpeakerIds?: string[];
   /** WX-713 — Seuil de pause visible dans Lanes et Rythmo (ms). */
@@ -57,11 +50,6 @@ export function PlayerRunWindowViews({
   loopAsec,
   loopBsec,
   onSetLoopRange,
-  editMode = false,
-  editorSegments,
-  activeSegmentIndex,
-  updateEditorSegmentText,
-  focusSegment,
   longPauseMs = 300,
   runSpeakerIds,
 }: Props) {
@@ -116,13 +104,8 @@ export function PlayerRunWindowViews({
         durationSec={durationSec}
         loopAsec={loopAsec}
         loopBsec={loopBsec}
-        editorSegments={editorSegments}
         onSetLoopRange={onSetLoopRange}
         followPlayhead={followPlayhead}
-        editMode={editMode}
-        activeSegmentIndex={activeSegmentIndex ?? null}
-        onFocusSegment={focusSegment}
-        onUpdateText={updateEditorSegmentText}
         longPauseMs={longPauseMs}
       />
     );

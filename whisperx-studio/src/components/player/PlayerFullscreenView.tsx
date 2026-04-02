@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatClockSeconds } from "../../appUtils";
-import type { QueryWindowResult, EditableSegment } from "../../types";
+import type { QueryWindowResult } from "../../types";
 import { PlayerRunWindowViews, type PlayerViewportMode } from "./PlayerRunWindowViews";
 
 const VIEW_LABELS: { mode: PlayerViewportMode; label: string; key: string }[] = [
@@ -48,13 +48,6 @@ export type PlayerFullscreenViewProps = {
   loopAsec?: number | null;
   loopBsec?: number | null;
   onSetLoopRange?: (aSec: number, bSec: number) => void;
-  editMode: boolean;
-  editorSegments: EditableSegment[];
-  activeSegmentIndex: number | null;
-  setActiveSegmentIndex: (i: number | null) => void;
-  updateEditorSegmentText: (index: number, text: string) => void;
-  updateEditorSegmentBoundary: (index: number, edge: "start" | "end", value: number) => void;
-  focusSegment: (index: number) => void;
   runSpeakerIds: string[];
   speakerSolo: string | null;
   onSetSpeakerSolo: (id: string | null) => void;
@@ -94,13 +87,6 @@ export function PlayerFullscreenView({
   loopAsec,
   loopBsec,
   onSetLoopRange,
-  editMode,
-  editorSegments,
-  activeSegmentIndex,
-  setActiveSegmentIndex,
-  updateEditorSegmentText,
-  updateEditorSegmentBoundary,
-  focusSegment,
   runSpeakerIds,
   speakerSolo,
   onSetSpeakerSolo,
@@ -351,13 +337,6 @@ export function PlayerFullscreenView({
           loopAsec={loopAsec}
           loopBsec={loopBsec}
           onSetLoopRange={onSetLoopRange}
-          editMode={editMode}
-          editorSegments={editorSegments}
-          activeSegmentIndex={activeSegmentIndex}
-          setActiveSegmentIndex={setActiveSegmentIndex}
-          updateEditorSegmentText={updateEditorSegmentText}
-          updateEditorSegmentBoundary={updateEditorSegmentBoundary}
-          focusSegment={focusSegment}
           runSpeakerIds={runSpeakerIds}
           longPauseMs={longPauseMs}
         />

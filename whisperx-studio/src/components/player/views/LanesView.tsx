@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { clampNumber, formatClockSeconds } from "../../../appUtils";
-import type { EditableSegment, EventTurnRow, QueryWindowResult } from "../../../types";
-import {
-  buildOrdinalSegmentIndex,
-  findSegmentIndexForTurn,
-  speakerColor,
-  turnTextFromIpus,
-  turnTextFromSegments,
-} from "./viewUtils";
+import type { EventTurnRow, QueryWindowResult } from "../../../types";
+import { speakerColor, turnTextFromIpus } from "./viewUtils";
 
 type LanesLayoutMode = "timeline" | "columns";
 
@@ -23,18 +17,13 @@ type LanesTurnEnriched = {
 
 function enrichTurns(
   slice: QueryWindowResult,
-  editorSegments: EditableSegment[] | undefined,
   longPauseMs: number = 300,
 ): { enriched: LanesTurnEnriched[]; speakers: string[] } {
   const sorted = [...slice.turns].sort((a, b) => a.startMs - b.startMs);
   const speakers = Array.from(new Set(sorted.map((t) => t.speaker || "\u2014"))).sort();
 
   const enriched: LanesTurnEnriched[] = sorted.map((t, i) => {
-    let text = turnTextFromIpus(t, slice.ipus);
-    if (!text && editorSegments) {
-      text = turnTextFromSegments(t, editorSegments);
-    }
-
+    const text = turnTextFromIpus(t, slice.ipus);
     const durMs = t.endMs - t.startMs;
 
     let pauseBeforeMs: number | null = null;
@@ -206,12 +195,7 @@ export function PlayerLanesBody({
   loopAsec,
   loopBsec,
   onSetLoopRange,
-  editorSegments,
   followPlayhead = true,
-  editMode = false,
-  activeSegmentIndex,
-  onFocusSegment,
-  onUpdateText,
   longPauseMs = 300,
 }: {
   slice: QueryWindowResult;
@@ -221,24 +205,21 @@ export function PlayerLanesBody({
   loopAsec?: number | null;
   loopBsec?: number | null;
   onSetLoopRange?: (aSec: number, bSec: number) => void;
-  editorSegments?: EditableSegment[];
   followPlayhead?: boolean;
-  editMode?: boolean;
-  activeSegmentIndex?: number | null;
-  onFocusSegment?: (index: number) => void;
   longPauseMs?: number;
-  onUpdateText?: (index: number, text: string) => void;
 }) {
   const [layoutMode, setLayoutMode] = useState<LanesLayoutMode>("timeline");
   const [followActive, setFollowActive] = useState(true);
-  const [editingTurnId, setEditingTurnId] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLDivElement>(null);
   const programmaticScrollRef = useRef(false);
 
   const { enriched, speakers } = useMemo(
-    () => enrichTurns(slice, editorSegments, longPauseMs),
-    [slice, editorSegments, longPauseMs],
+    () => enrichTurns(slice, longPauseMs),
+    // `slice` object reference changes on every IPC query even when data is identical;
+    // depend on the inner arrays so we only recompute when the content actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [slice.turns, slice.ipus, slice.pauses, longPauseMs],
   );
 
   const activeIndex = useMemo(() => {
@@ -265,11 +246,6 @@ export function PlayerLanesBody({
     if (followActive) setFollowActive(false);
   };
 
-  const ordinalIndex = useMemo(
-    () => (editorSegments ? buildOrdinalSegmentIndex(slice.turns, editorSegments) : null),
-    [slice.turns, editorSegments],
-  );
-
   const bySpeaker = useMemo(() => {
     const map = new Map<string, LanesTurnEnriched[]>();
     for (const e of enriched) {
@@ -288,46 +264,12 @@ export function PlayerLanesBody({
     isPast: boolean,
     showSpeaker: boolean,
   ) => {
-    const isEditing = editMode && editingTurnId === e.turn.id;
-    const segIdx =
-      editMode && editorSegments
-        ? findSegmentIndexForTurn(e.turn, editorSegments, ordinalIndex, slice.turns)
-        : null;
-    const isFocused = editMode && segIdx != null && activeSegmentIndex === segIdx;
-
     let cls = "player-lanes-turn";
     if (isActive) cls += " is-active";
     else if (isPast) cls += " is-past";
-    if (isFocused) cls += " is-focused";
-
-    const handleDoubleClick = () => {
-      if (!editMode || segIdx == null) return;
-      onFocusSegment?.(segIdx);
-      setEditingTurnId(e.turn.id);
-    };
-
-    const handleBlur = () => {
-      setEditingTurnId(null);
-    };
-
-    const handleKeyDown = (ev: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (ev.key === "Enter" && !ev.shiftKey) {
-        ev.preventDefault();
-        setEditingTurnId(null);
-      }
-      if (ev.key === "Escape") {
-        setEditingTurnId(null);
-      }
-    };
 
     return (
-      <div
-        key={e.turn.id}
-        ref={isActive ? activeRef : undefined}
-        className={cls}
-        role="listitem"
-        onDoubleClick={handleDoubleClick}
-      >
+      <div key={e.turn.id} ref={isActive ? activeRef : undefined} className={cls} role="listitem">
         <button
           type="button"
           className="player-lanes-turn-btn"
@@ -351,22 +293,7 @@ export function PlayerLanesBody({
               {e.durMs >= 1000 ? `${(e.durMs / 1000).toFixed(1)}s` : `${Math.round(e.durMs)}ms`}
             </span>
           </div>
-          <div className="player-lanes-turn-body">
-            {isEditing && segIdx != null && onUpdateText ? (
-              <textarea
-                className="player-inline-edit-textarea"
-                value={editorSegments![segIdx].text}
-                onChange={(ev) => onUpdateText(segIdx, ev.target.value)}
-                onBlur={handleBlur}
-                onKeyDown={handleKeyDown}
-                onClick={(ev) => ev.stopPropagation()}
-                autoFocus
-                rows={Math.max(2, Math.ceil((editorSegments![segIdx].text.length || 1) / 60))}
-              />
-            ) : (
-              e.text || "\u2026"
-            )}
-          </div>
+          <div className="player-lanes-turn-body">{e.text || "\u2026"}</div>
           <div className="player-lanes-turn-badges">
             {e.pauseBeforeMs != null &&
               (() => {

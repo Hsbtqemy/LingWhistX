@@ -25,7 +25,7 @@ export type UseStudioWorkspaceOptions = {
   /** WX-623 — injecte le JSON des plages dans le formulaire « Nouveau job ». */
   injectAudioPipelineSegmentsJson?: (json: string) => void;
   /** Ouvre le dossier de sortie du job dans l’onglet Player. */
-  onOpenPlayerRun?: (outputDir: string, label?: string | null, editMode?: boolean) => void;
+  onOpenPlayerRun?: (outputDir: string, label?: string | null) => void;
   /** WX-708 — Appelé quand un job passe running → done (auto-open Player). */
   onJobBecameDone?: (job: import("../types").Job) => void;
   /** WX-696 — Appelé après écriture de tiers annotation dans events.sqlite. */
