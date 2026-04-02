@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-04-01T11:49:06.000Z",
+  "updatedAt": "2026-04-02T08:40:26.634Z",
   "statuses": ["todo", "in_progress", "blocked", "done"],
   "tasks": [
     {
@@ -3791,7 +3791,7 @@
     {
       "id": "WX-728",
       "title": "Architecture 3 onglets : restructurer App.tsx, navigation, état partagé du run actif",
-      "status": "todo",
+      "status": "done",
       "priority": "P0",
       "estimate": "2d",
       "dependsOn": [],
@@ -3826,7 +3826,7 @@
     {
       "id": "WX-729",
       "title": "Onglet Édition : créer EditorWorkspaceSection avec mini-player, waveform et segments éditables",
-      "status": "todo",
+      "status": "done",
       "priority": "P0",
       "estimate": "3d",
       "dependsOn": ["WX-728"],

@@ -8,6 +8,7 @@ export type PlayerTopBarProps = {
   onToggleHelp?: () => void;
   onToggleFullscreen?: () => void;
   fullscreenMode?: boolean;
+  onOpenEditor?: () => void;
 };
 
 /**
@@ -22,6 +23,7 @@ export function PlayerTopBar({
   onToggleHelp,
   onToggleFullscreen,
   fullscreenMode,
+  onOpenEditor,
 }: PlayerTopBarProps) {
   return (
     <header className="player-topbar">
@@ -37,6 +39,16 @@ export function PlayerTopBar({
         </span>
       ) : null}
       <div className="player-topbar-actions">
+        {onOpenEditor ? (
+          <button
+            type="button"
+            className="ghost small"
+            onClick={onOpenEditor}
+            title="Ouvrir dans l'éditeur"
+          >
+            ✏ Éditeur
+          </button>
+        ) : null}
         {onToggleFullscreen ? (
           <button
             type="button"

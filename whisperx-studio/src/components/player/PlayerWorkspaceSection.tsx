@@ -25,7 +25,6 @@ import type {
   ImportAnnotationResult,
   RecomputePlayerAlertsResponse,
   RecomputePlayerAlertsStats,
-  StudioView,
 } from "../../types";
 import type { PlayerDerivedAlert } from "../../player/derivePlayerAlerts";
 import { PlayerRunWindowViews, type PlayerViewportMode } from "./PlayerRunWindowViews";
@@ -98,7 +97,7 @@ export type PlayerWorkspaceSectionImportMediaProps = {
 export type PlayerWorkspaceSectionProps = {
   runDir: string | null;
   runLabel?: string | null;
-  onBack: (view: StudioView) => void;
+  onBack: () => void;
   importMedia?: PlayerWorkspaceSectionImportMediaProps;
   /** WX-696 — Incrémenter pour forcer un rechargement de la fenêtre events (annotation tiers). */
   eventsRefreshEpoch?: number;
@@ -106,6 +105,8 @@ export type PlayerWorkspaceSectionProps = {
   initialEditMode?: boolean;
   /** Ouvre le dialogue d'aide global (géré par App.tsx). */
   onToggleHelp?: () => void;
+  /** Navigation contextuelle vers l'éditeur (WX-728). */
+  onOpenEditor?: (runDir: string, label?: string) => void;
 };
 
 type AlertListFilter = "all" | PlayerDerivedAlertKind;
@@ -121,6 +122,7 @@ export function PlayerWorkspaceSection({
   eventsRefreshEpoch = 0,
   initialEditMode = false,
   onToggleHelp,
+  onOpenEditor,
 }: PlayerWorkspaceSectionProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [viewportMode, setViewportMode] = useState<PlayerViewportMode>("lanes");
@@ -877,13 +879,16 @@ export function PlayerWorkspaceSection({
     >
       <div className="player-workspace-top">
         <PlayerTopBar
-          onBack={() => onBack("create")}
+          onBack={onBack}
           runLabel={runLabel ?? "Player"}
           runDir={runDir}
           mediaPath={mediaPath}
           onToggleHelp={onToggleHelp}
           onToggleFullscreen={runDir ? () => setFullscreenMode((v) => !v) : undefined}
           fullscreenMode={fullscreenMode}
+          onOpenEditor={
+            onOpenEditor && runDir ? () => onOpenEditor(runDir, runLabel ?? runDir) : undefined
+          }
         />
         {runDir && (
           <div className="player-loop-bar">
@@ -970,11 +975,8 @@ export function PlayerWorkspaceSection({
               </div>
             ) : null}
             <div className="player-empty-cta">
-              <Button type="button" variant="primary" onClick={() => onBack("workspace")}>
-                Aller au Studio
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => onBack("jobs")}>
-                Historique des jobs
+              <Button type="button" variant="primary" onClick={onBack}>
+                Aller à Import
               </Button>
             </div>
           </div>

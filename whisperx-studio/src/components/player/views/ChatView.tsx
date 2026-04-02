@@ -1,38 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatClockSeconds } from "../../../appUtils";
-import type { EditableSegment, EventTurnRow, QueryWindowResult } from "../../../types";
-import {
-  buildOrdinalSegmentIndex,
-  findSegmentIndexForTurn,
-  speakerColor,
-  turnTextFromIpus,
-  turnTextFromSegments,
-} from "./viewUtils";
+import type { EventTurnRow, QueryWindowResult } from "../../../types";
+import { speakerColor, turnTextFromIpus } from "./viewUtils";
 
 export function PlayerChatBody({
   slice,
   playheadMs,
   onSeekToMs,
   followPlayhead = true,
-  editorSegments,
-  editMode = false,
-  activeSegmentIndex,
-  onFocusSegment,
-  onUpdateText,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
   onSeekToMs?: (ms: number) => void;
   followPlayhead?: boolean;
-  editorSegments?: EditableSegment[];
-  editMode?: boolean;
-  activeSegmentIndex?: number | null;
-  onFocusSegment?: (index: number) => void;
-  onUpdateText?: (index: number, text: string) => void;
   durationSec?: number | null;
 }) {
   const [followActive, setFollowActive] = useState(true);
-  const [editingTurnId, setEditingTurnId] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLDivElement>(null);
   const programmaticScrollRef = useRef(false);
@@ -45,11 +28,6 @@ export function PlayerChatBody({
   const sortedTurns = useMemo(
     () => [...slice.turns].sort((a, b) => a.startMs - b.startMs),
     [slice.turns],
-  );
-
-  const ordinalIndex = useMemo(
-    () => (editorSegments ? buildOrdinalSegmentIndex(slice.turns, editorSegments) : null),
-    [slice.turns, editorSegments],
   );
 
   const activeIndex = useMemo(() => {
@@ -78,14 +56,9 @@ export function PlayerChatBody({
 
   const getTurnText = useCallback(
     (turn: EventTurnRow): string => {
-      const ipuText = turnTextFromIpus(turn, slice.ipus);
-      if (ipuText) return ipuText;
-      if (editorSegments) {
-        return turnTextFromSegments(turn, editorSegments);
-      }
-      return "";
+      return turnTextFromIpus(turn, slice.ipus);
     },
-    [editorSegments, slice.ipus],
+    [slice.ipus],
   );
 
   return (
@@ -115,31 +88,13 @@ export function PlayerChatBody({
           const spIdx = speakers.indexOf(turn.speaker || "\u2014");
           const text = getTurnText(turn);
           const durMs = turn.endMs - turn.startMs;
-          const isEditingThis = editMode && editingTurnId === turn.id;
-          const segIdx =
-            editMode && editorSegments
-              ? findSegmentIndexForTurn(turn, editorSegments, ordinalIndex, slice.turns)
-              : null;
-          const isFocused = editMode && segIdx != null && activeSegmentIndex === segIdx;
 
           let cls = "player-chat-bubble";
           if (isActive) cls += " is-active";
           else if (isPast) cls += " is-past";
-          if (isFocused) cls += " is-focused";
-
-          const handleDoubleClick = () => {
-            if (!editMode || segIdx == null) return;
-            onFocusSegment?.(segIdx);
-            setEditingTurnId(turn.id);
-          };
 
           return (
-            <div
-              key={turn.id}
-              ref={isActive ? activeRef : undefined}
-              className={cls}
-              onDoubleClick={handleDoubleClick}
-            >
+            <div key={turn.id} ref={isActive ? activeRef : undefined} className={cls}>
               <button
                 type="button"
                 className="player-chat-bubble-btn"
@@ -156,26 +111,7 @@ export function PlayerChatBody({
                   </div>
                 )}
                 <div className="player-chat-body">
-                  {isEditingThis && segIdx != null && onUpdateText ? (
-                    <textarea
-                      className="player-inline-edit-textarea"
-                      value={editorSegments![segIdx].text}
-                      onChange={(ev) => onUpdateText(segIdx, ev.target.value)}
-                      onBlur={() => setEditingTurnId(null)}
-                      onKeyDown={(ev) => {
-                        if (ev.key === "Enter" && !ev.shiftKey) {
-                          ev.preventDefault();
-                          setEditingTurnId(null);
-                        }
-                        if (ev.key === "Escape") setEditingTurnId(null);
-                      }}
-                      onClick={(ev) => ev.stopPropagation()}
-                      autoFocus
-                      rows={Math.max(2, Math.ceil((editorSegments![segIdx].text.length || 1) / 60))}
-                    />
-                  ) : (
-                    <p className="player-chat-text">{text || "\u2026"}</p>
-                  )}
+                  <p className="player-chat-text">{text || "\u2026"}</p>
                 </div>
                 <div className="player-chat-meta-row mono">
                   <span className="player-chat-time">

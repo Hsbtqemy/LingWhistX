@@ -323,6 +323,15 @@ export function useTranscriptEditor({
     });
   }
 
+  function updateEditorSegmentSpeaker(index: number, speaker: string | null) {
+    applyEditorPatch({
+      kind: "speaker_change",
+      index,
+      prevSpeaker: editorSegmentsRef.current[index]?.speaker,
+      nextSpeaker: speaker || null,
+    });
+  }
+
   function updateEditorLanguage(nextLanguage: string) {
     applyEditorPatch({
       kind: "language_change",
@@ -639,6 +648,7 @@ export function useTranscriptEditor({
     canMergeNext,
     loadTranscriptEditor,
     updateEditorSegmentText,
+    updateEditorSegmentSpeaker,
     updateEditorLanguage,
     undoEditorChange,
     redoEditorChange,

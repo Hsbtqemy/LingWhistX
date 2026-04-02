@@ -81,18 +81,7 @@ export function PlayerRunWindowViews({
   }
 
   if (mode === "columns") {
-    return (
-      <PlayerColumnsBody
-        slice={slice}
-        playheadMs={playheadMs}
-        onSeekToMs={onSeekToMs}
-        editMode={editMode}
-        editorSegments={editorSegments}
-        activeSegmentIndex={activeSegmentIndex ?? null}
-        onFocusSegment={focusSegment}
-        onUpdateText={updateEditorSegmentText}
-      />
-    );
+    return <PlayerColumnsBody slice={slice} playheadMs={playheadMs} onSeekToMs={onSeekToMs} />;
   }
   if (mode === "rythmo") {
     return (
@@ -101,11 +90,6 @@ export function PlayerRunWindowViews({
         playheadMs={playheadMs}
         onSeekToMs={onSeekToMs}
         followPlayhead={followPlayhead}
-        editMode={editMode}
-        editorSegments={editorSegments}
-        activeSegmentIndex={activeSegmentIndex ?? null}
-        onFocusSegment={focusSegment}
-        onUpdateText={updateEditorSegmentText}
         durationSec={durationSec}
         longPauseMs={longPauseMs}
       />
@@ -119,11 +103,6 @@ export function PlayerRunWindowViews({
         wordsLayerActive={wordsLayerActive}
         onSeekToMs={onSeekToMs}
         followPlayhead={followPlayhead}
-        editMode={editMode}
-        editorSegments={editorSegments}
-        activeSegmentIndex={activeSegmentIndex ?? null}
-        onFocusSegment={focusSegment}
-        onUpdateText={updateEditorSegmentText}
         runSpeakerIds={runSpeakerIds}
       />
     );
@@ -155,11 +134,6 @@ export function PlayerRunWindowViews({
         playheadMs={playheadMs}
         onSeekToMs={onSeekToMs}
         followPlayhead={followPlayhead}
-        editorSegments={editorSegments}
-        editMode={editMode}
-        activeSegmentIndex={activeSegmentIndex ?? null}
-        onFocusSegment={focusSegment}
-        onUpdateText={updateEditorSegmentText}
         durationSec={durationSec}
       />
     );
@@ -181,11 +155,6 @@ export function PlayerRunWindowViews({
       wordsLayerActive={wordsLayerActive}
       onSeekToMs={onSeekToMs}
       followPlayhead={followPlayhead}
-      editMode={editMode}
-      editorSegments={editorSegments}
-      activeSegmentIndex={activeSegmentIndex ?? null}
-      onFocusSegment={focusSegment}
-      onUpdateText={updateEditorSegmentText}
       durationSec={durationSec}
     />
   );

@@ -1,0 +1,173 @@
+import { memo, useMemo, type Dispatch, type SetStateAction } from "react";
+import type { EditableSegment } from "../../types";
+import { formatClockSeconds } from "../../appUtils";
+
+export type EditorSegmentListProps = {
+  segments: EditableSegment[];
+  /** Tous les segments (y compris non affichés) — utilisé pour dériver la liste des locuteurs. */
+  allSegments: EditableSegment[];
+  allSegmentsCount: number;
+  activeSegmentIndex: number | null;
+  hasMoreSegments: boolean;
+  editorVisibleCount: number;
+  focusSegment: (index: number) => void;
+  setActiveSegmentIndex: (n: number | null) => void;
+  updateSegmentText: (index: number, text: string) => void;
+  updateSegmentBoundary: (index: number, edge: "start" | "end", value: number) => void;
+  updateSegmentSpeaker: (index: number, speaker: string | null) => void;
+  setEditorVisibleCount: Dispatch<SetStateAction<number>>;
+};
+
+export const EditorSegmentList = memo(function EditorSegmentList({
+  segments,
+  allSegments,
+  allSegmentsCount,
+  activeSegmentIndex,
+  hasMoreSegments,
+  editorVisibleCount,
+  focusSegment,
+  setActiveSegmentIndex,
+  updateSegmentText,
+  updateSegmentBoundary,
+  updateSegmentSpeaker,
+  setEditorVisibleCount,
+}: EditorSegmentListProps) {
+  const uniqueSpeakers = useMemo(() => {
+    const seen = new Set<string>();
+    for (const seg of allSegments) {
+      if (seg.speaker) seen.add(seg.speaker);
+    }
+    return [...seen].sort();
+  }, [allSegments]);
+
+  if (segments.length === 0 && allSegmentsCount === 0) {
+    return (
+      <div className="editor-segment-list editor-segment-list--empty">
+        <p className="small">Aucun segment. Ouvrez un transcript JSON pour commencer.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="editor-segment-list">
+      <div className="editor-segment-list__header small">
+        <span>
+          {allSegmentsCount} segment{allSegmentsCount !== 1 ? "s" : ""}
+        </span>
+        {hasMoreSegments && (
+          <span className="editor-segment-list__more-hint">— {segments.length} affichés</span>
+        )}
+      </div>
+
+      <ol className="editor-segment-list__items">
+        {segments.map((seg, visIndex) => {
+          const isActive = visIndex === activeSegmentIndex;
+
+          return (
+            <li
+              key={`${seg.start}-${seg.end}`}
+              className={`editor-segment-row${isActive ? " editor-segment-row--active" : ""}`}
+              onClick={() => setActiveSegmentIndex(visIndex)}
+            >
+              <div className="editor-segment-row__meta">
+                <span className="editor-segment-row__idx mono small">#{visIndex + 1}</span>
+
+                <input
+                  type="number"
+                  className="editor-segment-row__time-input mono small"
+                  value={seg.start.toFixed(3)}
+                  step={0.001}
+                  min={0}
+                  aria-label={`Début segment ${visIndex + 1}`}
+                  onBlur={(e) => {
+                    const v = parseFloat(e.target.value);
+                    if (Number.isFinite(v) && v !== seg.start) {
+                      updateSegmentBoundary(visIndex, "start", v);
+                    }
+                  }}
+                  onChange={() => {
+                    /* commit on blur */
+                  }}
+                />
+                <span className="editor-segment-row__arrow small" aria-hidden>
+                  →
+                </span>
+                <input
+                  type="number"
+                  className="editor-segment-row__time-input mono small"
+                  value={seg.end.toFixed(3)}
+                  step={0.001}
+                  min={0}
+                  aria-label={`Fin segment ${visIndex + 1}`}
+                  onBlur={(e) => {
+                    const v = parseFloat(e.target.value);
+                    if (Number.isFinite(v) && v !== seg.end) {
+                      updateSegmentBoundary(visIndex, "end", v);
+                    }
+                  }}
+                  onChange={() => {
+                    /* commit on blur */
+                  }}
+                />
+
+                <span className="editor-segment-row__dur mono small" aria-label="Durée">
+                  {formatClockSeconds(seg.end - seg.start)}
+                </span>
+              </div>
+
+              <div className="editor-segment-row__speaker-row">
+                <select
+                  className="editor-segment-row__speaker-select small"
+                  value={seg.speaker ?? ""}
+                  aria-label={`Locuteur segment ${visIndex + 1}`}
+                  onChange={(e) => updateSegmentSpeaker(visIndex, e.target.value || null)}
+                >
+                  <option value="">—</option>
+                  {uniqueSpeakers.map((sp) => (
+                    <option key={sp} value={sp}>
+                      {sp}
+                    </option>
+                  ))}
+                  {seg.speaker && !uniqueSpeakers.includes(seg.speaker) && (
+                    <option value={seg.speaker}>{seg.speaker}</option>
+                  )}
+                </select>
+
+                <button
+                  type="button"
+                  className="ghost small editor-segment-row__focus-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    focusSegment(visIndex);
+                  }}
+                  title="Aller à ce segment"
+                  aria-label={`Focus segment ${visIndex + 1}`}
+                >
+                  ⊙
+                </button>
+              </div>
+
+              <textarea
+                className="editor-segment-row__text"
+                value={seg.text ?? ""}
+                rows={Math.max(1, Math.ceil((seg.text?.length ?? 0) / 60))}
+                aria-label={`Texte segment ${visIndex + 1}`}
+                onChange={(e) => updateSegmentText(visIndex, e.target.value)}
+              />
+            </li>
+          );
+        })}
+      </ol>
+
+      {hasMoreSegments && (
+        <button
+          type="button"
+          className="ghost small editor-segment-list__load-more"
+          onClick={() => setEditorVisibleCount((n) => n + 120)}
+        >
+          Charger 120 de plus… ({allSegmentsCount - editorVisibleCount} restants)
+        </button>
+      )}
+    </div>
+  );
+});

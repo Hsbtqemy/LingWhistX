@@ -1,11 +1,6 @@
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { formatClockSeconds } from "../../../appUtils";
-import type {
-  EditableSegment,
-  EventIpuRow,
-  EventPauseRow,
-  QueryWindowResult,
-} from "../../../types";
+import type { EventIpuRow, EventPauseRow, QueryWindowResult } from "../../../types";
 import {} from "./viewUtils";
 
 type RythmoWordTimed = {
@@ -20,7 +15,6 @@ type RythmoBlock = {
   durMs: number;
   speaker: string;
   text: string;
-  segIdx?: number;
   isWord?: boolean;
   timedWords?: RythmoWordTimed[];
 };
@@ -53,30 +47,7 @@ function buildTimedWords(
   }));
 }
 
-function buildRythmoBlocks(
-  ipus: EventIpuRow[],
-  editorSegments: EditableSegment[] | undefined,
-  editMode: boolean,
-  wordLevel: boolean,
-): RythmoBlock[] {
-  if (editMode && editorSegments && editorSegments.length > 0) {
-    if (wordLevel) return explodeSegmentsToWords(editorSegments);
-    return editorSegments.map((seg, i) => {
-      const startMs = Math.round(seg.start * 1000);
-      const endMs = Math.round(seg.end * 1000);
-      const durMs = Math.max(1, endMs - startMs);
-      return {
-        id: `seg-${i}`,
-        startMs,
-        endMs,
-        durMs,
-        speaker: seg.speaker ?? "",
-        text: seg.text.trim(),
-        segIdx: i,
-        timedWords: buildTimedWords(startMs, durMs, seg.words ?? undefined, seg.text),
-      };
-    });
-  }
+function buildRythmoBlocks(ipus: EventIpuRow[], wordLevel: boolean): RythmoBlock[] {
   if (wordLevel) return explodeIpusToWords(ipus);
   return ipus.map((ipu) => {
     const text = ipu.text?.trim() ?? "";
@@ -90,53 +61,6 @@ function buildRythmoBlocks(
       timedWords: buildTimedWords(ipu.startMs, ipu.durMs, undefined, text),
     };
   });
-}
-
-function explodeSegmentsToWords(segments: EditableSegment[]): RythmoBlock[] {
-  const result: RythmoBlock[] = [];
-  for (let si = 0; si < segments.length; si++) {
-    const seg = segments[si];
-    const segStartMs = Math.round(seg.start * 1000);
-    const segEndMs = Math.round(seg.end * 1000);
-    const segDurMs = segEndMs - segStartMs;
-    const speaker = seg.speaker ?? "";
-
-    if (seg.words && seg.words.length > 0) {
-      for (let wi = 0; wi < seg.words.length; wi++) {
-        const w = seg.words[wi];
-        const wStart = Math.round(w.start * 1000);
-        const wEnd = Math.round(w.end * 1000);
-        result.push({
-          id: `sw-${si}-${wi}`,
-          startMs: wStart,
-          endMs: wEnd,
-          durMs: Math.max(1, wEnd - wStart),
-          speaker,
-          text: w.word,
-          segIdx: si,
-          isWord: true,
-        });
-      }
-    } else {
-      const textWords = seg.text.trim().split(/\s+/).filter(Boolean);
-      if (textWords.length === 0) continue;
-      for (let wi = 0; wi < textWords.length; wi++) {
-        const wStart = segStartMs + Math.round((wi / textWords.length) * segDurMs);
-        const wEnd = segStartMs + Math.round(((wi + 1) / textWords.length) * segDurMs);
-        result.push({
-          id: `sw-${si}-${wi}`,
-          startMs: wStart,
-          endMs: wEnd,
-          durMs: Math.max(1, wEnd - wStart),
-          speaker,
-          text: textWords[wi],
-          segIdx: si,
-          isWord: true,
-        });
-      }
-    }
-  }
-  return result;
 }
 
 function explodeIpusToWords(ipus: EventIpuRow[]): RythmoBlock[] {
@@ -225,10 +149,6 @@ export function PlayerRythmoView({
   slice,
   playheadMs,
   onSeekToMs,
-  editMode = false,
-  editorSegments,
-  onFocusSegment,
-  onUpdateText,
   durationSec,
   longPauseMs = 300,
 }: {
@@ -236,11 +156,6 @@ export function PlayerRythmoView({
   playheadMs: number;
   onSeekToMs?: (ms: number) => void;
   followPlayhead?: boolean;
-  editMode?: boolean;
-  editorSegments?: EditableSegment[];
-  activeSegmentIndex?: number | null;
-  onFocusSegment?: (i: number) => void;
-  onUpdateText?: (i: number, text: string) => void;
   durationSec?: number | null;
   longPauseMs?: number;
 }) {
@@ -250,7 +165,6 @@ export function PlayerRythmoView({
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef<{ startX: number; startPlayheadMs: number } | null>(null);
   const [dragOffsetMs, setDragOffsetMs] = useState(0);
-  const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -264,10 +178,7 @@ export function PlayerRythmoView({
   }, []);
 
   const wordLevel = false;
-  const blocks = useMemo(
-    () => buildRythmoBlocks(slice.ipus, editorSegments, editMode, wordLevel),
-    [slice.ipus, editorSegments, editMode, wordLevel],
-  );
+  const blocks = useMemo(() => buildRythmoBlocks(slice.ipus, wordLevel), [slice.ipus, wordLevel]);
 
   const speakers = useMemo(() => {
     const set = new Set(blocks.map((b) => b.speaker));
@@ -342,22 +253,6 @@ export function PlayerRythmoView({
     }
   };
 
-  const handleBlockClick = (block: RythmoBlock) => {
-    if (editMode && block.segIdx != null) {
-      onFocusSegment?.(block.segIdx);
-      setFocusedBlockId(block.id);
-    } else {
-      onSeekToMs?.(block.startMs);
-    }
-  };
-
-  const handleBlockDoubleClick = (block: RythmoBlock) => {
-    if (editMode && block.segIdx != null) {
-      onFocusSegment?.(block.segIdx);
-      setFocusedBlockId(block.id);
-    }
-  };
-
   const laneHeight =
     zoomSec <= 2
       ? 220
@@ -403,7 +298,7 @@ export function PlayerRythmoView({
 
       <div
         ref={containerRef}
-        className={`player-rythmo-v2-viewport${editMode ? " player-rythmo-v2-viewport--edit" : ""}`}
+        className="player-rythmo-v2-viewport"
         style={{ height: `${viewportHeight}px` }}
         data-zoom={zoomSec}
         aria-label="Bande rythmo multi-lanes"
@@ -516,15 +411,13 @@ export function PlayerRythmoView({
                 {laneBlocks.map((block) => {
                   if (block.endMs < visStartMs || block.startMs > visEndMs) return null;
                   const active = playheadMs >= block.startMs && playheadMs < block.endMs;
-                  const focused = editMode && focusedBlockId === block.id;
-                  const isEditing = focused && block.segIdx != null && onUpdateText;
                   const blockW = Math.max(4, block.durMs * pxPerMs - 2);
                   const spI = speakerIdx.get(block.speaker) ?? 0;
 
                   return (
                     <div
                       key={block.id}
-                      className={`player-rythmo-v2-block${block.isWord ? " is-word" : ""}${active ? " is-active" : ""}${focused ? " is-focused" : ""}`}
+                      className={`player-rythmo-v2-block${block.isWord ? " is-word" : ""}${active ? " is-active" : ""}`}
                       style={
                         {
                           left: `${block.startMs * pxPerMs}px`,
@@ -534,27 +427,13 @@ export function PlayerRythmoView({
                       }
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleBlockClick(block);
-                      }}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        handleBlockDoubleClick(block);
+                        onSeekToMs?.(block.startMs);
                       }}
                       title={`${block.speaker || "?"} · ${block.text || "…"}`}
                       role="button"
                       tabIndex={0}
                     >
-                      {isEditing && block.segIdx != null ? (
-                        <textarea
-                          className="player-rythmo-v2-edit-textarea"
-                          value={editorSegments?.[block.segIdx]?.text ?? block.text}
-                          onChange={(ev) => onUpdateText!(block.segIdx!, ev.target.value)}
-                          onClick={(ev) => ev.stopPropagation()}
-                          onPointerDown={(ev) => ev.stopPropagation()}
-                          autoFocus
-                          rows={1}
-                        />
-                      ) : block.timedWords && zoomSec <= 5 ? (
+                      {block.timedWords && zoomSec <= 5 ? (
                         <span className="player-rythmo-v2-block-timed">
                           {block.timedWords.map((tw, twi) => (
                             <span

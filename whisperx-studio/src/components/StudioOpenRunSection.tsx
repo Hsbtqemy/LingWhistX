@@ -168,7 +168,7 @@ export function StudioOpenRunSection({
       return;
     }
     setSelectedJobId(matchingJobId);
-    setActiveView("workspace");
+    setActiveView("import");
   }, [matchingJobId, setSelectedJobId, setActiveView]);
 
   const clearRecent = useCallback(async () => {

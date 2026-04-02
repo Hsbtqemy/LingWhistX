@@ -2,9 +2,9 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 
+import { EditorPanel, type ActiveRun } from "./components/EditorPanel";
 import { HelpDialog } from "./components/HelpDialog";
-import { HomeHub } from "./components/HomeHub";
-import { StudioAboutView } from "./components/StudioAboutView";
+import { SettingsPanel } from "./components/SettingsPanel";
 import { STUDIO_PANEL_IDS, STUDIO_TAB_IDS, StudioNav } from "./components/StudioNav";
 import { PlayerWorkspaceSection } from "./components/player/PlayerWorkspaceSection";
 import { StudioJobsSection } from "./components/StudioJobsSection";
@@ -16,30 +16,39 @@ import { fileBasename } from "./appUtils";
 import type { StudioView, UiWhisperxOptions } from "./types";
 
 const VIEW_STORAGE_KEY = "lx-studio-view";
+const RUN_DIR_STORAGE_KEY = "lx-active-run-dir";
+const RUN_LABEL_STORAGE_KEY = "lx-active-run-label";
 
 function readStoredView(): StudioView {
   try {
     const v = sessionStorage.getItem(VIEW_STORAGE_KEY);
-    if (v === "create" || v === "workspace" || v === "jobs" || v === "player" || v === "about") {
-      return v;
-    }
+    if (v === "import" || v === "editor" || v === "player" || v === "settings") return v;
   } catch {
     /* ignore */
   }
-  return "workspace";
+  return "import";
+}
+
+function readStoredRun(): ActiveRun | null {
+  try {
+    const dir = sessionStorage.getItem(RUN_DIR_STORAGE_KEY);
+    const label = sessionStorage.getItem(RUN_LABEL_STORAGE_KEY);
+    if (dir) return { runDir: dir, label: label ?? dir };
+  } catch {
+    /* ignore */
+  }
+  return null;
 }
 
 function App() {
   const runDetailsRef = useRef<HTMLElement | null>(null);
   const injectAudioPipelineSegmentsJsonRef = useRef<(json: string) => void>(() => {});
   const whisperxSetterRef = useRef<Dispatch<SetStateAction<UiWhisperxOptions>> | null>(null);
-  /** Erreurs shell (max 5) — rendu `ErrorBanner` / tokens `--lx-danger` (WX-634). */
+
   const { errors: appErrors, setError } = useAppErrorStack();
   const [activeView, setActiveView] = useState<StudioView>(readStoredView);
-  const [playerRunDir, setPlayerRunDir] = useState<string | null>(null);
-  const [playerRunLabel, setPlayerRunLabel] = useState<string | null>(null);
+  const [activeRun, setActiveRun] = useState<ActiveRun | null>(readStoredRun);
   const [playerInitialEditMode, setPlayerInitialEditMode] = useState(false);
-  /** WX-696 — Incrémenté après écriture de tiers annotation dans events.sqlite. */
   const [playerEventsEpoch, setPlayerEventsEpoch] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
 
@@ -65,23 +74,46 @@ function App() {
     }
   }, [activeView]);
 
+  useEffect(() => {
+    try {
+      if (activeRun) {
+        sessionStorage.setItem(RUN_DIR_STORAGE_KEY, activeRun.runDir);
+        sessionStorage.setItem(RUN_LABEL_STORAGE_KEY, activeRun.label);
+      } else {
+        sessionStorage.removeItem(RUN_DIR_STORAGE_KEY);
+        sessionStorage.removeItem(RUN_LABEL_STORAGE_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [activeRun]);
+
   const handleOpenPlayer = useCallback(
     (runDir: string, label?: string | null, editMode?: boolean) => {
-      setPlayerRunDir(runDir);
-      setPlayerRunLabel(label ?? runDir);
+      setActiveRun({ runDir, label: label ?? runDir });
       setPlayerInitialEditMode(editMode ?? false);
       setActiveView("player");
     },
     [],
   );
 
+  const handleOpenEditor = useCallback((runDir: string, label?: string | null) => {
+    setActiveRun({ runDir, label: label ?? runDir });
+    setActiveView("editor");
+  }, []);
+
   const handleAnnotationWrittenToPlayer = useCallback(() => {
     setPlayerEventsEpoch((e) => e + 1);
   }, []);
 
-  const handlePlayerBack = useCallback((view: StudioView) => {
-    setActiveView(view);
+  const handlePlayerBack = useCallback(() => {
+    setActiveView("import");
   }, []);
+
+  const handleEditorOpenPlayer = useCallback(() => {
+    if (activeRun) handleOpenPlayer(activeRun.runDir, activeRun.label);
+    else setActiveView("import");
+  }, [activeRun, handleOpenPlayer]);
 
   // WX-708 — auto-open Player quand un job passe running → done
   const handleJobBecameDone = useCallback(
@@ -92,9 +124,7 @@ function App() {
   );
 
   const { runtimeReady, runtimeCoreReady, localRuntimePanelProps, runtimeStatus } =
-    useRuntimeDiagnostics({
-      setError,
-    });
+    useRuntimeDiagnostics({ setError });
 
   const injectAudioPipelineSegmentsJson = useCallback((json: string) => {
     injectAudioPipelineSegmentsJsonRef.current(json);
@@ -121,20 +151,18 @@ function App() {
     runtimeReady,
     runtimeCoreReady,
     runtimeStatus,
-    onJobCreated: () => setActiveView("workspace"),
+    onJobCreated: () => setActiveView("import"),
     injectAudioPipelineSegmentsJson,
     onOpenPlayerRun: handleOpenPlayer,
     onJobBecameDone: handleJobBecameDone,
-    onNavigateToWorkspace: () => setActiveView("workspace"),
+    onNavigateToWorkspace: () => setActiveView("import"),
     onAnnotationWrittenToPlayer: handleAnnotationWrittenToPlayer,
   });
 
   const handlePlayerImportPick = useCallback(async () => {
     setError("");
     const path = await jobForm.pickInputPath();
-    if (path) {
-      setActiveView("workspace");
-    }
+    if (path) setActiveView("import");
   }, [jobForm, setError]);
 
   const handlePlayerImportDroppedPath = useCallback(
@@ -142,7 +170,7 @@ function App() {
       setError("");
       jobForm.setInputPath(path);
       jobForm.setJobFormStep("configure");
-      setActiveView("workspace");
+      setActiveView("import");
     },
     [jobForm, setError],
   );
@@ -154,76 +182,77 @@ function App() {
     };
   }, [jobForm.setWhisperxOptions]);
 
-  const showCreatePanel = activeView === "create";
-  const showAboutPanel = activeView === "about";
-  const showJobsPanel = activeView === "jobs";
-  const showPlayerPanel = activeView === "player";
-  const showWorkspacePanel = activeView === "workspace";
-  /** Barre d’onglets masquée sur l’accueil (cartes = navigation), affichée ailleurs. */
-  const showStudioNav = activeView !== "create";
-
   return (
     <main className="studio-shell" data-testid="studio-app-root">
-      {showStudioNav ? (
-        <StudioNav
-          activeView={activeView}
-          onViewChange={setActiveView}
-          workspaceHasActiveJobs={runningJobs > 0}
-          onToggleHelp={() => setHelpOpen((v) => !v)}
-        />
-      ) : null}
+      <StudioNav
+        activeView={activeView}
+        onViewChange={setActiveView}
+        workspaceHasActiveJobs={runningJobs > 0}
+        onToggleHelp={() => setHelpOpen((v) => !v)}
+      />
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} activeView={activeView} />
 
       <div className="studio-shell__main">
+        {/* ── Onglet Import (Studio + Jobs) ── */}
         <div
-          id={STUDIO_PANEL_IDS.create}
+          id={STUDIO_PANEL_IDS.import}
           role="tabpanel"
-          aria-labelledby={showCreatePanel ? "hero-title" : STUDIO_TAB_IDS.create}
-          hidden={!showCreatePanel}
+          aria-labelledby={STUDIO_TAB_IDS.import}
+          hidden={activeView !== "import"}
         >
-          {showCreatePanel ? (
-            <div className="home-page home-page--minimal">
-              <HomeHub
+          {activeView === "import" && (
+            <>
+              <StudioWorkspaceSection
+                runDetailsRef={runDetailsRef}
+                runDetails={runDetails}
+                explorer={explorer}
+                sessionRestore={sessionRestore}
+                setError={setError}
                 setActiveView={setActiveView}
-                runtimeReady={runtimeReady}
-                runtimeStatus={runtimeStatus}
+                setSelectedJobId={setSelectedJobId}
+                onOpenPlayer={handleOpenPlayer}
+                runningJobs={runningJobs}
+                errors={appErrors}
+                refreshJobs={refreshJobs}
+                jobForm={jobForm}
               />
-            </div>
-          ) : null}
+              <StudioJobsSection jobsHistory={jobsHistory} />
+            </>
+          )}
         </div>
 
+        {/* ── Onglet Éditeur ── */}
         <div
-          id={STUDIO_PANEL_IDS.about}
+          id={STUDIO_PANEL_IDS.editor}
           role="tabpanel"
-          aria-labelledby={STUDIO_TAB_IDS.about}
-          hidden={!showAboutPanel}
+          aria-labelledby={STUDIO_TAB_IDS.editor}
+          hidden={activeView !== "editor"}
         >
-          {showAboutPanel ? <StudioAboutView runtime={localRuntimePanelProps} /> : null}
+          {activeView === "editor" && (
+            <EditorPanel
+              activeRun={activeRun}
+              onOpenPlayer={handleEditorOpenPlayer}
+              onNavigate={setActiveView}
+            />
+          )}
         </div>
 
-        <div
-          id={STUDIO_PANEL_IDS.jobs}
-          role="tabpanel"
-          aria-labelledby={STUDIO_TAB_IDS.jobs}
-          hidden={!showJobsPanel}
-        >
-          {showJobsPanel ? <StudioJobsSection jobsHistory={jobsHistory} /> : null}
-        </div>
-
+        {/* ── Onglet Player ── */}
         <div
           id={STUDIO_PANEL_IDS.player}
           role="tabpanel"
           aria-labelledby={STUDIO_TAB_IDS.player}
-          hidden={!showPlayerPanel}
+          hidden={activeView !== "player"}
         >
-          {showPlayerPanel ? (
+          {activeView === "player" && (
             <PlayerWorkspaceSection
-              runDir={playerRunDir}
-              runLabel={playerRunLabel}
+              runDir={activeRun?.runDir ?? null}
+              runLabel={activeRun?.label ?? null}
               onBack={handlePlayerBack}
               eventsRefreshEpoch={playerEventsEpoch}
               initialEditMode={playerInitialEditMode}
               onToggleHelp={() => setHelpOpen((v) => !v)}
+              onOpenEditor={handleOpenEditor}
               importMedia={{
                 inputPath: jobForm.inputPath,
                 isSubmitting: jobForm.isSubmitting,
@@ -232,31 +261,17 @@ function App() {
                 onImportError: setError,
               }}
             />
-          ) : null}
+          )}
         </div>
 
+        {/* ── Panneau Paramètres ── */}
         <div
-          id={STUDIO_PANEL_IDS.workspace}
+          id={STUDIO_PANEL_IDS.settings}
           role="tabpanel"
-          aria-labelledby={STUDIO_TAB_IDS.workspace}
-          hidden={!showWorkspacePanel}
+          aria-labelledby={STUDIO_TAB_IDS.settings}
+          hidden={activeView !== "settings"}
         >
-          {showWorkspacePanel ? (
-            <StudioWorkspaceSection
-              runDetailsRef={runDetailsRef}
-              runDetails={runDetails}
-              explorer={explorer}
-              sessionRestore={sessionRestore}
-              setError={setError}
-              setActiveView={setActiveView}
-              setSelectedJobId={setSelectedJobId}
-              onOpenPlayer={handleOpenPlayer}
-              runningJobs={runningJobs}
-              errors={appErrors}
-              refreshJobs={refreshJobs}
-              jobForm={jobForm}
-            />
-          ) : null}
+          {activeView === "settings" && <SettingsPanel runtime={localRuntimePanelProps} />}
         </div>
       </div>
     </main>

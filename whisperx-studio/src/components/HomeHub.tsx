@@ -22,34 +22,25 @@ const iconProps = {
 
 function HubCardIcon({ cardId }: { cardId: HubCardId }) {
   switch (cardId) {
-    case "workspace":
+    case "import":
       return (
         <svg {...iconProps}>
-          <rect x="3" y="3" width="7" height="9" rx="1" />
-          <rect x="14" y="3" width="7" height="5" rx="1" />
-          <rect x="14" y="12" width="7" height="9" rx="1" />
-          <rect x="3" y="16" width="7" height="5" rx="1" />
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+      );
+    case "editor":
+      return (
+        <svg {...iconProps}>
+          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
         </svg>
       );
     case "player":
       return (
         <svg {...iconProps}>
           <polygon points="5 3 19 12 5 21 5 3" />
-        </svg>
-      );
-    case "jobs":
-      return (
-        <svg {...iconProps}>
-          <path d="M12 8v4l3 2" />
-          <circle cx="12" cy="12" r="9" />
-        </svg>
-      );
-    case "about":
-      return (
-        <svg {...iconProps}>
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="16" x2="12" y2="12" />
-          <line x1="12" y1="8" x2="12.01" y2="8" />
         </svg>
       );
     default:

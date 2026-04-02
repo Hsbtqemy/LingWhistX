@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { isWordAligned } from "../../../player/karaokeWords";
-import type { EditableSegment, QueryWindowResult } from "../../../types";
+import type { QueryWindowResult } from "../../../types";
 import { speakerColor } from "./viewUtils";
 
 type KaraokeSegment = {
@@ -73,26 +73,12 @@ function KaraokeLane({
   segments,
   playheadMs,
   onSeekToMs,
-  editMode,
-  editorSegments,
-  activeSegmentIndex,
-  onFocusSegment,
-  onUpdateText,
-  editingIpuId,
-  setEditingIpuId,
 }: {
   speaker: string;
   speakerIndex: number;
   segments: KaraokeSegment[];
   playheadMs: number;
   onSeekToMs?: (ms: number) => void;
-  editMode: boolean;
-  editorSegments?: EditableSegment[];
-  activeSegmentIndex?: number | null;
-  onFocusSegment?: (index: number) => void;
-  onUpdateText?: (index: number, text: string) => void;
-  editingIpuId: number | null;
-  setEditingIpuId: (id: number | null) => void;
 }) {
   const contentRef = useRef<HTMLDivElement | null>(null);
   const activeLineRef = useRef<HTMLDivElement | null>(null);
@@ -153,16 +139,6 @@ function KaraokeLane({
 
   const color = speakerColor(speakerIndex);
 
-  const findEditorIdx = (seg: KaraokeSegment): number | null => {
-    if (!editMode || !editorSegments) return null;
-    for (let i = 0; i < editorSegments.length; i++) {
-      const sMs = Math.round(editorSegments[i].start * 1000);
-      const eMs = Math.round(editorSegments[i].end * 1000);
-      if (eMs > seg.startMs && sMs < seg.endMs) return i;
-    }
-    return null;
-  };
-
   const timeUntilSec =
     hasNotStarted && nextSegIdx >= 0
       ? Math.max(0, Math.round((segments[nextSegIdx].startMs - playheadMs) / 1000))
@@ -188,48 +164,16 @@ function KaraokeLane({
             const isPast = activeIdx >= 0 && si < activeIdx;
             const isFuture = !isActive && !isPast;
             const isUpcoming = false;
-            const editorIdx = findEditorIdx(seg);
-            const isEditingThis = editMode && editingIpuId === seg.ipuId;
-            const isFocused = editMode && editorIdx != null && activeSegmentIndex === editorIdx;
 
             let cls = "karaoke-line";
             if (isActive) cls += " is-active";
             if (isPast) cls += " is-past";
             if (isUpcoming) cls += " is-upcoming";
             else if (isFuture) cls += " is-future";
-            if (isFocused) cls += " is-focused";
-
-            const handleDoubleClick = () => {
-              if (!editMode || editorIdx == null) return;
-              onFocusSegment?.(editorIdx);
-              setEditingIpuId(seg.ipuId);
-            };
 
             return (
-              <div
-                key={seg.ipuId}
-                ref={isActive ? activeLineRef : undefined}
-                className={cls}
-                onDoubleClick={handleDoubleClick}
-              >
-                {isEditingThis && editorIdx != null && onUpdateText ? (
-                  <textarea
-                    className="player-inline-edit-textarea"
-                    value={editorSegments![editorIdx].text}
-                    onChange={(ev) => onUpdateText(editorIdx, ev.target.value)}
-                    onBlur={() => setEditingIpuId(null)}
-                    onKeyDown={(ev) => {
-                      if (ev.key === "Enter" && !ev.shiftKey) {
-                        ev.preventDefault();
-                        setEditingIpuId(null);
-                      }
-                      if (ev.key === "Escape") setEditingIpuId(null);
-                    }}
-                    onClick={(ev) => ev.stopPropagation()}
-                    autoFocus
-                    rows={2}
-                  />
-                ) : seg.words.length > 0 ? (
+              <div key={seg.ipuId} ref={isActive ? activeLineRef : undefined} className={cls}>
+                {seg.words.length > 0 ? (
                   <span className="karaoke-line-words">
                     {seg.words.map((w) => {
                       const wSpoken = isPast || (isActive && playheadMs >= w.startMs);
@@ -275,11 +219,6 @@ export function PlayerKaraokeBody({
   playheadMs,
   wordsLayerActive,
   onSeekToMs,
-  editMode = false,
-  editorSegments,
-  activeSegmentIndex,
-  onFocusSegment,
-  onUpdateText,
   runSpeakerIds,
 }: {
   slice: QueryWindowResult;
@@ -287,15 +226,9 @@ export function PlayerKaraokeBody({
   wordsLayerActive: boolean;
   onSeekToMs?: (ms: number) => void;
   followPlayhead: boolean;
-  editMode?: boolean;
-  editorSegments?: EditableSegment[];
-  activeSegmentIndex?: number | null;
-  onFocusSegment?: (index: number) => void;
-  onUpdateText?: (index: number, text: string) => void;
   runSpeakerIds?: string[];
 }) {
   const allSegments = useMemo(() => buildKaraokeSegments(slice), [slice]);
-  const [editingIpuId, setEditingIpuId] = useState<number | null>(null);
 
   const speakers = useMemo(() => {
     const fromSegs = allSegments.map((s) => s.speaker);
@@ -337,13 +270,6 @@ export function PlayerKaraokeBody({
           segments={speakerSegments.get(sp) || []}
           playheadMs={playheadMs}
           onSeekToMs={onSeekToMs}
-          editMode={editMode}
-          editorSegments={editorSegments}
-          activeSegmentIndex={activeSegmentIndex}
-          onFocusSegment={onFocusSegment}
-          onUpdateText={onUpdateText}
-          editingIpuId={editingIpuId}
-          setEditingIpuId={setEditingIpuId}
         />
       ))}
     </div>

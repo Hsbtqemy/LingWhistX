@@ -141,13 +141,11 @@ export function HelpDialog({ open, onClose, activeView }: HelpDialogProps) {
   const viewLabel =
     activeView === "player"
       ? "Player"
-      : activeView === "workspace"
-        ? "Studio"
-        : activeView === "jobs"
-          ? "Jobs"
-          : activeView === "about"
-            ? "Paramètres"
-            : "Accueil";
+      : activeView === "editor"
+        ? "Éditeur"
+        : activeView === "settings"
+          ? "Paramètres"
+          : "Import";
 
   return createPortal(
     <div className="help-overlay" onClick={onClose} onKeyDown={onKeyDown} role="presentation">
@@ -182,43 +180,33 @@ export function HelpDialog({ open, onClose, activeView }: HelpDialogProps) {
             </>
           )}
 
-          {activeView === "workspace" && (
+          {activeView === "import" && (
             <>
               <ShortcutTable
                 title="Raccourcis Éditeur (panneau transcript)"
                 entries={EDITOR_SHORTCUTS}
               />
-              <TipsList title="Astuces Studio" tips={WORKSPACE_TIPS} />
+              <TipsList title="Astuces Import" tips={WORKSPACE_TIPS} />
+              <TipsList
+                title="Historique jobs"
+                tips={[
+                  "Les jobs terminés apparaissent avec leur durée de traitement.",
+                  "Cliquez sur un job pour voir ses détails et ouvrir le résultat dans le Player.",
+                ]}
+              />
             </>
           )}
 
-          {activeView === "jobs" && (
-            <TipsList
-              title="Astuces"
-              tips={[
-                "Les jobs terminés apparaissent avec leur durée de traitement.",
-                "Cliquez sur un job pour voir ses détails et ouvrir le résultat dans le Player.",
-              ]}
-            />
+          {activeView === "editor" && (
+            <TipsList title="Éditeur" tips={["L'éditeur inline sera disponible dans WX-729."]} />
           )}
 
-          {activeView === "about" && (
+          {activeView === "settings" && (
             <TipsList
               title="Paramètres"
               tips={[
                 "Configurez les chemins vers FFmpeg et le modèle WhisperX.",
                 "Les diagnostics système s'affichent ici.",
-              ]}
-            />
-          )}
-
-          {activeView === "create" && (
-            <TipsList
-              title="Bienvenue"
-              tips={[
-                "Choisissez une section dans le menu pour commencer.",
-                "Studio : importez et transcrivez vos fichiers audio/vidéo.",
-                "Player : analysez et consultez vos transcriptions.",
               ]}
             />
           )}

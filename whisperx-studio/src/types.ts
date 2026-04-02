@@ -2,7 +2,7 @@ export type JobStatus = "queued" | "running" | "done" | "error" | "cancelled";
 export type JobFormStep = "import" | "configure";
 
 /** Vues principales de l’application (navigation par onglets) */
-export type StudioView = "create" | "workspace" | "jobs" | "player" | "about";
+export type StudioView = "import" | "editor" | "player" | "settings";
 
 // ─── WX-655 : sous-interfaces sémantiques ────────────────────────────────────
 // La shape JSON sérialisée reste identique (intersections plates) — aucun impact

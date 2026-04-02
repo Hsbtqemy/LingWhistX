@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatClockSeconds } from "../../../appUtils";
-import type { EditableSegment, QueryWindowResult } from "../../../types";
+import type { QueryWindowResult } from "../../../types";
 import { speakerColor } from "./viewUtils";
 
 export function PlayerWordsBody({
@@ -9,25 +9,15 @@ export function PlayerWordsBody({
   wordsLayerActive,
   onSeekToMs,
   followPlayhead = true,
-  editMode = false,
-  editorSegments,
-  onFocusSegment,
-  onUpdateText,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
   wordsLayerActive: boolean;
   onSeekToMs?: (ms: number) => void;
   followPlayhead?: boolean;
-  editMode?: boolean;
-  editorSegments?: EditableSegment[];
-  activeSegmentIndex?: number | null;
-  onFocusSegment?: (index: number) => void;
-  onUpdateText?: (index: number, text: string) => void;
   durationSec?: number | null;
 }) {
   const [followActive, setFollowActive] = useState(true);
-  const [editingSegIdx, setEditingSegIdx] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLSpanElement>(null);
   const programmaticScrollRef = useRef(false);
@@ -88,29 +78,6 @@ export function PlayerWordsBody({
       </div>
 
       <div className="player-words-flow" ref={scrollRef} onScroll={handleScroll}>
-        {editMode && editingSegIdx != null && editorSegments && onUpdateText ? (
-          <div className="player-words-edit-inline">
-            <span className="player-words-edit-label small mono">
-              {editorSegments[editingSegIdx]?.speaker ?? "\u2014"} ·{" "}
-              {formatClockSeconds(editorSegments[editingSegIdx]?.start ?? 0)}
-            </span>
-            <textarea
-              className="player-inline-edit-textarea"
-              value={editorSegments[editingSegIdx].text}
-              onChange={(ev) => onUpdateText(editingSegIdx, ev.target.value)}
-              onBlur={() => setEditingSegIdx(null)}
-              onKeyDown={(ev) => {
-                if (ev.key === "Enter" && !ev.shiftKey) {
-                  ev.preventDefault();
-                  setEditingSegIdx(null);
-                }
-                if (ev.key === "Escape") setEditingSegIdx(null);
-              }}
-              autoFocus
-              rows={Math.max(2, Math.ceil((editorSegments[editingSegIdx].text.length || 1) / 60))}
-            />
-          </div>
-        ) : null}
         {slice.words.map((w) => {
           const isActive = w.id === activeWordId;
           const isPast = activeWordId >= 0 && w.startMs < playheadMs && !isActive;
@@ -125,19 +92,6 @@ export function PlayerWordsBody({
           if (isUnaligned) cls += " is-unaligned";
           if (isLowConf) cls += " is-low-conf";
 
-          const handleWordDoubleClick = () => {
-            if (!editMode || !editorSegments) return;
-            for (let si = 0; si < editorSegments.length; si++) {
-              const sMs = Math.round(editorSegments[si].start * 1000);
-              const eMs = Math.round(editorSegments[si].end * 1000);
-              if (w.startMs >= sMs && w.startMs < eMs) {
-                onFocusSegment?.(si);
-                setEditingSegIdx(si);
-                return;
-              }
-            }
-          };
-
           return (
             <span
               key={w.id}
@@ -146,7 +100,6 @@ export function PlayerWordsBody({
               role="button"
               tabIndex={onSeekToMs ? 0 : -1}
               onClick={() => onSeekToMs?.(w.startMs)}
-              onDoubleClick={handleWordDoubleClick}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") onSeekToMs?.(w.startMs);
               }}

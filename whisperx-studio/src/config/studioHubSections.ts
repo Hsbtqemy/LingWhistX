@@ -1,8 +1,8 @@
 import type { StudioView } from "../types";
 
-export type HubCardId = "workspace" | "player" | "jobs" | "about";
+export type HubCardId = "import" | "editor" | "player";
 
-/** Cartes hub + libellés nav — une seule source de vérité. */
+/** Onglets principaux (3) — une seule source de vérité pour nav + hub. */
 export const STUDIO_HUB_CARDS: {
   title: string;
   kicker: string;
@@ -12,30 +12,23 @@ export const STUDIO_HUB_CARDS: {
 }[] = [
   {
     title: "Transcrire",
-    kicker: "Studio",
-    description: "Média, lancement de job, pipeline et transcript.",
-    view: "workspace",
-    cardId: "workspace",
+    kicker: "Import",
+    description: "Importer un média, configurer le pipeline et lancer la transcription.",
+    view: "import",
+    cardId: "import",
+  },
+  {
+    title: "Annoter",
+    kicker: "Éditeur",
+    description: "Corriger et annoter le transcript aligné.",
+    view: "editor",
+    cardId: "editor",
   },
   {
     title: "Analyser",
     kicker: "Player",
-    description: "Lecture, manifest et vues alignées sur le média.",
+    description: "Lecture, vues alignées et statistiques prosodiques.",
     view: "player",
     cardId: "player",
-  },
-  {
-    title: "Historique",
-    kicker: "Jobs",
-    description: "Liste des runs, détail et annulation.",
-    view: "jobs",
-    cardId: "jobs",
-  },
-  {
-    title: "Paramètres généraux",
-    kicker: "Système",
-    description: "À propos, diagnostic runtime et préférences.",
-    view: "about",
-    cardId: "about",
   },
 ];

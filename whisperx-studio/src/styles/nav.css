@@ -11,7 +11,7 @@
   box-shadow: var(--lx-nav-shell-shadow);
 }
 
-/* Barre : marque + grille 4 onglets (largeurs égales entre les onglets) */
+/* Barre : marque + grille 3 onglets + actions (paramètres, aide) */
 .studio-nav.studio-nav--topbar {
   position: sticky;
   top: clamp(8px, 1.2vw, 14px);
@@ -80,10 +80,54 @@
 
 .studio-nav-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px 12px;
   min-width: 0;
   align-items: stretch;
+}
+
+.studio-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: center;
+}
+
+.studio-nav-settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--lx-border);
+  border-radius: var(--lx-radius-pill, 50%);
+  background: color-mix(in srgb, var(--lx-surface-muted) 60%, transparent);
+  color: var(--lx-text-1);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    box-shadow 0.15s;
+}
+
+.studio-nav-settings-btn:hover {
+  background: color-mix(in srgb, var(--lx-accent) 14%, var(--lx-surface-muted));
+  border-color: color-mix(in srgb, var(--lx-accent) 35%, var(--lx-border));
+  color: var(--lx-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lx-accent) 12%, transparent);
+}
+
+.studio-nav-settings-btn[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--lx-accent) 18%, var(--lx-surface-muted));
+  border-color: color-mix(in srgb, var(--lx-accent) 50%, var(--lx-border));
+  color: var(--lx-accent);
+}
+
+.studio-nav-settings-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--lx-focus-ring);
 }
 
 .studio-nav.studio-nav--topbar .studio-nav-tab {

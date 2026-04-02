@@ -5,14 +5,8 @@ import {
   turnsForSpeakerInBin,
   uniqueSpeakersFromTurns,
 } from "../../../player/playerColumnsBins";
-import type { EditableSegment, QueryWindowResult } from "../../../types";
-import {
-  buildOrdinalSegmentIndex,
-  findSegmentIndexForTurn,
-  speakerColor,
-  turnTextFromIpus,
-  turnTextFromSegments,
-} from "./viewUtils";
+import type { QueryWindowResult } from "../../../types";
+import { speakerColor, turnTextFromIpus } from "./viewUtils";
 
 type ColumnsLayoutMode = "time" | "turn";
 
@@ -20,24 +14,13 @@ export function PlayerColumnsBody({
   slice,
   playheadMs,
   onSeekToMs,
-  editMode = false,
-  editorSegments,
-  activeSegmentIndex,
-  onFocusSegment,
-  onUpdateText,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
   onSeekToMs?: (ms: number) => void;
-  editMode?: boolean;
-  editorSegments?: EditableSegment[];
-  activeSegmentIndex?: number | null;
-  onFocusSegment?: (index: number) => void;
-  onUpdateText?: (index: number, text: string) => void;
 }) {
   const [layout, setLayout] = useState<ColumnsLayoutMode>("time");
   const [binSec, setBinSec] = useState<1 | 2 | 5>(2);
-  const [editingTurnId, setEditingTurnId] = useState<number | null>(null);
 
   const speakers = useMemo(() => uniqueSpeakersFromTurns(slice.turns), [slice.turns]);
   const bins = useMemo(
@@ -49,22 +32,13 @@ export function PlayerColumnsBody({
     [slice.turns],
   );
 
-  const ordinalIndex = useMemo(
-    () => (editorSegments ? buildOrdinalSegmentIndex(slice.turns, editorSegments) : null),
-    [slice.turns, editorSegments],
-  );
-
   const turnTextCache = useMemo(() => {
     const cache = new Map<number, string>();
     for (const t of slice.turns) {
-      let text = turnTextFromIpus(t, slice.ipus);
-      if (!text && editorSegments) {
-        text = turnTextFromSegments(t, editorSegments);
-      }
-      cache.set(t.id, text);
+      cache.set(t.id, turnTextFromIpus(t, slice.ipus));
     }
     return cache;
-  }, [slice.turns, slice.ipus, editorSegments]);
+  }, [slice.turns, slice.ipus]);
 
   const activeIndex = useMemo(() => {
     for (let i = sortedTurns.length - 1; i >= 0; i--) {
@@ -209,23 +183,10 @@ export function PlayerColumnsBody({
               const spIdx = speakers.indexOf(t.speaker || "\u2014");
               const text = turnTextCache.get(t.id) ?? "";
               const durMs = t.endMs - t.startMs;
-              const isEditingThis = editMode && editingTurnId === t.id;
-              const segIdx =
-                editMode && editorSegments
-                  ? findSegmentIndexForTurn(t, editorSegments, ordinalIndex, slice.turns)
-                  : null;
-              const isFocused = editMode && segIdx != null && activeSegmentIndex === segIdx;
 
               let cls = "player-columns-turn-card";
               if (isActive) cls += " is-active";
               else if (isPast) cls += " is-past";
-              if (isFocused) cls += " is-focused";
-
-              const handleDoubleClick = () => {
-                if (!editMode || segIdx == null) return;
-                onFocusSegment?.(segIdx);
-                setEditingTurnId(t.id);
-              };
 
               return (
                 <button
@@ -234,7 +195,6 @@ export function PlayerColumnsBody({
                   className={cls}
                   disabled={!onSeekToMs}
                   onClick={() => onSeekToMs?.(t.startMs)}
-                  onDoubleClick={handleDoubleClick}
                   title={`${formatClockSeconds(t.startMs / 1000)} – ${formatClockSeconds(t.endMs / 1000)} · cliquer pour lire`}
                 >
                   <span
@@ -243,26 +203,7 @@ export function PlayerColumnsBody({
                   >
                     {t.speaker || "\u2014"}
                   </span>
-                  {isEditingThis && segIdx != null && onUpdateText ? (
-                    <textarea
-                      className="player-inline-edit-textarea"
-                      value={editorSegments![segIdx].text}
-                      onChange={(ev) => onUpdateText(segIdx, ev.target.value)}
-                      onBlur={() => setEditingTurnId(null)}
-                      onKeyDown={(ev) => {
-                        if (ev.key === "Enter" && !ev.shiftKey) {
-                          ev.preventDefault();
-                          setEditingTurnId(null);
-                        }
-                        if (ev.key === "Escape") setEditingTurnId(null);
-                      }}
-                      onClick={(ev) => ev.stopPropagation()}
-                      autoFocus
-                      rows={Math.max(2, Math.ceil((editorSegments![segIdx].text.length || 1) / 60))}
-                    />
-                  ) : (
-                    <span className="player-columns-turn-text">{text || "\u2026"}</span>
-                  )}
+                  <span className="player-columns-turn-text">{text || "\u2026"}</span>
                   <span className="player-columns-turn-info mono">
                     <span>{formatClockSeconds(t.startMs / 1000)}</span>
                     <span className="player-columns-turn-dur">

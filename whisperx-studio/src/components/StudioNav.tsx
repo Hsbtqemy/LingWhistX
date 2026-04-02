@@ -1,23 +1,19 @@
-import { Fragment } from "react";
+import React from "react";
 import type { StudioView } from "../types";
-import { STUDIO_HUB_CARDS, type HubCardId } from "../config/studioHubSections";
 import { Button } from "./ui";
 
-/** Préfixe ids DOM — panneaux dans App.tsx (`studio-panel-*`). Vue « create » : hub d’entrée (cartes). */
 export const STUDIO_TAB_IDS: Record<StudioView, string> = {
-  create: "studio-tab-create",
-  workspace: "studio-tab-workspace",
-  jobs: "studio-tab-jobs",
+  import: "studio-tab-import",
+  editor: "studio-tab-editor",
   player: "studio-tab-player",
-  about: "studio-tab-about",
+  settings: "studio-tab-settings",
 };
 
 export const STUDIO_PANEL_IDS: Record<StudioView, string> = {
-  create: "studio-panel-create",
-  workspace: "studio-panel-workspace",
-  jobs: "studio-panel-jobs",
+  import: "studio-panel-import",
+  editor: "studio-panel-editor",
   player: "studio-panel-player",
-  about: "studio-panel-about",
+  settings: "studio-panel-settings",
 };
 
 const navIconProps = {
@@ -32,50 +28,55 @@ const navIconProps = {
   "aria-hidden": true,
 };
 
-function NavIconHubCard({ cardId }: { cardId: HubCardId }) {
-  switch (cardId) {
-    case "workspace":
-      return (
-        <svg {...navIconProps}>
-          <rect x="3" y="3" width="7" height="9" rx="1" />
-          <rect x="14" y="3" width="7" height="5" rx="1" />
-          <rect x="14" y="12" width="7" height="9" rx="1" />
-          <rect x="3" y="16" width="7" height="5" rx="1" />
-        </svg>
-      );
-    case "player":
-      return (
-        <svg {...navIconProps}>
-          <polygon points="5 3 19 12 5 21 5 3" />
-        </svg>
-      );
-    case "jobs":
-      return (
-        <svg {...navIconProps}>
-          <path d="M12 8v4l3 2" />
-          <circle cx="12" cy="12" r="9" />
-        </svg>
-      );
-    case "about":
-      return (
-        <svg {...navIconProps}>
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="16" x2="12" y2="12" />
-          <line x1="12" y1="8" x2="12.01" y2="8" />
-        </svg>
-      );
-    default:
-      return null;
-  }
+function IconImport() {
+  return (
+    <svg {...navIconProps}>
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+function IconEditor() {
+  return (
+    <svg {...navIconProps}>
+      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
+
+function IconPlayer() {
+  return (
+    <svg {...navIconProps}>
+      <polygon points="5 3 19 12 5 21 5 3" />
+    </svg>
+  );
+}
+
+function IconSettings() {
+  return (
+    <svg {...navIconProps}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+    </svg>
+  );
 }
 
 export type StudioNavProps = {
   activeView: StudioView;
   onViewChange: (view: StudioView) => void;
-  /** Au moins un job `queued` ou `running` — pastille sur l’onglet Studio. */
+  /** Au moins un job `queued` ou `running` — pastille sur l'onglet Import. */
   workspaceHasActiveJobs?: boolean;
   onToggleHelp?: () => void;
 };
+
+const TABS: { view: StudioView; label: string; Icon: () => React.ReactElement | null }[] = [
+  { view: "import", label: "Import", Icon: IconImport },
+  { view: "editor", label: "Éditeur", Icon: IconEditor },
+  { view: "player", label: "Player", Icon: IconPlayer },
+];
 
 export function StudioNav({
   activeView,
@@ -85,38 +86,34 @@ export function StudioNav({
 }: StudioNavProps) {
   return (
     <nav className="studio-nav studio-nav--topbar" aria-label="Studio LingWhistX">
-      <div id={STUDIO_TAB_IDS.create} className="studio-nav-brand">
+      <div className="studio-nav-brand">
         <span className="studio-nav-brand__name">LingWhistX</span>
       </div>
       <div className="studio-nav-tabs" role="tablist" aria-label="Sections du studio">
-        {STUDIO_HUB_CARDS.map((card) => {
-          const label = `${card.kicker} — ${card.title}`;
+        {TABS.map(({ view, label, Icon }) => {
+          const isImport = view === "import";
           const tab = (
             <Button
-              id={STUDIO_TAB_IDS[card.view]}
+              id={STUDIO_TAB_IDS[view]}
               variant="navTab"
               type="button"
               role="tab"
-              aria-selected={activeView === card.view}
-              aria-controls={STUDIO_PANEL_IDS[card.view]}
-              active={activeView === card.view}
-              onClick={() => onViewChange(card.view)}
-              aria-label={label}
+              aria-selected={activeView === view}
+              aria-controls={STUDIO_PANEL_IDS[view]}
+              active={activeView === view}
+              onClick={() => onViewChange(view)}
             >
               <span className="studio-nav-tab-inner">
-                <NavIconHubCard cardId={card.cardId} />
-                <span className="studio-nav-tab__stack">
-                  <span className="studio-nav-tab__kicker">{card.kicker}</span>
-                  <span className="studio-nav-tab__title">{card.title}</span>
-                </span>
+                <Icon />
+                <span className="studio-nav-tab__title">{label}</span>
               </span>
             </Button>
           );
 
-          if (card.cardId === "workspace") {
+          if (isImport) {
             return (
               <div
-                key={card.view}
+                key={view}
                 className={`studio-nav-tab-slot${workspaceHasActiveJobs ? " studio-nav-tab-slot--live" : ""}`}
               >
                 {tab}
@@ -126,21 +123,36 @@ export function StudioNav({
               </div>
             );
           }
-
-          return <Fragment key={card.view}>{tab}</Fragment>;
+          return (
+            <div key={view} className="studio-nav-tab-slot">
+              {tab}
+            </div>
+          );
         })}
       </div>
-      {onToggleHelp ? (
+      <div className="studio-nav-actions">
         <button
           type="button"
-          className="studio-nav-help-btn"
-          onClick={onToggleHelp}
-          title="Aide et raccourcis (?)"
-          aria-label="Aide"
+          className="studio-nav-settings-btn"
+          onClick={() => onViewChange(activeView === "settings" ? "import" : "settings")}
+          aria-pressed={activeView === "settings"}
+          title="Paramètres (⚙)"
+          aria-label="Paramètres"
         >
-          ?
+          <IconSettings />
         </button>
-      ) : null}
+        {onToggleHelp ? (
+          <button
+            type="button"
+            className="studio-nav-help-btn"
+            onClick={onToggleHelp}
+            title="Aide et raccourcis (?)"
+            aria-label="Aide"
+          >
+            ?
+          </button>
+        ) : null}
+      </div>
     </nav>
   );
 }
