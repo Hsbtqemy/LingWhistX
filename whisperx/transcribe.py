@@ -8,7 +8,6 @@ import warnings
 from datetime import datetime, timezone
 from typing import Any
 
-import numpy as np
 import torch
 
 from whisperx.alignment import align, load_align_model
@@ -55,7 +54,6 @@ from whisperx.log_utils import get_logger
 from whisperx.pipeline_stages import (
     build_asr_options as _build_asr_options,
     build_temperature_sequence as _build_temperature_sequence,
-    postprocess_words,
 )
 
 logger = get_logger(__name__)

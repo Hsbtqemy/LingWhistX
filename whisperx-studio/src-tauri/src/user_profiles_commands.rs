@@ -41,7 +41,12 @@ fn profiles_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
         })?;
     let dir = base.join("profiles");
     if !dir.exists() {
-        fs::create_dir_all(&dir).map_err(|e| format!("Création profiles/ impossible : {e}"))?;
+        fs::create_dir_all(&dir).map_err(|e| {
+            format!(
+                "Création profiles/ impossible : {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?;
     }
     Ok(dir)
 }
@@ -103,10 +108,11 @@ pub fn read_user_profiles(app: AppHandle) -> Result<Vec<UserProfileJson>, String
             Err(e) => {
                 // Fichier corrompu : on l'ignore silencieusement (log uniquement).
                 eprintln!(
-                    "[profiles] Fichier ignoré {} : {e}",
+                    "[profiles] Fichier ignoré {} : {}",
                     path.file_name()
                         .and_then(|n| n.to_str())
-                        .unwrap_or("(sans nom)")
+                        .unwrap_or("(sans nom)"),
+                    redact_user_home_in_text(&e.to_string())
                 );
             }
         }

@@ -240,7 +240,12 @@ fn persist_pauses_ipus(
                 speaker,
                 None::<String>,
             ])
-            .map_err(|e| format!("insert pause: {e}"))?;
+            .map_err(|e| {
+                format!(
+                    "insert pause: {}",
+                    redact_user_home_in_text(&e.to_string())
+                )
+            })?;
     }
 
     let mut ins_i = conn

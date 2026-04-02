@@ -252,13 +252,13 @@ fn query_words_window(
     }
     params.push(SqlValue::Integer(lim));
 
-    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare(&sql).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut rows = stmt
         .query(rusqlite::params_from_iter(params))
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut out = Vec::new();
-    while let Some(row) = rows.next().map_err(|e| e.to_string())? {
-        out.push(word_row_from_row(row).map_err(|e| e.to_string())?);
+    while let Some(row) = rows.next().map_err(|e| redact_user_home_in_text(&e.to_string()))? {
+        out.push(word_row_from_row(row).map_err(|e| redact_user_home_in_text(&e.to_string()))?);
     }
     let truncated = out.len() as u32 >= limit && limit > 0;
     Ok((out, truncated))
@@ -289,13 +289,13 @@ fn query_turns_window(
     }
     params.push(SqlValue::Integer(lim));
 
-    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare(&sql).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut rows = stmt
         .query(rusqlite::params_from_iter(params))
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut out = Vec::new();
-    while let Some(row) = rows.next().map_err(|e| e.to_string())? {
-        out.push(turn_row_from_row(row).map_err(|e| e.to_string())?);
+    while let Some(row) = rows.next().map_err(|e| redact_user_home_in_text(&e.to_string()))? {
+        out.push(turn_row_from_row(row).map_err(|e| redact_user_home_in_text(&e.to_string()))?);
     }
     let truncated = out.len() as u32 >= limit && limit > 0;
     Ok((out, truncated))
@@ -326,13 +326,13 @@ fn query_pauses_window(
     }
     params.push(SqlValue::Integer(lim));
 
-    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare(&sql).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut rows = stmt
         .query(rusqlite::params_from_iter(params))
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut out = Vec::new();
-    while let Some(row) = rows.next().map_err(|e| e.to_string())? {
-        out.push(pause_row_from_row(row).map_err(|e| e.to_string())?);
+    while let Some(row) = rows.next().map_err(|e| redact_user_home_in_text(&e.to_string()))? {
+        out.push(pause_row_from_row(row).map_err(|e| redact_user_home_in_text(&e.to_string()))?);
     }
     let truncated = out.len() as u32 >= limit && limit > 0;
     Ok((out, truncated))
@@ -363,13 +363,13 @@ fn query_ipus_window(
     }
     params.push(SqlValue::Integer(lim));
 
-    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare(&sql).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut rows = stmt
         .query(rusqlite::params_from_iter(params))
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut out = Vec::new();
-    while let Some(row) = rows.next().map_err(|e| e.to_string())? {
-        out.push(ipu_row_from_row(row).map_err(|e| e.to_string())?);
+    while let Some(row) = rows.next().map_err(|e| redact_user_home_in_text(&e.to_string()))? {
+        out.push(ipu_row_from_row(row).map_err(|e| redact_user_home_in_text(&e.to_string()))?);
     }
     let truncated = out.len() as u32 >= limit && limit > 0;
     Ok((out, truncated))

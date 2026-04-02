@@ -90,7 +90,13 @@ pub fn write_annotation_tiers_to_events(
                  VALUES (?1, ?2, ?3, NULL, ?4)",
                 params![start_ms, end_ms, tier.tier_id, flags],
             )
-            .map_err(|e| format!("INSERT turn (tier={}, seg) : {e}", tier.tier_id))?;
+            .map_err(|e| {
+                format!(
+                    "INSERT turn (tier={}, seg) : {}",
+                    tier.tier_id,
+                    redact_user_home_in_text(&e.to_string())
+                )
+            })?;
             n += 1;
         }
     }

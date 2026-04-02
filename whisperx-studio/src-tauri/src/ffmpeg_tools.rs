@@ -167,7 +167,9 @@ pub(crate) fn run_probe(
     if let Some(prefix) = path_prefix {
         prepend_path_env(&mut process, prefix);
     }
-    let output = process.output().map_err(|err| err.to_string())?;
+    let output = process.output().map_err(|err| {
+        redact_user_home_in_text(&err.to_string())
+    })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -186,7 +188,7 @@ pub(crate) fn run_probe(
         Ok(stdout)
     } else {
         Ok(redact_user_home_in_text(
-            &String::from_utf8_lossy(&output.stderr).trim().to_string(),
+            String::from_utf8_lossy(&output.stderr).trim(),
         ))
     }
 }

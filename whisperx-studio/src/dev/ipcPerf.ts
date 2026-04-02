@@ -19,7 +19,11 @@ export async function ipcInvokeDev<T>(
     return result;
   } catch (err) {
     if (import.meta.env.DEV) {
-      console.debug(`[ipc] ${cmd} FAIL ${(performance.now() - t0).toFixed(1)}ms`, label, err);
+      console.debug(
+        `[ipc] ${cmd} FAIL ${(performance.now() - t0).toFixed(1)}ms`,
+        label,
+        redactHomeLikeInString(ipcErrorToString(err)),
+      );
     }
     throw err;
   }
@@ -65,4 +69,27 @@ function ipcMeta(cmd: string, result: unknown): Record<string, unknown> {
     return { runId: r.runId, durationSec: r.durationSec };
   }
   return {};
+}
+
+function ipcErrorToString(err: unknown): string {
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.message;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
+/** Réduit les préfixes home-like dans les logs dev (erreurs IPC peuvent contenir des chemins absolus). */
+function redactHomeLikeInString(s: string): string {
+  let out = s;
+  out = out.replace(/\/Users\/[^/\s]+/g, "~");
+  out = out.replace(/\/home\/[^/\s]+/g, "~");
+  out = out.replace(/C:\\Users\\[^\\\s]+/gi, "~");
+  const la = typeof process !== "undefined" && process.env?.LOCALAPPDATA;
+  if (typeof la === "string" && la.length > 0) {
+    out = out.split(la).join("~LOCALAPPDATA");
+  }
+  return out;
 }

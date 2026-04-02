@@ -63,7 +63,7 @@ struct SpeakerStats {
 fn query_turns(conn: &Connection) -> Result<Vec<TurnRow>, String> {
     let mut stmt = conn
         .prepare("SELECT start_ms, end_ms, speaker FROM turns ORDER BY start_ms")
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let rows = stmt
         .query_map([], |row| {
             Ok(TurnRow {
@@ -72,14 +72,14 @@ fn query_turns(conn: &Connection) -> Result<Vec<TurnRow>, String> {
                 speaker: row.get::<_, String>(2).unwrap_or_default(),
             })
         })
-        .map_err(|e| e.to_string())?;
-    rows.map(|r| r.map_err(|e| e.to_string())).collect()
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    rows.map(|r| r.map_err(|e| redact_user_home_in_text(&e.to_string()))).collect()
 }
 
 fn query_pauses(conn: &Connection) -> Result<Vec<PauseRow>, String> {
     let mut stmt = conn
         .prepare("SELECT dur_ms, speaker FROM pauses")
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let rows = stmt
         .query_map([], |row| {
             Ok(PauseRow {
@@ -87,14 +87,14 @@ fn query_pauses(conn: &Connection) -> Result<Vec<PauseRow>, String> {
                 speaker: row.get(1).ok(),
             })
         })
-        .map_err(|e| e.to_string())?;
-    rows.map(|r| r.map_err(|e| e.to_string())).collect()
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    rows.map(|r| r.map_err(|e| redact_user_home_in_text(&e.to_string()))).collect()
 }
 
 fn query_ipus(conn: &Connection) -> Result<Vec<IpuRow>, String> {
     let mut stmt = conn
         .prepare("SELECT n_words, speaker FROM ipus")
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let rows = stmt
         .query_map([], |row| {
             Ok(IpuRow {
@@ -102,8 +102,8 @@ fn query_ipus(conn: &Connection) -> Result<Vec<IpuRow>, String> {
                 speaker: row.get(1).ok(),
             })
         })
-        .map_err(|e| e.to_string())?;
-    rows.map(|r| r.map_err(|e| e.to_string())).collect()
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    rows.map(|r| r.map_err(|e| redact_user_home_in_text(&e.to_string()))).collect()
 }
 
 // ─── Calcul des stats ─────────────────────────────────────────────────────────

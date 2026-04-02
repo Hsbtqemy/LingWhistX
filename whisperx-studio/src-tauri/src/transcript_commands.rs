@@ -352,8 +352,12 @@ pub fn export_run_timing_pack(
     if !manifest_path.is_file() {
         return Err("run_manifest.json introuvable dans ce dossier.".into());
     }
-    let raw = std::fs::read_to_string(&manifest_path).map_err(|e| e.to_string())?;
-    let manifest: serde_json::Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    let raw = std::fs::read_to_string(&manifest_path).map_err(|e| {
+        redact_user_home_in_text(&e.to_string())
+    })?;
+    let manifest: serde_json::Value = serde_json::from_str(&raw).map_err(|e| {
+        redact_user_home_in_text(&e.to_string())
+    })?;
     let art = manifest
         .get("artifacts")
         .and_then(|a| a.as_object())
