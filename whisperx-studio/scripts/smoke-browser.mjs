@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Smoke navigateur minimal (E2E léger) : bundle de prod + shell React monté.
- * Ne remplace pas un test Tauri desktop ; vérifie que le SPA se charge et que la nav Studio est présente.
+ * Ne remplace pas un test Tauri desktop ; vérifie chargement SPA, nav Studio, ouverture du panneau d’aide.
  *
  * Prérequis : `npm run build` (dossier `dist/`).
  *
@@ -114,7 +114,32 @@ async function main() {
       throw new Error("Missing .studio-nav-help-btn — top bar incomplete");
     }
 
-    console.log("smoke-browser: OK (shell + onglet Studio + aide)");
+    await helpBtn.click();
+    await page.waitForSelector('[data-testid="help-dialog"]', { visible: true, timeout: 15_000 });
+
+    const helpTitle = await page.$eval('[data-testid="help-dialog"] .help-title', (el) =>
+      (el.textContent || "").trim(),
+    );
+    if (!helpTitle.includes("Aide")) {
+      throw new Error(`Unexpected help title: ${helpTitle}`);
+    }
+
+    await page.keyboard.press("Escape");
+    try {
+      await page.waitForFunction(
+        () => !document.querySelector('[data-testid="help-dialog"]'),
+        { timeout: 10_000 },
+      );
+    } catch {
+      const close = await page.$(".help-close-btn");
+      if (close) await close.click();
+      await page.waitForFunction(
+        () => !document.querySelector('[data-testid="help-dialog"]'),
+        { timeout: 10_000 },
+      );
+    }
+
+    console.log("smoke-browser: OK (shell + Studio tab + help open/close)");
   } finally {
     if (browser) {
       await browser.close().catch(() => {});

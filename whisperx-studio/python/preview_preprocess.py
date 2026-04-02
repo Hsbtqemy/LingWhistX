@@ -17,7 +17,7 @@ import os
 import sys
 from pathlib import Path
 
-from log_sanitize import sanitize_log_line
+from log_sanitize import sanitize_log_line, sanitize_path_for_log
 
 
 def main() -> None:
@@ -64,7 +64,7 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     result = maybe_prepare_audio_input(args.input, out_dir, options)
-    print(result, end="")
+    print(sanitize_path_for_log(result), end="")
 
 
 if __name__ == "__main__":

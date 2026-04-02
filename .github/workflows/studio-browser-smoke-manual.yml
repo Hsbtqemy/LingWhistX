@@ -1,0 +1,40 @@
+# Smoke Puppeteer sur les trois OS — à lancer à la demande (régressions suspectes sur Windows/macOS).
+# Le flux principal (studio-ci.yml) ne garde la smoke que sur ubuntu-latest pour limiter la durée.
+name: WhisperX Studio — browser smoke (manuel)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke-browser:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Git — ne pas convertir CRLF (Prettier)
+        run: git config --global core.autocrlf false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: whisperx-studio/package-lock.json
+
+      - name: Install Node dependencies
+        working-directory: whisperx-studio
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: whisperx-studio
+        run: npm run build
+
+      - name: Browser smoke (Puppeteer)
+        working-directory: whisperx-studio
+        run: npm run smoke:browser

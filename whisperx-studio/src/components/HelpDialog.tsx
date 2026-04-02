@@ -150,6 +150,7 @@ export function HelpDialog({ open, onClose, activeView }: HelpDialogProps) {
       <div
         ref={panelRef}
         className="help-panel"
+        data-testid="help-dialog"
         role="dialog"
         aria-modal="true"
         aria-label="Aide et raccourcis"

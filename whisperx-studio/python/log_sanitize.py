@@ -27,22 +27,54 @@ def sanitize_path_for_log(path: str) -> str:
     return expanded.replace("\\", "/")
 
 
+def _collect_env_redaction_pairs() -> list[tuple[str, str]]:
+    """Chemins d'environnement candidats (ordre libre ; voir `_apply_env_redactions`)."""
+    pairs: list[tuple[str, str]] = []
+    home = str(Path.home())
+    if home:
+        pairs.append((home, "~"))
+    profile = os.environ.get("USERPROFILE", "")
+    if profile:
+        pairs.append((profile, "~"))
+    localappdata = os.environ.get("LOCALAPPDATA", "")
+    if localappdata:
+        pairs.append((localappdata, "~LOCALAPPDATA"))
+    appdata = os.environ.get("APPDATA", "")
+    if appdata:
+        pairs.append((appdata, "~APPDATA"))
+    for var, ph in (
+        ("XDG_CONFIG_HOME", "~XDG_CONFIG_HOME"),
+        ("XDG_DATA_HOME", "~XDG_DATA_HOME"),
+        ("XDG_STATE_HOME", "~XDG_STATE_HOME"),
+        ("XDG_CACHE_HOME", "~XDG_CACHE_HOME"),
+    ):
+        v = os.environ.get(var, "")
+        if v:
+            pairs.append((v, ph))
+    return pairs
+
+
+def _apply_env_redactions(text: str, pairs: list[tuple[str, str]]) -> str:
+    """Trie les chemins du plus long au plus court, déduplique, puis substitue."""
+    ordered = sorted((p for p in pairs if p[0]), key=lambda x: len(x[0]), reverse=True)
+    seen: set[str] = set()
+    unique: list[tuple[str, str]] = []
+    for val, ph in ordered:
+        if val in seen:
+            continue
+        seen.add(val)
+        unique.append((val, ph))
+    out = text
+    for val, ph in unique:
+        out = out.replace(val, ph)
+    return out
+
+
 def sanitize_log_line(text: str) -> str:
     """Masque les préfixes de répertoire personnel dans une ligne de log arbitraire."""
     if not text:
         return text
-    out = text
-    home = str(Path.home())
-    if home and home in out:
-        out = out.replace(home, "~")
-    profile = os.environ.get("USERPROFILE", "")
-    if profile and profile not in (home, "") and profile in out:
-        out = out.replace(profile, "~")
-    # Cas rare : AppData\\Local hors du préfixe déjà couvert par USERPROFILE.
-    localappdata = os.environ.get("LOCALAPPDATA", "")
-    if localappdata and localappdata not in (home, profile, "") and localappdata in out:
-        out = out.replace(localappdata, "~LOCALAPPDATA")
-    return out
+    return _apply_env_redactions(text, _collect_env_redaction_pairs())
 
 
 def sanitize_exception_message(exc: BaseException) -> str:

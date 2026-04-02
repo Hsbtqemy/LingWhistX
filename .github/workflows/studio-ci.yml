@@ -81,7 +81,10 @@ jobs:
         working-directory: whisperx-studio
         run: npm run test
 
-      - name: Browser smoke (Puppeteer — shell SPA)
+      # Même bundle sur les 3 OS : la smoke Puppeteer est redondante et coûteuse en minutes.
+      # On la garde sur ubuntu-latest (Chromium CI stable) ; Windows/macOS restent couverts par build + Vitest.
+      - name: Browser smoke (Puppeteer — SPA, Linux uniquement)
+        if: matrix.os == 'ubuntu-latest'
         working-directory: whisperx-studio
         run: npm run smoke:browser
 

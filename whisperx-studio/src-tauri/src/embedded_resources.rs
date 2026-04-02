@@ -297,7 +297,7 @@ pub(crate) fn run_runtime_setup_process(app: &AppHandle) -> Result<(), String> {
         "system",
         &format!(
             "Starting runtime setup script: {}",
-            script_path.to_string_lossy()
+            redact_user_home_in_text(&script_path.to_string_lossy())
         ),
     );
 
