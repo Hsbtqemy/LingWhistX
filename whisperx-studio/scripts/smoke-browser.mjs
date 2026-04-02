@@ -106,7 +106,7 @@ async function main() {
 
     const workspaceTab = await page.$("#studio-tab-workspace");
     if (!workspaceTab) {
-      throw new Error('Missing #studio-tab-workspace — nav Studio not rendered');
+      throw new Error("Missing #studio-tab-workspace — nav Studio not rendered");
     }
 
     const helpBtn = await page.$(".studio-nav-help-btn");
@@ -126,17 +126,15 @@ async function main() {
 
     await page.keyboard.press("Escape");
     try {
-      await page.waitForFunction(
-        () => !document.querySelector('[data-testid="help-dialog"]'),
-        { timeout: 10_000 },
-      );
+      await page.waitForFunction(() => !document.querySelector('[data-testid="help-dialog"]'), {
+        timeout: 10_000,
+      });
     } catch {
       const close = await page.$(".help-close-btn");
       if (close) await close.click();
-      await page.waitForFunction(
-        () => !document.querySelector('[data-testid="help-dialog"]'),
-        { timeout: 10_000 },
-      );
+      await page.waitForFunction(() => !document.querySelector('[data-testid="help-dialog"]'), {
+        timeout: 10_000,
+      });
     }
 
     console.log("smoke-browser: OK (shell + Studio tab + help open/close)");

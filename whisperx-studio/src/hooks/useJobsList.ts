@@ -374,10 +374,12 @@ export function useJobsList({
       // Optimistic update
       setJobs((prev) => {
         const byId = new Map(prev.map((j) => [j.id, j]));
-        const reordered = orderedIds.map((id, idx) => {
-          const j = byId.get(id);
-          return j ? { ...j, queueOrder: idx } : null;
-        }).filter(Boolean) as Job[];
+        const reordered = orderedIds
+          .map((id, idx) => {
+            const j = byId.get(id);
+            return j ? { ...j, queueOrder: idx } : null;
+          })
+          .filter(Boolean) as Job[];
         const rest = prev.filter((j) => !orderedIds.includes(j.id));
         return [...reordered, ...rest];
       });

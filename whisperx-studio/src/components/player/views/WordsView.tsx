@@ -65,7 +65,9 @@ export function PlayerWordsBody({
     );
   }
 
-  const speakers = Array.from(new Set(slice.words.map((w) => w.speaker || "\u2014").filter(Boolean))).sort();
+  const speakers = Array.from(
+    new Set(slice.words.map((w) => w.speaker || "\u2014").filter(Boolean)),
+  ).sort();
 
   return (
     <div className="player-words">
@@ -89,7 +91,8 @@ export function PlayerWordsBody({
         {editMode && editingSegIdx != null && editorSegments && onUpdateText ? (
           <div className="player-words-edit-inline">
             <span className="player-words-edit-label small mono">
-              {editorSegments[editingSegIdx]?.speaker ?? "\u2014"} · {formatClockSeconds(editorSegments[editingSegIdx]?.start ?? 0)}
+              {editorSegments[editingSegIdx]?.speaker ?? "\u2014"} ·{" "}
+              {formatClockSeconds(editorSegments[editingSegIdx]?.start ?? 0)}
             </span>
             <textarea
               className="player-inline-edit-textarea"
@@ -97,7 +100,10 @@ export function PlayerWordsBody({
               onChange={(ev) => onUpdateText(editingSegIdx, ev.target.value)}
               onBlur={() => setEditingSegIdx(null)}
               onKeyDown={(ev) => {
-                if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); setEditingSegIdx(null); }
+                if (ev.key === "Enter" && !ev.shiftKey) {
+                  ev.preventDefault();
+                  setEditingSegIdx(null);
+                }
                 if (ev.key === "Escape") setEditingSegIdx(null);
               }}
               autoFocus
@@ -108,7 +114,8 @@ export function PlayerWordsBody({
         {slice.words.map((w) => {
           const isActive = w.id === activeWordId;
           const isPast = activeWordId >= 0 && w.startMs < playheadMs && !isActive;
-          const isUnaligned = w.alignmentStatus === "interpolated" || w.alignmentStatus === "unaligned";
+          const isUnaligned =
+            w.alignmentStatus === "interpolated" || w.alignmentStatus === "unaligned";
           const isLowConf = w.confidence != null && w.confidence < 0.5;
           const spIdx = speakers.indexOf(w.speaker || "\u2014");
 
@@ -140,7 +147,9 @@ export function PlayerWordsBody({
               tabIndex={onSeekToMs ? 0 : -1}
               onClick={() => onSeekToMs?.(w.startMs)}
               onDoubleClick={handleWordDoubleClick}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSeekToMs?.(w.startMs); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") onSeekToMs?.(w.startMs);
+              }}
               title={`${formatClockSeconds(w.startMs / 1000)} – ${formatClockSeconds(w.endMs / 1000)}${isUnaligned ? " · non aligné" : ""}${isLowConf ? ` · conf. ${((w.confidence ?? 0) * 100).toFixed(0)}%` : ""}`}
               style={isActive ? { borderBottomColor: speakerColor(spIdx) } : undefined}
             >

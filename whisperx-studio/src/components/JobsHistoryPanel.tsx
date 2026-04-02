@@ -38,15 +38,12 @@ function BatchMonitorPanel({ jobs }: { jobs: Job[] }) {
     const todayStart = now - 24 * 3600 * 1000;
     const queued = jobs.filter((j) => j.status === "queued").length;
     const running = jobs.filter((j) => j.status === "running").length;
-    const doneToday = jobs.filter(
-      (j) => j.status === "done" && j.updatedAtMs >= todayStart,
-    ).length;
+    const doneToday = jobs.filter((j) => j.status === "done" && j.updatedAtMs >= todayStart).length;
     const errorsToday = jobs.filter(
       (j) => j.status === "error" && j.updatedAtMs >= todayStart,
     ).length;
     const finishedToday = doneToday + errorsToday;
-    const errorRate =
-      finishedToday > 0 ? Math.round((errorsToday / finishedToday) * 100) : 0;
+    const errorRate = finishedToday > 0 ? Math.round((errorsToday / finishedToday) * 100) : 0;
     return { queued, running, doneToday, errorsToday, errorRate };
   }, [jobs]);
 
@@ -57,17 +54,23 @@ function BatchMonitorPanel({ jobs }: { jobs: Job[] }) {
       <span className="batch-monitor__stat">
         <span className="batch-monitor__val">{stats.queued}</span> en attente
       </span>
-      <span className="batch-monitor__sep" aria-hidden>·</span>
+      <span className="batch-monitor__sep" aria-hidden>
+        ·
+      </span>
       <span className="batch-monitor__stat">
         <span className="batch-monitor__val">{stats.running}</span> en cours
       </span>
-      <span className="batch-monitor__sep" aria-hidden>·</span>
+      <span className="batch-monitor__sep" aria-hidden>
+        ·
+      </span>
       <span className="batch-monitor__stat">
         <span className="batch-monitor__val">{stats.doneToday}</span> terminé(s) (24h)
       </span>
       {stats.errorsToday > 0 ? (
         <>
-          <span className="batch-monitor__sep" aria-hidden>·</span>
+          <span className="batch-monitor__sep" aria-hidden>
+            ·
+          </span>
           <span className="batch-monitor__stat batch-monitor__stat--error">
             <span className="batch-monitor__val">{stats.errorRate}%</span> taux d&apos;erreur
           </span>
@@ -200,7 +203,10 @@ export function JobsHistoryPanel({
                     <div className="job-top-row__badges">
                       {/* WX-672 — Priority badge */}
                       {onSetJobPriority ? (
-                        <span className={`job-priority-badge job-priority-badge--p${priority}`} title={PRIORITY_TITLES[priority]}>
+                        <span
+                          className={`job-priority-badge job-priority-badge--p${priority}`}
+                          title={PRIORITY_TITLES[priority]}
+                        >
                           {PRIORITY_LABELS[priority]}
                           <span className="job-priority-badge__arrows">
                             {([0, 1, 2, 3] as const).map((p) => (
@@ -240,7 +246,9 @@ export function JobsHistoryPanel({
                       style={{ width: `${Math.max(4, job.progress)}%` }}
                     />
                   </div>
-                  <p className={`small ${job.status === "running" ? "job-card__progress-line" : ""}`}>
+                  <p
+                    className={`small ${job.status === "running" ? "job-card__progress-line" : ""}`}
+                  >
                     {job.status === "running" ? (
                       <span
                         className="lx-spinner lx-spinner--sm"

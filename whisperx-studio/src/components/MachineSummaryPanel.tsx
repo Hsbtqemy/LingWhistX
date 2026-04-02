@@ -50,8 +50,7 @@ export function MachineSummaryPanel({ runtimeStatus }: MachineSummaryPanelProps)
                 <span className="mono">{runtimeStatus.demucsVersion ?? "ok"}</span>
               ) : (
                 <span className="about-machine-missing">
-                  non installé —{" "}
-                  <code>pip install demucs</code>
+                  non installé — <code>pip install demucs</code>
                 </span>
               )}
             </dd>

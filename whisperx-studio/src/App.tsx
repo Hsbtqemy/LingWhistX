@@ -47,7 +47,8 @@ function App() {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const tag = (e.target as HTMLElement)?.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
+        if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable)
+          return;
         e.preventDefault();
         setHelpOpen((v) => !v);
       }
@@ -177,9 +178,7 @@ function App() {
         <div
           id={STUDIO_PANEL_IDS.create}
           role="tabpanel"
-          aria-labelledby={
-            showCreatePanel ? "hero-title" : STUDIO_TAB_IDS.create
-          }
+          aria-labelledby={showCreatePanel ? "hero-title" : STUDIO_TAB_IDS.create}
           hidden={!showCreatePanel}
         >
           {showCreatePanel ? (

@@ -4,12 +4,12 @@
 
 ## Couches actuelles
 
-| Couche | Commande / emplacement | Ce que ça garantit |
-|--------|------------------------|--------------------|
-| **Unitaires / intégration front** | `npm run test` (Vitest) | Logique React, hooks, composants isolés. |
-| **Backend Tauri** | `cargo test` (CI) | Inclut `smoke_mock_edit_export_flow` (transcript / worker mock). |
-| **Smoke navigateur (SPA)** | `npm run smoke:web` ou `npm run smoke:browser` | Build prod + **Puppeteer** sur `vite preview` : shell, onglet Studio, **ouverture / fermeture du panneau d’aide** (`data-testid="help-dialog"`). **Pas de fenêtre Tauri** — uniquement le bundle web. |
-| **Smoke release (Windows)** | `npm run smoke:e2e` (`scripts/smoke-e2e.ps1`) | `npm run build`, `cargo check`, test Rust smoke, **`tauri build`**, artefacts MSI/EXE + hashes. **À réserver aux release** (long, machine Windows). |
+| Couche                            | Commande / emplacement                         | Ce que ça garantit                                                                                                                                                                                    |
+| --------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Unitaires / intégration front** | `npm run test` (Vitest)                        | Logique React, hooks, composants isolés.                                                                                                                                                              |
+| **Backend Tauri**                 | `cargo test` (CI)                              | Inclut `smoke_mock_edit_export_flow` (transcript / worker mock).                                                                                                                                      |
+| **Smoke navigateur (SPA)**        | `npm run smoke:web` ou `npm run smoke:browser` | Build prod + **Puppeteer** sur `vite preview` : shell, onglet Studio, **ouverture / fermeture du panneau d’aide** (`data-testid="help-dialog"`). **Pas de fenêtre Tauri** — uniquement le bundle web. |
+| **Smoke release (Windows)**       | `npm run smoke:e2e` (`scripts/smoke-e2e.ps1`)  | `npm run build`, `cargo check`, test Rust smoke, **`tauri build`**, artefacts MSI/EXE + hashes. **À réserver aux release** (long, machine Windows).                                                   |
 
 ## Scénario critique automatisé (recommandé CI)
 
@@ -25,7 +25,7 @@ C’est le **scénario critique** retenu : **régression de chargement / routage
 
 ## Quand accélérer la release
 
-- **CI** : smoke navigateur sur **Linux uniquement** dans `studio-ci.yml` (après Vitest).  
+- **CI** : smoke navigateur sur **Linux uniquement** dans `studio-ci.yml` (après Vitest).
 - **Local** : `npm run smoke:web` avant tag si vous ne lancez pas le pipeline complet.
 - **Ne pas** remplacer le smoke **PS1** (`smoke:e2e`) par la smoke navigateur : l’installateur et les artefacts restent un contrôle séparé.
 
@@ -36,20 +36,20 @@ C’est le **scénario critique** retenu : **régression de chargement / routage
 
 ## Variables utiles
 
-| Variable | Rôle |
-|----------|------|
-| `SMOKE_URL` | URL du preview si déjà démarré (évite le double `vite preview`). |
-| `SMOKE_HEADLESS=0` | Afficher le navigateur (debug local). |
-| `PUPPETEER_*` | Variables officielles Puppeteer (ex. binaire Chromium si besoin). |
+| Variable           | Rôle                                                              |
+| ------------------ | ----------------------------------------------------------------- |
+| `SMOKE_URL`        | URL du preview si déjà démarré (évite le double `vite preview`).  |
+| `SMOKE_HEADLESS=0` | Afficher le navigateur (debug local).                             |
+| `PUPPETEER_*`      | Variables officielles Puppeteer (ex. binaire Chromium si besoin). |
 
 ## Dépannage
 
-| Problème | Piste |
-|----------|--------|
-| `Timeout waiting for HTTP` | Port **4173** déjà pris — arrêter l’autre `vite preview` ou utiliser `SMOKE_URL` vers un autre port. |
-| `smoke:browser` sans `dist/` | Lancer d’abord **`npm run build`** (ou `npm run smoke:web`). |
-| Échec sélecteurs | Vérifier `data-testid="studio-app-root"` sur `<main>`, vue par défaut **workspace** (onglets visibles). |
-| CI Linux | Chromium embarqué par Puppeteer ; flags `--no-sandbox` déjà passés pour les runners GitHub. |
+| Problème                     | Piste                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `Timeout waiting for HTTP`   | Port **4173** déjà pris — arrêter l’autre `vite preview` ou utiliser `SMOKE_URL` vers un autre port.    |
+| `smoke:browser` sans `dist/` | Lancer d’abord **`npm run build`** (ou `npm run smoke:web`).                                            |
+| Échec sélecteurs             | Vérifier `data-testid="studio-app-root"` sur `<main>`, vue par défaut **workspace** (onglets visibles). |
+| CI Linux                     | Chromium embarqué par Puppeteer ; flags `--no-sandbox` déjà passés pour les runners GitHub.             |
 
 ## Comportement du script (`scripts/smoke-browser.mjs`)
 

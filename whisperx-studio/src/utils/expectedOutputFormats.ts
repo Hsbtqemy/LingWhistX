@@ -7,10 +7,15 @@ const ALL_WRITER_EXTENSIONS = ["txt", "vtt", "srt", "tsv", "json"] as const;
 /**
  * Extensions d’annotation (WX-670) produites selon les flags d’options.
  */
-export function expectedAnnotationExtensions(opts: {
-  exportAnnotationEaf?: boolean;
-  exportAnnotationTextgrid?: boolean;
-} | undefined | null): string[] {
+export function expectedAnnotationExtensions(
+  opts:
+    | {
+        exportAnnotationEaf?: boolean;
+        exportAnnotationTextgrid?: boolean;
+      }
+    | undefined
+    | null,
+): string[] {
   const out: string[] = [];
   if (opts?.exportAnnotationEaf) out.push("eaf");
   if (opts?.exportAnnotationTextgrid) out.push("TextGrid");
@@ -57,11 +62,7 @@ export function mediaStemFromInputPath(inputPath: string): string {
 }
 
 /** Indique si la liste de chemins absolus contient `{stem}.{ext}`. */
-export function hasStemExtensionFile(
-  paths: readonly string[],
-  stem: string,
-  ext: string,
-): boolean {
+export function hasStemExtensionFile(paths: readonly string[], stem: string, ext: string): boolean {
   const want = `${stem}.${ext}`.toLowerCase();
   for (const p of paths) {
     const normalized = p.replace(/\\/g, "/");

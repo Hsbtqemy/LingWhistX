@@ -69,9 +69,10 @@ export function useNewJobForm({
 
   const loadUserProfiles = useCallback(async () => {
     try {
-      const raw = await invoke<{ id: string; label: string; description: string; overrides: Record<string, unknown> }[]>(
-        "read_user_profiles",
-      );
+      const raw =
+        await invoke<
+          { id: string; label: string; description: string; overrides: Record<string, unknown> }[]
+        >("read_user_profiles");
       setUserProfiles(
         raw.map((p) => ({
           id: p.id,
@@ -395,9 +396,7 @@ export function useNewJobForm({
     setSelectedProfileId(profileId);
     const profile = profilePresetsResolved.find((preset) => preset.id === profileId);
     if (profile) {
-      setWhisperxOptions((prev) =>
-        applyProfileOverrides(profile.overrides, prev.hfToken),
-      );
+      setWhisperxOptions((prev) => applyProfileOverrides(profile.overrides, prev.hfToken));
     }
   }
 

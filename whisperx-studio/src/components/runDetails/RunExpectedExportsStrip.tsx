@@ -86,9 +86,9 @@ export function RunExpectedExportsStrip({ job }: RunExpectedExportsStripProps) {
     <div className="run-expected-exports" data-job-status={job.status}>
       <h4 className="run-expected-exports__title">Exports prévus (WhisperX)</h4>
       <p className="run-expected-exports__hint field-help">
-        Les fichiers principaux listés ci-dessous sont produits <strong>à la fin</strong> du pipeline
-        (transcription, alignement, diarisation si activée, puis écriture). D’autres fichiers
-        (.timeline.json, .csv, etc.) peuvent apparaître selon les options d’analyse.
+        Les fichiers principaux listés ci-dessous sont produits <strong>à la fin</strong> du
+        pipeline (transcription, alignement, diarisation si activée, puis écriture). D’autres
+        fichiers (.timeline.json, .csv, etc.) peuvent apparaître selon les options d’analyse.
       </p>
       <ul className="run-expected-exports__chips" aria-label="Formats attendus et état">
         {extensions.map((ext) => {
@@ -97,16 +97,14 @@ export function RunExpectedExportsStrip({ job }: RunExpectedExportsStripProps) {
             <li key={ext}>
               <span
                 className={`run-expected-exports__chip ${ready ? "run-expected-exports__chip--ready" : ""}`}
-                title={
-                  ready
-                    ? `Fichier détecté : ${stem}.${ext}`
-                    : `En attente : ${stem}.${ext}`
-                }
+                title={ready ? `Fichier détecté : ${stem}.${ext}` : `En attente : ${stem}.${ext}`}
               >
                 <span className="run-expected-exports__status" aria-hidden>
                   {ready ? "✓" : "…"}
                 </span>
-                <span className="mono">{stem}.{ext}</span>
+                <span className="mono">
+                  {stem}.{ext}
+                </span>
               </span>
             </li>
           );

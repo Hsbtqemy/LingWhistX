@@ -41,7 +41,9 @@
   color: var(--lx-text-1);
   cursor: pointer;
   font-weight: 500;
-  transition: background 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s;
 }
 
 .player-lanes-mode-btn + .player-lanes-mode-btn {
@@ -451,7 +453,9 @@
   color: var(--lx-text-0);
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  transition: background 0.08s, border-color 0.08s;
+  transition:
+    background 0.08s,
+    border-color 0.08s;
   border-radius: 2px;
 }
 
@@ -728,4 +732,3 @@ button.player-columns-cell:disabled {
 .player-words-edit-label {
   color: var(--lx-text-2);
 }
-

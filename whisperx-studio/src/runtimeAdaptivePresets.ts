@@ -51,8 +51,12 @@ export function adaptiveProfilePresets(rs: RuntimeStatus | null): ProfilePreset[
           }`,
           overrides: {
             ...p.overrides,
-            device: cuda ? ("cuda" as UiWhisperxOptions["device"]) : ("cpu" as UiWhisperxOptions["device"]),
-            computeType: cuda ? ("float16" as UiWhisperxOptions["computeType"]) : ("float32" as UiWhisperxOptions["computeType"]),
+            device: cuda
+              ? ("cuda" as UiWhisperxOptions["device"])
+              : ("cpu" as UiWhisperxOptions["device"]),
+            computeType: cuda
+              ? ("float16" as UiWhisperxOptions["computeType"])
+              : ("float32" as UiWhisperxOptions["computeType"]),
           },
         };
       case "meeting_diarize":

@@ -4,12 +4,12 @@ Ce document fixe **ce qui est réduit volontairement**, **ce qui reste en clair 
 
 ## Liste de contrôle — réduction active
 
-| Zone | Mécanisme | Fichiers / entrées typiques |
-|------|-----------|-------------------------------|
-| **Backend Rust** | `redact_user_home_in_text` (`src-tauri/src/log_redaction.rs`) | Erreurs `Result` exposées aux commandes Tauri, logs runtime, FFmpeg, DB, `events.sqlite`, chemins dans messages d’échec processus. |
-| **Worker & CLI Python** | `log_sanitize.py` : `sanitize_log_line`, `sanitize_path_for_log`, `sanitize_exception_message`, `format_command_for_log` | `worker.py`, `studio_audio_modules.py`, `preview_preprocess.py` (stdout chemins), lignes JSON vers stdout/stderr. |
-| **Bundle embarqué** | `log_sanitize.py` copié à côté du worker (`embedded_resources` + `tauri.conf.json`) | Même comportement en build packagé. |
-| **Console dev front** | `src/dev/ipcPerf.ts` : `redactHomeLikeInString` + `sanitizeMetaForDevLog` | Uniquement si `import.meta.env.DEV` ; erreurs IPC et chaînes dans les métadonnées de succès. |
+| Zone                    | Mécanisme                                                                                                                | Fichiers / entrées typiques                                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Backend Rust**        | `redact_user_home_in_text` (`src-tauri/src/log_redaction.rs`)                                                            | Erreurs `Result` exposées aux commandes Tauri, logs runtime, FFmpeg, DB, `events.sqlite`, chemins dans messages d’échec processus. |
+| **Worker & CLI Python** | `log_sanitize.py` : `sanitize_log_line`, `sanitize_path_for_log`, `sanitize_exception_message`, `format_command_for_log` | `worker.py`, `studio_audio_modules.py`, `preview_preprocess.py` (stdout chemins), lignes JSON vers stdout/stderr.                  |
+| **Bundle embarqué**     | `log_sanitize.py` copié à côté du worker (`embedded_resources` + `tauri.conf.json`)                                      | Même comportement en build packagé.                                                                                                |
+| **Console dev front**   | `src/dev/ipcPerf.ts` : `redactHomeLikeInString` + `sanitizeMetaForDevLog`                                                | Uniquement si `import.meta.env.DEV` ; erreurs IPC et chaînes dans les métadonnées de succès.                                       |
 
 **Variables d’environnement prises en compte côté Rust** (`log_redaction.rs`) : `HOME`, `USERPROFILE`, `LOCALAPPDATA`, `APPDATA` (Roaming Windows), et si définis `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME` (placeholders `~…`).
 
@@ -25,12 +25,12 @@ Ce document fixe **ce qui est réduit volontairement**, **ce qui reste en clair 
 
 ## Ce qui reste volontairement exposé (ou hors périmètre)
 
-| Élément | Raison |
-|---------|--------|
-| **Champs métier JSON** (`output_path`, `output_dir`, `run_dir`, chemins de transcript, etc.) | Nécessaires au fonctionnement de l’UI (ouverture de fichiers, affichage). |
-| **Erreurs « mutex »** (`Failed to lock …`) | Pas de chemin dans le message. |
-| **Smoke Puppeteer** | Vérifie le **bundle web** (`vite preview`), pas l’app Tauri ni `invoke` réel — voir `strategy-e2e-smoke.md`. |
-| **Release Windows** | `smoke:e2e` / PS1 : installateur et artefacts ; contrôle séparé de la smoke navigateur. |
+| Élément                                                                                      | Raison                                                                                                       |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Champs métier JSON** (`output_path`, `output_dir`, `run_dir`, chemins de transcript, etc.) | Nécessaires au fonctionnement de l’UI (ouverture de fichiers, affichage).                                    |
+| **Erreurs « mutex »** (`Failed to lock …`)                                                   | Pas de chemin dans le message.                                                                               |
+| **Smoke Puppeteer**                                                                          | Vérifie le **bundle web** (`vite preview`), pas l’app Tauri ni `invoke` réel — voir `strategy-e2e-smoke.md`. |
+| **Release Windows**                                                                          | `smoke:e2e` / PS1 : installateur et artefacts ; contrôle séparé de la smoke navigateur.                      |
 
 ---
 

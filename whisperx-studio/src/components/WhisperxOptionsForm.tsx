@@ -123,9 +123,7 @@ export function WhisperxOptionsForm({
             onChange={(e) => patchWhisperx({ model: e.currentTarget.value })}
           >
             {!modelIsListed ? (
-              <option value={modelValue}>
-                {modelValue} (valeur actuelle, hors liste)
-              </option>
+              <option value={modelValue}>{modelValue} (valeur actuelle, hors liste)</option>
             ) : null}
             {WHISPER_MODEL_CHOICES.map((choice) => (
               <option key={choice.value} value={choice.value}>
@@ -445,7 +443,8 @@ export function WhisperxOptionsForm({
                       setWhisperxOptionsDeferred(setWhisperxOptions, { outputFormat: "all" })
                     }
                   />
-                  Tous les formats (équivalent CLI <code className="mono">--output_format all</code>)
+                  Tous les formats (équivalent CLI <code className="mono">--output_format all</code>
+                  )
                 </label>
                 <label className="radio-row full-width">
                   <input

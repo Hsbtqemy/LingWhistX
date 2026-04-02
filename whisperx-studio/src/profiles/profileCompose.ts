@@ -47,9 +47,7 @@ export function computeDirtyFields(
  * Calcule les surcharges partielles représentant les champs qui diffèrent de `defaultWhisperxOptions`.
  * Utilisé pour sauvegarder la configuration courante comme nouveau profil (ne stocke que le delta).
  */
-export function extractProfileOverrides(
-  current: UiWhisperxOptions,
-): Partial<UiWhisperxOptions> {
+export function extractProfileOverrides(current: UiWhisperxOptions): Partial<UiWhisperxOptions> {
   const overrides: Partial<UiWhisperxOptions> = {};
   for (const key of Object.keys(current) as (keyof UiWhisperxOptions)[]) {
     if (key === "hfToken") continue;

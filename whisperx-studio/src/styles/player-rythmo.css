@@ -44,7 +44,9 @@
   cursor: pointer;
   color: var(--lx-text-1);
   background: var(--lx-surface-1);
-  transition: background 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s;
   border-right: 1px solid var(--lx-border);
 }
 
@@ -208,7 +210,9 @@
   display: flex;
   align-items: center;
   padding: 0 6px;
-  transition: background 0.08s, border-color 0.08s;
+  transition:
+    background 0.08s,
+    border-color 0.08s;
 }
 
 .player-rythmo-v2-block.is-active {
@@ -247,7 +251,7 @@
   font-weight: 500;
 }
 .player-rythmo-v2-viewport[data-zoom="4"] .player-rythmo-v2-timed-word {
-  font-size: 1.0rem;
+  font-size: 1rem;
   font-weight: 500;
 }
 .player-rythmo-v2-viewport[data-zoom="5"] .player-rythmo-v2-timed-word {
@@ -336,7 +340,9 @@
   justify-content: center;
   pointer-events: auto;
   cursor: pointer;
-  transition: background 0.1s, border-color 0.1s;
+  transition:
+    background 0.1s,
+    border-color 0.1s;
 }
 
 .player-rythmo-v2-pause:hover {
@@ -362,4 +368,3 @@
   opacity: 0.85;
   pointer-events: none;
 }
-

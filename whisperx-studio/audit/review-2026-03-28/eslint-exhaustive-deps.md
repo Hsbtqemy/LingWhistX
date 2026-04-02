@@ -15,12 +15,12 @@
 
 ## Sites actuels (vérifiés)
 
-| Fichier | Sujet | Désactivation |
-|---------|--------|----------------|
-| `src/components/player/PlayerWorkspaceSection.tsx` | Sync `currentTimeSec` → `wf.setMediaCurrentSec` | `// eslint-disable-line` sur la ligne du tableau de deps (1re effet) |
-| Idem | Follow playhead / scroll ondeforme | `// eslint-disable-next-line` immédiatement avant `}, [` (2e effet, deps multilignes) |
-| Idem | Segment actif éditeur vs playhead | `// eslint-disable-line` sur la ligne du tableau de deps (3e effet) |
-| `src/hooks/usePlayerRunWindow.ts` | Fenêtre IPC `query_run_events_window` (debounce) | `// eslint-disable-next-line` avant `}, [` — `queryContract` / centre temporel lus via **refs** ; deps = `coarseKey`, `contractLayersKey`, `speakersKey`, `refreshEpoch`, etc. |
+| Fichier                                            | Sujet                                            | Désactivation                                                                                                                                                                  |
+| -------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/components/player/PlayerWorkspaceSection.tsx` | Sync `currentTimeSec` → `wf.setMediaCurrentSec`  | `// eslint-disable-line` sur la ligne du tableau de deps (1re effet)                                                                                                           |
+| Idem                                               | Follow playhead / scroll ondeforme               | `// eslint-disable-next-line` immédiatement avant `}, [` (2e effet, deps multilignes)                                                                                          |
+| Idem                                               | Segment actif éditeur vs playhead                | `// eslint-disable-line` sur la ligne du tableau de deps (3e effet)                                                                                                            |
+| `src/hooks/usePlayerRunWindow.ts`                  | Fenêtre IPC `query_run_events_window` (debounce) | `// eslint-disable-next-line` avant `}, [` — `queryContract` / centre temporel lus via **refs** ; deps = `coarseKey`, `contractLayersKey`, `speakersKey`, `refreshEpoch`, etc. |
 
 ## Vérification
 

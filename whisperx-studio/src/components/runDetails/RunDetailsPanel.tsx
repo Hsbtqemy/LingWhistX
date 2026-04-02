@@ -250,17 +250,14 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
     const hadTranscriptOnJobRef = useRef(false);
 
     const canCancelJob =
-      selectedJob &&
-      (selectedJob.status === "queued" || selectedJob.status === "running");
+      selectedJob && (selectedJob.status === "queued" || selectedJob.status === "running");
 
     const [reportExporting, setReportExporting] = useState(false);
     const [reportPath, setReportPath] = useState<string | null>(null);
     const [reportError, setReportError] = useState<string | null>(null);
 
     const canExportReport =
-      selectedJob &&
-      selectedJob.status === "done" &&
-      Boolean(selectedJob.outputDir?.trim());
+      selectedJob && selectedJob.status === "done" && Boolean(selectedJob.outputDir?.trim());
 
     const handleExportReport = useCallback(async () => {
       if (!selectedJob?.outputDir) return;
@@ -379,7 +376,11 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                   className="secondary"
                   disabled={reportExporting}
                   onClick={() => void handleExportReport()}
-                  title={reportPath ? `Rapport : ${reportPath}` : "Générer et ouvrir le rapport HTML prosodique"}
+                  title={
+                    reportPath
+                      ? `Rapport : ${reportPath}`
+                      : "Générer et ouvrir le rapport HTML prosodique"
+                  }
                 >
                   {reportExporting ? "Export…" : "Exporter rapport"}
                 </button>
@@ -388,7 +389,9 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                 <button
                   type="button"
                   className="ghost inline"
-                  onClick={() => void invoke("open_html_report_for_print", { htmlPath: reportPath })}
+                  onClick={() =>
+                    void invoke("open_html_report_for_print", { htmlPath: reportPath })
+                  }
                   title="Ouvrir le rapport dans une fenêtre d'impression (PDF)"
                 >
                   Imprimer PDF
@@ -455,9 +458,7 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
               <JobRunPipelineStrip
                 job={selectedJob}
                 logs={selectedJobLogs}
-                onCancelJob={
-                  canCancelJob ? () => void onCancelJob(selectedJob.id) : undefined
-                }
+                onCancelJob={canCancelJob ? () => void onCancelJob(selectedJob.id) : undefined}
               />
               {selectedJob.mode === "whisperx" ? (
                 <RunExpectedExportsStrip job={selectedJob} />
@@ -526,8 +527,8 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                     <p className="small">
                       La vérification et l&apos;édition du transcript se font désormais dans le{" "}
                       <strong>Player</strong> en <strong>mode édition</strong>. Le Player offre un
-                      affichage synchronisé (chat, rythmo, mots) avec édition inline du texte et
-                      des bornes temporelles.
+                      affichage synchronisé (chat, rythmo, mots) avec édition inline du texte et des
+                      bornes temporelles.
                     </p>
                   </header>
                   <div className="run-details-tab-empty">
@@ -564,9 +565,9 @@ export const RunDetailsPanel = forwardRef<HTMLElement, RunDetailsPanelProps>(
                   <div>
                     <h3>Transcript</h3>
                     <p className="small transcript-section-hint">
-                      Édition segment par segment et contrôle qualité. Pour une vue
-                      synchronisée (média + waveform + texte), utilise le{" "}
-                      <strong>Player en mode édition</strong>.
+                      Édition segment par segment et contrôle qualité. Pour une vue synchronisée
+                      (média + waveform + texte), utilise le <strong>Player en mode édition</strong>
+                      .
                     </p>
                   </div>
                 </div>

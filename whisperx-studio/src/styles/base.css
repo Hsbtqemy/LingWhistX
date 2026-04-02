@@ -238,7 +238,9 @@ body {
   justify-content: center;
   color: var(--lx-hub-chevron);
   opacity: 0.72;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -290,7 +292,9 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .home-hub-card {
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
 
   .home-hub-card:hover {
@@ -830,4 +834,3 @@ body {
   align-items: center;
   gap: 10px;
 }
-

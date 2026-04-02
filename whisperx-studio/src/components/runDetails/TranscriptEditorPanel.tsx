@@ -34,7 +34,9 @@ export type TranscriptEditorPanelProps = {
   draftAutosaveSec: number;
   purgeTranscriptDraft: (manual: boolean) => void;
   saveEditedJson: (overwriteSource: boolean) => void;
-  exportEditedTranscript: (format: "srt" | "vtt" | "txt" | "json" | "csv" | "textgrid" | "eaf") => void;
+  exportEditedTranscript: (
+    format: "srt" | "vtt" | "txt" | "json" | "csv" | "textgrid" | "eaf",
+  ) => void;
   exportRules: ExportTimingRules;
   setExportRules: Dispatch<SetStateAction<ExportTimingRules>>;
   lastExportReport: ExportCorrectionReport | null;
@@ -158,131 +160,134 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
         </label>
       </section>
 
-      <section className="transcript-editor-section" aria-labelledby="transcript-editor-actions-title">
+      <section
+        className="transcript-editor-section"
+        aria-labelledby="transcript-editor-actions-title"
+      >
         <h3 id="transcript-editor-actions-title" className="transcript-editor-section__title">
           Commandes
         </h3>
-      <div className="editor-toolbar">
-        <button
-          type="button"
-          className="ghost"
-          disabled={isEditorSaving || isEditorLoading || !canUndoEditor}
-          onClick={undoEditorChange}
-        >
-          Undo (Ctrl+Z)
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={isEditorSaving || isEditorLoading || !canRedoEditor}
-          onClick={redoEditorChange}
-        >
-          Redo (Ctrl+Y)
-        </button>
-        <label className="editor-history-limit">
-          Historique max
-          <input
-            type="number"
-            min={MIN_EDITOR_HISTORY_LIMIT}
-            max={MAX_EDITOR_HISTORY_LIMIT}
-            step="10"
-            value={editorHistoryLimitInput}
-            onChange={(e) => setEditorHistoryLimitInput(e.currentTarget.value)}
-            onBlur={() => setEditorHistoryLimitInput(String(editorHistoryLimit))}
-          />
-        </label>
-        <label className="editor-history-limit">
-          Autosave (s)
-          <input
-            type="number"
-            min={MIN_DRAFT_AUTOSAVE_SEC}
-            max={MAX_DRAFT_AUTOSAVE_SEC}
-            step="1"
-            value={draftAutosaveSecInput}
-            onChange={(e) => setDraftAutosaveSecInput(e.currentTarget.value)}
-            onBlur={() => setDraftAutosaveSecInput(String(draftAutosaveSec))}
-          />
-        </label>
-        <button
-          type="button"
-          className="ghost"
-          disabled={isEditorSaving || isEditorLoading || !editorSourcePath}
-          onClick={() => purgeTranscriptDraft(true)}
-        >
-          Purger brouillon
-        </button>
-        <button
-          type="button"
-          disabled={isEditorSaving || isEditorLoading}
-          onClick={() => saveEditedJson(false)}
-        >
-          Sauver JSON
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={isEditorSaving || isEditorLoading}
-          onClick={() => saveEditedJson(true)}
-        >
-          Ecraser source
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={isEditorSaving || isEditorLoading}
-          onClick={() => exportEditedTranscript("srt")}
-        >
-          Export SRT
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={isEditorSaving || isEditorLoading}
-          onClick={() => exportEditedTranscript("vtt")}
-        >
-          Export VTT
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={isEditorSaving || isEditorLoading}
-          onClick={() => exportEditedTranscript("txt")}
-        >
-          Export TXT
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={isEditorSaving || isEditorLoading}
-          onClick={() => exportEditedTranscript("json")}
-        >
-          Export JSON
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={isEditorSaving || isEditorLoading}
-          onClick={() => exportEditedTranscript("csv")}
-        >
-          Export CSV
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={isEditorSaving || isEditorLoading}
-          onClick={() => exportEditedTranscript("textgrid")}
-        >
-          Export TextGrid
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={isEditorSaving || isEditorLoading}
-          onClick={() => exportEditedTranscript("eaf")}
-        >
-          Export EAF
-        </button>
-      </div>
+        <div className="editor-toolbar">
+          <button
+            type="button"
+            className="ghost"
+            disabled={isEditorSaving || isEditorLoading || !canUndoEditor}
+            onClick={undoEditorChange}
+          >
+            Undo (Ctrl+Z)
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={isEditorSaving || isEditorLoading || !canRedoEditor}
+            onClick={redoEditorChange}
+          >
+            Redo (Ctrl+Y)
+          </button>
+          <label className="editor-history-limit">
+            Historique max
+            <input
+              type="number"
+              min={MIN_EDITOR_HISTORY_LIMIT}
+              max={MAX_EDITOR_HISTORY_LIMIT}
+              step="10"
+              value={editorHistoryLimitInput}
+              onChange={(e) => setEditorHistoryLimitInput(e.currentTarget.value)}
+              onBlur={() => setEditorHistoryLimitInput(String(editorHistoryLimit))}
+            />
+          </label>
+          <label className="editor-history-limit">
+            Autosave (s)
+            <input
+              type="number"
+              min={MIN_DRAFT_AUTOSAVE_SEC}
+              max={MAX_DRAFT_AUTOSAVE_SEC}
+              step="1"
+              value={draftAutosaveSecInput}
+              onChange={(e) => setDraftAutosaveSecInput(e.currentTarget.value)}
+              onBlur={() => setDraftAutosaveSecInput(String(draftAutosaveSec))}
+            />
+          </label>
+          <button
+            type="button"
+            className="ghost"
+            disabled={isEditorSaving || isEditorLoading || !editorSourcePath}
+            onClick={() => purgeTranscriptDraft(true)}
+          >
+            Purger brouillon
+          </button>
+          <button
+            type="button"
+            disabled={isEditorSaving || isEditorLoading}
+            onClick={() => saveEditedJson(false)}
+          >
+            Sauver JSON
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={isEditorSaving || isEditorLoading}
+            onClick={() => saveEditedJson(true)}
+          >
+            Ecraser source
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={isEditorSaving || isEditorLoading}
+            onClick={() => exportEditedTranscript("srt")}
+          >
+            Export SRT
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={isEditorSaving || isEditorLoading}
+            onClick={() => exportEditedTranscript("vtt")}
+          >
+            Export VTT
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={isEditorSaving || isEditorLoading}
+            onClick={() => exportEditedTranscript("txt")}
+          >
+            Export TXT
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={isEditorSaving || isEditorLoading}
+            onClick={() => exportEditedTranscript("json")}
+          >
+            Export JSON
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={isEditorSaving || isEditorLoading}
+            onClick={() => exportEditedTranscript("csv")}
+          >
+            Export CSV
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={isEditorSaving || isEditorLoading}
+            onClick={() => exportEditedTranscript("textgrid")}
+          >
+            Export TextGrid
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={isEditorSaving || isEditorLoading}
+            onClick={() => exportEditedTranscript("eaf")}
+          >
+            Export EAF
+          </button>
+        </div>
       </section>
 
       {hasBlockingAlerts ? (
@@ -307,162 +312,165 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
         </section>
       ) : null}
 
-      <section className="transcript-editor-section" aria-labelledby="transcript-editor-export-title">
+      <section
+        className="transcript-editor-section"
+        aria-labelledby="transcript-editor-export-title"
+      >
         <h3 id="transcript-editor-export-title" className="transcript-editor-section__title">
           Export
         </h3>
-      <div className="export-rules-grid">
-        <label>
-          Min Duration (s)
-          <input
-            type="number"
-            step="0.005"
-            min="0.001"
-            value={exportRules.minDurationSec}
-            onChange={(e) => {
-              const next = parseFiniteNumberInput(e.currentTarget.value);
-              if (next !== null) {
-                setExportRules((prev) => ({ ...prev, minDurationSec: next }));
+        <div className="export-rules-grid">
+          <label>
+            Min Duration (s)
+            <input
+              type="number"
+              step="0.005"
+              min="0.001"
+              value={exportRules.minDurationSec}
+              onChange={(e) => {
+                const next = parseFiniteNumberInput(e.currentTarget.value);
+                if (next !== null) {
+                  setExportRules((prev) => ({ ...prev, minDurationSec: next }));
+                }
+              }}
+            />
+          </label>
+          <label>
+            Min Gap (s)
+            <input
+              type="number"
+              step="0.005"
+              min="0"
+              value={exportRules.minGapSec}
+              onChange={(e) => {
+                const next = parseFiniteNumberInput(e.currentTarget.value);
+                if (next !== null) {
+                  setExportRules((prev) => ({ ...prev, minGapSec: next }));
+                }
+              }}
+            />
+          </label>
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={exportRules.fixOverlaps}
+              onChange={(e) =>
+                runInTransition(() =>
+                  setExportRules((prev) => ({
+                    ...prev,
+                    fixOverlaps: e.currentTarget.checked,
+                  })),
+                )
               }
-            }}
-          />
-        </label>
-        <label>
-          Min Gap (s)
-          <input
-            type="number"
-            step="0.005"
-            min="0"
-            value={exportRules.minGapSec}
-            onChange={(e) => {
-              const next = parseFiniteNumberInput(e.currentTarget.value);
-              if (next !== null) {
-                setExportRules((prev) => ({ ...prev, minGapSec: next }));
-              }
-            }}
-          />
-        </label>
-        <label className="checkbox-row">
-          <input
-            type="checkbox"
-            checked={exportRules.fixOverlaps}
-            onChange={(e) =>
-              runInTransition(() =>
-                setExportRules((prev) => ({
-                  ...prev,
-                  fixOverlaps: e.currentTarget.checked,
-                })),
-              )
-            }
-          />
-          Corriger overlaps
-        </label>
-      </div>
-
-      {lastExportReport ? (
-        <div className="export-report-box">
-          <p className="small">
-            Rapport export: adjustments={lastExportReport.totalAdjustments} | overlaps fixes=
-            {lastExportReport.overlapsFixed} | min-gap={lastExportReport.minGapAdjustments} |
-            min-duration=
-            {lastExportReport.minDurationAdjustments}
-          </p>
-          <p className="small">
-            Segments in/out: {lastExportReport.inputSegments} / {lastExportReport.outputSegments}
-            {lastExportReport.reorderedSegments ? " | Reordonnancement applique" : ""}
-          </p>
-          <ul className="report-notes">
-            {lastExportReport.notes.map((note, idx) => (
-              <li key={`${note}-${idx}`}>{note}</li>
-            ))}
-          </ul>
+            />
+            Corriger overlaps
+          </label>
         </div>
-      ) : null}
+
+        {lastExportReport ? (
+          <div className="export-report-box">
+            <p className="small">
+              Rapport export: adjustments={lastExportReport.totalAdjustments} | overlaps fixes=
+              {lastExportReport.overlapsFixed} | min-gap={lastExportReport.minGapAdjustments} |
+              min-duration=
+              {lastExportReport.minDurationAdjustments}
+            </p>
+            <p className="small">
+              Segments in/out: {lastExportReport.inputSegments} / {lastExportReport.outputSegments}
+              {lastExportReport.reorderedSegments ? " | Reordonnancement applique" : ""}
+            </p>
+            <ul className="report-notes">
+              {lastExportReport.notes.map((note, idx) => (
+                <li key={`${note}-${idx}`}>{note}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
 
       <section className="transcript-editor-section" aria-labelledby="transcript-editor-qa-title">
         <h3 id="transcript-editor-qa-title" className="transcript-editor-section__title">
           Contrôle qualité (QA)
         </h3>
-      <div className="qa-panel">
-        <div className="qa-toolbar">
-          <label>
-            Gap &gt; (s)
-            <input
-              type="number"
-              step="0.05"
-              min="0"
-              value={qaGapThresholdSecInput}
-              onChange={(e) => setQaGapThresholdSecInput(e.currentTarget.value)}
-              onBlur={() => setQaGapThresholdSecInput(qaGapThresholdSec.toFixed(2))}
-            />
-          </label>
-          <label>
-            Debit min (mots/s)
-            <input
-              type="number"
-              step="0.1"
-              min="0.1"
-              value={qaMinWpsInput}
-              onChange={(e) => setQaMinWpsInput(e.currentTarget.value)}
-              onBlur={() => setQaMinWpsInput(qaMinWps.toFixed(2))}
-            />
-          </label>
-          <label>
-            Debit max (mots/s)
-            <input
-              type="number"
-              step="0.1"
-              min="0.1"
-              value={qaMaxWpsInput}
-              onChange={(e) => setQaMaxWpsInput(e.currentTarget.value)}
-              onBlur={() => setQaMaxWpsInput(qaMaxWps.toFixed(2))}
-            />
-          </label>
-          <button type="button" className="ghost" onClick={runTranscriptQaScan}>
-            Rescanner QA
-          </button>
+        <div className="qa-panel">
+          <div className="qa-toolbar">
+            <label>
+              Gap &gt; (s)
+              <input
+                type="number"
+                step="0.05"
+                min="0"
+                value={qaGapThresholdSecInput}
+                onChange={(e) => setQaGapThresholdSecInput(e.currentTarget.value)}
+                onBlur={() => setQaGapThresholdSecInput(qaGapThresholdSec.toFixed(2))}
+              />
+            </label>
+            <label>
+              Debit min (mots/s)
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={qaMinWpsInput}
+                onChange={(e) => setQaMinWpsInput(e.currentTarget.value)}
+                onBlur={() => setQaMinWpsInput(qaMinWps.toFixed(2))}
+              />
+            </label>
+            <label>
+              Debit max (mots/s)
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={qaMaxWpsInput}
+                onChange={(e) => setQaMaxWpsInput(e.currentTarget.value)}
+                onBlur={() => setQaMaxWpsInput(qaMaxWps.toFixed(2))}
+              />
+            </label>
+            <button type="button" className="ghost" onClick={runTranscriptQaScan}>
+              Rescanner QA
+            </button>
+          </div>
+          <p className="small">
+            QA scan: {qaScannedAtMs ? new Date(qaScannedAtMs).toLocaleString() : "jamais"} |
+            anomalies: {qaIssues.length}
+          </p>
+          {qaStatus ? <p className="small">{qaStatus}</p> : null}
+          {qaIssues.length === 0 ? (
+            <p className="small">Aucune anomalie QA pour les regles courantes.</p>
+          ) : (
+            <ul className="qa-issue-list">
+              {qaIssues.map((issue) => (
+                <li className={`qa-issue ${issue.severity}`} key={issue.id}>
+                  <div className="qa-issue-main">
+                    <span className={`qa-severity ${issue.severity}`}>{issue.severity}</span>
+                    <strong>{qaIssueLabel(issue.type)}</strong>
+                    <span className="small">
+                      Segment #{issue.segmentIndex + 1}
+                      {issue.relatedSegmentIndex !== undefined
+                        ? ` / #${issue.relatedSegmentIndex + 1}`
+                        : ""}
+                    </span>
+                    <span>{issue.message}</span>
+                  </div>
+                  <div className="qa-issue-actions">
+                    <button type="button" className="ghost" onClick={() => jumpToQaIssue(issue)}>
+                      Aller
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => autoFixQaIssue(issue)}
+                      disabled={!issue.canAutoFix}
+                    >
+                      Auto-fix
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        <p className="small">
-          QA scan: {qaScannedAtMs ? new Date(qaScannedAtMs).toLocaleString() : "jamais"} |
-          anomalies: {qaIssues.length}
-        </p>
-        {qaStatus ? <p className="small">{qaStatus}</p> : null}
-        {qaIssues.length === 0 ? (
-          <p className="small">Aucune anomalie QA pour les regles courantes.</p>
-        ) : (
-          <ul className="qa-issue-list">
-            {qaIssues.map((issue) => (
-              <li className={`qa-issue ${issue.severity}`} key={issue.id}>
-                <div className="qa-issue-main">
-                  <span className={`qa-severity ${issue.severity}`}>{issue.severity}</span>
-                  <strong>{qaIssueLabel(issue.type)}</strong>
-                  <span className="small">
-                    Segment #{issue.segmentIndex + 1}
-                    {issue.relatedSegmentIndex !== undefined
-                      ? ` / #${issue.relatedSegmentIndex + 1}`
-                      : ""}
-                  </span>
-                  <span>{issue.message}</span>
-                </div>
-                <div className="qa-issue-actions">
-                  <button type="button" className="ghost" onClick={() => jumpToQaIssue(issue)}>
-                    Aller
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost"
-                    onClick={() => autoFixQaIssue(issue)}
-                    disabled={!issue.canAutoFix}
-                  >
-                    Auto-fix
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
       </section>
 
       <details className="transcript-editor-details">
@@ -512,62 +520,65 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
         </div>
       ) : null}
 
-      <section className="transcript-editor-section" aria-labelledby="transcript-editor-segments-title">
+      <section
+        className="transcript-editor-section"
+        aria-labelledby="transcript-editor-segments-title"
+      >
         <h3 id="transcript-editor-segments-title" className="transcript-editor-section__title">
           Segments
         </h3>
-      <div className="editor-segments">
-        {displayedEditorSegments.map((segment, index) => (
-          <div
-            className={`editor-segment ${activeSegmentIndex === index ? "selected" : ""}`}
-            key={`${segment.start}-${segment.end}-${index}`}
-            onClick={() => setActiveSegmentIndex(index)}
-          >
-            <p className="small">
-              #{index + 1} | {segment.start.toFixed(3)}s - {segment.end.toFixed(3)}s
-              {segment.speaker ? ` | ${segment.speaker}` : ""}
-            </p>
-            <div className="segment-controls">
-              <label>
-                Start (s)
-                <input
-                  type="number"
-                  step="0.001"
-                  value={segment.start}
-                  onChange={(e) => {
-                    const value = parseFiniteNumberInput(e.currentTarget.value);
-                    if (value !== null) {
-                      updateEditorSegmentBoundary(index, "start", value);
-                    }
-                  }}
-                />
-              </label>
-              <label>
-                End (s)
-                <input
-                  type="number"
-                  step="0.001"
-                  value={segment.end}
-                  onChange={(e) => {
-                    const value = parseFiniteNumberInput(e.currentTarget.value);
-                    if (value !== null) {
-                      updateEditorSegmentBoundary(index, "end", value);
-                    }
-                  }}
-                />
-              </label>
-              <button type="button" className="ghost" onClick={() => focusSegment(index)}>
-                Focus waveform
-              </button>
+        <div className="editor-segments">
+          {displayedEditorSegments.map((segment, index) => (
+            <div
+              className={`editor-segment ${activeSegmentIndex === index ? "selected" : ""}`}
+              key={`${segment.start}-${segment.end}-${index}`}
+              onClick={() => setActiveSegmentIndex(index)}
+            >
+              <p className="small">
+                #{index + 1} | {segment.start.toFixed(3)}s - {segment.end.toFixed(3)}s
+                {segment.speaker ? ` | ${segment.speaker}` : ""}
+              </p>
+              <div className="segment-controls">
+                <label>
+                  Start (s)
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={segment.start}
+                    onChange={(e) => {
+                      const value = parseFiniteNumberInput(e.currentTarget.value);
+                      if (value !== null) {
+                        updateEditorSegmentBoundary(index, "start", value);
+                      }
+                    }}
+                  />
+                </label>
+                <label>
+                  End (s)
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={segment.end}
+                    onChange={(e) => {
+                      const value = parseFiniteNumberInput(e.currentTarget.value);
+                      if (value !== null) {
+                        updateEditorSegmentBoundary(index, "end", value);
+                      }
+                    }}
+                  />
+                </label>
+                <button type="button" className="ghost" onClick={() => focusSegment(index)}>
+                  Focus waveform
+                </button>
+              </div>
+              <textarea
+                value={segment.text}
+                onChange={(e) => updateEditorSegmentText(index, e.currentTarget.value)}
+                rows={2}
+              />
             </div>
-            <textarea
-              value={segment.text}
-              onChange={(e) => updateEditorSegmentText(index, e.currentTarget.value)}
-              rows={2}
-            />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
       </section>
 
       {hasMoreEditorSegments ? (

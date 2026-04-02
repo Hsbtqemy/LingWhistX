@@ -42,7 +42,11 @@
   font-size: 1rem;
   font-weight: 700;
   line-height: 1;
-  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    box-shadow 0.15s;
   align-self: center;
 }
 
@@ -166,9 +170,7 @@
 }
 
 .studio-nav-tab.is-active:focus-visible {
-  box-shadow:
-    var(--lx-focus-ring),
-    var(--lx-nav-tab-active-shadow);
+  box-shadow: var(--lx-focus-ring), var(--lx-nav-tab-active-shadow);
 }
 
 .studio-nav-tab-inner {

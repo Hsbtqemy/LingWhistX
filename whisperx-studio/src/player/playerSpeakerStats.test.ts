@@ -52,10 +52,7 @@ describe("computeSpeakerStats", () => {
   });
 
   it("deux locuteurs triés par speechMs décroissant", () => {
-    const turns = [
-      turn(1, "A", 0, 1000),
-      turn(2, "B", 1000, 5000),
-    ];
+    const turns = [turn(1, "A", 0, 1000), turn(2, "B", 1000, 5000)];
     const stats = computeSpeakerStats(turns, [], []);
     expect(stats[0].speaker).toBe("B");
     expect(stats[1].speaker).toBe("A");
@@ -216,11 +213,7 @@ describe("buildSpeechTimeline", () => {
   });
 
   it("préserve tous les speakers", () => {
-    const turns = [
-      turn(1, "A", 0, 1000),
-      turn(2, "B", 1000, 3000),
-      turn(3, "A", 3000, 4000),
-    ];
+    const turns = [turn(1, "A", 0, 1000), turn(2, "B", 1000, 3000), turn(3, "A", 3000, 4000)];
     const tl = buildSpeechTimeline(turns);
     expect(tl).toHaveLength(3);
     expect(tl.map((s) => s.speaker)).toEqual(["A", "B", "A"]);
@@ -240,10 +233,7 @@ describe("computeSpeechRate", () => {
   });
 
   it("une série par speaker", () => {
-    const ipus = [
-      ipu(1, "A", 0, 10000, 30),
-      ipu(2, "B", 10000, 20000, 20),
-    ];
+    const ipus = [ipu(1, "A", 0, 10000, 30), ipu(2, "B", 10000, 20000, 20)];
     const result = computeSpeechRate(ipus, 60000, 30000, 10000);
     expect(result).toHaveLength(2);
     const speakers = result.map((s) => s.speaker);
@@ -268,10 +258,7 @@ describe("computeSpeechRate", () => {
   });
 
   it("séries triées par débit max décroissant", () => {
-    const ipus = [
-      ipu(1, "A", 0, 30000, 10),
-      ipu(2, "B", 0, 30000, 50),
-    ];
+    const ipus = [ipu(1, "A", 0, 30000, 10), ipu(2, "B", 0, 30000, 50)];
     const result = computeSpeechRate(ipus, 30000, 30000, 5000);
     expect(result[0].speaker).toBe("B");
   });
@@ -301,11 +288,7 @@ describe("computeSpeakerStats — champs étendus", () => {
 
   it("durée IPU mean/min/max calculée", () => {
     const turns = [turn(1, "A", 0, 10000)];
-    const ipus = [
-      ipu(1, "A", 0, 2000, 5),
-      ipu(2, "A", 3000, 4000, 3),
-      ipu(3, "A", 5000, 8000, 8),
-    ];
+    const ipus = [ipu(1, "A", 0, 2000, 5), ipu(2, "A", 3000, 4000, 3), ipu(3, "A", 5000, 8000, 8)];
     const [s] = computeSpeakerStats(turns, [], ipus);
     expect(s.minIpuDurMs).toBe(1000);
     expect(s.maxIpuDurMs).toBe(3000);
@@ -388,11 +371,7 @@ describe("computeOverlaps", () => {
   });
 
   it("fusionne les overlaps adjacents", () => {
-    const turns = [
-      turn(1, "A", 0, 4000),
-      turn(2, "B", 1000, 3000),
-      turn(3, "B", 2500, 3500),
-    ];
+    const turns = [turn(1, "A", 0, 4000), turn(2, "B", 1000, 3000), turn(3, "B", 2500, 3500)];
     const result = computeOverlaps(turns, 5000);
     expect(result.count).toBe(1);
     expect(result.segments[0].startMs).toBe(1000);
@@ -435,11 +414,7 @@ describe("computeSpeakerStats — médiane et P90 pauses", () => {
 
 describe("computeSpeakerStats — durée moyenne des tours", () => {
   it("calcule nTurns et meanTurnDurMs", () => {
-    const turns = [
-      turn(1, "A", 0, 2000),
-      turn(2, "A", 3000, 5000),
-      turn(3, "A", 6000, 10000),
-    ];
+    const turns = [turn(1, "A", 0, 2000), turn(2, "A", 3000, 5000), turn(3, "A", 6000, 10000)];
     const [s] = computeSpeakerStats(turns, [], []);
     expect(s.nTurns).toBe(3);
     expect(s.meanTurnDurMs).toBeCloseTo((2000 + 2000 + 4000) / 3, 0);
@@ -491,10 +466,7 @@ describe("computeTransitions", () => {
   });
 
   it("calcule le gap entre tours de speakers différents", () => {
-    const turns = [
-      turn(1, "A", 0, 2000),
-      turn(2, "B", 3000, 5000),
-    ];
+    const turns = [turn(1, "A", 0, 2000), turn(2, "B", 3000, 5000)];
     const result = computeTransitions(turns);
     expect(result).toHaveLength(1);
     expect(result[0].from).toBe("A");
@@ -504,10 +476,7 @@ describe("computeTransitions", () => {
   });
 
   it("détecte un overlap (gap négatif)", () => {
-    const turns = [
-      turn(1, "A", 0, 3000),
-      turn(2, "B", 2000, 5000),
-    ];
+    const turns = [turn(1, "A", 0, 3000), turn(2, "B", 2000, 5000)];
     const result = computeTransitions(turns);
     expect(result[0].medianGapMs).toBe(-1000);
   });
@@ -582,7 +551,15 @@ describe("buildFullStatsExport", () => {
     const pauses = [pause(1, 5000, 5500, "A")] as EventPauseRow[];
     const ipus = [ipu(1, "A", 0, 5000, 10), ipu(2, "B", 5500, 10000, 15)];
     const words: EventWordRow[] = [
-      { id: 1, startMs: 0, endMs: 500, speaker: "A", token: "test", confidence: 0.9, alignmentStatus: "aligned" },
+      {
+        id: 1,
+        startMs: 0,
+        endMs: 500,
+        speaker: "A",
+        token: "test",
+        confidence: 0.9,
+        alignmentStatus: "aligned",
+      },
     ];
 
     const stats = computeSpeakerStats(turns, pauses, ipus, 10000, words);
@@ -592,9 +569,19 @@ describe("buildFullStatsExport", () => {
     const rate = computeSpeechRate(ipus, 10000);
 
     const result = buildFullStatsExport(
-      stats, overlaps, transitions, density, rate, 85,
-      10000, 9500, 25,
-      turns, pauses, ipus, words,
+      stats,
+      overlaps,
+      transitions,
+      density,
+      rate,
+      85,
+      10000,
+      9500,
+      25,
+      turns,
+      pauses,
+      ipus,
+      words,
     );
 
     expect(result.meta.duration_ms).toBe(10000);
@@ -623,9 +610,19 @@ describe("buildFullStatsCsv", () => {
     const rate = computeSpeechRate(ipus, 5000);
 
     const fullExport = buildFullStatsExport(
-      stats, overlaps, transitions, density, rate, null,
-      5000, 5000, 10,
-      turns, pauses, ipus, [],
+      stats,
+      overlaps,
+      transitions,
+      density,
+      rate,
+      null,
+      5000,
+      5000,
+      10,
+      turns,
+      pauses,
+      ipus,
+      [],
     );
     const csv = buildFullStatsCsv(fullExport);
 

@@ -75,13 +75,8 @@ export function invalidateSpeakerColorCache(): void {
 /** Alias pour styles inline `var(--lx-speaker-*)` sans résolution (léger) */
 export const SPEAKER_COLORS = SPEAKER_VAR.map((v) => `var(${v})`) as readonly string[];
 
-export function turnTextFromIpus(
-  turn: EventTurnRow,
-  ipus: QueryWindowResult["ipus"],
-): string {
-  const overlapping = ipus.filter(
-    (ipu) => ipu.endMs > turn.startMs && ipu.startMs < turn.endMs,
-  );
+export function turnTextFromIpus(turn: EventTurnRow, ipus: QueryWindowResult["ipus"]): string {
+  const overlapping = ipus.filter((ipu) => ipu.endMs > turn.startMs && ipu.startMs < turn.endMs);
   if (overlapping.length === 0) return "";
   return overlapping
     .map((ipu) => ipu.text?.trim())
@@ -89,10 +84,7 @@ export function turnTextFromIpus(
     .join(" ");
 }
 
-export function turnTextFromSegments(
-  turn: EventTurnRow,
-  segments: EditableSegment[],
-): string {
+export function turnTextFromSegments(turn: EventTurnRow, segments: EditableSegment[]): string {
   const overlapping = segments.filter((seg) => {
     const sMs = Math.round(seg.start * 1000);
     const eMs = Math.round(seg.end * 1000);

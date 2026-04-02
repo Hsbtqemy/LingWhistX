@@ -17,7 +17,7 @@ Voir le tableau « Scénarios utilisateurs » dans `audit/ui-ux-harmonization-sp
 
 ## Validation manuelle (template)
 
-| Date       | Plateforme | Version app | Validateur | Notes |
-|------------|------------|-------------|------------|-------|
-| 2026-03-28 | macOS      | dev / RC    | CI + doc   | Checklist intégrée ; passes OS complètes à noter lors des release candidates. |
-| _à compléter_ | Windows |             |            | Au moins 5 items F.1 validés sur une RC (ticket **WX-636**). |
+| Date          | Plateforme | Version app | Validateur | Notes                                                                         |
+| ------------- | ---------- | ----------- | ---------- | ----------------------------------------------------------------------------- |
+| 2026-03-28    | macOS      | dev / RC    | CI + doc   | Checklist intégrée ; passes OS complètes à noter lors des release candidates. |
+| _à compléter_ | Windows    |             |            | Au moins 5 items F.1 validés sur une RC (ticket **WX-636**).                  |

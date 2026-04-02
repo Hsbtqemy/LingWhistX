@@ -157,7 +157,6 @@ button.player-artifacts-strip__key {
   accent-color: var(--lx-accent);
 }
 
-
 .player-qc-badge {
   padding: 4px 8px;
   border-radius: 8px;
@@ -408,7 +407,9 @@ details[open] > .player-panel-section-summary::before {
   background: none;
   cursor: pointer;
   color: var(--lx-text-1);
-  transition: background 100ms, border-color 100ms;
+  transition:
+    background 100ms,
+    border-color 100ms;
 }
 
 .player-view-grid-btn:hover {
@@ -478,7 +479,9 @@ details[open] > .player-panel-section-summary::before {
   border: 1px solid var(--lx-border);
   background: var(--lx-surface-muted);
   cursor: pointer;
-  transition: background 100ms, border-color 100ms;
+  transition:
+    background 100ms,
+    border-color 100ms;
   white-space: nowrap;
   max-width: 90px;
   overflow: hidden;
@@ -677,7 +680,10 @@ details[open] > .player-panel-section-summary::before {
   cursor: pointer;
   font-size: 12px;
   line-height: 1;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    color 0.12s;
 }
 
 .player-transport-btn:hover:not(:disabled) {
@@ -945,4 +951,3 @@ details[open] > .player-panel-section-summary::before {
   color: color-mix(in srgb, var(--lx-danger) 35%, var(--lx-text-0));
   line-height: 1.45;
 }
-

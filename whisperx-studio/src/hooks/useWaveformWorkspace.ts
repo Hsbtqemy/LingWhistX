@@ -574,9 +574,7 @@ export function useWaveformWorkspace({
       setWaveformError("");
       setWaveformProgress(100);
       setWaveformProgressMessage(
-        event.payload.peaks.cached
-          ? "Ondeforme chargée depuis le cache."
-          : "Ondeforme générée.",
+        event.payload.peaks.cached ? "Ondeforme chargée depuis le cache." : "Ondeforme générée.",
       );
       setWaveformZoom(1);
       setWaveformViewStartSec(0);
@@ -794,7 +792,13 @@ export function useWaveformWorkspace({
     }
     autoWaveformLoadJobIdRef.current = selectedJobId;
     void loadWaveformForSelectedJob();
-  }, [selectedJob, selectedJobId, effectiveMediaPath, loadWaveformForSelectedJob, previewMediaPath]);
+  }, [
+    selectedJob,
+    selectedJobId,
+    effectiveMediaPath,
+    loadWaveformForSelectedJob,
+    previewMediaPath,
+  ]);
 
   /** Après génération des peaks, construire la pyramide WXENV pour l’overview (hero + Alignement). */
   useEffect(() => {

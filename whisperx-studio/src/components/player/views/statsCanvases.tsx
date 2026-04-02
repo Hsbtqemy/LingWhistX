@@ -406,7 +406,10 @@ export function SpeechRateCanvas({
     const x = e.clientX - rect.left;
     const plotW = rect.width - PAD_LEFT - PAD_RIGHT;
     const ms = ((x - PAD_LEFT) / plotW) * totalDurationMs;
-    if (ms < 0 || ms > totalDurationMs) { tip.style.display = "none"; return; }
+    if (ms < 0 || ms > totalDurationMs) {
+      tip.style.display = "none";
+      return;
+    }
 
     let text = `${formatClockSeconds(ms / 1000)}\n`;
     for (let si = 0; si < series.length; si++) {
@@ -415,7 +418,10 @@ export function SpeechRateCanvas({
       let minDist = Infinity;
       for (const p of s.points) {
         const d = Math.abs(p.timeMs - ms);
-        if (d < minDist) { minDist = d; closest = p; }
+        if (d < minDist) {
+          minDist = d;
+          closest = p;
+        }
       }
       if (closest) text += `${s.speaker}: ${closest.wordsPerMin.toFixed(0)} m/min\n`;
     }
@@ -510,7 +516,10 @@ export function SpeechDensityCanvas({
     for (const pt of points) {
       const x = padL + (pt.timeMs / totalDurationMs) * gW;
       const y = padT + gH * (1 - pt.density);
-      if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else ctx.lineTo(x, y);
     }
     ctx.strokeStyle = t.densityStroke;
     ctx.lineWidth = 1.5;

@@ -25,7 +25,10 @@ const PLAYER_SHORTCUTS: ShortcutEntry[] = [
   { keys: "N / P", description: "Alerte suivante / précédente" },
   { keys: "0", description: "Annuler le solo locuteur" },
   { keys: "1–9", description: "Solo locuteur N" },
-  { keys: "⌃/⌘ + 1–7", description: "Changer de vue (Lanes, Chat, Mots, Colonnes, Rythmo, Karaoké, Stats)" },
+  {
+    keys: "⌃/⌘ + 1–7",
+    description: "Changer de vue (Lanes, Chat, Mots, Colonnes, Rythmo, Karaoké, Stats)",
+  },
   { keys: "F11 / ⌘⇧F", description: "Plein écran immersif" },
   { keys: "Alt + Entrée", description: "Plein écran vidéo" },
   { keys: "⌃/⌘ + ⇧ + C", description: "Copier le timecode" },
@@ -117,7 +120,9 @@ export function HelpDialog({ open, onClose, activeView }: HelpDialogProps) {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [open]);
 
   const onKeyDown = useCallback(
@@ -134,19 +139,18 @@ export function HelpDialog({ open, onClose, activeView }: HelpDialogProps) {
   if (!open) return null;
 
   const viewLabel =
-    activeView === "player" ? "Player"
-    : activeView === "workspace" ? "Studio"
-    : activeView === "jobs" ? "Jobs"
-    : activeView === "about" ? "Paramètres"
-    : "Accueil";
+    activeView === "player"
+      ? "Player"
+      : activeView === "workspace"
+        ? "Studio"
+        : activeView === "jobs"
+          ? "Jobs"
+          : activeView === "about"
+            ? "Paramètres"
+            : "Accueil";
 
   return createPortal(
-    <div
-      className="help-overlay"
-      onClick={onClose}
-      onKeyDown={onKeyDown}
-      role="presentation"
-    >
+    <div className="help-overlay" onClick={onClose} onKeyDown={onKeyDown} role="presentation">
       <div
         ref={panelRef}
         className="help-panel"
@@ -170,38 +174,53 @@ export function HelpDialog({ open, onClose, activeView }: HelpDialogProps) {
             <>
               <ShortcutTable title="Raccourcis Player" entries={PLAYER_SHORTCUTS} />
               <ShortcutTable title="Raccourcis Plein écran" entries={FULLSCREEN_SHORTCUTS} />
-              <ShortcutTable title="Raccourcis Éditeur (mode correction)" entries={EDITOR_SHORTCUTS} />
+              <ShortcutTable
+                title="Raccourcis Éditeur (mode correction)"
+                entries={EDITOR_SHORTCUTS}
+              />
               <TipsList title="Astuces Player" tips={PLAYER_TIPS} />
             </>
           )}
 
           {activeView === "workspace" && (
             <>
-              <ShortcutTable title="Raccourcis Éditeur (panneau transcript)" entries={EDITOR_SHORTCUTS} />
+              <ShortcutTable
+                title="Raccourcis Éditeur (panneau transcript)"
+                entries={EDITOR_SHORTCUTS}
+              />
               <TipsList title="Astuces Studio" tips={WORKSPACE_TIPS} />
             </>
           )}
 
           {activeView === "jobs" && (
-            <TipsList title="Astuces" tips={[
-              "Les jobs terminés apparaissent avec leur durée de traitement.",
-              "Cliquez sur un job pour voir ses détails et ouvrir le résultat dans le Player.",
-            ]} />
+            <TipsList
+              title="Astuces"
+              tips={[
+                "Les jobs terminés apparaissent avec leur durée de traitement.",
+                "Cliquez sur un job pour voir ses détails et ouvrir le résultat dans le Player.",
+              ]}
+            />
           )}
 
           {activeView === "about" && (
-            <TipsList title="Paramètres" tips={[
-              "Configurez les chemins vers FFmpeg et le modèle WhisperX.",
-              "Les diagnostics système s'affichent ici.",
-            ]} />
+            <TipsList
+              title="Paramètres"
+              tips={[
+                "Configurez les chemins vers FFmpeg et le modèle WhisperX.",
+                "Les diagnostics système s'affichent ici.",
+              ]}
+            />
           )}
 
           {activeView === "create" && (
-            <TipsList title="Bienvenue" tips={[
-              "Choisissez une section dans le menu pour commencer.",
-              "Studio : importez et transcrivez vos fichiers audio/vidéo.",
-              "Player : analysez et consultez vos transcriptions.",
-            ]} />
+            <TipsList
+              title="Bienvenue"
+              tips={[
+                "Choisissez une section dans le menu pour commencer.",
+                "Studio : importez et transcrivez vos fichiers audio/vidéo.",
+                "Player : analysez et consultez vos transcriptions.",
+              ]}
+            />
           )}
         </div>
 

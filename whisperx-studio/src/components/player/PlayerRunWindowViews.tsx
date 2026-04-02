@@ -33,11 +33,7 @@ type Props = {
   activeSegmentIndex?: number | null;
   setActiveSegmentIndex?: (i: number | null) => void;
   updateEditorSegmentText?: (index: number, text: string) => void;
-  updateEditorSegmentBoundary?: (
-    index: number,
-    edge: "start" | "end",
-    value: number,
-  ) => void;
+  updateEditorSegmentBoundary?: (index: number, edge: "start" | "end", value: number) => void;
   focusSegment?: (index: number) => void;
   /** Liste complète des locuteurs du run (pour les lanes karaoké). */
   runSpeakerIds?: string[];

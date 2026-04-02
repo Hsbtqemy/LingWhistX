@@ -464,7 +464,9 @@ export function useTranscriptEditor({
     }
   }
 
-  async function exportEditedTranscript(format: "json" | "srt" | "vtt" | "txt" | "csv" | "textgrid" | "eaf") {
+  async function exportEditedTranscript(
+    format: "json" | "srt" | "vtt" | "txt" | "csv" | "textgrid" | "eaf",
+  ) {
     if (!isTranscriptEditorReadyForIo(editorSourcePath, editorSegmentsRef.current.length)) {
       setEditorError(TRANSCRIPT_EDITOR_NOT_LOADED_ERROR);
       return;
@@ -569,7 +571,9 @@ export function useTranscriptEditor({
     setEditorSnapshotState(buildEditorSnapshot("", editableSegments));
     setEditorVisibleCount(120);
     setActiveSegmentIndex(editableSegments.length > 0 ? 0 : null);
-    setEditorStatus(`Annotation importée: ${editableSegments.length} segment(s) — tier "${tierId}"`);
+    setEditorStatus(
+      `Annotation importée: ${editableSegments.length} segment(s) — tier "${tierId}"`,
+    );
     seedQaFromLoadedSegments(editableSegments);
   }
 

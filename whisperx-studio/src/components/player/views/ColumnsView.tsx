@@ -154,12 +154,13 @@ export function PlayerColumnsBody({
                           playheadMs >= bin.startMs &&
                           playheadMs < bin.endMs &&
                           inBin.some((t) => playheadMs >= t.startMs && playheadMs < t.endMs);
-                        const isPast =
-                          activeIndex >= 0 && bin.endMs <= playheadMs && !playHeadHere;
+                        const isPast = activeIndex >= 0 && bin.endMs <= playheadMs && !playHeadHere;
                         const seekTo = first
                           ? Math.max(bin.startMs, Math.min(first.startMs, bin.endMs - 1))
                           : bin.startMs;
-                        const preview = first ? (turnTextCache.get(first.id) ?? "").slice(0, 30) : "";
+                        const preview = first
+                          ? (turnTextCache.get(first.id) ?? "").slice(0, 30)
+                          : "";
 
                         let cellCls = "player-columns-cell";
                         if (first) cellCls += " has-turn";
@@ -181,9 +182,15 @@ export function PlayerColumnsBody({
                             >
                               {first ? (
                                 <span className="player-columns-cell-content">
-                                  {inBin.length > 1 ? `${inBin.length}×` : preview ? preview.split(" ").slice(0, 3).join(" ") : "●"}
+                                  {inBin.length > 1
+                                    ? `${inBin.length}×`
+                                    : preview
+                                      ? preview.split(" ").slice(0, 3).join(" ")
+                                      : "●"}
                                 </span>
-                              ) : ""}
+                              ) : (
+                                ""
+                              )}
                             </button>
                           </td>
                         );
@@ -203,9 +210,10 @@ export function PlayerColumnsBody({
               const text = turnTextCache.get(t.id) ?? "";
               const durMs = t.endMs - t.startMs;
               const isEditingThis = editMode && editingTurnId === t.id;
-              const segIdx = editMode && editorSegments
-                ? findSegmentIndexForTurn(t, editorSegments, ordinalIndex, slice.turns)
-                : null;
+              const segIdx =
+                editMode && editorSegments
+                  ? findSegmentIndexForTurn(t, editorSegments, ordinalIndex, slice.turns)
+                  : null;
               const isFocused = editMode && segIdx != null && activeSegmentIndex === segIdx;
 
               let cls = "player-columns-turn-card";
@@ -229,7 +237,10 @@ export function PlayerColumnsBody({
                   onDoubleClick={handleDoubleClick}
                   title={`${formatClockSeconds(t.startMs / 1000)} – ${formatClockSeconds(t.endMs / 1000)} · cliquer pour lire`}
                 >
-                  <span className="player-columns-turn-sp mono" style={{ color: speakerColor(spIdx) }}>
+                  <span
+                    className="player-columns-turn-sp mono"
+                    style={{ color: speakerColor(spIdx) }}
+                  >
                     {t.speaker || "\u2014"}
                   </span>
                   {isEditingThis && segIdx != null && onUpdateText ? (
@@ -239,7 +250,10 @@ export function PlayerColumnsBody({
                       onChange={(ev) => onUpdateText(segIdx, ev.target.value)}
                       onBlur={() => setEditingTurnId(null)}
                       onKeyDown={(ev) => {
-                        if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); setEditingTurnId(null); }
+                        if (ev.key === "Enter" && !ev.shiftKey) {
+                          ev.preventDefault();
+                          setEditingTurnId(null);
+                        }
                         if (ev.key === "Escape") setEditingTurnId(null);
                       }}
                       onClick={(ev) => ev.stopPropagation()}

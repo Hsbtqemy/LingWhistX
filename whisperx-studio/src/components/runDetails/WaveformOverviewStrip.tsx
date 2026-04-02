@@ -1,6 +1,9 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useRef } from "react";
-import { getWaveformCanvasThemeColors, useWaveformThemeRevision } from "../../hooks/waveformCanvasTheme";
+import {
+  getWaveformCanvasThemeColors,
+  useWaveformThemeRevision,
+} from "../../hooks/waveformCanvasTheme";
 import type { WaveformOverviewEnvelope } from "../../types";
 
 export type WaveformOverviewStripProps = {

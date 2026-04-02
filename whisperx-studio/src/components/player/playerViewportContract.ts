@@ -1,15 +1,19 @@
 import type { ReactNode } from "react";
 import type { QueryWindowResult } from "../../types";
-import {
-  PLAYER_WINDOW_TOTAL_MS,
-  PLAYER_WINDOW_WORDS_MS,
-} from "../../player/playerRunWindowBounds";
+import { PLAYER_WINDOW_TOTAL_MS, PLAYER_WINDOW_WORDS_MS } from "../../player/playerRunWindowBounds";
 
 /**
  * Modes de vue du workspace Player (WX-624).
  * L’implémentation concrète vit dans {@link import("./PlayerRunWindowViews").PlayerRunWindowViews}.
  */
-export type PlayerViewportMode = "lanes" | "chat" | "words" | "columns" | "rythmo" | "karaoke" | "stats";
+export type PlayerViewportMode =
+  | "lanes"
+  | "chat"
+  | "words"
+  | "columns"
+  | "rythmo"
+  | "karaoke"
+  | "stats";
 
 /** Contexte commun aux vues (fenêtre SQLite + transport). */
 export type PlayerViewportContext = {

@@ -6,11 +6,11 @@ Artefacts produits pour une revue **fichier par fichier** (inventaire + notes), 
 
 ## Contenu
 
-| Fichier | Description |
-|--------|-------------|
-| [01-inventaire-fichiers.md](./01-inventaire-fichiers.md) | Table **une ligne par fichier** source (rôle, niveau de revue, note). |
-| [02-revue-par-module.md](./02-revue-par-module.md) | Analyse agrégée par dossier (patterns, risques, dépendances). |
-| [03-synthese-risques-et-recommandations.md](./03-synthese-risques-et-recommandations.md) | Matrice risques, priorités, liens vers tickets backlog. |
+| Fichier                                                                                  | Description                                                           |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [01-inventaire-fichiers.md](./01-inventaire-fichiers.md)                                 | Table **une ligne par fichier** source (rôle, niveau de revue, note). |
+| [02-revue-par-module.md](./02-revue-par-module.md)                                       | Analyse agrégée par dossier (patterns, risques, dépendances).         |
+| [03-synthese-risques-et-recommandations.md](./03-synthese-risques-et-recommandations.md) | Matrice risques, priorités, liens vers tickets backlog.               |
 
 ## Périmètre
 

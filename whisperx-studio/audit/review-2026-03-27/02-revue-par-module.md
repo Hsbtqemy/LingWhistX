@@ -30,25 +30,25 @@ Synthèse agrégée ; le détail fichier à fichier est dans [01-inventaire-fich
 
 ## Hooks racine & orchestration
 
-| Module | Commentaire |
-|--------|--------------|
-| **useStudioWorkspace** | Cœur Studio : jobs, run details, explorer — **Attention** : fichier dense, point central des régressions. |
-| **useJobsList** | Pagination SQLite — OK ; tests présents. |
-| **useNewJobForm** | Formulaire création job — OK. |
-| **useRuntimeDiagnostics** | Runtime Python / FFmpeg — OK. |
-| **useStudioExplorer** | Calques explorer — OK ; sous-modules extraits. |
-| **useAppErrorStack** | Pile erreurs max 5 — OK ; test présent. |
-| **usePreviewOutput** / **useOpenLocalPath** / **useSelectedJobMedia** | Utilitaires navigation média — OK. |
+| Module                                                                | Commentaire                                                                                               |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **useStudioWorkspace**                                                | Cœur Studio : jobs, run details, explorer — **Attention** : fichier dense, point central des régressions. |
+| **useJobsList**                                                       | Pagination SQLite — OK ; tests présents.                                                                  |
+| **useNewJobForm**                                                     | Formulaire création job — OK.                                                                             |
+| **useRuntimeDiagnostics**                                             | Runtime Python / FFmpeg — OK.                                                                             |
+| **useStudioExplorer**                                                 | Calques explorer — OK ; sous-modules extraits.                                                            |
+| **useAppErrorStack**                                                  | Pile erreurs max 5 — OK ; test présent.                                                                   |
+| **usePreviewOutput** / **useOpenLocalPath** / **useSelectedJobMedia** | Utilitaires navigation média — OK.                                                                        |
 
 ## Hooks Player & ondeforme
 
-| Module | Commentaire |
-|--------|--------------|
-| **usePlayerPlayback** | Manifest, média, transport — **Attention** : sync `mediaLoadError` / asset. |
-| **usePlayerKeyboard** | Raccourcis — OK. |
-| **usePlayerRunWindow** | Fenêtre SQLite `query_run_events_window` — OK ; throttle coarse. |
+| Module                   | Commentaire                                                                        |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| **usePlayerPlayback**    | Manifest, média, transport — **Attention** : sync `mediaLoadError` / asset.        |
+| **usePlayerKeyboard**    | Raccourcis — OK.                                                                   |
+| **usePlayerRunWindow**   | Fenêtre SQLite `query_run_events_window` — OK ; throttle coarse.                   |
 | **useWaveformWorkspace** | État ondeforme lourd — **Attention** ; partagé Studio + Player (`playerMediaRef`). |
-| **useWaveformCanvas** | Rendu canvas — OK. |
+| **useWaveformCanvas**    | Rendu canvas — OK.                                                                 |
 
 ## Hooks transcript (`hooks/transcript/*`)
 
@@ -96,23 +96,23 @@ Synthèse agrégée ; le détail fichier à fichier est dans [01-inventaire-fich
 
 ## Rust `src-tauri/src`
 
-| Fichier / module | Commentaire |
-|------------------|-------------|
-| **lib.rs** | Enregistrement commandes — OK. |
-| **main.rs** | Entrée binaire — OK. |
-| **db.rs** / **jobs.rs** | SQLite jobs — OK. |
-| **job_commands.rs** | CRUD jobs, worker — OK. |
-| **path_guard.rs** | Validation chemins — **force** du produit. |
-| **local_fs_commands.rs** | Lecture dossiers / preview texte — OK. |
-| **run_commands.rs** | Manifest, runs récents — OK. |
-| **run_events/** + **run_events_recalc.rs** | Import + requêtes + recalcul — **Attention** complexité SQL. |
-| **transcript_commands.rs** | Save/export transcript — OK. |
-| **waveform.rs** / **wxenv.rs** | Génération ondeforme / pyramide — **Attention** tâches async + annulation. |
-| **audio_preview.rs** | ffmpeg + lecture WAV IPC — OK. |
-| **ffmpeg_*.rs** / **python_runtime.rs** / **runtime_*.rs** | Installation outils — OK. |
-| **hf_token_commands.rs** | Token HF — OK. |
-| **models.rs** | Alignement avec `types.ts` — **Suivi** synchro. |
-| **smoke_tests.rs** | Tests Rust — OK. |
+| Fichier / module                                               | Commentaire                                                                |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **lib.rs**                                                     | Enregistrement commandes — OK.                                             |
+| **main.rs**                                                    | Entrée binaire — OK.                                                       |
+| **db.rs** / **jobs.rs**                                        | SQLite jobs — OK.                                                          |
+| **job_commands.rs**                                            | CRUD jobs, worker — OK.                                                    |
+| **path_guard.rs**                                              | Validation chemins — **force** du produit.                                 |
+| **local_fs_commands.rs**                                       | Lecture dossiers / preview texte — OK.                                     |
+| **run_commands.rs**                                            | Manifest, runs récents — OK.                                               |
+| **run_events/** + **run_events_recalc.rs**                     | Import + requêtes + recalcul — **Attention** complexité SQL.               |
+| **transcript_commands.rs**                                     | Save/export transcript — OK.                                               |
+| **waveform.rs** / **wxenv.rs**                                 | Génération ondeforme / pyramide — **Attention** tâches async + annulation. |
+| **audio_preview.rs**                                           | ffmpeg + lecture WAV IPC — OK.                                             |
+| **ffmpeg\_\*.rs** / **python_runtime.rs** / **runtime\_\*.rs** | Installation outils — OK.                                                  |
+| **hf_token_commands.rs**                                       | Token HF — OK.                                                             |
+| **models.rs**                                                  | Alignement avec `types.ts` — **Suivi** synchro.                            |
+| **smoke_tests.rs**                                             | Tests Rust — OK.                                                           |
 
 ## Python (`python/worker.py`)
 

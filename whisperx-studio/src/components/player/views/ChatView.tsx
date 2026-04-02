@@ -116,9 +116,10 @@ export function PlayerChatBody({
           const text = getTurnText(turn);
           const durMs = turn.endMs - turn.startMs;
           const isEditingThis = editMode && editingTurnId === turn.id;
-          const segIdx = editMode && editorSegments
-            ? findSegmentIndexForTurn(turn, editorSegments, ordinalIndex, slice.turns)
-            : null;
+          const segIdx =
+            editMode && editorSegments
+              ? findSegmentIndexForTurn(turn, editorSegments, ordinalIndex, slice.turns)
+              : null;
           const isFocused = editMode && segIdx != null && activeSegmentIndex === segIdx;
 
           let cls = "player-chat-bubble";
@@ -162,7 +163,10 @@ export function PlayerChatBody({
                       onChange={(ev) => onUpdateText(segIdx, ev.target.value)}
                       onBlur={() => setEditingTurnId(null)}
                       onKeyDown={(ev) => {
-                        if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); setEditingTurnId(null); }
+                        if (ev.key === "Enter" && !ev.shiftKey) {
+                          ev.preventDefault();
+                          setEditingTurnId(null);
+                        }
                         if (ev.key === "Escape") setEditingTurnId(null);
                       }}
                       onClick={(ev) => ev.stopPropagation()}

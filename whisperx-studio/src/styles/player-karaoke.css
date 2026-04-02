@@ -150,7 +150,9 @@
   font-size: 1.5rem;
   cursor: pointer;
   border-radius: 3px;
-  transition: color 0.15s ease, text-shadow 0.15s ease;
+  transition:
+    color 0.15s ease,
+    text-shadow 0.15s ease;
   text-decoration: none;
 }
 
@@ -212,7 +214,6 @@
 .karaoke-line-text:disabled {
   cursor: default;
 }
-
 
 .player-coming-soon {
   padding: 16px 14px;
@@ -332,4 +333,3 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-

@@ -15,9 +15,7 @@ type KaraokeSegment = {
   hasUnaligned: boolean;
 };
 
-function buildKaraokeSegments(
-  slice: QueryWindowResult,
-): KaraokeSegment[] {
+function buildKaraokeSegments(slice: QueryWindowResult): KaraokeSegment[] {
   const ipus = [...slice.ipus].sort((a, b) => a.startMs - b.startMs);
   const words = [...slice.words].sort((a, b) => a.startMs - b.startMs);
   const pauses = slice.pauses;
@@ -27,9 +25,7 @@ function buildKaraokeSegments(
   for (let ii = 0; ii < ipus.length; ii++) {
     const ipu = ipus[ii];
     const sp = ipu.speaker?.trim() || "\u2014";
-    const segWords = words.filter(
-      (w) => w.startMs >= ipu.startMs && w.endMs <= ipu.endMs + 50,
-    );
+    const segWords = words.filter((w) => w.startMs >= ipu.startMs && w.endMs <= ipu.endMs + 50);
     const hasUnaligned = segWords.some((w) => !isWordAligned(w));
 
     let pauseBefore: number | null = null;
@@ -43,7 +39,10 @@ function buildKaraokeSegments(
       if (t.speaker !== sp) {
         const oStart = Math.max(t.startMs, ipu.startMs);
         const oEnd = Math.min(t.endMs, ipu.endMs);
-        if (oEnd - oStart > 50) { hasOverlap = true; break; }
+        if (oEnd - oStart > 50) {
+          hasOverlap = true;
+          break;
+        }
       }
     }
 
@@ -109,7 +108,10 @@ function KaraokeLane({
     return best;
   }, [segments, playheadMs]);
 
-  const isSpeaking = activeIdx >= 0 && playheadMs >= segments[activeIdx].startMs && playheadMs < segments[activeIdx].endMs;
+  const isSpeaking =
+    activeIdx >= 0 &&
+    playheadMs >= segments[activeIdx].startMs &&
+    playheadMs < segments[activeIdx].endMs;
 
   const activeWordId = useMemo(() => {
     if (activeIdx < 0) return -1;
@@ -161,12 +163,16 @@ function KaraokeLane({
     return null;
   };
 
-  const timeUntilSec = hasNotStarted && nextSegIdx >= 0
-    ? Math.max(0, Math.round((segments[nextSegIdx].startMs - playheadMs) / 1000))
-    : 0;
+  const timeUntilSec =
+    hasNotStarted && nextSegIdx >= 0
+      ? Math.max(0, Math.round((segments[nextSegIdx].startMs - playheadMs) / 1000))
+      : 0;
 
   return (
-    <div className={`karaoke-lane${isSpeaking ? " is-speaking" : ""}${hasNotStarted ? " is-waiting" : ""}`} style={{ "--lane-color": color } as React.CSSProperties}>
+    <div
+      className={`karaoke-lane${isSpeaking ? " is-speaking" : ""}${hasNotStarted ? " is-waiting" : ""}`}
+      style={{ "--lane-color": color } as React.CSSProperties}
+    >
       <div className="karaoke-lane-label mono" style={{ color }}>
         {speaker}
         {hasNotStarted && timeUntilSec > 0 ? (
@@ -213,7 +219,10 @@ function KaraokeLane({
                     onChange={(ev) => onUpdateText(editorIdx, ev.target.value)}
                     onBlur={() => setEditingIpuId(null)}
                     onKeyDown={(ev) => {
-                      if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); setEditingIpuId(null); }
+                      if (ev.key === "Enter" && !ev.shiftKey) {
+                        ev.preventDefault();
+                        setEditingIpuId(null);
+                      }
                       if (ev.key === "Escape") setEditingIpuId(null);
                     }}
                     onClick={(ev) => ev.stopPropagation()}
@@ -290,9 +299,7 @@ export function PlayerKaraokeBody({
 
   const speakers = useMemo(() => {
     const fromSegs = allSegments.map((s) => s.speaker);
-    const all = runSpeakerIds && runSpeakerIds.length > 0
-      ? [...runSpeakerIds]
-      : [...fromSegs];
+    const all = runSpeakerIds && runSpeakerIds.length > 0 ? [...runSpeakerIds] : [...fromSegs];
     return Array.from(new Set(all)).sort();
   }, [allSegments, runSpeakerIds]);
 
@@ -310,7 +317,8 @@ export function PlayerKaraokeBody({
   if (!wordsLayerActive) {
     return (
       <p className="player-viewport-placeholder small">
-        Active <strong>Charger les mots</strong> dans le panneau de gauche pour afficher la vue Karaoké.
+        Active <strong>Charger les mots</strong> dans le panneau de gauche pour afficher la vue
+        Karaoké.
       </p>
     );
   }

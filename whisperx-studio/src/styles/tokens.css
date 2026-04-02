@@ -156,13 +156,19 @@
     radial-gradient(ellipse 120% 80% at 50% -30%, var(--lx-body-radial-a), transparent 55%),
     radial-gradient(ellipse 70% 50% at 100% 0%, var(--lx-body-radial-b), transparent 45%),
     radial-gradient(ellipse 60% 40% at 0% 100%, var(--lx-body-radial-c), transparent 50%),
-    linear-gradient(165deg, var(--lx-body-gradient-stop-1) 0%, var(--lx-body-gradient-stop-2) 42%, var(--lx-body-gradient-stop-3) 100%);
+    linear-gradient(
+      165deg,
+      var(--lx-body-gradient-stop-1) 0%,
+      var(--lx-body-gradient-stop-2) 42%,
+      var(--lx-body-gradient-stop-3) 100%
+    );
   /*
    * Hub — 4 familles (teal / ambre / indigo / violet) : réservé à l’accueil.
    */
   --lx-hub-panel-bg: rgba(255, 255, 255, 0.97);
   --lx-hub-panel-border: rgba(15, 23, 42, 0.1);
-  --lx-hub-panel-shadow: 0 1px 0 rgba(255, 255, 255, 0.96) inset, 0 22px 48px rgba(15, 23, 42, 0.06);
+  --lx-hub-panel-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.96) inset, 0 22px 48px rgba(15, 23, 42, 0.06);
   --lx-hub-card-surface: #ffffff;
   --lx-hub-card-border: rgba(15, 23, 42, 0.1);
   --lx-hub-card-shadow: var(--lx-shadow-card);
@@ -170,7 +176,11 @@
   --lx-hub-player-bar: #ea580c;
   --lx-hub-jobs-bar: #4338ca;
   --lx-hub-about-bar: #7c3aed;
-  --lx-hub-workspace-icon-bg: color-mix(in srgb, var(--lx-hub-workspace-bar) 14%, var(--lx-text-inverse));
+  --lx-hub-workspace-icon-bg: color-mix(
+    in srgb,
+    var(--lx-hub-workspace-bar) 14%,
+    var(--lx-text-inverse)
+  );
   --lx-hub-workspace-icon-fg: #0f766e;
   --lx-hub-player-icon-bg: color-mix(in srgb, var(--lx-hub-player-bar) 14%, var(--lx-text-inverse));
   --lx-hub-player-icon-fg: #9a3412;
@@ -311,7 +321,12 @@ html::-webkit-scrollbar-thumb {
       radial-gradient(ellipse 120% 80% at 50% -30%, var(--lx-body-radial-a), transparent 55%),
       radial-gradient(ellipse 70% 50% at 100% 0%, var(--lx-body-radial-b), transparent 45%),
       radial-gradient(ellipse 60% 40% at 0% 100%, var(--lx-body-radial-c), transparent 50%),
-      linear-gradient(165deg, var(--lx-body-gradient-stop-1) 0%, var(--lx-body-gradient-stop-2) 48%, var(--lx-body-gradient-stop-3) 100%);
+      linear-gradient(
+        165deg,
+        var(--lx-body-gradient-stop-1) 0%,
+        var(--lx-body-gradient-stop-2) 48%,
+        var(--lx-body-gradient-stop-3) 100%
+      );
     --lx-hub-panel-bg: rgba(30, 41, 59, 0.72);
     --lx-hub-panel-border: rgba(255, 255, 255, 0.12);
     --lx-hub-panel-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 52px rgba(0, 0, 0, 0.35);
@@ -444,7 +459,12 @@ html::-webkit-scrollbar-thumb {
     radial-gradient(ellipse 120% 80% at 50% -30%, var(--lx-body-radial-a), transparent 55%),
     radial-gradient(ellipse 70% 50% at 100% 0%, var(--lx-body-radial-b), transparent 45%),
     radial-gradient(ellipse 60% 40% at 0% 100%, var(--lx-body-radial-c), transparent 50%),
-    linear-gradient(165deg, var(--lx-body-gradient-stop-1) 0%, var(--lx-body-gradient-stop-2) 48%, var(--lx-body-gradient-stop-3) 100%);
+    linear-gradient(
+      165deg,
+      var(--lx-body-gradient-stop-1) 0%,
+      var(--lx-body-gradient-stop-2) 48%,
+      var(--lx-body-gradient-stop-3) 100%
+    );
   --lx-hub-panel-bg: rgba(30, 41, 59, 0.72);
   --lx-hub-panel-border: rgba(255, 255, 255, 0.12);
   --lx-hub-panel-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 52px rgba(0, 0, 0, 0.35);

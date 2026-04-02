@@ -10,10 +10,7 @@ import {
 import type { ViewportQueryContract } from "../components/player/playerViewportContract";
 
 /** Réexport — compat imports existants. */
-export {
-  PLAYER_WINDOW_TOTAL_MS,
-  PLAYER_WINDOW_WORDS_MS,
-} from "../player/playerRunWindowBounds";
+export { PLAYER_WINDOW_TOTAL_MS, PLAYER_WINDOW_WORDS_MS } from "../player/playerRunWindowBounds";
 
 /**
  * Grille temporelle pour déclencher `query_run_events_window` : ~4 requêtes/s max pendant la lecture
@@ -99,18 +96,15 @@ export function usePlayerRunWindow({
   queryContractRef.current = queryContract;
 
   // Preset résolu : le contrat est prioritaire sur le param explicite.
-  const resolvedPreset: PlayerRunWindowQueryPreset =
-    queryContract?.queryPreset ?? queryPreset;
+  const resolvedPreset: PlayerRunWindowQueryPreset = queryContract?.queryPreset ?? queryPreset;
 
   // Clé stable pour les layers du contrat (évite re-render si la référence change mais pas le contenu).
   const contractLayersKey = queryContract
     ? `${queryContract.layers.words ? 1 : 0}${queryContract.layers.turns ? 1 : 0}${queryContract.layers.pauses ? 1 : 0}${queryContract.layers.ipus ? 1 : 0}`
     : null;
 
-  const coarseKey =
-    Math.floor(centerTimeSec / PLAYER_WINDOW_COARSE_SEC) * PLAYER_WINDOW_COARSE_SEC;
-  const speakersKey =
-    speakersFilter && speakersFilter.length > 0 ? speakersFilter.join("|") : "";
+  const coarseKey = Math.floor(centerTimeSec / PLAYER_WINDOW_COARSE_SEC) * PLAYER_WINDOW_COARSE_SEC;
+  const speakersKey = speakersFilter && speakersFilter.length > 0 ? speakersFilter.join("|") : "";
 
   useEffect(() => {
     if (!runDir || !enabled) {

@@ -116,8 +116,7 @@ export function computeSpeakerStats(
     const speechRateWordsPerSec = speechMs > 0 ? nWords / (speechMs / 1000) : 0;
     const pauseDurationsMs = speakerPauses.map((p) => p.durMs);
     const totalPauseMs = pauseDurationsMs.reduce((s, d) => s + d, 0);
-    const meanPauseDurMs =
-      pauseDurationsMs.length > 0 ? totalPauseMs / pauseDurationsMs.length : 0;
+    const meanPauseDurMs = pauseDurationsMs.length > 0 ? totalPauseMs / pauseDurationsMs.length : 0;
     const speechRatio = durationMs > 0 ? speechMs / durationMs : 0;
     const pauseRatio = speechMs + totalPauseMs > 0 ? totalPauseMs / (speechMs + totalPauseMs) : 0;
 
@@ -130,8 +129,8 @@ export function computeSpeakerStats(
     }
 
     const ipuDurations = speakerIpus.map((i) => i.durMs);
-    const meanIpuDurMs = ipuDurations.length > 0
-      ? ipuDurations.reduce((s, d) => s + d, 0) / ipuDurations.length : 0;
+    const meanIpuDurMs =
+      ipuDurations.length > 0 ? ipuDurations.reduce((s, d) => s + d, 0) / ipuDurations.length : 0;
     const minIpuDurMs = ipuDurations.length > 0 ? Math.min(...ipuDurations) : 0;
     const maxIpuDurMs = ipuDurations.length > 0 ? Math.max(...ipuDurations) : 0;
 
@@ -259,10 +258,7 @@ export type OverlapStats = {
 /**
  * Détecte les zones de chevauchement (overlap) entre tours de speakers différents.
  */
-export function computeOverlaps(
-  turns: EventTurnRow[],
-  totalDurationMs: number,
-): OverlapStats {
+export function computeOverlaps(turns: EventTurnRow[], totalDurationMs: number): OverlapStats {
   const sorted = [...turns]
     .filter((t) => t.endMs > t.startMs)
     .sort((a, b) => a.startMs - b.startMs);
@@ -528,9 +524,32 @@ export type FullStatsExport = {
   per_speaker: FullSpeakerExport[];
   raw_data: {
     turns: { id: number; speaker: string; start_ms: number; end_ms: number; dur_ms: number }[];
-    pauses: { id: number; speaker: string | null; start_ms: number; end_ms: number; dur_ms: number; type: string | null }[];
-    ipus: { id: number; speaker: string | null; start_ms: number; end_ms: number; dur_ms: number; n_words: number; text: string | null }[];
-    words: { id: number; speaker: string | null; start_ms: number; end_ms: number; token: string | null; confidence: number | null; alignment_status: string | null }[];
+    pauses: {
+      id: number;
+      speaker: string | null;
+      start_ms: number;
+      end_ms: number;
+      dur_ms: number;
+      type: string | null;
+    }[];
+    ipus: {
+      id: number;
+      speaker: string | null;
+      start_ms: number;
+      end_ms: number;
+      dur_ms: number;
+      n_words: number;
+      text: string | null;
+    }[];
+    words: {
+      id: number;
+      speaker: string | null;
+      start_ms: number;
+      end_ms: number;
+      token: string | null;
+      confidence: number | null;
+      alignment_status: string | null;
+    }[];
   };
 };
 
@@ -594,9 +613,13 @@ export function buildFullStatsExport(
   const silenceMs = Math.max(0, durationMs - totalSpeechMs);
 
   const confScores = stats.filter((s) => s.meanConfidence != null).map((s) => s.meanConfidence!);
-  const globalMeanConf = confScores.length > 0 ? confScores.reduce((a, b) => a + b, 0) / confScores.length : null;
+  const globalMeanConf =
+    confScores.length > 0 ? confScores.reduce((a, b) => a + b, 0) / confScores.length : null;
   const totalAligned = stats.reduce((sum, s) => sum + (s.alignmentDist["aligned"] ?? 0), 0);
-  const totalAlignWords = stats.reduce((sum, s) => sum + Object.values(s.alignmentDist).reduce((a, b) => a + b, 0), 0);
+  const totalAlignWords = stats.reduce(
+    (sum, s) => sum + Object.values(s.alignmentDist).reduce((a, b) => a + b, 0),
+    0,
+  );
   const globalAlignedRatio = totalAlignWords > 0 ? totalAligned / totalAlignWords : null;
 
   return {
@@ -680,7 +703,10 @@ export function buildFullStatsExport(
         p90_ms: s.p90PauseDurMs,
         ratio: s.pauseRatio,
         by_type: Object.fromEntries(
-          Object.entries(s.pausesByType).map(([k, v]) => [k, { count: v.count, total_ms: v.totalMs }]),
+          Object.entries(s.pausesByType).map(([k, v]) => [
+            k,
+            { count: v.count, total_ms: v.totalMs },
+          ]),
         ),
         all_durations_ms: s.pauseDurationsMs,
       },
@@ -755,16 +781,36 @@ export function buildFullStatsCsv(exportData: FullStatsExport): string {
   lines.push("");
 
   lines.push("# PER_SPEAKER");
-  lines.push("speaker,speech_ms,speech_ratio,n_turns,mean_turn_ms,n_words,rate_wps,rate_wpm,unique_tokens,ttr,n_ipus,mean_ipu_ms,min_ipu_ms,max_ipu_ms,n_pauses,total_pause_ms,mean_pause_ms,median_pause_ms,p90_pause_ms,pause_ratio,mean_confidence,low_confidence_pct");
+  lines.push(
+    "speaker,speech_ms,speech_ratio,n_turns,mean_turn_ms,n_words,rate_wps,rate_wpm,unique_tokens,ttr,n_ipus,mean_ipu_ms,min_ipu_ms,max_ipu_ms,n_pauses,total_pause_ms,mean_pause_ms,median_pause_ms,p90_pause_ms,pause_ratio,mean_confidence,low_confidence_pct",
+  );
   for (const s of per_speaker) {
-    lines.push([
-      s.speaker, s.speech.total_ms, s.speech.ratio.toFixed(4), s.speech.n_turns, Math.round(s.speech.mean_turn_ms),
-      s.words.count, s.words.rate_words_per_sec.toFixed(2), s.words.rate_words_per_min.toFixed(1),
-      s.words.unique_tokens ?? "", s.words.ttr?.toFixed(4) ?? "",
-      s.ipus.count, Math.round(s.ipus.mean_dur_ms), Math.round(s.ipus.min_dur_ms), Math.round(s.ipus.max_dur_ms),
-      s.pauses.count, s.pauses.total_ms, Math.round(s.pauses.mean_ms), Math.round(s.pauses.median_ms), Math.round(s.pauses.p90_ms), s.pauses.ratio.toFixed(4),
-      s.quality.mean_confidence?.toFixed(4) ?? "", s.quality.low_confidence_pct?.toFixed(4) ?? "",
-    ].join(","));
+    lines.push(
+      [
+        s.speaker,
+        s.speech.total_ms,
+        s.speech.ratio.toFixed(4),
+        s.speech.n_turns,
+        Math.round(s.speech.mean_turn_ms),
+        s.words.count,
+        s.words.rate_words_per_sec.toFixed(2),
+        s.words.rate_words_per_min.toFixed(1),
+        s.words.unique_tokens ?? "",
+        s.words.ttr?.toFixed(4) ?? "",
+        s.ipus.count,
+        Math.round(s.ipus.mean_dur_ms),
+        Math.round(s.ipus.min_dur_ms),
+        Math.round(s.ipus.max_dur_ms),
+        s.pauses.count,
+        s.pauses.total_ms,
+        Math.round(s.pauses.mean_ms),
+        Math.round(s.pauses.median_ms),
+        Math.round(s.pauses.p90_ms),
+        s.pauses.ratio.toFixed(4),
+        s.quality.mean_confidence?.toFixed(4) ?? "",
+        s.quality.low_confidence_pct?.toFixed(4) ?? "",
+      ].join(","),
+    );
   }
   lines.push("");
 
@@ -791,7 +837,9 @@ export function buildFullStatsCsv(exportData: FullStatsExport): string {
   for (const s of per_speaker) {
     s.ipus.top_3.forEach((ti, idx) => {
       const text = ti.text.replace(/,/g, ";").replace(/\n/g, " ");
-      lines.push(`${s.speaker},${idx + 1},${ti.start_ms},${ti.end_ms},${ti.dur_ms},${ti.n_words},"${text}"`);
+      lines.push(
+        `${s.speaker},${idx + 1},${ti.start_ms},${ti.end_ms},${ti.dur_ms},${ti.n_words},"${text}"`,
+      );
     });
   }
   lines.push("");
@@ -828,14 +876,18 @@ export function buildFullStatsCsv(exportData: FullStatsExport): string {
   lines.push("id,speaker,start_ms,end_ms,dur_ms,n_words,text");
   for (const i of raw_data.ipus) {
     const text = (i.text ?? "").replace(/,/g, ";").replace(/\n/g, " ");
-    lines.push(`${i.id},${i.speaker ?? ""},${i.start_ms},${i.end_ms},${i.dur_ms},${i.n_words},"${text}"`);
+    lines.push(
+      `${i.id},${i.speaker ?? ""},${i.start_ms},${i.end_ms},${i.dur_ms},${i.n_words},"${text}"`,
+    );
   }
   lines.push("");
 
   lines.push("# RAW_WORDS");
   lines.push("id,speaker,start_ms,end_ms,token,confidence,alignment_status");
   for (const w of raw_data.words) {
-    lines.push(`${w.id},${w.speaker ?? ""},${w.start_ms},${w.end_ms},${w.token ?? ""},${w.confidence ?? ""},${w.alignment_status ?? ""}`);
+    lines.push(
+      `${w.id},${w.speaker ?? ""},${w.start_ms},${w.end_ms},${w.token ?? ""},${w.confidence ?? ""},${w.alignment_status ?? ""}`,
+    );
   }
 
   return lines.join("\n");

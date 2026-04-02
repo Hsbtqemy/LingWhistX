@@ -74,7 +74,13 @@ export const profilePresets: ProfilePreset[] = [
     id: "cpu_fast",
     label: "CPU rapide",
     description: "Pour machines sans GPU, priorite a la vitesse et a la stabilite.",
-    overrides: { model: "base", device: "cpu", computeType: "int8", batchSize: "4", vadMethod: "silero" },
+    overrides: {
+      model: "base",
+      device: "cpu",
+      computeType: "int8",
+      batchSize: "4",
+      vadMethod: "silero",
+    },
   },
   {
     id: "quality_gpu",

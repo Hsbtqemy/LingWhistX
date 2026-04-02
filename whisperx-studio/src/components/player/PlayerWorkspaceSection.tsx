@@ -29,10 +29,7 @@ import type {
 } from "../../types";
 import type { PlayerDerivedAlert } from "../../player/derivePlayerAlerts";
 import { PlayerRunWindowViews, type PlayerViewportMode } from "./PlayerRunWindowViews";
-import {
-  VIEWPORT_QUERY_CONTRACTS,
-  type ViewportQueryContract,
-} from "./playerViewportContract";
+import { VIEWPORT_QUERY_CONTRACTS, type ViewportQueryContract } from "./playerViewportContract";
 import {
   buildFullStatsCsv,
   buildFullStatsExport,
@@ -76,7 +73,10 @@ function findActiveSpeaker(segments: EditableSegment[], playheadSec: number): st
   return null;
 }
 
-function findActiveSpeakerFromTurns(turns: { startMs: number; endMs: number; speaker: string }[], playheadMs: number): string | null {
+function findActiveSpeakerFromTurns(
+  turns: { startMs: number; endMs: number; speaker: string }[],
+  playheadMs: number,
+): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
     const t = turns[i];
     if (t.startMs <= playheadMs + 50 && t.endMs >= playheadMs - 50) {
@@ -220,7 +220,9 @@ export function PlayerWorkspaceSection({
         if (!cancelled) setTranscriptJsonPath(null);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [runDir]);
 
   const transcriptLoadedForRef = useRef<string | null>(null);
@@ -263,7 +265,9 @@ export function PlayerWorkspaceSection({
 
     setAnnotImporting(true);
     try {
-      const result = await invoke<ImportAnnotationResult>("import_annotation_file", { path: selected });
+      const result = await invoke<ImportAnnotationResult>("import_annotation_file", {
+        path: selected,
+      });
       if (result.tiers.length === 0) {
         setAnnotError("Aucun tier trouvé dans ce fichier.");
         return;
@@ -386,7 +390,10 @@ export function PlayerWorkspaceSection({
     if (!followPlayhead || !wf.waveform) return;
     const visibleDur = wf.waveformVisibleDurationSec;
     const margin = visibleDur * 0.08;
-    if (currentTimeSec < wf.waveformViewStartSec + margin || currentTimeSec > wf.waveformViewEndSec - margin) {
+    if (
+      currentTimeSec < wf.waveformViewStartSec + margin ||
+      currentTimeSec > wf.waveformViewEndSec - margin
+    ) {
       const idealStart = currentTimeSec - visibleDur * 0.3;
       wf.setWaveformViewStart(Math.max(0, Math.min(wf.waveformMaxViewStartSec, idealStart)));
     }
@@ -450,9 +457,8 @@ export function PlayerWorkspaceSection({
 
   const playheadMs = Math.round(currentTimeSec * 1000);
 
-  const durationMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
-    ? durationSec * 1000
-    : 0;
+  const durationMs =
+    durationSec != null && Number.isFinite(durationSec) && durationSec > 0 ? durationSec * 1000 : 0;
 
   useEffect(() => {
     if (!editMode || !te.editorSegments.length) return;
@@ -483,7 +489,14 @@ export function PlayerWorkspaceSection({
     if (best !== null && best !== te.activeSegmentIndex) {
       te.setActiveSegmentIndex(best);
     }
-  }, [editMode, playheadMs, durationMs, te.editorSegments, te.activeSegmentIndex, te.setActiveSegmentIndex]); // eslint-disable-line react-hooks/exhaustive-deps -- te granulaire
+  }, [
+    editMode,
+    playheadMs,
+    durationMs,
+    te.editorSegments,
+    te.activeSegmentIndex,
+    te.setActiveSegmentIndex,
+  ]); // eslint-disable-line react-hooks/exhaustive-deps -- te granulaire
 
   const qcSummary = useMemo(() => {
     const parts: string[] = [];
@@ -569,19 +582,22 @@ export function PlayerWorkspaceSection({
 
   type ExportFormat = "json" | "srt" | "vtt" | "txt" | "csv" | "textgrid" | "eaf";
 
-  const exportSingleFormat = useCallback(async (format: ExportFormat) => {
-    setExportPackError("");
-    setExportPackHint("");
-    setExportSingleBusy(true);
-    try {
-      await te.exportEditedTranscript(format);
-      setExportFormatMenuOpen(false);
-    } catch (e) {
-      setExportPackError(String(e));
-    } finally {
-      setExportSingleBusy(false);
-    }
-  }, [te]);
+  const exportSingleFormat = useCallback(
+    async (format: ExportFormat) => {
+      setExportPackError("");
+      setExportPackHint("");
+      setExportSingleBusy(true);
+      try {
+        await te.exportEditedTranscript(format);
+        setExportFormatMenuOpen(false);
+      } catch (e) {
+        setExportPackError(String(e));
+      } finally {
+        setExportSingleBusy(false);
+      }
+    },
+    [te],
+  );
 
   useEffect(() => {
     setSpeakerSolo(null);
@@ -872,10 +888,20 @@ export function PlayerWorkspaceSection({
         {runDir && (
           <div className="player-loop-bar">
             <span className="player-loop-bar-hint small mono">{loopHint}</span>
-            <button type="button" className="ghost small" onClick={markLoopA} disabled={transportDisabled}>
+            <button
+              type="button"
+              className="ghost small"
+              onClick={markLoopA}
+              disabled={transportDisabled}
+            >
               Marquer A
             </button>
-            <button type="button" className="ghost small" onClick={markLoopB} disabled={transportDisabled}>
+            <button
+              type="button"
+              className="ghost small"
+              onClick={markLoopB}
+              disabled={transportDisabled}
+            >
               Marquer B
             </button>
             <button
@@ -913,21 +939,19 @@ export function PlayerWorkspaceSection({
               Lance un run dans le <strong>Studio</strong> — il s&apos;ouvrira automatiquement ici
               une fois terminé.
               <br />
-              Tu peux aussi ouvrir un run existant depuis l&apos;<strong>Historique</strong> (fichiers
-              de sortie → Ouvrir le Player) ou depuis le Studio (section{" "}
+              Tu peux aussi ouvrir un run existant depuis l&apos;<strong>Historique</strong>{" "}
+              (fichiers de sortie → Ouvrir le Player) ou depuis le Studio (section{" "}
               <em>Ouvrir un run sur disque</em>).
             </p>
             {importMedia ? (
               <div className="player-empty-import">
                 <p className="player-empty-import-hint">
-                  <strong>Nouveau job</strong> — importe un média (glisser-déposer ou Parcourir) : tu
-                  seras basculé vers le Studio pour les paramètres et le lancement.
+                  <strong>Nouveau job</strong> — importe un média (glisser-déposer ou Parcourir) :
+                  tu seras basculé vers le Studio pour les paramètres et le lancement.
                 </p>
                 <NewJobDropZone
                   selectedLabel={
-                    importMedia.inputPath.trim()
-                      ? fileBasename(importMedia.inputPath)
-                      : undefined
+                    importMedia.inputPath.trim() ? fileBasename(importMedia.inputPath) : undefined
                   }
                   disabled={importMedia.isSubmitting}
                   onPath={importMedia.onDroppedPath}
@@ -970,15 +994,17 @@ export function PlayerWorkspaceSection({
             <details className="player-panel-box" open>
               <summary className="player-panel-box-title">Vues</summary>
               <div className="player-view-grid" role="tablist" aria-label="Mode de vue">
-                {([
-                  ["lanes", "Lanes", "1"],
-                  ["chat", "Chat", "2"],
-                  ["words", "Mots", "3"],
-                  ["columns", "Colonnes", "4"],
-                  ["rythmo", "Rythmo", "5"],
-                  ["karaoke", "Karaoké", "6"],
-                  ["stats", "Stats", "7"],
-                ] as const).map(([mode, label, key]) => (
+                {(
+                  [
+                    ["lanes", "Lanes", "1"],
+                    ["chat", "Chat", "2"],
+                    ["words", "Mots", "3"],
+                    ["columns", "Colonnes", "4"],
+                    ["rythmo", "Rythmo", "5"],
+                    ["karaoke", "Karaoké", "6"],
+                    ["stats", "Stats", "7"],
+                  ] as const
+                ).map(([mode, label, key]) => (
                   <button
                     key={mode}
                     type="button"
@@ -1028,9 +1054,7 @@ export function PlayerWorkspaceSection({
                   Mode correction
                 </label>
               ) : (
-                <p className="small player-hint">
-                  Aucun transcript — lancer un run.
-                </p>
+                <p className="small player-hint">Aucun transcript — lancer un run.</p>
               )}
               {editMode && te.editorDirty ? (
                 <span className="player-edit-dirty-badge small">Non sauvegardé</span>
@@ -1044,14 +1068,10 @@ export function PlayerWorkspaceSection({
               >
                 {annotImporting ? "Import…" : "Importer .eaf / .TextGrid"}
               </button>
-              {annotError ? (
-                <p className="player-import-annot-error small">{annotError}</p>
-              ) : null}
+              {annotError ? <p className="player-import-annot-error small">{annotError}</p> : null}
               {annotPending ? (
                 <div className="player-import-annot-picker">
-                  <p className="small">
-                    {annotPending.tiers.length} tiers — sélectionner :
-                  </p>
+                  <p className="small">{annotPending.tiers.length} tiers — sélectionner :</p>
                   <ul className="player-import-annot-list">
                     {annotPending.tiers.map((tier: AnnotationTier) => (
                       <li key={tier.tierId}>
@@ -1061,8 +1081,7 @@ export function PlayerWorkspaceSection({
                             checked={annotSelectedTiers.has(tier.tierId)}
                             onChange={() => toggleAnnotTier(tier.tierId)}
                           />
-                          {tier.tierId}{" "}
-                          <span className="mono">({tier.segments.length})</span>
+                          {tier.tierId} <span className="mono">({tier.segments.length})</span>
                         </label>
                       </li>
                     ))}
@@ -1148,226 +1167,246 @@ export function PlayerWorkspaceSection({
           <main className={`player-viewport${editMode ? " player-viewport--edit" : ""}`}>
             {/* WX-725 — Zone sticky : media + transport + waveform toujours visibles */}
             <div className="player-sticky-zone">
-            <div className={`player-media-stage${editMode ? " player-media-stage--compact" : ""}${mediaSrc && !isVideo ? " player-media-stage--audio" : ""}`}>
-              {mediaSrc && isVideo ? (
-                <div
-                  className="player-media-stage__surface player-media-stage__surface--interactive"
-                  onClick={() => {
-                    if (!transportDisabled) {
-                      void togglePlayPause();
-                    }
-                  }}
-                  role="presentation"
-                >
-                  <video
-                    ref={mediaRef as RefObject<HTMLVideoElement | null>}
-                    className="player-viewport-video"
-                    src={mediaSrc}
-                    preload="metadata"
-                    playsInline
-                    controls={false}
-                    {...mediaHandlers}
-                  />
-                </div>
-              ) : null}
-              {mediaSrc && !isVideo ? (
-                <div
-                  className="player-audio-mini-bar"
-                  onClick={() => {
-                    if (!transportDisabled) {
-                      void togglePlayPause();
-                    }
-                  }}
-                  role="button"
-                  tabIndex={-1}
-                  title="Clic pour lecture / pause"
-                >
-                  <span className="player-audio-mini-bar__icon" aria-hidden>{playing ? "⏸" : "▶"}</span>
-                  <span className="player-audio-mini-bar__name mono">
-                    {mediaPath ? fileBasename(mediaPath) : "Audio"}
-                  </span>
-                  <audio
-                    ref={mediaRef as RefObject<HTMLAudioElement | null>}
-                    className="player-viewport-audio"
-                    src={mediaSrc}
-                    preload="metadata"
-                    muted={muted || wf.webAudioMode}
-                    {...mediaHandlers}
-                  />
-                </div>
-              ) : null}
-              {!mediaSrc ? (
-                <div className="player-media-stage__surface">
-                  <p className="player-viewport-placeholder">
-                    <strong>Média</strong> — aucune source après lecture du manifest.
-                  </p>
-                </div>
-              ) : null}
-              {mediaSrc && mediaPath && runDir ? (
-                <PlayerWaveformPanel
-                  wf={wf}
-                  mediaPath={mediaPath}
-                  pauseCsvPaths={pauseCsvPaths}
-                  isVideo={isVideo}
-                  compact={waveformCompact}
-                  onToggleCompact={() => setWaveformCompact((c) => !c)}
-                />
-              ) : null}
-              {mediaSrc ? (
-                <PlayerMediaTransport
-                  disabled={transportDisabled}
-                  playing={playing}
-                  onTogglePlayPause={togglePlayPause}
-                  onStop={stop}
-                  onSeekRelative={seekRelative}
-                  currentTimeSec={currentTimeSec}
-                  durationSec={durationSec}
-                  onSeek={seek}
-                  playbackRate={playbackRate}
-                  onNudgePlaybackRate={nudgePlaybackRate}
-                  volume={volume}
-                  muted={muted}
-                  onVolumeChange={(v) => {
-                    setVolume(v);
-                    if (v > 0) {
-                      setMuted(false);
-                    }
-                  }}
-                  onToggleMute={toggleMute}
-                  isVideo={isVideo}
-                  videoFullscreen={videoFullscreen}
-                  onToggleVideoFullscreen={toggleVideoFullscreen}
-                  followPlayhead={followPlayhead}
-                  onToggleFollowPlayhead={() => setFollowPlayhead((v) => !v)}
-                  posLabel={posLabel}
-                  durLabel={durLabel}
-                  copyPositionHint={copyPositionHint}
-                  onCopyPlayhead={copyPlayheadToClipboard}
-                  onPrevSegment={editMode && te.editorSegments.length > 0 ? () => {
-                    const sec = findPrevSegmentStart(te.editorSegments, currentTimeSec);
-                    if (sec != null) seek(sec);
-                  } : undefined}
-                  onNextSegment={editMode && te.editorSegments.length > 0 ? () => {
-                    const sec = findNextSegmentStart(te.editorSegments, currentTimeSec);
-                    if (sec != null) seek(sec);
-                  } : undefined}
-                  activeSpeaker={
-                    editMode && te.editorSegments.length > 0
-                      ? findActiveSpeaker(te.editorSegments, currentTimeSec)
-                      : findActiveSpeakerFromTurns(runWindow.slice?.turns ?? [], playheadMs)
-                  }
-                  fullscreenMode={fullscreenMode}
-                  onToggleFullscreen={runDir ? () => setFullscreenMode((v) => !v) : undefined}
-                />
-              ) : null}
-            </div>
-            </div>{/* /player-sticky-zone */}
-            {/* WX-725 — Zone défilable : toolbar édition + événements */}
-            <div className="player-content-zone">
-            {editMode ? (
-              <div className="player-edit-toolbar" role="toolbar" aria-label="Outils d'édition">
-                <span className="player-edit-toolbar-label small">
-                  Édition
-                  {te.editorDirty ? (
-                    <span className="player-edit-toolbar-dirty" title="Modifications non sauvegardées"> ●</span>
-                  ) : null}
-                </span>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={!te.canUndoEditor}
-                  onClick={te.undoEditorChange}
-                  title="Annuler (Alt+Z)"
-                >
-                  Annuler
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={!te.canRedoEditor}
-                  onClick={te.redoEditorChange}
-                  title="Rétablir (Alt+Shift+Z)"
-                >
-                  Rétablir
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  disabled={!te.editorDirty || te.isEditorSaving}
-                  loading={te.isEditorSaving}
-                  onClick={() => void te.saveEditedJson(true)}
-                  title="Sauvegarder (Alt+S)"
-                >
-                  Sauvegarder
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setEditMode(false)}
-                >
-                  Quitter l'édition
-                </Button>
-                {te.editorStatus ? (
-                  <span className="player-edit-toolbar-status small">{te.editorStatus}</span>
+              <div
+                className={`player-media-stage${editMode ? " player-media-stage--compact" : ""}${mediaSrc && !isVideo ? " player-media-stage--audio" : ""}`}
+              >
+                {mediaSrc && isVideo ? (
+                  <div
+                    className="player-media-stage__surface player-media-stage__surface--interactive"
+                    onClick={() => {
+                      if (!transportDisabled) {
+                        void togglePlayPause();
+                      }
+                    }}
+                    role="presentation"
+                  >
+                    <video
+                      ref={mediaRef as RefObject<HTMLVideoElement | null>}
+                      className="player-viewport-video"
+                      src={mediaSrc}
+                      preload="metadata"
+                      playsInline
+                      controls={false}
+                      {...mediaHandlers}
+                    />
+                  </div>
                 ) : null}
-                {te.editorError ? (
-                  <span className="player-edit-toolbar-error small">{te.editorError}</span>
+                {mediaSrc && !isVideo ? (
+                  <div
+                    className="player-audio-mini-bar"
+                    onClick={() => {
+                      if (!transportDisabled) {
+                        void togglePlayPause();
+                      }
+                    }}
+                    role="button"
+                    tabIndex={-1}
+                    title="Clic pour lecture / pause"
+                  >
+                    <span className="player-audio-mini-bar__icon" aria-hidden>
+                      {playing ? "⏸" : "▶"}
+                    </span>
+                    <span className="player-audio-mini-bar__name mono">
+                      {mediaPath ? fileBasename(mediaPath) : "Audio"}
+                    </span>
+                    <audio
+                      ref={mediaRef as RefObject<HTMLAudioElement | null>}
+                      className="player-viewport-audio"
+                      src={mediaSrc}
+                      preload="metadata"
+                      muted={muted || wf.webAudioMode}
+                      {...mediaHandlers}
+                    />
+                  </div>
+                ) : null}
+                {!mediaSrc ? (
+                  <div className="player-media-stage__surface">
+                    <p className="player-viewport-placeholder">
+                      <strong>Média</strong> — aucune source après lecture du manifest.
+                    </p>
+                  </div>
+                ) : null}
+                {mediaSrc && mediaPath && runDir ? (
+                  <PlayerWaveformPanel
+                    wf={wf}
+                    mediaPath={mediaPath}
+                    pauseCsvPaths={pauseCsvPaths}
+                    isVideo={isVideo}
+                    compact={waveformCompact}
+                    onToggleCompact={() => setWaveformCompact((c) => !c)}
+                  />
+                ) : null}
+                {mediaSrc ? (
+                  <PlayerMediaTransport
+                    disabled={transportDisabled}
+                    playing={playing}
+                    onTogglePlayPause={togglePlayPause}
+                    onStop={stop}
+                    onSeekRelative={seekRelative}
+                    currentTimeSec={currentTimeSec}
+                    durationSec={durationSec}
+                    onSeek={seek}
+                    playbackRate={playbackRate}
+                    onNudgePlaybackRate={nudgePlaybackRate}
+                    volume={volume}
+                    muted={muted}
+                    onVolumeChange={(v) => {
+                      setVolume(v);
+                      if (v > 0) {
+                        setMuted(false);
+                      }
+                    }}
+                    onToggleMute={toggleMute}
+                    isVideo={isVideo}
+                    videoFullscreen={videoFullscreen}
+                    onToggleVideoFullscreen={toggleVideoFullscreen}
+                    followPlayhead={followPlayhead}
+                    onToggleFollowPlayhead={() => setFollowPlayhead((v) => !v)}
+                    posLabel={posLabel}
+                    durLabel={durLabel}
+                    copyPositionHint={copyPositionHint}
+                    onCopyPlayhead={copyPlayheadToClipboard}
+                    onPrevSegment={
+                      editMode && te.editorSegments.length > 0
+                        ? () => {
+                            const sec = findPrevSegmentStart(te.editorSegments, currentTimeSec);
+                            if (sec != null) seek(sec);
+                          }
+                        : undefined
+                    }
+                    onNextSegment={
+                      editMode && te.editorSegments.length > 0
+                        ? () => {
+                            const sec = findNextSegmentStart(te.editorSegments, currentTimeSec);
+                            if (sec != null) seek(sec);
+                          }
+                        : undefined
+                    }
+                    activeSpeaker={
+                      editMode && te.editorSegments.length > 0
+                        ? findActiveSpeaker(te.editorSegments, currentTimeSec)
+                        : findActiveSpeakerFromTurns(runWindow.slice?.turns ?? [], playheadMs)
+                    }
+                    fullscreenMode={fullscreenMode}
+                    onToggleFullscreen={runDir ? () => setFullscreenMode((v) => !v) : undefined}
+                  />
                 ) : null}
               </div>
-            ) : null}
-            <div
-              ref={eventsPanelRef}
-              className="player-events-panel"
-              onScroll={onEventsPanelScroll}
-            >
-              {runWindow.lastT0Ms != null && runWindow.lastT1Ms != null ? (
-                <div className="player-events-panel-head small mono">
-                  <span className="player-events-window-bounds">
-                    Fenêtre {runWindow.lastT0Ms}–{runWindow.lastT1Ms} ms
+            </div>
+            {/* /player-sticky-zone */}
+            {/* WX-725 — Zone défilable : toolbar édition + événements */}
+            <div className="player-content-zone">
+              {editMode ? (
+                <div className="player-edit-toolbar" role="toolbar" aria-label="Outils d'édition">
+                  <span className="player-edit-toolbar-label small">
+                    Édition
+                    {te.editorDirty ? (
+                      <span
+                        className="player-edit-toolbar-dirty"
+                        title="Modifications non sauvegardées"
+                      >
+                        {" "}
+                        ●
+                      </span>
+                    ) : null}
                   </span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={!te.canUndoEditor}
+                    onClick={te.undoEditorChange}
+                    title="Annuler (Alt+Z)"
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={!te.canRedoEditor}
+                    onClick={te.redoEditorChange}
+                    title="Rétablir (Alt+Shift+Z)"
+                  >
+                    Rétablir
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    disabled={!te.editorDirty || te.isEditorSaving}
+                    loading={te.isEditorSaving}
+                    onClick={() => void te.saveEditedJson(true)}
+                    title="Sauvegarder (Alt+S)"
+                  >
+                    Sauvegarder
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setEditMode(false)}
+                  >
+                    Quitter l'édition
+                  </Button>
+                  {te.editorStatus ? (
+                    <span className="player-edit-toolbar-status small">{te.editorStatus}</span>
+                  ) : null}
+                  {te.editorError ? (
+                    <span className="player-edit-toolbar-error small">{te.editorError}</span>
+                  ) : null}
                 </div>
               ) : null}
-              {runWindow.error ? (
-                <p className="player-window-error small" role="alert">
-                  {runWindow.error}
-                </p>
-              ) : null}
-              {sliceTruncationLayers ? (
-                <p className="small player-slice-truncation-hint" role="status">
-                  Troncature sur : {sliceTruncationLayers.join(" · ")} — plafonds fenêtre SQLite ;
-                  pour les mots, garde la fenêtre ≤ 30 s.
-                </p>
-              ) : null}
-              <PlayerRunWindowViews
-                mode={viewportMode}
-                slice={runWindow.slice}
-                playheadMs={playheadMs}
-                loading={runWindow.loading}
-                queryError={runWindow.error}
-                wordsLayerActive={wordsLayerActive}
-                followPlayhead={followPlayhead}
-                onSeekToMs={(ms) => seek(ms / 1000)}
-                durationSec={durationSec}
-                loopAsec={loopAsec}
-                loopBsec={loopBsec}
-                onSetLoopRange={setLoopRange}
-                editMode={editMode}
-                editorSegments={te.editorSegments}
-                activeSegmentIndex={te.activeSegmentIndex}
-                setActiveSegmentIndex={te.setActiveSegmentIndex}
-                updateEditorSegmentText={te.updateEditorSegmentText}
-                updateEditorSegmentBoundary={te.updateEditorSegmentBoundary}
-                focusSegment={te.focusSegment}
-                runSpeakerIds={runSpeakerIds}
-                longPauseMs={longPauseMs}
-              />
+              <div
+                ref={eventsPanelRef}
+                className="player-events-panel"
+                onScroll={onEventsPanelScroll}
+              >
+                {runWindow.lastT0Ms != null && runWindow.lastT1Ms != null ? (
+                  <div className="player-events-panel-head small mono">
+                    <span className="player-events-window-bounds">
+                      Fenêtre {runWindow.lastT0Ms}–{runWindow.lastT1Ms} ms
+                    </span>
+                  </div>
+                ) : null}
+                {runWindow.error ? (
+                  <p className="player-window-error small" role="alert">
+                    {runWindow.error}
+                  </p>
+                ) : null}
+                {sliceTruncationLayers ? (
+                  <p className="small player-slice-truncation-hint" role="status">
+                    Troncature sur : {sliceTruncationLayers.join(" · ")} — plafonds fenêtre SQLite ;
+                    pour les mots, garde la fenêtre ≤ 30 s.
+                  </p>
+                ) : null}
+                <PlayerRunWindowViews
+                  mode={viewportMode}
+                  slice={runWindow.slice}
+                  playheadMs={playheadMs}
+                  loading={runWindow.loading}
+                  queryError={runWindow.error}
+                  wordsLayerActive={wordsLayerActive}
+                  followPlayhead={followPlayhead}
+                  onSeekToMs={(ms) => seek(ms / 1000)}
+                  durationSec={durationSec}
+                  loopAsec={loopAsec}
+                  loopBsec={loopBsec}
+                  onSetLoopRange={setLoopRange}
+                  editMode={editMode}
+                  editorSegments={te.editorSegments}
+                  activeSegmentIndex={te.activeSegmentIndex}
+                  setActiveSegmentIndex={te.setActiveSegmentIndex}
+                  updateEditorSegmentText={te.updateEditorSegmentText}
+                  updateEditorSegmentBoundary={te.updateEditorSegmentBoundary}
+                  focusSegment={te.focusSegment}
+                  runSpeakerIds={runSpeakerIds}
+                  longPauseMs={longPauseMs}
+                />
+              </div>
+              {runDir ? <p className="small mono player-viewport-path">{runDir}</p> : null}
             </div>
-            {runDir ? <p className="small mono player-viewport-path">{runDir}</p> : null}
-            </div>{/* /player-content-zone */}
+            {/* /player-content-zone */}
           </main>
           <aside className="player-panel player-panel--right">
             {/* Run : QC + export */}
@@ -1432,14 +1471,20 @@ export function PlayerWorkspaceSection({
                   </div>
                 ) : null}
                 {exportFolderError ? (
-                  <span className="player-export-error" role="alert">{exportFolderError}</span>
+                  <span className="player-export-error" role="alert">
+                    {exportFolderError}
+                  </span>
                 ) : null}
                 {exportPackError ? (
-                  <span className="player-export-error" role="alert">{exportPackError}</span>
+                  <span className="player-export-error" role="alert">
+                    {exportPackError}
+                  </span>
                 ) : null}
                 {exportPackHint ? (
                   <span className="player-export-hint mono" title={exportPackHint}>
-                    {exportPackHint.length > 80 ? `${exportPackHint.slice(0, 80)}…` : exportPackHint}
+                    {exportPackHint.length > 80
+                      ? `${exportPackHint.slice(0, 80)}…`
+                      : exportPackHint}
                   </span>
                 ) : null}
                 {te.editorStatus ? (
@@ -1458,61 +1503,59 @@ export function PlayerWorkspaceSection({
             {/* WX-706 — Segment sélectionné */}
             <details className="player-panel-section" open>
               <summary className="player-panel-section-summary">Segment sélectionné</summary>
-              {editMode && te.activeSegmentIndex !== null ? (
-                (() => {
-                  const seg = te.editorSegments[te.activeSegmentIndex];
-                  if (!seg) return <p className="small">Aucun segment actif.</p>;
-                  const durMs = Math.round((seg.end - seg.start) * 1000);
-                  const nWords = seg.words?.length ?? null;
-                  const scoredWords = seg.words?.filter((w) => w.score != null) ?? [];
-                  const avgScore =
-                    scoredWords.length > 0
-                      ? scoredWords.reduce((s, w) => s + w.score!, 0) / scoredWords.length
-                      : null;
-                  return (
-                    <dl className="player-segment-info small">
-                      <dt>Locuteur</dt>
-                      <dd>{seg.speaker ?? "—"}</dd>
-                      <dt>Durée</dt>
-                      <dd className="mono">{durMs} ms</dd>
-                      {nWords !== null && (
-                        <>
-                          <dt>Mots</dt>
-                          <dd>{nWords}</dd>
-                        </>
-                      )}
-                      {avgScore !== null && (
-                        <>
-                          <dt>Score moy.</dt>
-                          <dd className="mono">{avgScore.toFixed(2)}</dd>
-                        </>
-                      )}
-                    </dl>
-                  );
-                })()
-              ) : (
-                (() => {
-                  const turn = runWindow.slice?.turns.find(
-                    (t) => t.startMs <= playheadMs && playheadMs < t.endMs
-                  );
-                  if (!turn) return <p className="small">Aucun tour au curseur.</p>;
-                  const durMs = turn.endMs - turn.startMs;
-                  return (
-                    <dl className="player-segment-info small">
-                      <dt>Locuteur</dt>
-                      <dd>{turn.speaker}</dd>
-                      <dt>Durée</dt>
-                      <dd className="mono">{durMs} ms</dd>
-                      {turn.confidence != null && (
-                        <>
-                          <dt>Conf.</dt>
-                          <dd className="mono">{turn.confidence.toFixed(2)}</dd>
-                        </>
-                      )}
-                    </dl>
-                  );
-                })()
-              )}
+              {editMode && te.activeSegmentIndex !== null
+                ? (() => {
+                    const seg = te.editorSegments[te.activeSegmentIndex];
+                    if (!seg) return <p className="small">Aucun segment actif.</p>;
+                    const durMs = Math.round((seg.end - seg.start) * 1000);
+                    const nWords = seg.words?.length ?? null;
+                    const scoredWords = seg.words?.filter((w) => w.score != null) ?? [];
+                    const avgScore =
+                      scoredWords.length > 0
+                        ? scoredWords.reduce((s, w) => s + w.score!, 0) / scoredWords.length
+                        : null;
+                    return (
+                      <dl className="player-segment-info small">
+                        <dt>Locuteur</dt>
+                        <dd>{seg.speaker ?? "—"}</dd>
+                        <dt>Durée</dt>
+                        <dd className="mono">{durMs} ms</dd>
+                        {nWords !== null && (
+                          <>
+                            <dt>Mots</dt>
+                            <dd>{nWords}</dd>
+                          </>
+                        )}
+                        {avgScore !== null && (
+                          <>
+                            <dt>Score moy.</dt>
+                            <dd className="mono">{avgScore.toFixed(2)}</dd>
+                          </>
+                        )}
+                      </dl>
+                    );
+                  })()
+                : (() => {
+                    const turn = runWindow.slice?.turns.find(
+                      (t) => t.startMs <= playheadMs && playheadMs < t.endMs,
+                    );
+                    if (!turn) return <p className="small">Aucun tour au curseur.</p>;
+                    const durMs = turn.endMs - turn.startMs;
+                    return (
+                      <dl className="player-segment-info small">
+                        <dt>Locuteur</dt>
+                        <dd>{turn.speaker}</dd>
+                        <dt>Durée</dt>
+                        <dd className="mono">{durMs} ms</dd>
+                        {turn.confidence != null && (
+                          <>
+                            <dt>Conf.</dt>
+                            <dd className="mono">{turn.confidence.toFixed(2)}</dd>
+                          </>
+                        )}
+                      </dl>
+                    );
+                  })()}
             </details>
 
             {/* Alertes */}
@@ -1556,9 +1599,9 @@ export function PlayerWorkspaceSection({
                   ) : null}
                   {lastRecomputeStats ? (
                     <p className="small mono player-alerts-qc-stats">
-                      QC Rust : {lastRecomputeStats.nOverlapTurn} chev. · {lastRecomputeStats.nLongPause}{" "}
-                      pauses · {lastRecomputeStats.nTurnsInWindow} tours ·{" "}
-                      {lastRecomputeStats.nPausesInWindow} pauses (fenêtre)
+                      QC Rust : {lastRecomputeStats.nOverlapTurn} chev. ·{" "}
+                      {lastRecomputeStats.nLongPause} pauses · {lastRecomputeStats.nTurnsInWindow}{" "}
+                      tours · {lastRecomputeStats.nPausesInWindow} pauses (fenêtre)
                     </p>
                   ) : null}
                 </div>
@@ -1612,18 +1655,39 @@ export function PlayerWorkspaceSection({
                     className="player-panel-export-btn"
                     onClick={() => {
                       const sl = runWindow.slice!;
-                      const durMs = durationSec != null && Number.isFinite(durationSec)
-                        ? durationSec * 1000
-                        : Math.max(0, ...sl.turns.map((t) => t.endMs));
+                      const durMs =
+                        durationSec != null && Number.isFinite(durationSec)
+                          ? durationSec * 1000
+                          : Math.max(0, ...sl.turns.map((t) => t.endMs));
                       const hasWords = sl.words.length > 0;
-                      const stats = computeSpeakerStats(sl.turns, sl.pauses, sl.ipus, durMs, hasWords ? sl.words : undefined);
+                      const stats = computeSpeakerStats(
+                        sl.turns,
+                        sl.pauses,
+                        sl.ipus,
+                        durMs,
+                        hasWords ? sl.words : undefined,
+                      );
                       const overlaps = computeOverlaps(sl.turns, durMs);
                       const transitions = computeTransitions(sl.turns);
                       const density = computeSpeechDensity(sl.turns, durMs);
                       const rate = computeSpeechRate(sl.ipus, durMs);
                       const totalSpeechMs = stats.reduce((s, st) => s + st.speechMs, 0);
                       const totalWords = stats.reduce((s, st) => s + st.nWords, 0);
-                      const full = buildFullStatsExport(stats, overlaps, transitions, density, rate, null, durMs, totalSpeechMs, totalWords, sl.turns, sl.pauses, sl.ipus, sl.words);
+                      const full = buildFullStatsExport(
+                        stats,
+                        overlaps,
+                        transitions,
+                        density,
+                        rate,
+                        null,
+                        durMs,
+                        totalSpeechMs,
+                        totalWords,
+                        sl.turns,
+                        sl.pauses,
+                        sl.ipus,
+                        sl.words,
+                      );
                       void navigator.clipboard.writeText(buildFullStatsCsv(full));
                     }}
                   >
@@ -1634,18 +1698,39 @@ export function PlayerWorkspaceSection({
                     className="player-panel-export-btn"
                     onClick={() => {
                       const sl = runWindow.slice!;
-                      const durMs = durationSec != null && Number.isFinite(durationSec)
-                        ? durationSec * 1000
-                        : Math.max(0, ...sl.turns.map((t) => t.endMs));
+                      const durMs =
+                        durationSec != null && Number.isFinite(durationSec)
+                          ? durationSec * 1000
+                          : Math.max(0, ...sl.turns.map((t) => t.endMs));
                       const hasWords = sl.words.length > 0;
-                      const stats = computeSpeakerStats(sl.turns, sl.pauses, sl.ipus, durMs, hasWords ? sl.words : undefined);
+                      const stats = computeSpeakerStats(
+                        sl.turns,
+                        sl.pauses,
+                        sl.ipus,
+                        durMs,
+                        hasWords ? sl.words : undefined,
+                      );
                       const overlaps = computeOverlaps(sl.turns, durMs);
                       const transitions = computeTransitions(sl.turns);
                       const density = computeSpeechDensity(sl.turns, durMs);
                       const rate = computeSpeechRate(sl.ipus, durMs);
                       const totalSpeechMs = stats.reduce((s, st) => s + st.speechMs, 0);
                       const totalWords = stats.reduce((s, st) => s + st.nWords, 0);
-                      const full = buildFullStatsExport(stats, overlaps, transitions, density, rate, null, durMs, totalSpeechMs, totalWords, sl.turns, sl.pauses, sl.ipus, sl.words);
+                      const full = buildFullStatsExport(
+                        stats,
+                        overlaps,
+                        transitions,
+                        density,
+                        rate,
+                        null,
+                        durMs,
+                        totalSpeechMs,
+                        totalWords,
+                        sl.turns,
+                        sl.pauses,
+                        sl.ipus,
+                        sl.words,
+                      );
                       void navigator.clipboard.writeText(JSON.stringify(full, null, 2));
                     }}
                   >
@@ -1662,7 +1747,8 @@ export function PlayerWorkspaceSection({
                 Lecture, saut, vitesse et volume sont sous le média. Boucle A–B et export en haut.
               </p>
               <p className="small">
-                Appuyez sur <kbd className="player-kbd">?</kbd> pour voir tous les raccourcis clavier.
+                Appuyez sur <kbd className="player-kbd">?</kbd> pour voir tous les raccourcis
+                clavier.
               </p>
             </details>
           </aside>
@@ -1702,14 +1788,22 @@ export function PlayerWorkspaceSection({
               onMarkLoopA={markLoopA}
               onMarkLoopB={markLoopB}
               onClearLoop={clearLoop}
-              onPrevSegment={editMode && te.editorSegments.length > 0 ? () => {
-                const sec = findPrevSegmentStart(te.editorSegments, currentTimeSec);
-                if (sec != null) seek(sec);
-              } : undefined}
-              onNextSegment={editMode && te.editorSegments.length > 0 ? () => {
-                const sec = findNextSegmentStart(te.editorSegments, currentTimeSec);
-                if (sec != null) seek(sec);
-              } : undefined}
+              onPrevSegment={
+                editMode && te.editorSegments.length > 0
+                  ? () => {
+                      const sec = findPrevSegmentStart(te.editorSegments, currentTimeSec);
+                      if (sec != null) seek(sec);
+                    }
+                  : undefined
+              }
+              onNextSegment={
+                editMode && te.editorSegments.length > 0
+                  ? () => {
+                      const sec = findNextSegmentStart(te.editorSegments, currentTimeSec);
+                      if (sec != null) seek(sec);
+                    }
+                  : undefined
+              }
               activeSpeaker={
                 editMode && te.editorSegments.length > 0
                   ? findActiveSpeaker(te.editorSegments, currentTimeSec)

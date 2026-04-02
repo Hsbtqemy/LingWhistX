@@ -148,7 +148,9 @@ export function PlayerFullscreenView({
 
   useEffect(() => {
     resetIdleTimer();
-    return () => { if (idleTimerRef.current) clearTimeout(idleTimerRef.current); };
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
   }, [resetIdleTimer]);
 
   const handleSetMode = useCallback(
@@ -274,7 +276,29 @@ export function PlayerFullscreenView({
         return;
       }
     },
-    [onExit, onTogglePlayPause, onToggleFollowPlayhead, onSeekRelative, onStop, onSeek, durSec, onNudgePlaybackRate, onToggleMute, onSetSpeakerSolo, runSpeakerIds, speakerSolo, handleSetMode, loopAsec, loopBsec, onMarkLoopA, onMarkLoopB, onClearLoop, onPrevSegment, onNextSegment, resetIdleTimer],
+    [
+      onExit,
+      onTogglePlayPause,
+      onToggleFollowPlayhead,
+      onSeekRelative,
+      onStop,
+      onSeek,
+      durSec,
+      onNudgePlaybackRate,
+      onToggleMute,
+      onSetSpeakerSolo,
+      runSpeakerIds,
+      speakerSolo,
+      handleSetMode,
+      loopAsec,
+      loopBsec,
+      onMarkLoopA,
+      onMarkLoopB,
+      onClearLoop,
+      onPrevSegment,
+      onNextSegment,
+      resetIdleTimer,
+    ],
   );
 
   return (
@@ -303,7 +327,12 @@ export function PlayerFullscreenView({
             </button>
           ))}
         </div>
-        <button type="button" className="player-fs-exit-btn" onClick={onExit} title="Quitter le plein écran (Échap / F11)">
+        <button
+          type="button"
+          className="player-fs-exit-btn"
+          onClick={onExit}
+          title="Quitter le plein écran (Échap / F11)"
+        >
           ✕
         </button>
       </div>
@@ -360,12 +389,31 @@ export function PlayerFullscreenView({
           {/* Centre : transport */}
           <div className="player-fs-transport">
             {onPrevSegment ? (
-              <button type="button" className="player-fs-ctrl-btn" onClick={onPrevSegment} title="Segment préc. ( [ )">
+              <button
+                type="button"
+                className="player-fs-ctrl-btn"
+                onClick={onPrevSegment}
+                title="Segment préc. ( [ )"
+              >
                 ⏮
               </button>
             ) : null}
-            <button type="button" className="player-fs-ctrl-btn" onClick={() => onSeekRelative(-5)} title="−5 s (Shift+←)">−5s</button>
-            <button type="button" className="player-fs-ctrl-btn" onClick={() => onSeekRelative(-1)} title="−1 s (←)">−1s</button>
+            <button
+              type="button"
+              className="player-fs-ctrl-btn"
+              onClick={() => onSeekRelative(-5)}
+              title="−5 s (Shift+←)"
+            >
+              −5s
+            </button>
+            <button
+              type="button"
+              className="player-fs-ctrl-btn"
+              onClick={() => onSeekRelative(-1)}
+              title="−1 s (←)"
+            >
+              −1s
+            </button>
             <button
               type="button"
               className="player-fs-ctrl-btn player-fs-play-btn"
@@ -374,11 +422,37 @@ export function PlayerFullscreenView({
             >
               {playing ? "⏸" : "▶"}
             </button>
-            <button type="button" className="player-fs-ctrl-btn" onClick={onStop} title="Stop (Home)">⏹</button>
-            <button type="button" className="player-fs-ctrl-btn" onClick={() => onSeekRelative(1)} title="+1 s (→)">+1s</button>
-            <button type="button" className="player-fs-ctrl-btn" onClick={() => onSeekRelative(5)} title="+5 s (Shift+→)">+5s</button>
+            <button
+              type="button"
+              className="player-fs-ctrl-btn"
+              onClick={onStop}
+              title="Stop (Home)"
+            >
+              ⏹
+            </button>
+            <button
+              type="button"
+              className="player-fs-ctrl-btn"
+              onClick={() => onSeekRelative(1)}
+              title="+1 s (→)"
+            >
+              +1s
+            </button>
+            <button
+              type="button"
+              className="player-fs-ctrl-btn"
+              onClick={() => onSeekRelative(5)}
+              title="+5 s (Shift+→)"
+            >
+              +5s
+            </button>
             {onNextSegment ? (
-              <button type="button" className="player-fs-ctrl-btn" onClick={onNextSegment} title="Segment suiv. ( ] )">
+              <button
+                type="button"
+                className="player-fs-ctrl-btn"
+                onClick={onNextSegment}
+                title="Segment suiv. ( ] )"
+              >
                 ⏭
               </button>
             ) : null}
@@ -386,11 +460,30 @@ export function PlayerFullscreenView({
 
           {/* Droite : vitesse + volume + locuteur solo */}
           <div className="player-fs-right">
-            <button type="button" className="player-fs-ctrl-btn" onClick={() => onNudgePlaybackRate(-0.25)} title="Ralentir (−)">−</button>
+            <button
+              type="button"
+              className="player-fs-ctrl-btn"
+              onClick={() => onNudgePlaybackRate(-0.25)}
+              title="Ralentir (−)"
+            >
+              −
+            </button>
             <span className="player-fs-rate mono">{playbackRate.toFixed(2)}×</span>
-            <button type="button" className="player-fs-ctrl-btn" onClick={() => onNudgePlaybackRate(0.25)} title="Accélérer (+)">+</button>
+            <button
+              type="button"
+              className="player-fs-ctrl-btn"
+              onClick={() => onNudgePlaybackRate(0.25)}
+              title="Accélérer (+)"
+            >
+              +
+            </button>
 
-            <button type="button" className="player-fs-ctrl-btn" onClick={onToggleMute} title={muted ? "Activer le son (M)" : "Couper le son (M)"}>
+            <button
+              type="button"
+              className="player-fs-ctrl-btn"
+              onClick={onToggleMute}
+              title={muted ? "Activer le son (M)" : "Couper le son (M)"}
+            >
               {muted ? "🔇" : "🔊"}
             </button>
             <input
@@ -408,12 +501,16 @@ export function PlayerFullscreenView({
               <select
                 className="player-fs-speaker-select"
                 value={speakerSolo ?? "__all__"}
-                onChange={(e) => onSetSpeakerSolo(e.target.value === "__all__" ? null : e.target.value)}
+                onChange={(e) =>
+                  onSetSpeakerSolo(e.target.value === "__all__" ? null : e.target.value)
+                }
                 aria-label="Filtre locuteur"
               >
                 <option value="__all__">Tous</option>
                 {runSpeakerIds.map((id) => (
-                  <option key={id} value={id}>{id}</option>
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
                 ))}
               </select>
             ) : null}

@@ -10,7 +10,11 @@
  */
 
 import { useEffect, useState } from "react";
-import type { WaveformDetailEnvelope, WaveformOverviewEnvelope, WaveformPyramidBuilt } from "../types";
+import type {
+  WaveformDetailEnvelope,
+  WaveformOverviewEnvelope,
+  WaveformPyramidBuilt,
+} from "../types";
 import {
   loadDetailEnvelopeForView,
   loadFullOverviewMinMax,

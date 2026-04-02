@@ -79,7 +79,10 @@ function PlayerLanesMiniMap({
   const dragRef = useRef<{ startMs: number; curMs: number } | null>(null);
   const [dragUi, setDragUi] = useState<{ startMs: number; curMs: number } | null>(null);
 
-  const durMs = durationSec != null && durationSec > 0 && Number.isFinite(durationSec) ? durationSec * 1000 : null;
+  const durMs =
+    durationSec != null && durationSec > 0 && Number.isFinite(durationSec)
+      ? durationSec * 1000
+      : null;
 
   const timeFromClientX = (clientX: number) => {
     const el = trackRef.current;
@@ -278,11 +281,18 @@ export function PlayerLanesBody({
     return map;
   }, [enriched]);
 
-  const renderTurnCard = (e: LanesTurnEnriched, _idx: number, isActive: boolean, isPast: boolean, showSpeaker: boolean) => {
+  const renderTurnCard = (
+    e: LanesTurnEnriched,
+    _idx: number,
+    isActive: boolean,
+    isPast: boolean,
+    showSpeaker: boolean,
+  ) => {
     const isEditing = editMode && editingTurnId === e.turn.id;
-    const segIdx = editMode && editorSegments
-      ? findSegmentIndexForTurn(e.turn, editorSegments, ordinalIndex, slice.turns)
-      : null;
+    const segIdx =
+      editMode && editorSegments
+        ? findSegmentIndexForTurn(e.turn, editorSegments, ordinalIndex, slice.turns)
+        : null;
     const isFocused = editMode && segIdx != null && activeSegmentIndex === segIdx;
 
     let cls = "player-lanes-turn";
@@ -358,22 +368,31 @@ export function PlayerLanesBody({
             )}
           </div>
           <div className="player-lanes-turn-badges">
-            {e.pauseBeforeMs != null && (() => {
-              const typeLabel = e.pauseBeforeType === "inter_turn" ? "inter" : e.pauseBeforeType === "intra_turn" ? "intra" : null;
-              const tooltip = typeLabel
-                ? `Pause ${typeLabel}-tour — ${(e.pauseBeforeMs / 1000).toFixed(2)} s`
-                : `Pause — ${(e.pauseBeforeMs / 1000).toFixed(2)} s`;
-              return (
-                <span
-                  className={`player-lanes-badge player-lanes-badge--pause${e.pauseBeforeType === "inter_turn" ? " player-lanes-badge--pause-inter" : ""}`}
-                  title={tooltip}
-                >
-                  ⏸ {(e.pauseBeforeMs / 1000).toFixed(1)}s{typeLabel ? ` ${typeLabel}` : ""}
-                </span>
-              );
-            })()}
+            {e.pauseBeforeMs != null &&
+              (() => {
+                const typeLabel =
+                  e.pauseBeforeType === "inter_turn"
+                    ? "inter"
+                    : e.pauseBeforeType === "intra_turn"
+                      ? "intra"
+                      : null;
+                const tooltip = typeLabel
+                  ? `Pause ${typeLabel}-tour — ${(e.pauseBeforeMs / 1000).toFixed(2)} s`
+                  : `Pause — ${(e.pauseBeforeMs / 1000).toFixed(2)} s`;
+                return (
+                  <span
+                    className={`player-lanes-badge player-lanes-badge--pause${e.pauseBeforeType === "inter_turn" ? " player-lanes-badge--pause-inter" : ""}`}
+                    title={tooltip}
+                  >
+                    ⏸ {(e.pauseBeforeMs / 1000).toFixed(1)}s{typeLabel ? ` ${typeLabel}` : ""}
+                  </span>
+                );
+              })()}
             {e.hasOverlap && (
-              <span className="player-lanes-badge player-lanes-badge--overlap" title="Chevauchement">
+              <span
+                className="player-lanes-badge player-lanes-badge--overlap"
+                title="Chevauchement"
+              >
                 ⟷
               </span>
             )}

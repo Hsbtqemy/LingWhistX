@@ -65,7 +65,12 @@ export function applyPatch(snapshot: EditorSnapshot, patch: SegmentPatch): Edito
 export function invertPatch(patch: SegmentPatch): SegmentPatch {
   switch (patch.kind) {
     case "text_change":
-      return { kind: "text_change", index: patch.index, prevText: patch.nextText, nextText: patch.prevText };
+      return {
+        kind: "text_change",
+        index: patch.index,
+        prevText: patch.nextText,
+        nextText: patch.prevText,
+      };
 
     case "timing_change":
       return {
@@ -99,7 +104,11 @@ export function invertPatch(patch: SegmentPatch): SegmentPatch {
       };
 
     case "language_change":
-      return { kind: "language_change", prevLanguage: patch.nextLanguage, nextLanguage: patch.prevLanguage };
+      return {
+        kind: "language_change",
+        prevLanguage: patch.nextLanguage,
+        nextLanguage: patch.prevLanguage,
+      };
 
     case "speaker_change":
       return {

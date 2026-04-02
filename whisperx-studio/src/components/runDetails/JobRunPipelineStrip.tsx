@@ -33,10 +33,7 @@ export function JobRunPipelineStrip({ job, logs, onCancelJob }: JobRunPipelineSt
   const canCancelHere =
     Boolean(onCancelJob) && (job.status === "queued" || job.status === "running");
 
-  const latestLog = useMemo(
-    () => (logs.length > 0 ? logs[logs.length - 1] : null),
-    [logs],
-  );
+  const latestLog = useMemo(() => (logs.length > 0 ? logs[logs.length - 1] : null), [logs]);
 
   const feedKey = latestLog ? `${latestLog.tsMs}-${latestLog.message.slice(0, 80)}` : "empty";
 
@@ -84,11 +81,7 @@ export function JobRunPipelineStrip({ job, logs, onCancelJob }: JobRunPipelineSt
               job.status === "done" || allComplete || (activeIndex >= 0 && i < activeIndex);
             const pending = isQueued && activeIndex >= 0 && i === activeIndex;
             const current =
-              !isQueued &&
-              !isError &&
-              activeIndex >= 0 &&
-              i === activeIndex &&
-              isRunning;
+              !isQueued && !isError && activeIndex >= 0 && i === activeIndex && isRunning;
             const errStep = isError && !allComplete && activeIndex >= 0 && i === activeIndex;
             const cancelledLast = isCancelled && i === steps.length - 1;
 

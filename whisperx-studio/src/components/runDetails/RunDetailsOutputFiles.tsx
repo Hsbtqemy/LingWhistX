@@ -108,10 +108,7 @@ function OutputFileRow({ path, onOpenPath, onPreview, onLoadTranscript }: FileRo
     <li className="file-list__item">
       <div className="file-list-row">
         <div className="file-list-badges">
-          <span
-            className={`file-list-badge file-list-badge--${cat}`}
-            title="Catégorie détectée"
-          >
+          <span className={`file-list-badge file-list-badge--${cat}`} title="Catégorie détectée">
             {CATEGORY_LABELS[cat]}
           </span>
           <span
@@ -197,16 +194,13 @@ export function RunDetailsOutputFiles({
     })).filter((g) => g.paths.length > 0);
   }, [job.outputFiles]);
 
-  const useGroupedLayout =
-    category === "all" && filter.trim() === "" && job.outputFiles.length > 0;
+  const useGroupedLayout = category === "all" && filter.trim() === "" && job.outputFiles.length > 0;
 
   const rowProps = { onOpenPath, onPreview, onLoadTranscript };
 
-  const canOpenPlayer =
-    Boolean(onOpenPlayerRun &&
-      job.outputDir?.trim() &&
-      job.status !== "queued" &&
-      job.status !== "running");
+  const canOpenPlayer = Boolean(
+    onOpenPlayerRun && job.outputDir?.trim() && job.status !== "queued" && job.status !== "running",
+  );
 
   const hasTranscriptJson = useMemo(
     () => findPrimaryTranscriptJson(job.outputFiles) !== null,
@@ -234,11 +228,7 @@ export function RunDetailsOutputFiles({
           ) : null}
 
           <div className="output-files-quick-actions">
-            <button
-              type="button"
-              className="ghost"
-              onClick={() => onOpenPath(job.outputDir)}
-            >
+            <button type="button" className="ghost" onClick={() => onOpenPath(job.outputDir)}>
               Ouvrir le dossier de sortie
             </button>
             {canOpenPlayer ? (
@@ -271,8 +261,8 @@ export function RunDetailsOutputFiles({
             </summary>
             <div className="output-files-guide__body">
               <p className="output-files-guide__lead">
-                Une fois le job terminé, tu peux combiner <strong>prévisualisation</strong> ici,
-                le <strong>lecteur</strong> (timeline) et l’<strong>Explorer</strong> (analyse
+                Une fois le job terminé, tu peux combiner <strong>prévisualisation</strong> ici, le{" "}
+                <strong>lecteur</strong> (timeline) et l’<strong>Explorer</strong> (analyse
                 fenêtrée) sur le même dossier de sortie.
               </p>
               <ul className="output-files-guide__list">
@@ -298,19 +288,19 @@ export function RunDetailsOutputFiles({
                   (dossier contenant un <code>run_manifest.json</code> si pipeline orchestré).
                 </li>
                 <li>
-                  <strong>Indexer les événements</strong> (SQLite) pour importer mots / pauses /
-                  IPU depuis la timeline.
+                  <strong>Indexer les événements</strong> (SQLite) pour importer mots / pauses / IPU
+                  depuis la timeline.
                 </li>
                 <li>
-                  Utiliser <strong>Pause suivante</strong>, le recalcul léger <strong>Pauses / IPU</strong>{" "}
-                  (sliders) sans relancer WhisperX, ou le <strong>Player</strong> pour la lecture
-                  avec vues mots / pauses.
+                  Utiliser <strong>Pause suivante</strong>, le recalcul léger{" "}
+                  <strong>Pauses / IPU</strong> (sliders) sans relancer WhisperX, ou le{" "}
+                  <strong>Player</strong> pour la lecture avec vues mots / pauses.
                 </li>
               </ol>
               <p className="output-files-guide__note">
-                Le <strong>Player</strong> attend un répertoire de run valide (manifest + média).
-                Si le manifest est dans un sous-dossier <code>runs/…</code>, ouvre ce dossier depuis
-                le Studio (« Ouvrir un run sur disque »).
+                Le <strong>Player</strong> attend un répertoire de run valide (manifest + média). Si
+                le manifest est dans un sous-dossier <code>runs/…</code>, ouvre ce dossier depuis le
+                Studio (« Ouvrir un run sur disque »).
               </p>
             </div>
           </details>
@@ -356,9 +346,15 @@ export function RunDetailsOutputFiles({
           </div>
 
           {filteredFiles.length === 0 ? (
-            <p className="small output-files-section__empty">Aucun fichier ne correspond au filtre.</p>
+            <p className="small output-files-section__empty">
+              Aucun fichier ne correspond au filtre.
+            </p>
           ) : useGroupedLayout ? (
-            <div className="output-files-groups" role="region" aria-label="Fichiers groupés par type">
+            <div
+              className="output-files-groups"
+              role="region"
+              aria-label="Fichiers groupés par type"
+            >
               {groupedByCategory.map((group) => (
                 <section
                   key={group.id}

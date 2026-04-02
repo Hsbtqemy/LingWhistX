@@ -1,6 +1,11 @@
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { formatClockSeconds } from "../../../appUtils";
-import type { EditableSegment, EventIpuRow, EventPauseRow, QueryWindowResult } from "../../../types";
+import type {
+  EditableSegment,
+  EventIpuRow,
+  EventPauseRow,
+  QueryWindowResult,
+} from "../../../types";
 import {} from "./viewUtils";
 
 type RythmoWordTimed = {
@@ -34,7 +39,10 @@ function buildTimedWords(
   if (words && words.length > 0) {
     return words.map((w) => ({
       word: w.word,
-      offsetPct: Math.max(0, Math.min(100, ((Math.round(w.start * 1000) - blockStartMs) / blockDurMs) * 100)),
+      offsetPct: Math.max(
+        0,
+        Math.min(100, ((Math.round(w.start * 1000) - blockStartMs) / blockDurMs) * 100),
+      ),
     }));
   }
   const tokens = plainText.split(/\s+/).filter(Boolean);
@@ -204,9 +212,10 @@ function rythmoTimeTicks(
     const totalSec = ms / 1000;
     const min = Math.floor(totalSec / 60);
     const sec = totalSec % 60;
-    const label = step < 1000
-      ? `${min}:${sec.toFixed(1).padStart(4, "0")}`
-      : `${min}:${Math.floor(sec).toString().padStart(2, "0")}`;
+    const label =
+      step < 1000
+        ? `${min}:${sec.toFixed(1).padStart(4, "0")}`
+        : `${min}:${Math.floor(sec).toString().padStart(2, "0")}`;
     ticks.push({ posMs: ms, label });
   }
   return ticks;
@@ -265,15 +274,9 @@ export function PlayerRythmoView({
     return Array.from(set).sort();
   }, [blocks]);
 
-  const speakerIdx = useMemo(
-    () => new Map(speakers.map((s, i) => [s, i])),
-    [speakers],
-  );
+  const speakerIdx = useMemo(() => new Map(speakers.map((s, i) => [s, i])), [speakers]);
 
-  const overlaps = useMemo(
-    () => computeOverlaps(blocks, speakers),
-    [blocks, speakers],
-  );
+  const overlaps = useMemo(() => computeOverlaps(blocks, speakers), [blocks, speakers]);
 
   const pauses: EventPauseRow[] = useMemo(
     () => (slice.pauses ?? []).filter((p) => p.durMs >= longPauseMs),
@@ -284,9 +287,10 @@ export function PlayerRythmoView({
   const pxPerMs = containerWidth / visibleMs;
   const effectivePlayheadMs = dragging ? playheadMs + dragOffsetMs : playheadMs;
   const stripTranslateX = Math.round(containerWidth / 2 - effectivePlayheadMs * pxPerMs);
-  const totalMs = durationSec != null && Number.isFinite(durationSec) && durationSec > 0
-    ? durationSec * 1000
-    : Math.max(slice.t1Ms, ...blocks.map((b) => b.endMs));
+  const totalMs =
+    durationSec != null && Number.isFinite(durationSec) && durationSec > 0
+      ? durationSec * 1000
+      : Math.max(slice.t1Ms, ...blocks.map((b) => b.endMs));
   const stripWidth = Math.max(containerWidth, totalMs * pxPerMs + containerWidth);
 
   const ticks = useMemo(
@@ -298,7 +302,8 @@ export function PlayerRythmoView({
     e.preventDefault();
     const idx = RYTHMO_ZOOM_PRESETS.indexOf(zoomSec);
     if (e.deltaY < 0 && idx > 0) setZoomSec(RYTHMO_ZOOM_PRESETS[idx - 1]);
-    else if (e.deltaY > 0 && idx < RYTHMO_ZOOM_PRESETS.length - 1) setZoomSec(RYTHMO_ZOOM_PRESETS[idx + 1]);
+    else if (e.deltaY > 0 && idx < RYTHMO_ZOOM_PRESETS.length - 1)
+      setZoomSec(RYTHMO_ZOOM_PRESETS[idx + 1]);
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -306,7 +311,11 @@ export function PlayerRythmoView({
     if ((e.target as HTMLElement).closest(".player-rythmo-v2-block")) return;
     dragRef.current = { startX: e.clientX, startPlayheadMs: playheadMs };
     setDragging(true);
-    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* */ }
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* */
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -326,7 +335,11 @@ export function PlayerRythmoView({
     dragRef.current = null;
     setDragging(false);
     setDragOffsetMs(0);
-    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* */ }
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* */
+    }
   };
 
   const handleBlockClick = (block: RythmoBlock) => {
@@ -345,13 +358,20 @@ export function PlayerRythmoView({
     }
   };
 
-  const laneHeight = zoomSec <= 2 ? 220
-    : zoomSec <= 3 ? 190
-    : zoomSec <= 4 ? 170
-    : zoomSec <= 5 ? 160
-    : zoomSec <= 10 ? 130
-    : zoomSec <= 30 ? 220
-    : 280;
+  const laneHeight =
+    zoomSec <= 2
+      ? 220
+      : zoomSec <= 3
+        ? 190
+        : zoomSec <= 4
+          ? 170
+          : zoomSec <= 5
+            ? 160
+            : zoomSec <= 10
+              ? 130
+              : zoomSec <= 30
+                ? 220
+                : 280;
   const viewportHeight = speakers.length * laneHeight + RYTHMO_TIMESCALE_HEIGHT + 8;
 
   const halfVis = visibleMs / 2;
@@ -391,7 +411,11 @@ export function PlayerRythmoView({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerCancel={() => { dragRef.current = null; setDragging(false); setDragOffsetMs(0); }}
+        onPointerCancel={() => {
+          dragRef.current = null;
+          setDragging(false);
+          setDragOffsetMs(0);
+        }}
       >
         {/* Reading zone — subtle highlight around NOW */}
         <div className="player-rythmo-v2-reading-zone" aria-hidden="true" />
@@ -439,7 +463,9 @@ export function PlayerRythmoView({
         {/* Speaker lanes */}
         {speakers.map((sp, si) => {
           const laneBlocks = blocks.filter((b) => b.speaker === sp);
-          const lanePauses = pauses.filter((p) => (p.speaker ?? "") === sp || (!p.speaker && speakers.length === 1));
+          const lanePauses = pauses.filter(
+            (p) => (p.speaker ?? "") === sp || (!p.speaker && speakers.length === 1),
+          );
           return (
             <div
               key={sp}
@@ -459,7 +485,12 @@ export function PlayerRythmoView({
                 {lanePauses.map((p) => {
                   if (p.endMs < visStartMs || p.startMs > visEndMs) return null;
                   const pw = Math.max(2, (p.endMs - p.startMs) * pxPerMs);
-                  const typeLabel = p.type === "inter_turn" ? "inter-tour" : p.type === "intra_turn" ? "intra-tour" : null;
+                  const typeLabel =
+                    p.type === "inter_turn"
+                      ? "inter-tour"
+                      : p.type === "intra_turn"
+                        ? "intra-tour"
+                        : null;
                   const tooltip = typeLabel
                     ? `Pause ${typeLabel} — ${(p.durMs / 1000).toFixed(2)} s`
                     : `Pause — ${(p.durMs / 1000).toFixed(2)} s`;
@@ -472,7 +503,11 @@ export function PlayerRythmoView({
                       title={tooltip}
                       onClick={() => onSeekToMs?.(p.startMs)}
                     >
-                      {pw > 28 ? <span className="player-rythmo-v2-pause-label">{(p.durMs / 1000).toFixed(1)}</span> : null}
+                      {pw > 28 ? (
+                        <span className="player-rythmo-v2-pause-label">
+                          {(p.durMs / 1000).toFixed(1)}
+                        </span>
+                      ) : null}
                     </button>
                   );
                 })}
@@ -490,13 +525,21 @@ export function PlayerRythmoView({
                     <div
                       key={block.id}
                       className={`player-rythmo-v2-block${block.isWord ? " is-word" : ""}${active ? " is-active" : ""}${focused ? " is-focused" : ""}`}
-                      style={{
-                        left: `${block.startMs * pxPerMs}px`,
-                        width: `${blockW}px`,
-                        "--rythmo-sp": `var(--lx-speaker-${spI}, var(--lx-accent))`,
-                      } as CSSProperties}
-                      onClick={(e) => { e.stopPropagation(); handleBlockClick(block); }}
-                      onDoubleClick={(e) => { e.stopPropagation(); handleBlockDoubleClick(block); }}
+                      style={
+                        {
+                          left: `${block.startMs * pxPerMs}px`,
+                          width: `${blockW}px`,
+                          "--rythmo-sp": `var(--lx-speaker-${spI}, var(--lx-accent))`,
+                        } as CSSProperties
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBlockClick(block);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        handleBlockDoubleClick(block);
+                      }}
                       title={`${block.speaker || "?"} · ${block.text || "…"}`}
                       role="button"
                       tabIndex={0}
@@ -524,9 +567,7 @@ export function PlayerRythmoView({
                           ))}
                         </span>
                       ) : (
-                        <span className="player-rythmo-v2-block-text">
-                          {block.text || "…"}
-                        </span>
+                        <span className="player-rythmo-v2-block-text">{block.text || "…"}</span>
                       )}
                     </div>
                   );

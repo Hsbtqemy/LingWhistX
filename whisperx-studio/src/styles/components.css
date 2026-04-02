@@ -58,7 +58,9 @@
   cursor: pointer;
   font-size: 0.8rem;
   color: var(--lx-text-1);
-  transition: background 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s;
 }
 
 .audio-preview-panel__ab-btn:disabled {
@@ -273,4 +275,3 @@
   border-color: var(--lx-accent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--lx-accent) 30%, transparent);
 }
-

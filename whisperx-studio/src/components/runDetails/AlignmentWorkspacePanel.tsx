@@ -12,7 +12,12 @@ import { runInTransition } from "../../whisperxOptionsTransitions";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { MAX_WAVEFORM_ZOOM, MIN_WAVEFORM_ZOOM } from "../../constants";
-import { clampNumber, fileBasename, formatClockSeconds, parseFiniteNumberInput } from "../../appUtils";
+import {
+  clampNumber,
+  fileBasename,
+  formatClockSeconds,
+  parseFiniteNumberInput,
+} from "../../appUtils";
 import type { FocusedSegmentInfo, Job, WaveformOverviewEnvelope, WaveformPeaks } from "../../types";
 import { wordLabelsLimitedToDenseView } from "../../waveformWxenv";
 import { ErrorBanner } from "../ErrorBanner";
@@ -294,13 +299,16 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
           <strong>futur</strong> job lancé depuis le Studio, pas une réécriture du run affiché.
         </p>
       </div>
-      <div className="alignment-waveform-nav-hints" role="region" aria-label="Aide navigation ondeforme">
+      <div
+        className="alignment-waveform-nav-hints"
+        role="region"
+        aria-label="Aide navigation ondeforme"
+      >
         <p className="small">
-          <strong>Navigation</strong> —{" "}
-          <strong>Clic</strong> sur la courbe : place le curseur et la lecture (seek).{" "}
-          <strong>Ctrl</strong> ou <strong>Cmd</strong> + molette sur la courbe : zoom horizontal. Bande
-          du haut (aperçu) : clic pour centrer la fenêtre, glisser le rectangle pour déplacer la
-          fenêtre.
+          <strong>Navigation</strong> — <strong>Clic</strong> sur la courbe : place le curseur et la
+          lecture (seek). <strong>Ctrl</strong> ou <strong>Cmd</strong> + molette sur la courbe :
+          zoom horizontal. Bande du haut (aperçu) : clic pour centrer la fenêtre, glisser le
+          rectangle pour déplacer la fenêtre.
         </p>
         <p className="small">
           Le <strong>texte éditable</strong> (segments JSON) est dans les onglets{" "}
@@ -310,7 +318,9 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
       </div>
       {liveTranscriptPreview ? (
         <div className="alignment-live-transcript-preview" aria-live="polite">
-          <p className="small alignment-live-transcript-preview__label">ASR en direct (dernier extrait)</p>
+          <p className="small alignment-live-transcript-preview__label">
+            ASR en direct (dernier extrait)
+          </p>
           <p className="small alignment-live-transcript-preview__text">{liveTranscriptPreview}</p>
         </div>
       ) : null}

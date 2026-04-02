@@ -115,7 +115,11 @@ export function HomeHub({ setActiveView, runtimeReady, runtimeStatus }: HomeHubP
             ))}
           </ul>
         </div>
-        <p className="home-hub-runtime" data-runtime-ready={runtimeReady} data-whisperx-ok={whisperxOk}>
+        <p
+          className="home-hub-runtime"
+          data-runtime-ready={runtimeReady}
+          data-whisperx-ok={whisperxOk}
+        >
           <span className="home-hub-runtime__dot" aria-hidden />
           {runtimeHint}
         </p>
