@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-04-02T08:40:26.634Z",
+  "updatedAt": "2026-04-02T21:42:01.735Z",
   "statuses": ["todo", "in_progress", "blocked", "done"],
   "tasks": [
     {
@@ -3868,7 +3868,7 @@
     {
       "id": "WX-730",
       "title": "Player multi-vues : purger le mode édition, simplifier en lecteur consultation pure",
-      "status": "todo",
+      "status": "done",
       "priority": "P1",
       "estimate": "1d",
       "dependsOn": ["WX-729"],
