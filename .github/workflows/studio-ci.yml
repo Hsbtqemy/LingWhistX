@@ -66,8 +66,21 @@ jobs:
         working-directory: whisperx-studio
         run: python -m unittest discover -s python -p 'test_*.py' -q
 
+      # Même stratégie que python-compatibility.yml : pytest + whisperx ne sont pas sur l’image nue.
+      - name: Install uv (WhisperX pipeline tests)
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.14"
+          python-version: "3.12"
+
+      - name: Check uv lockfile
+        run: uv lock --check
+
+      - name: Install WhisperX deps (tests/)
+        run: uv sync --all-extras
+
       - name: Python tests (WhisperX pipeline)
-        run: python -m pytest tests/ -q --tb=short
+        run: uv run pytest tests/ -q --tb=short
 
       - name: Build frontend
         working-directory: whisperx-studio
