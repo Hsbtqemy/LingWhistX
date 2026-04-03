@@ -503,7 +503,20 @@ fn epoch_days_to_ymd(mut days: u64) -> (u64, u64, u64) {
         y += 1;
     }
     let leap = (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400);
-    let month_days: [u64; 12] = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let month_days: [u64; 12] = [
+        31,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
     let mut mo: u64 = 1;
     for &md in &month_days {
         if days < md {
@@ -545,7 +558,11 @@ fn group_by_speaker(segments: &[EditableSegment]) -> Vec<(String, Vec<&EditableS
         .into_iter()
         .map(|sp| {
             let mut segs = map.remove(&sp).unwrap_or_default();
-            segs.sort_by(|a, b| a.start.partial_cmp(&b.start).unwrap_or(std::cmp::Ordering::Equal));
+            segs.sort_by(|a, b| {
+                a.start
+                    .partial_cmp(&b.start)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             (sp, segs)
         })
         .collect()
@@ -574,10 +591,7 @@ fn build_intervals(segs: &[&EditableSegment], xmax: f64) -> Vec<(f64, f64, Strin
 }
 
 pub(crate) fn to_textgrid_text(segments: &[EditableSegment]) -> String {
-    let xmax = segments
-        .iter()
-        .map(|s| s.end)
-        .fold(1.0_f64, f64::max);
+    let xmax = segments.iter().map(|s| s.end).fold(1.0_f64, f64::max);
 
     let by_speaker = group_by_speaker(segments);
     let n_tiers = by_speaker.len();
@@ -605,10 +619,7 @@ pub(crate) fn to_textgrid_text(segments: &[EditableSegment]) -> String {
 }
 
 pub(crate) fn to_eaf_text(segments: &[EditableSegment]) -> String {
-    let xmax = segments
-        .iter()
-        .map(|s| s.end)
-        .fold(1.0_f64, f64::max);
+    let xmax = segments.iter().map(|s| s.end).fold(1.0_f64, f64::max);
 
     let by_speaker = group_by_speaker(segments);
 

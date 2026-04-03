@@ -22,12 +22,9 @@ use crate::app_events::{emit_audio_quality, emit_job_log, emit_job_update};
 use crate::db::persist_job;
 use crate::embedded_resources::resolve_worker_path;
 use crate::ffmpeg_tools::{prepend_path_env, resolve_ffmpeg_tools};
-use crate::models::{
-    Job, JobLogEvent, WhisperxOptions, WorkerLog, WorkerMessage,
-    WorkerResult,
-};
-use crate::python_runtime::resolve_python_command;
 use crate::log_redaction::redact_user_home_in_text;
+use crate::models::{Job, JobLogEvent, WhisperxOptions, WorkerLog, WorkerMessage, WorkerResult};
+use crate::python_runtime::resolve_python_command;
 use crate::time_utils::now_ms;
 
 fn python_executable_label(cmd: &str) -> String {
@@ -69,10 +66,7 @@ pub(crate) fn mutate_job<F>(
 
     if let Some(job) = updated_job {
         if let Err(err) = persist_job(db_path, &job) {
-            eprintln!(
-                "[persist] {}",
-                redact_user_home_in_text(&err.to_string())
-            );
+            eprintln!("[persist] {}", redact_user_home_in_text(&err.to_string()));
         }
         emit_job_update(app, &job);
     }
@@ -99,10 +93,7 @@ pub(crate) fn mutate_job_without_emit<F>(
 
     if let Some(job) = updated_job {
         if let Err(err) = persist_job(db_path, &job) {
-            eprintln!(
-                "[persist] {}",
-                redact_user_home_in_text(&err.to_string())
-            );
+            eprintln!("[persist] {}", redact_user_home_in_text(&err.to_string()));
         }
     }
 }
@@ -141,7 +132,11 @@ fn handle_worker_log(
     last_progress_ms: &Arc<Mutex<u64>>,
 ) {
     let level = worker_log.level.unwrap_or_else(|| {
-        if stream == "stderr" { "error".into() } else { "info".into() }
+        if stream == "stderr" {
+            "error".into()
+        } else {
+            "info".into()
+        }
     });
 
     let message = redact_user_home_in_text(&worker_log.message);
@@ -200,7 +195,15 @@ fn process_worker_line(
     if line.starts_with('{') {
         match serde_json::from_str::<WorkerMessage>(line) {
             Ok(WorkerMessage::Progress(worker_log)) => {
-                handle_worker_log(app, db_path, jobs, job_id, stream, worker_log, last_progress_ms);
+                handle_worker_log(
+                    app,
+                    db_path,
+                    jobs,
+                    job_id,
+                    stream,
+                    worker_log,
+                    last_progress_ms,
+                );
                 return;
             }
             Ok(WorkerMessage::Result(result)) => {

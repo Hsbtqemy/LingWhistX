@@ -108,6 +108,9 @@ mod tests {
     #[test]
     fn redact_user_home_matches_apply_pipeline() {
         let s = "noop";
-        assert_eq!(redact_user_home_in_text(s), apply_redactions(s, &collect_env_redaction_pairs()));
+        assert_eq!(
+            redact_user_home_in_text(s),
+            apply_redactions(s, &collect_env_redaction_pairs())
+        );
     }
 }

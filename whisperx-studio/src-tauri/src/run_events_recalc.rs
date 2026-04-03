@@ -61,14 +61,27 @@ fn load_words(conn: &Connection) -> Result<Vec<WordRow>, String> {
             "SELECT start_ms, end_ms, speaker, COALESCE(token, '') FROM words ORDER BY start_ms ASC, id ASC",
         )
         .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
-    let mut rows = stmt.query([]).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    let mut rows = stmt
+        .query([])
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut out = Vec::new();
-    while let Some(row) = rows.next().map_err(|e| redact_user_home_in_text(&e.to_string()))? {
+    while let Some(row) = rows
+        .next()
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?
+    {
         out.push(WordRow {
-            start_ms: row.get(0).map_err(|e| redact_user_home_in_text(&e.to_string()))?,
-            end_ms: row.get(1).map_err(|e| redact_user_home_in_text(&e.to_string()))?,
-            speaker: row.get(2).map_err(|e| redact_user_home_in_text(&e.to_string()))?,
-            token: row.get(3).map_err(|e| redact_user_home_in_text(&e.to_string()))?,
+            start_ms: row
+                .get(0)
+                .map_err(|e| redact_user_home_in_text(&e.to_string()))?,
+            end_ms: row
+                .get(1)
+                .map_err(|e| redact_user_home_in_text(&e.to_string()))?,
+            speaker: row
+                .get(2)
+                .map_err(|e| redact_user_home_in_text(&e.to_string()))?,
+            token: row
+                .get(3)
+                .map_err(|e| redact_user_home_in_text(&e.to_string()))?,
         });
     }
     Ok(out)
@@ -209,20 +222,14 @@ fn persist_pauses_ipus(
     pauses: &[PauseInsertRow],
     ipus: &[IpuInsertRow],
 ) -> Result<(), String> {
-    conn.execute("DELETE FROM pauses", [])
-        .map_err(|e| {
-            format!(
-                "delete pauses: {}",
-                redact_user_home_in_text(&e.to_string())
-            )
-        })?;
+    conn.execute("DELETE FROM pauses", []).map_err(|e| {
+        format!(
+            "delete pauses: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     conn.execute("DELETE FROM ipus", [])
-        .map_err(|e| {
-            format!(
-                "delete ipus: {}",
-                redact_user_home_in_text(&e.to_string())
-            )
-        })?;
+        .map_err(|e| format!("delete ipus: {}", redact_user_home_in_text(&e.to_string())))?;
 
     let mut ins_p = conn
         .prepare_cached(
@@ -240,12 +247,7 @@ fn persist_pauses_ipus(
                 speaker,
                 None::<String>,
             ])
-            .map_err(|e| {
-                format!(
-                    "insert pause: {}",
-                    redact_user_home_in_text(&e.to_string())
-                )
-            })?;
+            .map_err(|e| format!("insert pause: {}", redact_user_home_in_text(&e.to_string())))?;
     }
 
     let mut ins_i = conn
@@ -265,12 +267,7 @@ fn persist_pauses_ipus(
                 text,
                 None::<String>,
             ])
-            .map_err(|e| {
-                format!(
-                    "insert ipu: {}",
-                    redact_user_home_in_text(&e.to_string())
-                )
-            })?;
+            .map_err(|e| format!("insert ipu: {}", redact_user_home_in_text(&e.to_string())))?;
     }
 
     Ok(())
@@ -299,7 +296,9 @@ pub fn recalc_pauses_ipu_inner(
     let (pauses, ipus, stats) = compute_recalc(&words, &cfg);
 
     if persist {
-        let tx = conn.transaction().map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
         persist_pauses_ipus(&tx, &pauses, &ipus)?;
         let now = crate::time_utils::now_ms().to_string();
         tx.execute(
@@ -307,13 +306,15 @@ pub fn recalc_pauses_ipu_inner(
             params!["recalc_pauses_ipu_at_ms", now],
         )
         .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
-        let cfg_json = serde_json::to_string(&cfg).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+        let cfg_json =
+            serde_json::to_string(&cfg).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
         tx.execute(
             "INSERT INTO meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             params!["recalc_pauses_ipu_cfg_json", cfg_json],
         )
         .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
-        tx.commit().map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+        tx.commit()
+            .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     }
 
     Ok(RecalcPausesIpuResult {

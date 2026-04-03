@@ -57,7 +57,10 @@ fn validate_convention_id(id: &str) -> Result<String, String> {
     if id.is_empty() {
         return Err("L'id de la convention ne peut pas être vide.".into());
     }
-    if id.chars().any(|c| !c.is_alphanumeric() && c != '_' && c != '-') {
+    if id
+        .chars()
+        .any(|c| !c.is_alphanumeric() && c != '_' && c != '-')
+    {
         return Err(format!(
             "Id de convention invalide (alphanum, _ et - uniquement) : {id}"
         ));
@@ -172,7 +175,9 @@ pub fn import_convention_file(path: String) -> Result<AnnotationConventionJson, 
     let convention: AnnotationConventionJson =
         serde_json::from_str(&raw).map_err(|e| format!("JSON invalide : {e}"))?;
     if convention.id.trim().is_empty() || convention.label.trim().is_empty() {
-        return Err("Le fichier ne contient pas une convention valide (id ou label manquant).".into());
+        return Err(
+            "Le fichier ne contient pas une convention valide (id ou label manquant).".into(),
+        );
     }
     Ok(convention)
 }

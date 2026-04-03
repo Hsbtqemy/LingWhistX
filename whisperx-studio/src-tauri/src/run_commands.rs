@@ -17,15 +17,12 @@ const RECENT_RUNS_MAX: usize = 20;
 const RECENT_RUNS_FILE: &str = "recent_runs.json";
 
 fn recent_runs_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_local_data_dir()
-        .map_err(|err| {
-            format!(
-                "Unable to resolve app local data dir: {}",
-                redact_user_home_in_text(&err.to_string())
-            )
-        })?;
+    let dir = app.path().app_local_data_dir().map_err(|err| {
+        format!(
+            "Unable to resolve app local data dir: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     std::fs::create_dir_all(&dir).map_err(|err| {
         format!(
             "Unable to create app data dir: {}",
@@ -346,7 +343,9 @@ fn remove_recent_run_impl(app: &AppHandle, run_dir: &str) -> Result<(), String> 
     }
     let raw = fs::read_to_string(&path).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut store: RecentRunsStore = serde_json::from_str(&raw).unwrap_or_default();
-    store.entries.retain(|e| !run_dirs_match(&e.run_dir, run_dir));
+    store
+        .entries
+        .retain(|e| !run_dirs_match(&e.run_dir, run_dir));
     persist_recent_store(app, &store)
 }
 

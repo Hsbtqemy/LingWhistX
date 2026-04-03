@@ -46,6 +46,9 @@ pub(crate) fn kill_process_tree(pid: u32) -> Result<(), String> {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        Err(format!("kill failed: {}", redact_user_home_in_text(&stderr)))
+        Err(format!(
+            "kill failed: {}",
+            redact_user_home_in_text(&stderr)
+        ))
     }
 }

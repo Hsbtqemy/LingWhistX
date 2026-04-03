@@ -8,8 +8,8 @@ use tauri::Manager;
 
 use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::validate_path_string;
-use crate::run_events::{open_events_connection, EVENTS_DB_FILE};
 use crate::run_events::ensure_events_sqlite_imported;
+use crate::run_events::{open_events_connection, EVENTS_DB_FILE};
 
 fn html_escape(s: &str) -> String {
     s.replace('&', "&amp;")
@@ -73,7 +73,8 @@ fn query_turns(conn: &Connection) -> Result<Vec<TurnRow>, String> {
             })
         })
         .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
-    rows.map(|r| r.map_err(|e| redact_user_home_in_text(&e.to_string()))).collect()
+    rows.map(|r| r.map_err(|e| redact_user_home_in_text(&e.to_string())))
+        .collect()
 }
 
 fn query_pauses(conn: &Connection) -> Result<Vec<PauseRow>, String> {
@@ -88,7 +89,8 @@ fn query_pauses(conn: &Connection) -> Result<Vec<PauseRow>, String> {
             })
         })
         .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
-    rows.map(|r| r.map_err(|e| redact_user_home_in_text(&e.to_string()))).collect()
+    rows.map(|r| r.map_err(|e| redact_user_home_in_text(&e.to_string())))
+        .collect()
 }
 
 fn query_ipus(conn: &Connection) -> Result<Vec<IpuRow>, String> {
@@ -103,7 +105,8 @@ fn query_ipus(conn: &Connection) -> Result<Vec<IpuRow>, String> {
             })
         })
         .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
-    rows.map(|r| r.map_err(|e| redact_user_home_in_text(&e.to_string()))).collect()
+    rows.map(|r| r.map_err(|e| redact_user_home_in_text(&e.to_string())))
+        .collect()
 }
 
 // ─── Calcul des stats ─────────────────────────────────────────────────────────
@@ -152,7 +155,11 @@ fn compute_stats(
     // Union of all speakers
     let mut all_speakers: Vec<String> = {
         let mut s: std::collections::HashSet<String> = std::collections::HashSet::new();
-        for k in sp_speech.keys().chain(sp_ipus.keys()).chain(sp_pauses.keys()) {
+        for k in sp_speech
+            .keys()
+            .chain(sp_ipus.keys())
+            .chain(sp_pauses.keys())
+        {
             s.insert(k.clone());
         }
         let mut v: Vec<String> = s.into_iter().collect();
@@ -173,7 +180,11 @@ fn compute_stats(
             let n_w = *sp_words.get(&sp).unwrap_or(&0);
             let n_p = *sp_pauses.get(&sp).unwrap_or(&0);
             let pause_ms = *sp_pause_ms.get(&sp).unwrap_or(&0);
-            let avg_p = if n_p > 0 { pause_ms as f64 / n_p as f64 } else { 0.0 };
+            let avg_p = if n_p > 0 {
+                pause_ms as f64 / n_p as f64
+            } else {
+                0.0
+            };
             let wpm = if speech > 0 {
                 n_w as f64 / (speech as f64 / 60_000.0)
             } else {
@@ -300,7 +311,11 @@ fn build_html(
         .iter()
         .map(|(label, count)| {
             let bar_pct = if let Some(max) = histogram.iter().map(|(_, c)| c).max() {
-                if *max > 0 { (*count as f64 / *max as f64 * 100.0) as u32 } else { 0 }
+                if *max > 0 {
+                    (*count as f64 / *max as f64 * 100.0) as u32
+                } else {
+                    0
+                }
             } else {
                 0
             };
@@ -399,10 +414,7 @@ pub struct ExportProsodyReportResponse {
 /// WX-686 — Le HTML est chargé via le protocole `asset://` (scope $HOME/**).
 /// Un `initialization_script` injecte l'appel à `window.print()` dès le DOMContentLoaded.
 #[tauri::command]
-pub fn open_html_report_for_print(
-    app: tauri::AppHandle,
-    html_path: String,
-) -> Result<(), String> {
+pub fn open_html_report_for_print(app: tauri::AppHandle, html_path: String) -> Result<(), String> {
     use tauri::WebviewUrl;
     use tauri::WebviewWindowBuilder;
 
@@ -421,10 +433,7 @@ pub fn open_html_report_for_print(
 
     // Build an asset:// URL so the WebView can load the local file.
     // The assetProtocol scope in tauri.conf.json includes $HOME/**.
-    let asset_url_str = format!(
-        "asset://localhost{}",
-        path.to_string_lossy()
-    );
+    let asset_url_str = format!("asset://localhost{}", path.to_string_lossy());
     let url: tauri::Url = asset_url_str.parse::<tauri::Url>().map_err(|e| {
         format!(
             "Invalid asset URL: {}",
@@ -509,7 +518,14 @@ pub fn export_prosody_report(run_dir: String) -> Result<ExportProsodyReportRespo
         )
     };
 
-    let html = build_html(&run_dir_str, &run_id, &global, &speakers, &pauses, &generated_at);
+    let html = build_html(
+        &run_dir_str,
+        &run_id,
+        &global,
+        &speakers,
+        &pauses,
+        &generated_at,
+    );
 
     let output_path = run_dir_path.join(format!("rapport-prosodique-{file_ts}.html"));
     std::fs::write(&output_path, html.as_bytes()).map_err(|e| {
@@ -537,7 +553,20 @@ fn epoch_days_to_ymd(mut days: u64) -> (u64, u64, u64) {
         y += 1;
     }
     let leap = (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400);
-    let month_days: [u64; 12] = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let month_days: [u64; 12] = [
+        31,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
     let mut mo: u64 = 1;
     for &md in &month_days {
         if days < md {

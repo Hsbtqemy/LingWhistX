@@ -75,7 +75,10 @@ fn limits_for_preset(preset: &str) -> QueryWindowLimits {
 }
 
 /// Détecte chevauchements entre tours consécutifs et pauses longues (même logique que le front).
-pub fn derive_player_alerts_inner(slice: &QueryWindowResult, long_pause_ms: i64) -> Vec<PlayerDerivedAlert> {
+pub fn derive_player_alerts_inner(
+    slice: &QueryWindowResult,
+    long_pause_ms: i64,
+) -> Vec<PlayerDerivedAlert> {
     let mut out: Vec<PlayerDerivedAlert> = Vec::new();
     let mut turns: Vec<&EventTurnRow> = slice.turns.iter().collect();
     turns.sort_by_key(|t| t.start_ms);
@@ -101,10 +104,7 @@ pub fn derive_player_alerts_inner(slice: &QueryWindowResult, long_pause_ms: i64)
                 id: format!("pause-{}", p.id),
                 kind: "long_pause".to_string(),
                 start_ms: p.start_ms,
-                message: format!(
-                    "Pause longue ({:.1} s)",
-                    p.dur_ms as f64 / 1000.0
-                ),
+                message: format!("Pause longue ({:.1} s)", p.dur_ms as f64 / 1000.0),
             });
         }
     }
@@ -192,7 +192,13 @@ mod tests {
         s.turns = vec![turn(1, 1000, 5000, "A"), turn(2, 4000, 8000, "B")];
         let a = derive_player_alerts_inner(&s, 3000);
         assert!(a.iter().any(|x| x.kind == "overlap_turn"));
-        assert_eq!(a.iter().find(|x| x.kind == "overlap_turn").unwrap().start_ms, 4000);
+        assert_eq!(
+            a.iter()
+                .find(|x| x.kind == "overlap_turn")
+                .unwrap()
+                .start_ms,
+            4000
+        );
     }
 
     #[test]

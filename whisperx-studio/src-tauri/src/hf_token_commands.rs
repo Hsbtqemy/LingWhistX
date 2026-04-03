@@ -25,12 +25,7 @@ pub async fn validate_hf_token(token: String) -> Result<HfTokenValidationResult,
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(20))
         .build()
-        .map_err(|e| {
-            format!(
-                "Client HTTP: {}",
-                redact_user_home_in_text(&e.to_string())
-            )
-        })?;
+        .map_err(|e| format!("Client HTTP: {}", redact_user_home_in_text(&e.to_string())))?;
 
     let response = client
         .get(HF_WHOAMI)
@@ -38,9 +33,7 @@ pub async fn validate_hf_token(token: String) -> Result<HfTokenValidationResult,
         .header("User-Agent", "whisperx-studio/0.1 (token-validation)")
         .send()
         .await
-        .map_err(|e| {
-            format!("Réseau: {}", redact_user_home_in_text(&e.to_string()))
-        })?;
+        .map_err(|e| format!("Réseau: {}", redact_user_home_in_text(&e.to_string())))?;
 
     let status = response.status();
     if status == reqwest::StatusCode::UNAUTHORIZED {
@@ -63,15 +56,12 @@ pub async fn validate_hf_token(token: String) -> Result<HfTokenValidationResult,
         });
     }
 
-    let value: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| {
-            format!(
-                "Réponse JSON invalide: {}",
-                redact_user_home_in_text(&e.to_string())
-            )
-        })?;
+    let value: serde_json::Value = response.json().await.map_err(|e| {
+        format!(
+            "Réponse JSON invalide: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
 
     let username = value
         .get("name")

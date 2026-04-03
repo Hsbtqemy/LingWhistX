@@ -38,10 +38,7 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
             ));
         }
         Err(err) => {
-            details.push(format!(
-                "python error: {}",
-                redact_user_home_in_text(&err)
-            ));
+            details.push(format!("python error: {}", redact_user_home_in_text(&err)));
         }
     }
 
@@ -143,10 +140,7 @@ fn build_runtime_status(app: AppHandle) -> RuntimeStatus {
             ));
         }
         Err(err) => {
-            details.push(format!(
-                "ffmpeg error: {}",
-                redact_user_home_in_text(&err)
-            ));
+            details.push(format!("ffmpeg error: {}", redact_user_home_in_text(&err)));
         }
     }
 

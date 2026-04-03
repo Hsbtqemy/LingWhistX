@@ -57,15 +57,12 @@ pub(crate) fn redact_whisperx_options_for_storage(
 }
 
 pub(crate) fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let data_dir = app
-        .path()
-        .app_local_data_dir()
-        .map_err(|err| {
-            format!(
-                "Unable to resolve app local data dir: {}",
-                redact_user_home_in_text(&err.to_string())
-            )
-        })?;
+    let data_dir = app.path().app_local_data_dir().map_err(|err| {
+        format!(
+            "Unable to resolve app local data dir: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     std::fs::create_dir_all(&data_dir).map_err(|err| {
         format!(
             "Unable to create app local data dir: {}",
@@ -130,39 +127,30 @@ pub(crate) fn init_database(path: &Path) -> Result<(), String> {
 }
 
 fn jobs_table_has_column(conn: &Connection, column: &str) -> Result<bool, String> {
-    let mut stmt = conn
-        .prepare("PRAGMA table_info(jobs)")
-        .map_err(|err| {
+    let mut stmt = conn.prepare("PRAGMA table_info(jobs)").map_err(|err| {
+        format!(
+            "PRAGMA table_info failed: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
+    let mut rows = stmt.query([]).map_err(|err| {
+        format!(
+            "table_info query failed: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
+    while let Some(row) = rows.next().map_err(|err| {
+        format!(
+            "table_info row: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })? {
+        let name: String = row.get(1).map_err(|err| {
             format!(
-                "PRAGMA table_info failed: {}",
+                "table_info name: {}",
                 redact_user_home_in_text(&err.to_string())
             )
         })?;
-    let mut rows = stmt
-        .query([])
-        .map_err(|err| {
-            format!(
-                "table_info query failed: {}",
-                redact_user_home_in_text(&err.to_string())
-            )
-        })?;
-    while let Some(row) = rows
-        .next()
-        .map_err(|err| {
-            format!(
-                "table_info row: {}",
-                redact_user_home_in_text(&err.to_string())
-            )
-        })?
-    {
-        let name: String = row
-            .get(1)
-            .map_err(|err| {
-                format!(
-                    "table_info name: {}",
-                    redact_user_home_in_text(&err.to_string())
-                )
-            })?;
         if name == column {
             return Ok(true);
         }
@@ -183,13 +171,12 @@ fn migrate_schema(conn: &Connection) -> Result<(), String> {
         })?;
 
     if version < 1 {
-        conn.pragma_update(None, "user_version", 1)
-            .map_err(|err| {
-                format!(
-                    "Set schema version failed: {}",
-                    redact_user_home_in_text(&err.to_string())
-                )
-            })?;
+        conn.pragma_update(None, "user_version", 1).map_err(|err| {
+            format!(
+                "Set schema version failed: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     }
 
     if version < 2 {
@@ -205,13 +192,12 @@ fn migrate_schema(conn: &Connection) -> Result<(), String> {
                 )
             })?;
         }
-        conn.pragma_update(None, "user_version", 2)
-            .map_err(|err| {
-                format!(
-                    "Set schema version failed: {}",
-                    redact_user_home_in_text(&err.to_string())
-                )
-            })?;
+        conn.pragma_update(None, "user_version", 2).map_err(|err| {
+            format!(
+                "Set schema version failed: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     }
 
     if version < 3 {
@@ -240,13 +226,12 @@ fn migrate_schema(conn: &Connection) -> Result<(), String> {
                 )
             })?;
         }
-        conn.pragma_update(None, "user_version", 3)
-            .map_err(|err| {
-                format!(
-                    "Set schema version v3 failed: {}",
-                    redact_user_home_in_text(&err.to_string())
-                )
-            })?;
+        conn.pragma_update(None, "user_version", 3).map_err(|err| {
+            format!(
+                "Set schema version v3 failed: {}",
+                redact_user_home_in_text(&err.to_string())
+            )
+        })?;
     }
 
     Ok(())
@@ -326,11 +311,19 @@ pub(crate) fn persist_job(db_path: &Path, job: &Job) -> Result<(), String> {
 }
 
 /// WX-672 — Met à jour la priorité d'un job (P0-P3).
-pub(crate) fn update_job_priority(db_path: &Path, job_id: &str, priority: u8) -> Result<(), String> {
+pub(crate) fn update_job_priority(
+    db_path: &Path,
+    job_id: &str,
+    priority: u8,
+) -> Result<(), String> {
     with_conn(db_path, |conn| {
         conn.execute(
             "UPDATE jobs SET priority = ?1, updated_at_ms = ?2 WHERE id = ?3",
-            params![i64::from(priority.min(3)), crate::time_utils::now_ms() as i64, job_id],
+            params![
+                i64::from(priority.min(3)),
+                crate::time_utils::now_ms() as i64,
+                job_id
+            ],
         )
         .map_err(|err| {
             format!(
@@ -343,7 +336,10 @@ pub(crate) fn update_job_priority(db_path: &Path, job_id: &str, priority: u8) ->
 }
 
 /// WX-672 — Met à jour `queue_order` pour une liste ordonnée de job IDs.
-pub(crate) fn update_jobs_queue_order(db_path: &Path, ordered_ids: &[String]) -> Result<(), String> {
+pub(crate) fn update_jobs_queue_order(
+    db_path: &Path,
+    ordered_ids: &[String],
+) -> Result<(), String> {
     with_conn(db_path, |conn| {
         for (idx, id) in ordered_ids.iter().enumerate() {
             conn.execute(
@@ -615,16 +611,11 @@ mod tests {
         update_jobs_queue_order(&path, &ordered)?;
         with_conn(&path, |conn| {
             let order: i64 = conn
-                .query_row(
-                    "SELECT queue_order FROM jobs WHERE id = 'j3'",
-                    [],
-                    |row| row.get(0),
-                )
+                .query_row("SELECT queue_order FROM jobs WHERE id = 'j3'", [], |row| {
+                    row.get(0)
+                })
                 .map_err(|e| {
-                    format!(
-                        "Query failed: {}",
-                        redact_user_home_in_text(&e.to_string())
-                    )
+                    format!("Query failed: {}", redact_user_home_in_text(&e.to_string()))
                 })?;
             assert_eq!(order, 0, "j3 should be first (queue_order = 0)");
             Ok(())

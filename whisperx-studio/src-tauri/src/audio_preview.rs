@@ -126,7 +126,9 @@ pub fn extract_audio_wav_window(
         prepend_path_env(&mut cmd, prefix);
     }
 
-    let status = cmd.status().map_err(|e| format!("ffmpeg: {}", redact_err(e)))?;
+    let status = cmd
+        .status()
+        .map_err(|e| format!("ffmpeg: {}", redact_err(e)))?;
     if !status.success() {
         let _ = fs::remove_file(&out);
         return Err("ffmpeg failed to extract audio window".into());
@@ -204,7 +206,9 @@ pub fn export_audio_wav_segment(
         prepend_path_env(&mut cmd, prefix);
     }
 
-    let status = cmd.status().map_err(|e| format!("ffmpeg: {}", redact_err(e)))?;
+    let status = cmd
+        .status()
+        .map_err(|e| format!("ffmpeg: {}", redact_err(e)))?;
     if !status.success() {
         let _ = fs::remove_file(out);
         return Err("ffmpeg failed to export audio segment".into());
@@ -302,7 +306,9 @@ pub fn generate_preprocessed_audio_preview(
     if let Some(prefix) = tools.ffmpeg_dir.as_deref() {
         prepend_path_env(&mut cmd, prefix);
     }
-    let status = cmd.status().map_err(|e| format!("ffmpeg: {}", redact_err(e)))?;
+    let status = cmd
+        .status()
+        .map_err(|e| format!("ffmpeg: {}", redact_err(e)))?;
     if !status.success() {
         let _ = fs::remove_file(&original_out);
         return Err("ffmpeg failed to extract audio window".into());
@@ -342,8 +348,8 @@ pub fn generate_preprocessed_audio_preview(
     }
 
     // Apply preprocessing via preview_preprocess.py.
-    let preview_script =
-        resolve_preview_preprocess_path(&app).map_err(|e| format!("preview script: {}", redact_err(e)))?;
+    let preview_script = resolve_preview_preprocess_path(&app)
+        .map_err(|e| format!("preview script: {}", redact_err(e)))?;
     let python = resolve_python_command(&app);
 
     let tmp_dir = cache.join(format!("{session_id}_preview_tmp"));

@@ -12,8 +12,8 @@ use crate::path_guard::{resolve_existing_file_path, validate_path_string};
 use crate::time_utils::{now_ms, system_time_to_ms};
 use crate::transcript::{
     apply_export_timing_rules, build_transcript_draft_json, build_transcript_json,
-    draft_path_for_source, edited_path_with_ext, load_segments_from_json, to_csv_text,
-    to_eaf_text, to_srt_text, to_textgrid_text, to_txt_text, to_vtt_text,
+    draft_path_for_source, edited_path_with_ext, load_segments_from_json, to_csv_text, to_eaf_text,
+    to_srt_text, to_textgrid_text, to_txt_text, to_vtt_text,
 };
 
 fn write_export_sidecar_file(path: &Path, content: &str, err_ctx: &str) -> Result<(), String> {
@@ -352,12 +352,10 @@ pub fn export_run_timing_pack(
     if !manifest_path.is_file() {
         return Err("run_manifest.json introuvable dans ce dossier.".into());
     }
-    let raw = std::fs::read_to_string(&manifest_path).map_err(|e| {
-        redact_user_home_in_text(&e.to_string())
-    })?;
-    let manifest: serde_json::Value = serde_json::from_str(&raw).map_err(|e| {
-        redact_user_home_in_text(&e.to_string())
-    })?;
+    let raw = std::fs::read_to_string(&manifest_path)
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    let manifest: serde_json::Value =
+        serde_json::from_str(&raw).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let art = manifest
         .get("artifacts")
         .and_then(|a| a.as_object())
@@ -381,12 +379,8 @@ pub fn export_run_timing_pack(
                 redact_user_home_in_text(&e.to_string())
             )
         })?;
-        let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| {
-            format!(
-                "JSON {rel}: {}",
-                redact_user_home_in_text(&e.to_string())
-            )
-        })?;
+        let json: serde_json::Value = serde_json::from_str(&text)
+            .map_err(|e| format!("JSON {rel}: {}", redact_user_home_in_text(&e.to_string())))?;
         let segs = load_segments_from_json(&json);
         if !segs.is_empty() {
             source_path = Some(p);

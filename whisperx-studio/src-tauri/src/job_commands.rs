@@ -10,11 +10,11 @@ use crate::db::{
     update_job_priority, update_jobs_queue_order, JOBS_PAGE_SIZE,
 };
 use crate::jobs::{current_job_status, mutate_job, run_job_thread};
+use crate::log_redaction::redact_user_home_in_text;
 use crate::models::{
     CreateJobRequest, DbState, Job, JobLogEvent, JobsPaginationInfo, JobsPaginationState,
     JobsState, LoadMoreJobsResult, RuntimeState,
 };
-use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::{validate_custom_output_dir, validate_path_string};
 use crate::process_utils::kill_process_tree;
 use crate::time_utils::now_ms;
@@ -365,7 +365,9 @@ pub fn set_job_priority(
             .jobs
             .lock()
             .map_err(|_| "Failed to lock job store".to_string())?;
-        let job = lock.get_mut(&job_id).ok_or_else(|| "Unknown job id".to_string())?;
+        let job = lock
+            .get_mut(&job_id)
+            .ok_or_else(|| "Unknown job id".to_string())?;
         job.priority = priority;
         job.clone()
     };

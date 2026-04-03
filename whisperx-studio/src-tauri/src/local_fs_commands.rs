@@ -35,14 +35,12 @@ pub fn open_local_path(path: String) -> Result<(), String> {
         cmd
     };
 
-    command
-        .spawn()
-        .map_err(|err| {
-            format!(
-                "Unable to open path: {}",
-                redact_user_home_in_text(&err.to_string())
-            )
-        })?;
+    command.spawn().map_err(|err| {
+        format!(
+            "Unable to open path: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     Ok(())
 }
 

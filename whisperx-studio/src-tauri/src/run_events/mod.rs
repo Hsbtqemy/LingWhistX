@@ -17,8 +17,8 @@ use rusqlite::{params, Connection};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 
-mod run_events_query_window;
 pub mod player_derived_alerts;
+mod run_events_query_window;
 
 pub use run_events_query_window::{
     query_run_events_window_inner, QueryWindowRequest, QueryWindowResult,
@@ -46,12 +46,8 @@ fn sec_to_ms(sec: f64) -> i64 {
 }
 
 pub(crate) fn open_events_connection(db_path: &Path) -> Result<Connection, String> {
-    let conn = Connection::open(db_path).map_err(|e| {
-        format!(
-            "SQLite open: {}",
-            redact_user_home_in_text(&e.to_string())
-        )
-    })?;
+    let conn = Connection::open(db_path)
+        .map_err(|e| format!("SQLite open: {}", redact_user_home_in_text(&e.to_string())))?;
     conn.execute_batch(
         "
         PRAGMA foreign_keys = ON;
@@ -147,12 +143,7 @@ fn clear_event_tables(conn: &Connection) -> Result<(), String> {
         DELETE FROM meta;
         ",
     )
-    .map_err(|e| {
-        format!(
-            "SQLite clear: {}",
-            redact_user_home_in_text(&e.to_string())
-        )
-    })?;
+    .map_err(|e| format!("SQLite clear: {}", redact_user_home_in_text(&e.to_string())))?;
     Ok(())
 }
 
@@ -165,7 +156,8 @@ fn read_run_manifest_timeline_rel(run_dir: &Path) -> Result<String, String> {
     if !manifest_path.is_file() {
         return Err("run_manifest.json introuvable.".into());
     }
-    let raw = fs::read_to_string(&manifest_path).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    let raw =
+        fs::read_to_string(&manifest_path).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let v: JsonValue = serde_json::from_str(&raw).map_err(|e| {
         format!(
             "run_manifest JSON: {}",
@@ -215,7 +207,9 @@ fn import_timeline_value(
         .cloned()
         .unwrap_or_default();
 
-    let tx = conn.transaction().map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    let tx = conn
+        .transaction()
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
 
     {
         let mut insert_word = tx
@@ -261,10 +255,7 @@ fn import_timeline_value(
                     alignment_status,
                 ])
                 .map_err(|e| {
-                    format!(
-                        "insert word: {}",
-                        redact_user_home_in_text(&e.to_string())
-                    )
+                    format!("insert word: {}", redact_user_home_in_text(&e.to_string()))
                 })?;
         }
     }
@@ -306,10 +297,7 @@ fn import_timeline_value(
                     confidence,
                 ])
                 .map_err(|e| {
-                    format!(
-                        "insert turn: {}",
-                        redact_user_home_in_text(&e.to_string())
-                    )
+                    format!("insert turn: {}", redact_user_home_in_text(&e.to_string()))
                 })?;
         }
     }
@@ -348,10 +336,7 @@ fn import_timeline_value(
                     flags_json,
                 ])
                 .map_err(|e| {
-                    format!(
-                        "insert pause: {}",
-                        redact_user_home_in_text(&e.to_string())
-                    )
+                    format!("insert pause: {}", redact_user_home_in_text(&e.to_string()))
                 })?;
         }
     }
@@ -391,12 +376,7 @@ fn import_timeline_value(
                     text,
                     flags_json,
                 ])
-                .map_err(|e| {
-                    format!(
-                        "insert ipu: {}",
-                        redact_user_home_in_text(&e.to_string())
-                    )
-                })?;
+                .map_err(|e| format!("insert ipu: {}", redact_user_home_in_text(&e.to_string())))?;
         }
     }
 
@@ -416,7 +396,8 @@ fn import_timeline_value(
     )
     .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
 
-    tx.commit().map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    tx.commit()
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
 
     Ok((words.len(), turns.len(), pauses.len(), ipus.len()))
 }
@@ -435,14 +416,14 @@ pub fn import_run_events_inner(run_dir: &Path) -> Result<RunEventsImportResult, 
         ));
     }
 
-    let raw = fs::read_to_string(&timeline_path).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
-    let timeline: JsonValue =
-        serde_json::from_str(&raw).map_err(|e| {
-            format!(
-                "timeline JSON: {}",
-                redact_user_home_in_text(&e.to_string())
-            )
-        })?;
+    let raw =
+        fs::read_to_string(&timeline_path).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    let timeline: JsonValue = serde_json::from_str(&raw).map_err(|e| {
+        format!(
+            "timeline JSON: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
 
     let db_path = run_dir.join(EVENTS_DB_FILE);
     let mut conn = open_events_connection(&db_path)?;
@@ -502,10 +483,17 @@ pub fn list_run_speakers(run_dir: String) -> Result<Vec<String>, String> {
              ORDER BY speaker COLLATE NOCASE",
         )
         .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
-    let mut rows = stmt.query([]).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    let mut rows = stmt
+        .query([])
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
     let mut out = Vec::new();
-    while let Some(row) = rows.next().map_err(|e| redact_user_home_in_text(&e.to_string()))? {
-        let s: String = row.get(0).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    while let Some(row) = rows
+        .next()
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?
+    {
+        let s: String = row
+            .get(0)
+            .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
         out.push(s);
     }
     Ok(out)

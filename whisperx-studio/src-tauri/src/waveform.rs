@@ -55,14 +55,12 @@ fn waveform_cache_file(
     bins_per_second: u32,
     sample_rate: u32,
 ) -> Result<PathBuf, String> {
-    let metadata = source_path
-        .metadata()
-        .map_err(|err| {
-            format!(
-                "Unable to read source metadata: {}",
-                redact_user_home_in_text(&err.to_string())
-            )
-        })?;
+    let metadata = source_path.metadata().map_err(|err| {
+        format!(
+            "Unable to read source metadata: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     let modified_nanos = metadata
         .modified()
         .ok()
@@ -350,14 +348,12 @@ fn build_waveform_peaks_internal(
         peaks.push(current_peak);
     }
 
-    let status = child
-        .wait()
-        .map_err(|err| {
-            format!(
-                "Unable to wait ffmpeg process: {}",
-                redact_user_home_in_text(&err.to_string())
-            )
-        })?;
+    let status = child.wait().map_err(|err| {
+        format!(
+            "Unable to wait ffmpeg process: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     let stderr_output = stderr_handle
         .join()
         .unwrap_or_else(|_| "Unable to read ffmpeg stderr".into());

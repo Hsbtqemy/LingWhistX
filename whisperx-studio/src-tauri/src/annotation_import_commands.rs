@@ -112,12 +112,11 @@ pub async fn import_annotation_file(
     }
 
     // 5. Deserialize the ImportedAnnotation result
-    serde_json::from_str::<ImportAnnotationResponse>(trimmed)
-        .map_err(|e| {
-            format!(
-                "Failed to parse annotation import JSON: {} — raw: {}",
-                redact_user_home_in_text(&e.to_string()),
-                redact_user_home_in_text(trimmed)
-            )
-        })
+    serde_json::from_str::<ImportAnnotationResponse>(trimmed).map_err(|e| {
+        format!(
+            "Failed to parse annotation import JSON: {} — raw: {}",
+            redact_user_home_in_text(&e.to_string()),
+            redact_user_home_in_text(trimmed)
+        )
+    })
 }

@@ -30,15 +30,12 @@ pub struct UserProfileJson {
 }
 
 fn profiles_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
-    let base = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| {
-            format!(
-                "appDataDir indisponible : {}",
-                redact_user_home_in_text(&e.to_string())
-            )
-        })?;
+    let base = app.path().app_data_dir().map_err(|e| {
+        format!(
+            "appDataDir indisponible : {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     let dir = base.join("profiles");
     if !dir.exists() {
         fs::create_dir_all(&dir).map_err(|e| {
@@ -129,8 +126,13 @@ pub fn save_user_profile(app: AppHandle, mut profile: UserProfileJson) -> Result
         return Err("L'id du profil ne peut pas être vide.".into());
     }
     // Sécurité : l'id ne doit contenir que des caractères sûrs pour un nom de fichier.
-    if id.chars().any(|c| !c.is_alphanumeric() && c != '_' && c != '-') {
-        return Err(format!("Id profil invalide (alphanum, _ et - uniquement) : {id}"));
+    if id
+        .chars()
+        .any(|c| !c.is_alphanumeric() && c != '_' && c != '-')
+    {
+        return Err(format!(
+            "Id profil invalide (alphanum, _ et - uniquement) : {id}"
+        ));
     }
     // WX-680 — Toujours persister avec la version courante du schéma.
     profile.schema_version = PROFILE_SCHEMA_VERSION;
@@ -142,8 +144,12 @@ pub fn save_user_profile(app: AppHandle, mut profile: UserProfileJson) -> Result
             redact_user_home_in_text(&e.to_string())
         )
     })?;
-    fs::write(&path, json)
-        .map_err(|e| format!("Écriture profil impossible : {}", redact_user_home_in_text(&e.to_string())))?;
+    fs::write(&path, json).map_err(|e| {
+        format!(
+            "Écriture profil impossible : {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
     Ok(())
 }
 
@@ -154,7 +160,10 @@ pub fn delete_user_profile(app: AppHandle, id: String) -> Result<(), String> {
     if id.is_empty() {
         return Err("L'id du profil ne peut pas être vide.".into());
     }
-    if id.chars().any(|c| !c.is_alphanumeric() && c != '_' && c != '-') {
+    if id
+        .chars()
+        .any(|c| !c.is_alphanumeric() && c != '_' && c != '-')
+    {
         return Err(format!("Id profil invalide : {id}"));
     }
     let dir = profiles_dir(&app)?;

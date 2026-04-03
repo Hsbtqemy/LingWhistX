@@ -21,8 +21,10 @@ pub(crate) const EMBEDDED_PREVIEW_PREPROCESS_SCRIPT: &str = include_str!(concat!
     env!("CARGO_MANIFEST_DIR"),
     "/../python/preview_preprocess.py"
 ));
-pub(crate) const EMBEDDED_LOG_SANITIZE: &str =
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../python/log_sanitize.py"));
+pub(crate) const EMBEDDED_LOG_SANITIZE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../python/log_sanitize.py"
+));
 #[cfg(target_os = "windows")]
 pub(crate) const EMBEDDED_RUNTIME_SETUP_SCRIPT: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

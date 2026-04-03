@@ -43,14 +43,12 @@ pub fn write_annotation_tiers_to_events(
 ) -> Result<usize, String> {
     validate_path_string(&run_dir)?;
 
-    let run_dir_path = PathBuf::from(run_dir.trim())
-        .canonicalize()
-        .map_err(|e| {
-            format!(
-                "run_dir invalide : {}",
-                redact_user_home_in_text(&e.to_string())
-            )
-        })?;
+    let run_dir_path = PathBuf::from(run_dir.trim()).canonicalize().map_err(|e| {
+        format!(
+            "run_dir invalide : {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
 
     let db_path = run_dir_path.join(EVENTS_DB_FILE);
     if !db_path.is_file() {
