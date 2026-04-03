@@ -1,18 +1,22 @@
 import type { LocalRuntimePanelProps } from "./LocalRuntimePanel";
 import { StudioAboutView } from "./StudioAboutView";
+import { AnnotationConventionEditor } from "./AnnotationConventionEditor";
 
 export type SettingsPanelProps = {
   runtime: LocalRuntimePanelProps;
 };
 
-/**
- * Panneau Paramètres — coquille prête à accueillir WX-719 conventions.
- * Pour l'instant réutilise StudioAboutView (diagnostic runtime + préférences).
- */
 export function SettingsPanel({ runtime }: SettingsPanelProps) {
   return (
     <div className="settings-panel">
-      <StudioAboutView runtime={runtime} />
+      <section className="settings-section">
+        <h3 className="settings-section-title">Conventions d'annotation</h3>
+        <AnnotationConventionEditor />
+      </section>
+      <section className="settings-section">
+        <h3 className="settings-section-title">Environnement</h3>
+        <StudioAboutView runtime={runtime} />
+      </section>
     </div>
   );
 }

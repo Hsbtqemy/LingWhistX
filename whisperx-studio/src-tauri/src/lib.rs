@@ -7,8 +7,10 @@ pub(crate) use models::*;
 
 mod transcript;
 
+mod annotation_conventions_commands;
 mod annotation_events_commands;
 mod annotation_import_commands;
+mod annotation_run_commands;
 mod app_events;
 mod app_setup;
 mod audio_preview;
@@ -102,7 +104,13 @@ pub fn run() {
             user_profiles_commands::save_user_profile,
             user_profiles_commands::delete_user_profile,
             annotation_import_commands::import_annotation_file,
-            annotation_events_commands::write_annotation_tiers_to_events
+            annotation_events_commands::write_annotation_tiers_to_events,
+            annotation_run_commands::create_annotation_run,
+            annotation_conventions_commands::read_user_conventions,
+            annotation_conventions_commands::save_user_convention,
+            annotation_conventions_commands::delete_user_convention,
+            annotation_conventions_commands::export_convention_file,
+            annotation_conventions_commands::import_convention_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

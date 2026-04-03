@@ -1,4 +1,9 @@
-import type { ExportTimingRules, ProfilePreset, UiWhisperxOptions } from "./types";
+import type {
+  AnnotationConvention,
+  ExportTimingRules,
+  ProfilePreset,
+  UiWhisperxOptions,
+} from "./types";
 
 /**
  * Modèles ASR faster-whisper / WhisperX (`--model`).
@@ -115,3 +120,229 @@ export const defaultExportRules: ExportTimingRules = {
   minGapSec: 0,
   fixOverlaps: true,
 };
+
+// ─── WX-719 : conventions d'annotation prédéfinies ───────────────────────────
+
+export const BUILTIN_ANNOTATION_CONVENTIONS: readonly AnnotationConvention[] = [
+  {
+    id: "icor",
+    label: "ICOR (ICAR Lyon)",
+    description:
+      "Convention de transcription de l'interaction orale ICOR (ICAR, Université Lyon 2). Pauses chronométrées, chevauchements, allongements, intonation.",
+    isBuiltin: true,
+    marks: [
+      {
+        id: "pause_0_2",
+        label: "(0.2)",
+        symbol: "(0.2)",
+        category: "pause",
+        shortcut: "1",
+        description: "Pause 200 ms",
+      },
+      {
+        id: "pause_0_5",
+        label: "(0.5)",
+        symbol: "(0.5)",
+        category: "pause",
+        shortcut: "2",
+        description: "Pause 500 ms",
+      },
+      {
+        id: "pause_1_0",
+        label: "(1.0)",
+        symbol: "(1.0)",
+        category: "pause",
+        shortcut: "3",
+        description: "Pause 1 s",
+      },
+      {
+        id: "micro_pause",
+        label: "(°)",
+        symbol: "(°)",
+        category: "pause",
+        description: "Micro-pause non mesurée",
+      },
+      {
+        id: "overlap_open",
+        label: "[",
+        symbol: "[",
+        category: "overlap",
+        shortcut: "[",
+        description: "Début chevauchement",
+      },
+      {
+        id: "overlap_close",
+        label: "]",
+        symbol: "]",
+        category: "overlap",
+        shortcut: "]",
+        description: "Fin chevauchement",
+      },
+      {
+        id: "lengthening",
+        label: "::",
+        symbol: "::",
+        category: "lengthening",
+        shortcut: ":",
+        description: "Allongement vocalique",
+      },
+      {
+        id: "rising",
+        label: "/",
+        symbol: "/",
+        category: "intonation",
+        description: "Montée intonative",
+      },
+      {
+        id: "falling",
+        label: "\\",
+        symbol: "\\",
+        category: "intonation",
+        description: "Descente intonative",
+      },
+      {
+        id: "truncation",
+        label: "mot-",
+        symbol: "-",
+        category: "truncation",
+        description: "Troncation (à coller au mot tronqué)",
+      },
+      {
+        id: "breath",
+        label: "(h)",
+        symbol: "(h)",
+        category: "breath",
+        description: "Aspiration / rire",
+      },
+    ],
+  },
+  {
+    id: "chat",
+    label: "CHAT (CHILDES / TalkBank)",
+    description:
+      "Convention CHAT du projet CHILDES / TalkBank. Marqueurs de reformulation, allongements, pauses, non-mots.",
+    isBuiltin: true,
+    marks: [
+      {
+        id: "pause_short",
+        label: "(.)",
+        symbol: "(.)",
+        category: "pause",
+        shortcut: "1",
+        description: "Pause courte",
+      },
+      {
+        id: "pause_medium",
+        label: "(..)",
+        symbol: "(..)",
+        category: "pause",
+        shortcut: "2",
+        description: "Pause moyenne",
+      },
+      {
+        id: "pause_long",
+        label: "(...)",
+        symbol: "(...)",
+        category: "pause",
+        shortcut: "3",
+        description: "Pause longue",
+      },
+      {
+        id: "retracing",
+        label: "<mot> [/]",
+        symbol: " [/]",
+        category: "custom",
+        description: "Reformulation simple (retracing)",
+      },
+      {
+        id: "repetition",
+        label: "<mot> [//]",
+        symbol: " [//]",
+        category: "custom",
+        description: "Répétition (retracing with correction)",
+      },
+      {
+        id: "lengthening",
+        label: ":",
+        symbol: ":",
+        category: "lengthening",
+        shortcut: ":",
+        description: "Allongement (CHAT)",
+      },
+      {
+        id: "overlap_open",
+        label: "<",
+        symbol: "<",
+        category: "overlap",
+        shortcut: "[",
+        description: "Début recouvrement",
+      },
+      {
+        id: "overlap_close",
+        label: ">",
+        symbol: ">",
+        category: "overlap",
+        shortcut: "]",
+        description: "Fin recouvrement",
+      },
+      {
+        id: "unintelligible",
+        label: "xxx",
+        symbol: "xxx",
+        category: "custom",
+        description: "Inaudible / inintelligible",
+      },
+      {
+        id: "phono",
+        label: "yyy",
+        symbol: "yyy",
+        category: "custom",
+        description: "Phonologique non déchiffrable",
+      },
+    ],
+  },
+  {
+    id: "minimal",
+    label: "Minimaliste",
+    description:
+      "Jeu de marqueurs minimal pour annoter pauses, chevauchements et troncations sans convention formelle.",
+    isBuiltin: true,
+    marks: [
+      {
+        id: "pause",
+        label: "(pause)",
+        symbol: "(pause)",
+        category: "pause",
+        shortcut: "p",
+        description: "Pause non chronométrée",
+      },
+      {
+        id: "overlap",
+        label: "//",
+        symbol: "//",
+        category: "overlap",
+        shortcut: "/",
+        description: "Chevauchement",
+      },
+      {
+        id: "truncation",
+        label: "-",
+        symbol: "-",
+        category: "truncation",
+        shortcut: "-",
+        description: "Troncation",
+      },
+      {
+        id: "unintelligible",
+        label: "[?]",
+        symbol: "[?]",
+        category: "custom",
+        shortcut: "?",
+        description: "Inaudible",
+      },
+    ],
+  },
+];
+
+export const DEFAULT_ANNOTATION_CONVENTION_ID = "icor";
+export const ANNOTATION_CONVENTION_STORAGE_KEY = "lx-active-convention";

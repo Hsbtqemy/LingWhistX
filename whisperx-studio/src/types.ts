@@ -779,3 +779,49 @@ export type RecalcPausesIpuResult = {
   stats: RecalcPausesIpuStats;
   persisted: boolean;
 };
+
+// ─── WX-718 : import transcript direct (sans ASR) ────────────────────────────
+
+export type CreateAnnotationRunRequest = {
+  audioPath: string;
+  /** Chemin vers un fichier SRT, VTT ou JSON de transcript. Null = run vide (annotations manuelles). */
+  transcriptPath: string | null;
+  outputDir: string;
+  analysisOptions?: Partial<WhisperxAnalysisOptions>;
+};
+
+export type CreateAnnotationRunResponse = {
+  runDir: string;
+  runId: string;
+  warnings: string[];
+};
+
+// ─── WX-719 : conventions d'annotation ───────────────────────────────────────
+
+export type AnnotationMarkCategory =
+  | "pause"
+  | "overlap"
+  | "lengthening"
+  | "breath"
+  | "intonation"
+  | "truncation"
+  | "custom";
+
+export type AnnotationMark = {
+  id: string;
+  label: string;
+  /** Symbole inséré dans le texte du segment. */
+  symbol: string;
+  /** Raccourci clavier optionnel (caractère unique ou combinaison). */
+  shortcut?: string;
+  category: AnnotationMarkCategory;
+  description?: string;
+};
+
+export type AnnotationConvention = {
+  id: string;
+  label: string;
+  description: string;
+  isBuiltin?: boolean;
+  marks: AnnotationMark[];
+};

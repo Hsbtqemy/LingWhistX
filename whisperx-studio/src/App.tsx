@@ -247,6 +247,7 @@ function App() {
               eventsRefreshEpoch={playerEventsEpoch}
               onToggleHelp={() => setHelpOpen((v) => !v)}
               onOpenEditor={handleOpenEditor}
+              onAnnotationRunCreated={handleOpenPlayer}
               importMedia={{
                 inputPath: jobForm.inputPath,
                 isSubmitting: jobForm.isSubmitting,

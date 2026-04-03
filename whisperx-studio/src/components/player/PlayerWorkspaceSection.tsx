@@ -35,6 +35,7 @@ import {
   computeSpeechRate,
   computeTransitions,
 } from "../../player/playerSpeakerStats";
+import { useAnnotationRunImport } from "../../hooks/useAnnotationRunImport";
 import { PlayerJumpPanel } from "./PlayerJumpPanel";
 import { PlayerMediaTransport } from "./PlayerMediaTransport";
 import { PlayerTopBar } from "./PlayerTopBar";
@@ -114,6 +115,8 @@ export type PlayerWorkspaceSectionProps = {
   onToggleHelp?: () => void;
   /** Navigation contextuelle vers l'éditeur (WX-728). */
   onOpenEditor?: (runDir: string, label?: string) => void;
+  /** WX-718 — Appelé quand un run d'annotation directe a été créé avec succès. */
+  onAnnotationRunCreated?: (runDir: string) => void;
 };
 
 type AlertListFilter = "all" | PlayerDerivedAlertKind;
@@ -129,8 +132,10 @@ export function PlayerWorkspaceSection({
   eventsRefreshEpoch = 0,
   onToggleHelp,
   onOpenEditor,
+  onAnnotationRunCreated,
 }: PlayerWorkspaceSectionProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const annotationImport = useAnnotationRunImport();
   const [viewportMode, setViewportMode] = useState<PlayerViewportMode>("lanes");
   const [wordsWindowEnabled, setWordsWindowEnabled] = useState(false);
   const [exportFolderError, setExportFolderError] = useState("");
@@ -754,6 +759,44 @@ export function PlayerWorkspaceSection({
                     onClick={() => void importMedia.onPickFile()}
                   >
                     Parcourir un média
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {onAnnotationRunCreated ? (
+              <div className="player-empty-annotation">
+                <p className="player-empty-annotation-hint small">
+                  <strong>Annoter directement</strong> — ouvre un audio sans transcription ASR. Tu
+                  peux importer un transcript existant (SRT/VTT/JSON) ou annoter manuellement.
+                </p>
+                {annotationImport.error ? (
+                  <p className="player-empty-annotation-error small">{annotationImport.error}</p>
+                ) : null}
+                <div className="player-empty-import-row">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={annotationImport.step === "running"}
+                    onClick={() =>
+                      void annotationImport.importWithTranscript().then((dir) => {
+                        if (dir) onAnnotationRunCreated(dir);
+                      })
+                    }
+                  >
+                    {annotationImport.step === "running" ? "Création…" : "Audio + Transcript…"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={annotationImport.step === "running"}
+                    onClick={() =>
+                      void annotationImport.importAudioOnly().then((dir) => {
+                        if (dir) onAnnotationRunCreated(dir);
+                      })
+                    }
+                  >
+                    Audio seul (run vide)
                   </Button>
                 </div>
               </div>

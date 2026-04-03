@@ -534,7 +534,45 @@ def build_parser() -> argparse.ArgumentParser:
     )
     imp.add_argument("path", help="Path to the .eaf or .TextGrid file to import")
 
+    # WX-718 — Import transcript (SRT/VTT/JSON) + analyse prosodique, sans ASR
+    imp_tr = sub.add_parser(
+        "import_transcript",
+        parents=[argparse.ArgumentParser(add_help=False)],
+        help="Import an existing transcript (SRT, VTT, JSON) and run prosodic analysis without ASR",
+    )
+    imp_tr.add_argument("audio", help="Path to the source audio file (wav, mp3, flac, etc.)")
+    imp_tr.add_argument(
+        "--transcript",
+        type=str,
+        default=None,
+        help="Path to the transcript file to import (.srt, .vtt, .json). Omit to create an empty run.",
+    )
+    imp_tr.add_argument(
+        "--output_dir",
+        "-o",
+        type=str,
+        required=True,
+        help="Output directory for the run (will be created if needed)",
+    )
+    imp_tr.add_argument("--language", type=str, default="unknown", help="Language code (e.g. 'fr', 'en')")
+    imp_tr.add_argument("--immutable_run", type=str2bool, default=True, help="Allocate a timestamped sub-directory under output_dir/runs/")
+    # Réutiliser les options d'analyse existantes (pause, IPU, etc.)
+    _register_analysis_arguments(imp_tr)
+
     return parser
+
+
+def _register_analysis_arguments(parser: argparse.ArgumentParser) -> None:
+    """Enregistre un sous-ensemble des options d'analyse prosodique pour import_transcript."""
+    parser.add_argument("--analysis_pause_min", type=float, default=0.15)
+    parser.add_argument("--analysis_pause_ignore_below", type=float, default=0.1)
+    parser.add_argument("--analysis_pause_max", type=float, default=None)
+    parser.add_argument("--analysis_include_nonspeech", type=str2bool, default=True)
+    parser.add_argument("--analysis_nonspeech_min_duration", type=float, default=0.15)
+    parser.add_argument("--analysis_ipu_min_words", type=int, default=1)
+    parser.add_argument("--analysis_ipu_min_duration", type=float, default=0.0)
+    parser.add_argument("--analysis_ipu_bridge_short_gaps_under", type=float, default=0.0)
+    parser.add_argument("--analysis_speaker_turn_postprocess_preset", type=str, default=None)
 
 
 def _args_to_serializable(ns: argparse.Namespace) -> dict[str, Any]:
@@ -550,6 +588,143 @@ def _args_to_serializable(ns: argparse.Namespace) -> dict[str, Any]:
     return d
 
 
+def _handle_import_transcript(args: argparse.Namespace, argv: list[str]) -> None:
+    """WX-718 — Import transcript + analyse prosodique sans ASR."""
+    import importlib.metadata
+    import platform
+    from datetime import datetime, timezone
+
+    from whisperx.transcript_import import load_transcript, segments_to_whisperx_result
+    from whisperx.transcribe import _build_timeline_analysis_config
+    from whisperx.timeline import build_canonical_timeline
+    from whisperx.writers import get_writer
+    from whisperx.run_manifest import (
+        RunManifestBuildInput,
+        build_run_manifest_v1,
+        write_run_manifest_v1_file,
+    )
+
+    setup_logging(level="info")
+
+    audio_path = os.path.abspath(args.audio.strip())
+    if not os.path.isfile(audio_path):
+        print(json.dumps({"error": f"Fichier audio introuvable : {audio_path}"}), flush=True)
+        sys.exit(1)
+
+    # Allouer le dossier de run
+    output_dir = args.output_dir.strip()
+    if args.immutable_run:
+        run_dir, run_id = allocate_run_directory(output_dir)
+        run_dir_str = str(run_dir)
+    else:
+        run_dir_str = os.path.abspath(output_dir)
+        os.makedirs(run_dir_str, exist_ok=True)
+        run_id = f"adhoc_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+
+    # Charger le transcript importé (ou créer un run vide)
+    transcript_path = args.transcript
+    warnings: list[str] = []
+    if transcript_path:
+        transcript_path = transcript_path.strip()
+        if not os.path.isfile(transcript_path):
+            print(json.dumps({"error": f"Transcript introuvable : {transcript_path}"}), flush=True)
+            sys.exit(1)
+        try:
+            segments = load_transcript(transcript_path)
+        except Exception as exc:  # noqa: BLE001
+            print(json.dumps({"error": f"Erreur parsing transcript : {exc}"}), flush=True)
+            sys.exit(1)
+        if not segments:
+            warnings.append("Le transcript importé ne contient aucun segment.")
+    else:
+        segments = []
+        warnings.append("Aucun transcript fourni — run vide créé (annotation manuelle).")
+
+    language = args.language or "unknown"
+    result = segments_to_whisperx_result(segments, audio_path, language=language)
+
+    # Analyse prosodique
+    timeline_analysis_config = _build_timeline_analysis_config(
+        analysis_pause_min=args.analysis_pause_min,
+        analysis_pause_ignore_below=args.analysis_pause_ignore_below,
+        analysis_pause_max=args.analysis_pause_max,
+        analysis_include_nonspeech=args.analysis_include_nonspeech,
+        analysis_nonspeech_min_duration=args.analysis_nonspeech_min_duration,
+        analysis_ipu_min_words=args.analysis_ipu_min_words,
+        analysis_ipu_min_duration=args.analysis_ipu_min_duration,
+        analysis_ipu_bridge_short_gaps_under=args.analysis_ipu_bridge_short_gaps_under,
+        analysis_preset=None,
+        analysis_calibrate_window_sec=None,
+        analysis_calibrate_start_sec=0.0,
+        analysis_speaker_turn_postprocess_preset=args.analysis_speaker_turn_postprocess_preset,
+        analysis_speaker_turn_merge_gap_sec_max=None,
+        analysis_speaker_turn_split_word_gap_sec=None,
+        wts_mode="off",
+        analysis_word_ts_neighbor_ratio_low=None,
+        analysis_word_ts_neighbor_ratio_high=None,
+        analysis_word_ts_smooth_max_sec=None,
+    )
+    result["timeline"] = build_canonical_timeline(result, analysis_config=timeline_analysis_config)
+
+    # Écrire les sorties (JSON + data-science exports)
+    audio_stem = os.path.splitext(os.path.basename(audio_path))[0]
+    pseudo_audio_path = os.path.join(run_dir_str, f"{audio_stem}.wav")
+
+    json_writer = get_writer("json", run_dir_str)
+    json_writer(result, pseudo_audio_path, {})
+
+    try:
+        wx_version = importlib.metadata.version("whisperx")
+    except importlib.metadata.PackageNotFoundError:
+        wx_version = "unknown"
+
+    # Construire le manifest compatible avec les vues Player
+    timeline_json_rel = f"{audio_stem}.timeline.json"
+    run_json_rel = f"{audio_stem}.json"
+    artifact_keys: dict[str, str] = {}
+    if os.path.isfile(os.path.join(run_dir_str, timeline_json_rel)):
+        artifact_keys["timeline_json"] = timeline_json_rel
+    if os.path.isfile(os.path.join(run_dir_str, run_json_rel)):
+        artifact_keys["run_json"] = run_json_rel
+
+    run_metadata: dict = {
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "mode": "import_transcript",
+        "input": {
+            "audioPath": audio_path,
+            "audioName": os.path.basename(audio_path),
+            "transcriptPath": os.path.abspath(transcript_path) if transcript_path else None,
+        },
+        "config": {
+            "language": language,
+            "analysis_pause_min": args.analysis_pause_min,
+        },
+        "versions": {
+            "whisperx": wx_version,
+            "python": platform.python_version(),
+        },
+    }
+
+    manifest_input = RunManifestBuildInput(
+        run_id=run_id,
+        audio_path=audio_path,
+        output_dir=run_dir_str,
+        artifact_keys_to_rel_path=artifact_keys,
+        run_metadata=run_metadata,
+        warnings=warnings,
+        pipeline_chunking=None,
+    )
+    manifest = build_run_manifest_v1(manifest_input)
+    write_run_manifest_v1_file(run_dir_str, manifest)
+
+    result_payload = {
+        "runDir": run_dir_str,
+        "runId": run_id,
+        "warnings": warnings,
+    }
+    print(f"__WXRESULT__{json.dumps(result_payload, ensure_ascii=False)}", flush=True)
+
+
 def main(argv: list[str] | None = None) -> None:
     argv = normalize_legacy_argv(list(argv if argv is not None else sys.argv))
     config_path = extract_config_path(argv)
@@ -560,6 +735,10 @@ def main(argv: list[str] | None = None) -> None:
         parser.set_defaults(**cfg)
 
     args = parser.parse_args(argv[1:])
+
+    if args.command == "import_transcript":
+        _handle_import_transcript(args, argv)
+        return
 
     if args.command == "import_annotation":
         # WX-675 — Parse EAF/TextGrid, print JSON result to stdout (consumed by Rust IPC).

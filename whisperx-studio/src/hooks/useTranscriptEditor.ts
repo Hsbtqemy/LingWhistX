@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MIN_SEGMENT_DURATION_SEC, defaultExportRules } from "../constants";
 import {
   buildEditorSnapshot,
@@ -321,6 +321,32 @@ export function useTranscriptEditor({
       prevText: editorSegmentsRef.current[index]?.text ?? "",
       nextText: text,
     });
+  }
+
+  /**
+   * WX-719 — Insère un symbole d'annotation à la fin du texte du segment actif.
+   * Le textarea actif garde le focus via onMouseDown+preventDefault sur les boutons toolbar.
+   * La ref `activeTextareaRef` (portée par EditorSegmentList) permet d'insérer à la position
+   * exacte du caret si elle est fournie ; sinon on appende en fin de texte.
+   */
+  function insertAnnotationMark(
+    symbol: string,
+    caretRef?: React.RefObject<HTMLTextAreaElement | null>,
+  ) {
+    const idx = activeSegmentIndex;
+    if (idx === null) return;
+    const seg = editorSegmentsRef.current[idx];
+    if (!seg) return;
+    const prevText = seg.text ?? "";
+    let nextText: string;
+    const textarea = caretRef?.current;
+    if (textarea && document.activeElement === textarea) {
+      const start = textarea.selectionStart ?? prevText.length;
+      nextText = prevText.slice(0, start) + symbol + prevText.slice(textarea.selectionEnd ?? start);
+    } else {
+      nextText = prevText + symbol;
+    }
+    applyEditorPatch({ kind: "text_change", index: idx, prevText, nextText });
   }
 
   function updateEditorSegmentSpeaker(index: number, speaker: string | null) {
@@ -669,5 +695,6 @@ export function useTranscriptEditor({
     splitActiveSegmentAtCursor,
     mergeActiveSegment,
     loadAnnotationTier,
+    insertAnnotationMark,
   };
 }

@@ -5,6 +5,7 @@ import { usePlayerPlayback } from "../../hooks/usePlayerPlayback";
 import { useWaveformWorkspace } from "../../hooks/useWaveformWorkspace";
 import { useWaveformCanvas } from "../../hooks/useWaveformCanvas";
 import { useTranscriptEditor } from "../../hooks/useTranscriptEditor";
+import { useAnnotationConventions } from "../../hooks/useAnnotationConventions";
 import { EditorMiniPlayer } from "./EditorMiniPlayer";
 import { EditorToolbar } from "./EditorToolbar";
 import { EditorSegmentList } from "./EditorSegmentList";
@@ -33,6 +34,8 @@ export function EditorWorkspaceSection({ activeRun, onOpenPlayer }: EditorWorksp
     previewOutput: noopAsync,
     selectedJobId: "",
   });
+
+  const conventions = useAnnotationConventions();
 
   useWaveformCanvas(
     wf,
@@ -91,6 +94,11 @@ export function EditorWorkspaceSection({ activeRun, onOpenPlayer }: EditorWorksp
         setExportRules={editor.setExportRules}
         lastExportReport={editor.lastExportReport}
         onOpenPlayer={onOpenPlayer}
+        activeConvention={conventions.activeConvention}
+        availableConventions={conventions.conventions}
+        activeConventionId={conventions.activeConventionId}
+        onChangeConvention={conventions.setActiveConventionId}
+        onInsertMark={editor.insertAnnotationMark}
       />
 
       <div className="editor-workspace-section__body">

@@ -1,6 +1,6 @@
 import { memo, type Dispatch, type SetStateAction } from "react";
 import { fileBasename } from "../../appUtils";
-import type { ExportCorrectionReport, ExportTimingRules } from "../../types";
+import type { AnnotationConvention, ExportCorrectionReport, ExportTimingRules } from "../../types";
 
 const EXPORT_FORMATS = [
   { value: "json", label: "JSON" },
@@ -39,6 +39,12 @@ export type EditorToolbarProps = {
   setExportRules: Dispatch<SetStateAction<ExportTimingRules>>;
   lastExportReport: ExportCorrectionReport | null;
   onOpenPlayer: () => void;
+  /** WX-719 — Convention d'annotation active (null = aucune). */
+  activeConvention: AnnotationConvention | null;
+  availableConventions: AnnotationConvention[];
+  activeConventionId: string;
+  onChangeConvention: (id: string) => void;
+  onInsertMark: (symbol: string) => void;
 };
 
 export const EditorToolbar = memo(function EditorToolbar({
@@ -66,6 +72,11 @@ export const EditorToolbar = memo(function EditorToolbar({
   setExportRules,
   lastExportReport,
   onOpenPlayer,
+  activeConvention,
+  availableConventions,
+  activeConventionId,
+  onChangeConvention,
+  onInsertMark,
 }: EditorToolbarProps) {
   const busy = isEditorLoading || isEditorSaving;
 
@@ -225,14 +236,40 @@ export const EditorToolbar = memo(function EditorToolbar({
           Fix overlaps
         </label>
 
-        {/* Placeholder WX-719 */}
-        <span
-          className="editor-toolbar__annotation-placeholder small"
-          title="Import/export annotations (WX-719)"
-          aria-label="Zone réservée annotations (WX-719)"
+        <span className="editor-toolbar__sep" aria-hidden />
+
+        {/* WX-719 — Sélecteur de convention d'annotation */}
+        <select
+          className="editor-toolbar__convention-select small"
+          value={activeConventionId}
+          onChange={(e) => onChangeConvention(e.target.value)}
+          aria-label="Convention d'annotation active"
+          title="Choisir une convention d'annotation"
         >
-          📎 Annot.
-        </span>
+          {availableConventions.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+
+        {/* Boutons de marques de la convention active */}
+        {activeConvention?.marks.map((mark) => (
+          <button
+            key={mark.id}
+            type="button"
+            className="ghost small editor-toolbar__mark-btn"
+            // onMouseDown + preventDefault pour ne pas voler le focus du textarea actif
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onInsertMark(mark.symbol);
+            }}
+            title={mark.description ? `${mark.label} — ${mark.description}` : mark.label}
+            aria-label={`Insérer ${mark.label}`}
+          >
+            {mark.symbol}
+          </button>
+        ))}
       </div>
 
       {/* Barre de statut */}
