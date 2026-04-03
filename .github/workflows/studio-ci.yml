@@ -80,7 +80,8 @@ jobs:
         run: uv sync --all-extras
 
       - name: Python tests (WhisperX pipeline)
-        run: uv run pytest tests/ -q --tb=short
+        # Comme python-compatibility.yml : pytest n’est pas une dépendance du projet, seulement pour les tests.
+        run: uv run --with pytest pytest tests/ -q --tb=short
 
       - name: Build frontend
         working-directory: whisperx-studio
