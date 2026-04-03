@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-04-02T21:42:01.735Z",
+  "updatedAt": "2026-04-03T05:49:44.652Z",
   "statuses": ["todo", "in_progress", "blocked", "done"],
   "tasks": [
     {
@@ -3444,7 +3444,7 @@
     {
       "id": "WX-718",
       "title": "Mode annotation/analyse directe : importer un fichier audio sans passer par le pipeline ASR complet",
-      "status": "todo",
+      "status": "done",
       "priority": "P2",
       "estimate": "3d",
       "dependsOn": [],
@@ -3477,7 +3477,7 @@
     {
       "id": "WX-719",
       "title": "Mode annotation post-traitement : conventions prédéfinies et personnalisables appliquées après transcription",
-      "status": "todo",
+      "status": "done",
       "priority": "P2",
       "estimate": "3d",
       "dependsOn": ["WX-729"],
@@ -3631,7 +3631,12 @@
       "priority": "P2",
       "estimate": "2d",
       "dependsOn": ["WX-710", "WX-711"],
-      "scope": ["src/components/player/PlayerRunWindowViews.tsx", "src/styles/main.css"],
+      "scope": [
+        "src/components/player/PlayerRunWindowViews.tsx",
+        "src/components/player/views/StatsView.tsx",
+        "src/components/player/views/statsCanvases.tsx",
+        "src/styles/main.css"
+      ],
       "execute": ["npm run build", "npm run lint"],
       "definitionOfDone": [
         "Tooltips au survol sur tous les canvas temporels (SpeechTimelineCanvas, SpeechRateCanvas, SpeechDensityCanvas, SpeechBarCanvas) : affichent le timestamp, le speaker concerné et la valeur (mots/min, % activité, durée du segment).",
@@ -3641,7 +3646,7 @@
         "Bouton expand/collapse par chart : chaque canvas dispose d'un bouton pour basculer entre taille normale et taille agrandie (double hauteur, pleine largeur).",
         "Les interactions sont fluides (requestAnimationFrame pour le playhead, debounce pour les tooltips).",
         "Les canvas restent nets en haute résolution (devicePixelRatio).",
-        "ÉTAT ACTUEL : playhead vertical sur timeline/débit/densité fait, clic→seek sur 3 canvas fait, tooltip hover sur SpeechRateCanvas fait. RESTE À FAIRE : tooltips sur histogramme pauses, SpeechDensityCanvas, SpeechBarCanvas ; expand/collapse par chart (double hauteur, pleine largeur) ; perf (rAF playhead, debounce tooltips)."
+        "ÉTAT ACTUEL (code 2026-04-03) : SpeechTimelineCanvas, SpeechRateCanvas, SpeechDensityCanvas — playhead vertical + clic→seek ; SpeechRateCanvas — tooltip HTML au survol. PauseHistogramCanvas — barres sans tooltip interactif (title statique). SpeechBarCanvas — agrégé global, pas de playhead temporel. RESTE : tooltips riches sur histogramme pauses, densité, barre globale ; expand/collapse par chart ; rAF playhead / debounce tooltips si besoin."
       ],
       "acceptance": [
         "npm run build et npm run lint propres.",
@@ -3919,7 +3924,8 @@
         "Cliquer sur un run le charge comme run actif (état partagé inter-onglets).",
         "Filtrage et tri basiques (par date, par label, recherche texte).",
         "Le run sélectionné est reflété dans l'onglet actif (éditeur, player, ou import).",
-        "Design à explorer : UX de la liste, prévisualisation, regroupement par média source."
+        "Design à explorer : UX de la liste, prévisualisation, regroupement par média source.",
+        "ÉTAT ACTUEL (code 2026-04-03) : pas de RunLibrary ni useRunLibrary ; run actif = activeRun dans App + persistance sessionStorage. Fichiers listés dans scope sont des cibles côté implémentation."
       ],
       "acceptance": [
         "npm run build et cargo check propres.",
