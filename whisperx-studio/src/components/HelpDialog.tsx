@@ -198,7 +198,12 @@ export function HelpDialog({ open, onClose, activeView }: HelpDialogProps) {
           )}
 
           {activeView === "editor" && (
-            <TipsList title="Éditeur" tips={["L'éditeur inline sera disponible dans WX-729."]} />
+            <TipsList
+              title="Éditeur"
+              tips={[
+                "Segments, mini-lecteur et exports depuis l’onglet Édition — ouvrez un run depuis Import ou le Player.",
+              ]}
+            />
           )}
 
           {activeView === "settings" && (

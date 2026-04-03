@@ -26,4 +26,4 @@ Artefacts produits pour une revue **fichier par fichier** (inventaire + notes), 
 
 ## Backlog exécutable
 
-Les tâches **WX-638 à WX-645** dans `backlog/backlog.json` matérialisent les sorties de cette revue (statut `todo` sauf mention).
+Les tâches **WX-638 à WX-645** dans `backlog/backlog.json` matérialisent les sorties de cette revue ; au fil des itérations elles sont passées en **`done`**. Vérifier le fichier pour l’état courant ; le process **WX-643** (inventaire après refactor) reste pertinent.
