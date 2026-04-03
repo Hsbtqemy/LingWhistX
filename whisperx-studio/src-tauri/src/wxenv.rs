@@ -125,23 +125,17 @@ pub fn write_wxenv_file(
         buf.extend_from_slice(&mn.to_le_bytes());
         buf.extend_from_slice(&mx.to_le_bytes());
     }
-    std::fs::write(path, buf).map_err(|e| {
-        format!(
-            "write wxenv: {}",
-            redact_user_home_in_text(&e.to_string())
-        )
-    })
+    std::fs::write(path, buf)
+        .map_err(|e| format!("write wxenv: {}", redact_user_home_in_text(&e.to_string())))
 }
 
 fn wxenv_cache_dir(app: &AppHandle, source: &Path, sample_rate: u32) -> Result<PathBuf, String> {
-    let metadata = source
-        .metadata()
-        .map_err(|err| {
-            format!(
-                "Unable to read source metadata: {}",
-                redact_user_home_in_text(&err.to_string())
-            )
-        })?;
+    let metadata = source.metadata().map_err(|err| {
+        format!(
+            "Unable to read source metadata: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     let modified_nanos = metadata
         .modified()
         .ok()
@@ -306,14 +300,12 @@ pub fn build_waveform_pyramid_internal(
         l0_blocks.push((mn, mx));
     }
 
-    let status = child
-        .wait()
-        .map_err(|err| {
-            format!(
-                "Unable to wait ffmpeg: {}",
-                redact_user_home_in_text(&err.to_string())
-            )
-        })?;
+    let status = child.wait().map_err(|err| {
+        format!(
+            "Unable to wait ffmpeg: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     let stderr_output = stderr_handle
         .join()
         .unwrap_or_else(|_| "Unable to read stderr".into());
@@ -401,12 +393,8 @@ pub fn read_wxenv_meta_from_path(path: &str) -> Result<WxenvMeta, String> {
     if !path.is_file() {
         return Err("WXENV path must be an existing file.".into());
     }
-    let raw = std::fs::read(path).map_err(|e| {
-        format!(
-            "read wxenv: {}",
-            redact_user_home_in_text(&e.to_string())
-        )
-    })?;
+    let raw = std::fs::read(path)
+        .map_err(|e| format!("read wxenv: {}", redact_user_home_in_text(&e.to_string())))?;
     let (sample_rate, block_size, n_blocks) = parse_wxenv_header(&raw)?;
     Ok(WxenvMeta {
         sample_rate,
@@ -431,12 +419,8 @@ pub fn read_wxenv_slice_from_path(
     if !path.is_file() {
         return Err("WXENV path must be an existing file.".into());
     }
-    let raw = std::fs::read(path).map_err(|e| {
-        format!(
-            "read wxenv: {}",
-            redact_user_home_in_text(&e.to_string())
-        )
-    })?;
+    let raw = std::fs::read(path)
+        .map_err(|e| format!("read wxenv: {}", redact_user_home_in_text(&e.to_string())))?;
     let (sample_rate, block_size, n_blocks) = parse_wxenv_header(&raw)?;
     if block_start >= n_blocks {
         return Err("block_start out of range.".into());

@@ -104,9 +104,10 @@ async function main() {
 
     await page.waitForSelector('[data-testid="studio-app-root"]', { timeout: 30_000 });
 
-    const workspaceTab = await page.$("#studio-tab-workspace");
-    if (!workspaceTab) {
-      throw new Error("Missing #studio-tab-workspace — nav Studio not rendered");
+    // Shell LingWhistX : onglets Import / Éditeur / Player (plus de « workspace » unique).
+    const importTab = await page.$("#studio-tab-import");
+    if (!importTab) {
+      throw new Error("Missing #studio-tab-import — nav Studio not rendered");
     }
 
     const helpBtn = await page.$(".studio-nav-help-btn");
@@ -137,7 +138,7 @@ async function main() {
       });
     }
 
-    console.log("smoke-browser: OK (shell + Studio tab + help open/close)");
+    console.log("smoke-browser: OK (shell + nav Import + help open/close)");
   } finally {
     if (browser) {
       await browser.close().catch(() => {});
