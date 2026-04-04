@@ -9,6 +9,8 @@ import type {
   Job,
   WaveformCancelledEvent,
   WaveformErrorEvent,
+  WaveformLaneToggles,
+  WaveformMarkerToggles,
   WaveformPeaks,
   WaveformProgressEvent,
   WaveformReadyEvent,
@@ -19,6 +21,7 @@ import { shouldDrawSegmentOverlays } from "../waveformWxenv";
 import { useWaveformService } from "./useWaveformService";
 import { WebAudioWindowPlayer } from "../webAudioPlayback";
 import { readWebAudioDefault, STUDIO_PREFS_CHANGED_EVENT } from "../studioPreferences";
+import { unlistenFromPromise } from "../utils/tauriUnlisten";
 
 export type UseWaveformWorkspaceOptions = {
   selectedJob: Job | null;
@@ -68,6 +71,28 @@ export function useWaveformWorkspace({
   const [rangeDragEndSec, setRangeDragEndSec] = useState<number | null>(null);
   const rangeDragStartRef = useRef<number | null>(null);
   const rangeDragEndRef = useRef<number | null>(null);
+  // WX-726 — marqueurs contextuels et lanes d'analyse
+  const [markerToggles, setMarkerToggles] = useState<WaveformMarkerToggles>({
+    longPauses: true,
+    overlaps: true,
+    speakerChanges: false,
+    lowConfWords: false,
+  });
+  const [laneToggles, setLaneToggles] = useState<WaveformLaneToggles>({
+    speechRate: false,
+    density: false,
+    confidence: false,
+  });
+  // WX-727 — sélection de région d'analyse (distinct du range WAV WX-622)
+  const [analysisSelection, setAnalysisSelection] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+  const [analysisSelectionMode, setAnalysisSelectionMode] = useState(false);
+  const [analysisSelDragStart, setAnalysisSelDragStart] = useState<number | null>(null);
+  const [analysisSelDragEnd, setAnalysisSelDragEnd] = useState<number | null>(null);
+  const analysisSelDragStartRef = useRef<number | null>(null);
+  const analysisSelDragEndRef = useRef<number | null>(null);
   const [previewWaveGainDb, setPreviewWaveGainDb] = useState(0);
   const [previewWaveEqLowDb, setPreviewWaveEqLowDb] = useState(0);
   const [previewWaveBalance, setPreviewWaveBalance] = useState(0);
@@ -467,6 +492,49 @@ export function useWaveformWorkspace({
     setPreviewRangeSec(null);
   }, []);
 
+  // WX-727 — sélection d'analyse
+  const analysisSelDragPreview = useMemo(() => {
+    if (analysisSelDragStart === null || analysisSelDragEnd === null) return null;
+    return {
+      start: Math.min(analysisSelDragStart, analysisSelDragEnd),
+      end: Math.max(analysisSelDragStart, analysisSelDragEnd),
+    };
+  }, [analysisSelDragStart, analysisSelDragEnd]);
+
+  const beginAnalysisDrag = useCallback((sec: number) => {
+    analysisSelDragStartRef.current = sec;
+    analysisSelDragEndRef.current = sec;
+    setAnalysisSelDragStart(sec);
+    setAnalysisSelDragEnd(sec);
+  }, []);
+
+  const updateAnalysisDrag = useCallback((sec: number) => {
+    analysisSelDragEndRef.current = sec;
+    setAnalysisSelDragEnd(sec);
+  }, []);
+
+  const commitAnalysisDrag = useCallback(() => {
+    const a = analysisSelDragStartRef.current;
+    const b = analysisSelDragEndRef.current;
+    analysisSelDragStartRef.current = null;
+    analysisSelDragEndRef.current = null;
+    setAnalysisSelDragStart(null);
+    setAnalysisSelDragEnd(null);
+    if (a === null || b === null) return;
+    const start = Math.min(a, b);
+    const end = Math.max(a, b);
+    if (end - start < 0.1) return;
+    setAnalysisSelection({ start, end });
+  }, []);
+
+  const clearAnalysisSelection = useCallback(() => {
+    setAnalysisSelection(null);
+    analysisSelDragStartRef.current = null;
+    analysisSelDragEndRef.current = null;
+    setAnalysisSelDragStart(null);
+    setAnalysisSelDragEnd(null);
+  }, []);
+
   const resetPreviewWaveEffects = useCallback(() => {
     setPreviewWaveGainDb(0);
     setPreviewWaveEqLowDb(0);
@@ -610,10 +678,10 @@ export function useWaveformWorkspace({
     );
 
     return () => {
-      void unlistenWaveformProgressPromise.then((unlisten) => unlisten());
-      void unlistenWaveformReadyPromise.then((unlisten) => unlisten());
-      void unlistenWaveformErrorPromise.then((unlisten) => unlisten());
-      void unlistenWaveformCancelledPromise.then((unlisten) => unlisten());
+      unlistenFromPromise(unlistenWaveformProgressPromise);
+      unlistenFromPromise(unlistenWaveformReadyPromise);
+      unlistenFromPromise(unlistenWaveformErrorPromise);
+      unlistenFromPromise(unlistenWaveformCancelledPromise);
     };
   }, [getActiveMediaElement]);
 
@@ -700,6 +768,27 @@ export function useWaveformWorkspace({
     waveformVisibleDurationSec,
   ]);
 
+  // WX-727 — global mousemove + mouseup pour le drag de sélection analyse
+  useEffect(() => {
+    if (analysisSelDragStart === null || !waveform || waveform.durationSec <= 0) return;
+    const onMove = (e: MouseEvent) => {
+      const canvas = waveformCanvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const ratio = (e.clientX - rect.left) / rect.width;
+      const raw = waveformViewStartSec + Math.min(1, Math.max(0, ratio)) * waveformVisibleDurationSec;
+      updateAnalysisDrag(clampNumber(raw, 0, waveform.durationSec));
+    };
+    const onUp = () => commitAnalysisDrag();
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [analysisSelDragStart, commitAnalysisDrag, updateAnalysisDrag, waveform, waveformViewStartSec, waveformVisibleDurationSec]);
+
   useEffect(() => {
     if (!webAudioMode || selectedIsVideo) {
       return;
@@ -776,6 +865,12 @@ export function useWaveformWorkspace({
     setPreviewWaveEqLowDb(0);
     setPreviewWaveBalance(0);
     setPreviewWaveBypassEffects(false);
+    setAnalysisSelection(null);
+    setAnalysisSelectionMode(false);
+    analysisSelDragStartRef.current = null;
+    analysisSelDragEndRef.current = null;
+    setAnalysisSelDragStart(null);
+    setAnalysisSelDragEnd(null);
   }, [selectedJobId, requestCancelWaveformGeneration]);
 
   /** Chargement automatique : job sélectionné, ou aperçu média (`previewMediaPath` + pas de job), ex. Nouveau job / Player. */
@@ -909,6 +1004,21 @@ export function useWaveformWorkspace({
     pauseOverlayLoadError,
     loadPauseOverlayFromCsvPath,
     clearPauseOverlay,
+    // WX-726
+    markerToggles,
+    setMarkerToggles,
+    laneToggles,
+    setLaneToggles,
+    // WX-727
+    analysisSelection,
+    setAnalysisSelection,
+    clearAnalysisSelection,
+    analysisSelectionMode,
+    setAnalysisSelectionMode,
+    analysisSelDragStart,
+    analysisSelDragPreview,
+    beginAnalysisDrag,
+    commitAnalysisDrag,
   };
 }
 

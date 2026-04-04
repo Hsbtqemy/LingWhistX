@@ -106,7 +106,7 @@ export function PlayerWordsBody({
               title={`${formatClockSeconds(w.startMs / 1000)} – ${formatClockSeconds(w.endMs / 1000)}${isUnaligned ? " · non aligné" : ""}${isLowConf ? ` · conf. ${((w.confidence ?? 0) * 100).toFixed(0)}%` : ""}`}
               style={isActive ? { borderBottomColor: speakerColor(spIdx) } : undefined}
             >
-              {w.token?.trim() || "\u2026"}
+              {w.token?.trim() || "—"}
             </span>
           );
         })}

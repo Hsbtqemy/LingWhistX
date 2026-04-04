@@ -4,12 +4,15 @@ import "./App.css";
 
 import { EditorPanel, type ActiveRun } from "./components/EditorPanel";
 import { HelpDialog } from "./components/HelpDialog";
+import { HomeHub } from "./components/HomeHub";
+import { RunLibrary } from "./components/shared/RunLibrary";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { STUDIO_PANEL_IDS, STUDIO_TAB_IDS, StudioNav } from "./components/StudioNav";
 import { PlayerWorkspaceSection } from "./components/player/PlayerWorkspaceSection";
 import { StudioJobsSection } from "./components/StudioJobsSection";
 import { StudioWorkspaceSection } from "./components/StudioWorkspaceSection";
 import { useAppErrorStack } from "./hooks/useAppErrorStack";
+import { useAnnotationRunImport } from "./hooks/useAnnotationRunImport";
 import { useRuntimeDiagnostics } from "./hooks/useRuntimeDiagnostics";
 import { useStudioWorkspace } from "./hooks/useStudioWorkspace";
 import { fileBasename } from "./appUtils";
@@ -22,11 +25,12 @@ const RUN_LABEL_STORAGE_KEY = "lx-active-run-label";
 function readStoredView(): StudioView {
   try {
     const v = sessionStorage.getItem(VIEW_STORAGE_KEY);
-    if (v === "import" || v === "editor" || v === "player" || v === "settings") return v;
+    if (v === "hub" || v === "import" || v === "editor" || v === "player" || v === "settings")
+      return v;
   } catch {
     /* ignore */
   }
-  return "import";
+  return "hub";
 }
 
 function readStoredRun(): ActiveRun | null {
@@ -50,6 +54,8 @@ function App() {
   const [activeRun, setActiveRun] = useState<ActiveRun | null>(readStoredRun);
   const [playerEventsEpoch, setPlayerEventsEpoch] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const handleCloseLibrary = useCallback(() => setLibraryOpen(false), []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -97,17 +103,35 @@ function App() {
     setActiveView("editor");
   }, []);
 
+  const hubAnnotationImport = useAnnotationRunImport();
+
+  const handleAnnoterAudioOnly = useCallback(async () => {
+    const runDir = await hubAnnotationImport.importAudioOnly();
+    if (runDir) handleOpenEditor(runDir, fileBasename(runDir));
+  }, [hubAnnotationImport.importAudioOnly, handleOpenEditor]);
+
+  const handleAnnoterWithTranscript = useCallback(async () => {
+    const runDir = await hubAnnotationImport.importWithTranscript();
+    if (runDir) handleOpenEditor(runDir, fileBasename(runDir));
+  }, [hubAnnotationImport.importWithTranscript, handleOpenEditor]);
+
+  const handleAnnoterFromLibrary = useCallback(() => {
+    setLibraryOpen(true);
+  }, []);
+
   const handleAnnotationWrittenToPlayer = useCallback(() => {
     setPlayerEventsEpoch((e) => e + 1);
   }, []);
 
   const handlePlayerBack = useCallback(() => {
-    setActiveView("import");
+    setActiveView("hub");
   }, []);
+
+  const handleOpenHub = useCallback(() => setActiveView("hub"), []);
 
   const handleEditorOpenPlayer = useCallback(() => {
     if (activeRun) handleOpenPlayer(activeRun.runDir, activeRun.label);
-    else setActiveView("import");
+    else setActiveView("hub");
   }, [activeRun, handleOpenPlayer]);
 
   // WX-708 — auto-open Player quand un job passe running → done
@@ -150,7 +174,7 @@ function App() {
     injectAudioPipelineSegmentsJson,
     onOpenPlayerRun: handleOpenPlayer,
     onJobBecameDone: handleJobBecameDone,
-    onNavigateToWorkspace: () => setActiveView("import"),
+    onNavigateToWorkspace: () => setActiveView("hub"),
     onAnnotationWrittenToPlayer: handleAnnotationWrittenToPlayer,
   });
 
@@ -184,10 +208,33 @@ function App() {
         onViewChange={setActiveView}
         workspaceHasActiveJobs={runningJobs > 0}
         onToggleHelp={() => setHelpOpen((v) => !v)}
+        onOpenLibrary={() => setLibraryOpen((v) => !v)}
+        libraryOpen={libraryOpen}
+        onBrandClick={handleOpenHub}
       />
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} activeView={activeView} />
+      <RunLibrary
+        open={libraryOpen}
+        onClose={handleCloseLibrary}
+        onOpenPlayer={handleOpenPlayer}
+        onOpenEditor={handleOpenEditor}
+      />
 
       <div className="studio-shell__main">
+        {/* ── Hub (vue d'accueil) ── */}
+        {activeView === "hub" && (
+          <HomeHub
+            setActiveView={setActiveView}
+            onAnnoterAudioOnly={handleAnnoterAudioOnly}
+            onAnnoterWithTranscript={handleAnnoterWithTranscript}
+            onAnnoterFromLibrary={handleAnnoterFromLibrary}
+            annoterBusy={hubAnnotationImport.step === "running"}
+            annoterError={hubAnnotationImport.error}
+            runtimeReady={runtimeReady}
+            runtimeStatus={runtimeStatus}
+          />
+        )}
+
         {/* ── Onglet Import (Studio + Jobs) ── */}
         <div
           id={STUDIO_PANEL_IDS.import}
@@ -228,6 +275,7 @@ function App() {
               activeRun={activeRun}
               onOpenPlayer={handleEditorOpenPlayer}
               onNavigate={setActiveView}
+              onTranscriptPersistedForPlayer={() => setPlayerEventsEpoch((e) => e + 1)}
             />
           )}
         </div>

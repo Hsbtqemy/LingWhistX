@@ -24,6 +24,8 @@ LingWhistX/
 └── tests/                    # Tests d'intégration Python
 ```
 
+Documentation : **`docs/whisperx-upstream.md`** — stratégie de traçabilité et de resynchronisation avec le dépôt WhisperX amont (`m-bain/whisperx`).
+
 ---
 
 ## Commandes essentielles

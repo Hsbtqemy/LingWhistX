@@ -12,6 +12,8 @@ use std::path::{Path, PathBuf};
 
 use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::validate_path_string;
+use crate::run_commands::find_run_transcript_json_path_in_dir;
+use crate::transcript::load_segments_from_json;
 
 use rusqlite::{params, Connection};
 use serde::Serialize;
@@ -446,6 +448,100 @@ pub fn import_run_events_inner(run_dir: &Path) -> Result<RunEventsImportResult, 
     })
 }
 
+fn speaker_turns_json_from_segments(segments: &[crate::models::EditableSegment]) -> Vec<JsonValue> {
+    segments
+        .iter()
+        .map(|s| {
+            let sp = s.speaker.as_deref().unwrap_or("SPEAKER_00");
+            serde_json::json!({
+                "speaker": sp,
+                "start": s.start,
+                "end": s.end,
+            })
+        })
+        .collect()
+}
+
+fn words_json_from_segments(segments: &[crate::models::EditableSegment]) -> Vec<JsonValue> {
+    let mut out = Vec::new();
+    for seg in segments {
+        let sp = seg.speaker.as_deref().unwrap_or("SPEAKER_00");
+        if let Some(ref wts) = seg.words {
+            for w in wts {
+                out.push(serde_json::json!({
+                    "start": w.start,
+                    "end": w.end,
+                    "token": w.word,
+                    "speaker": sp,
+                }));
+            }
+        }
+    }
+    out
+}
+
+/// Met à jour le fichier `timeline_json` du manifest à partir du transcript JSON le plus récent,
+/// puis réimporte `events.sqlite` afin que le Player reflète les tours de parole (et mots) de l’éditeur.
+pub fn sync_timeline_from_transcript_and_reimport(run_dir: &Path) -> Result<RunEventsImportResult, String> {
+    let run_dir = run_dir
+        .canonicalize()
+        .map_err(|e| format!("run_dir: {}", redact_user_home_in_text(&e.to_string())))?;
+    let transcript_path = find_run_transcript_json_path_in_dir(&run_dir)?
+        .ok_or_else(|| "Aucun fichier transcript JSON trouvé dans le run.".to_string())?;
+    let raw = fs::read_to_string(&transcript_path)
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    let value: JsonValue = serde_json::from_str(&raw).map_err(|e| {
+        format!(
+            "transcript JSON: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
+    let segments = load_segments_from_json(&value);
+    let turns = speaker_turns_json_from_segments(&segments);
+    let words = words_json_from_segments(&segments);
+
+    let timeline_rel = read_run_manifest_timeline_rel(&run_dir)?;
+    let timeline_path = run_dir.join(&timeline_rel);
+
+    let mut timeline: JsonValue = if timeline_path.is_file() {
+        let t_raw = fs::read_to_string(&timeline_path)
+            .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+        serde_json::from_str(&t_raw).map_err(|e| {
+            format!(
+                "timeline JSON: {}",
+                redact_user_home_in_text(&e.to_string())
+            )
+        })?
+    } else {
+        serde_json::json!({})
+    };
+
+    if let Some(obj) = timeline.as_object_mut() {
+        obj.insert("speaker_turns".to_string(), JsonValue::Array(turns));
+        obj.insert("words".to_string(), JsonValue::Array(words));
+    } else {
+        timeline = serde_json::json!({
+            "speaker_turns": turns,
+            "words": words,
+        });
+    }
+
+    if let Some(parent) = timeline_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    }
+    let pretty = serde_json::to_string_pretty(&timeline)
+        .map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+    fs::write(&timeline_path, pretty).map_err(|e| redact_user_home_in_text(&e.to_string()))?;
+
+    import_run_events_inner(&run_dir)
+}
+
+#[tauri::command]
+pub fn sync_player_timeline_from_transcript(run_dir: String) -> Result<RunEventsImportResult, String> {
+    validate_path_string(&run_dir)?;
+    sync_timeline_from_transcript_and_reimport(Path::new(run_dir.trim()))
+}
+
 /// Si `events.sqlite` est absent, importe depuis `timeline_json` du manifest (WX-612 lazy).
 pub(crate) fn ensure_events_sqlite_imported(run_dir: &Path) -> Result<(), String> {
     let run_dir = run_dir
@@ -584,5 +680,63 @@ mod tests {
         })
         .unwrap();
         assert!(outside.words.is_empty());
+    }
+
+    #[test]
+    fn sync_timeline_from_transcript_updates_turns() {
+        let run_dir = std::env::temp_dir().join(format!("wx_sync_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&run_dir).unwrap();
+
+        let manifest = serde_json::json!({
+            "schema_version": 1,
+            "run_id": "test",
+            "created_at": "2026-01-01T00:00:00Z",
+            "input_media": {"path": "x.wav", "duration": 10.0},
+            "artifacts": {"timeline_json": "demo.timeline.json"}
+        });
+        fs::write(
+            run_dir.join("run_manifest.json"),
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        let transcript = serde_json::json!({
+            "segments": [
+                {"start": 0.0, "end": 1.0, "text": "a", "speaker": "SPEAKER_00"},
+                {"start": 1.0, "end": 2.0, "text": "b", "speaker": "SPEAKER_01"}
+            ]
+        });
+        fs::write(
+            run_dir.join("tr.json"),
+            serde_json::to_string_pretty(&transcript).unwrap(),
+        )
+        .unwrap();
+
+        fs::write(
+            run_dir.join("demo.timeline.json"),
+            serde_json::to_string_pretty(&serde_json::json!({
+                "analysis": {
+                    "pauses": [{"start": 2.0, "end": 2.1, "dur": 0.1, "type": "gap"}],
+                    "ipus": []
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let r = sync_timeline_from_transcript_and_reimport(&run_dir).unwrap();
+        assert_eq!(r.n_turns, 2);
+        assert_eq!(r.n_pauses, 1);
+
+        let q = query_run_events_window_inner(QueryWindowRequest {
+            run_dir: run_dir.to_string_lossy().to_string(),
+            t0_ms: 0,
+            t1_ms: 3_000,
+            layers: QueryWindowLayers::default(),
+            speakers: vec![],
+            limits: QueryWindowLimits::default(),
+        })
+        .unwrap();
+        assert_eq!(q.turns.len(), 2);
     }
 }

@@ -56,6 +56,19 @@ export function applyPatch(snapshot: EditorSnapshot, patch: SegmentPatch): Edito
       segments[patch.index] = { ...seg, speaker: patch.nextSpeaker };
       return buildEditorSnapshot(snapshot.language, segments);
     }
+
+    case "insert_segment": {
+      const segments = cloneEditableSegments(snapshot.segments);
+      segments.splice(patch.index, 0, { ...patch.segment });
+      return buildEditorSnapshot(snapshot.language, segments);
+    }
+
+    case "delete_segment": {
+      const segments = cloneEditableSegments(snapshot.segments);
+      if (!segments[patch.index]) return snapshot;
+      segments.splice(patch.index, 1);
+      return buildEditorSnapshot(snapshot.language, segments);
+    }
   }
 }
 
@@ -117,5 +130,11 @@ export function invertPatch(patch: SegmentPatch): SegmentPatch {
         prevSpeaker: patch.nextSpeaker,
         nextSpeaker: patch.prevSpeaker,
       };
+
+    case "insert_segment":
+      return { kind: "delete_segment", index: patch.index, segment: { ...patch.segment } };
+
+    case "delete_segment":
+      return { kind: "insert_segment", index: patch.index, segment: { ...patch.segment } };
   }
 }

@@ -10,9 +10,16 @@ export type EditorPanelProps = {
   activeRun: ActiveRun | null;
   onOpenPlayer: () => void;
   onNavigate: (view: StudioView) => void;
+  /** Après sauvegarde + sync timeline → events (rafraîchir le Player). */
+  onTranscriptPersistedForPlayer?: () => void;
 };
 
-export function EditorPanel({ activeRun, onOpenPlayer, onNavigate }: EditorPanelProps) {
+export function EditorPanel({
+  activeRun,
+  onOpenPlayer,
+  onNavigate,
+  onTranscriptPersistedForPlayer,
+}: EditorPanelProps) {
   if (!activeRun) {
     return (
       <div className="editor-panel-shell">
@@ -26,5 +33,11 @@ export function EditorPanel({ activeRun, onOpenPlayer, onNavigate }: EditorPanel
     );
   }
 
-  return <EditorWorkspaceSection activeRun={activeRun} onOpenPlayer={onOpenPlayer} />;
+  return (
+    <EditorWorkspaceSection
+      activeRun={activeRun}
+      onOpenPlayer={onOpenPlayer}
+      onTranscriptPersistedForPlayer={onTranscriptPersistedForPlayer}
+    />
+  );
 }

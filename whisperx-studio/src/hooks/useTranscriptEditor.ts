@@ -21,12 +21,17 @@ import {
 } from "./transcript/transcriptEditorKeyboard";
 import { exportTimingPackSequential } from "./transcript/transcriptEditorExportSequences";
 import {
+  hasTranscriptSourcePath,
   isTranscriptEditorReadyForIo,
   runWithEditorSavingFlag,
   TRANSCRIPT_EDITOR_NOT_LOADED_ERROR,
 } from "./transcript/transcriptEditorIoHelpers";
 import { loadTranscriptFromPath } from "./transcript/transcriptEditorLoad";
-import { tauriExportTranscript, tauriSaveTranscriptJson } from "./transcript/transcriptEditorTauri";
+import {
+  tauriExportTranscript,
+  tauriSaveTranscriptJson,
+  tauriSyncPlayerTimelineFromTranscript,
+} from "./transcript/transcriptEditorTauri";
 import type { WaveformPointerContext } from "./transcript/waveformPointer";
 import { computeEditorDirtyFromBaseline } from "./transcript/computeEditorDirty";
 import { relativeSegmentIndex } from "./transcript/transcriptEditorNavigation";
@@ -35,6 +40,7 @@ import {
   computeSplitAtCursor,
   mergeTwoEditableSegments,
 } from "./transcript/transcriptEditorSplitMerge";
+import { insertBlankSegmentInSnapshot } from "./transcript/transcriptSegmentMutations";
 import { useTranscriptWaveformInteraction } from "./transcript/useTranscriptWaveformInteraction";
 import { useEditorDraftPersistence } from "./transcript/useEditorDraftPersistence";
 import { useEditorHistory } from "./transcript/useEditorHistory";
@@ -46,6 +52,10 @@ export type UseTranscriptEditorOptions = {
   refreshJobs: () => Promise<void>;
   previewOutput: (path: string) => Promise<void>;
   selectedJobId: string;
+  /** Dossier du run (onglet Éditeur) : après sauvegarde JSON, sync timeline → events pour le Player. */
+  runDirForPlayerSync?: string;
+  /** Appelé après une sync Player réussie (ex. rafraîchir la fenêtre événements). */
+  onTranscriptPersistedForPlayer?: () => void;
 };
 
 export function useTranscriptEditor({
@@ -53,6 +63,8 @@ export function useTranscriptEditor({
   refreshJobs,
   previewOutput,
   selectedJobId,
+  runDirForPlayerSync,
+  onTranscriptPersistedForPlayer,
 }: UseTranscriptEditorOptions) {
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
   const [editorSourcePath, setEditorSourcePath] = useState<string>("");
@@ -167,6 +179,14 @@ export function useTranscriptEditor({
   );
 
   const hasMoreEditorSegments = editorSegments.length > editorVisibleCount;
+
+  const knownSpeakers = useMemo(() => {
+    const set = new Set<string>();
+    for (const seg of editorSegments) {
+      if (seg.speaker) set.add(seg.speaker);
+    }
+    return Array.from(set).sort();
+  }, [editorSegments]);
 
   const cursorTimeSec = wf.waveformCursorSec ?? wf.mediaCurrentSec;
 
@@ -464,8 +484,60 @@ export function useTranscriptEditor({
     setEditorStatus(`Segments #${firstIndex + 1} et #${secondIndex + 1} fusionnes.`);
   }
 
+  const canDeleteSegment = actionSegmentIndex !== null && editorSegments.length > 0;
+
+  function deleteActiveSegment() {
+    const targetIndex = actionSegmentIndex;
+    if (targetIndex === null) {
+      setEditorError("Aucun segment actif à supprimer.");
+      return;
+    }
+    const segment = editorSegmentsRef.current[targetIndex];
+    if (!segment) {
+      setEditorError("Segment introuvable.");
+      return;
+    }
+    applyEditorPatch({ kind: "delete_segment", index: targetIndex, segment });
+    const newLength = editorSegmentsRef.current.length;
+    if (newLength === 0) {
+      setActiveSegmentIndex(null);
+    } else {
+      setActiveSegmentIndex(Math.min(targetIndex, newLength - 1));
+    }
+    setEditorError("");
+    setEditorStatus(`Segment #${targetIndex + 1} supprimé.`);
+  }
+
+  function insertBlankSegment() {
+    const currentSegments = editorSegmentsRef.current;
+    // Insère après le segment actif, ou à la fin si aucun actif
+    const afterIndex =
+      actionSegmentIndex !== null
+        ? actionSegmentIndex
+        : currentSegments.length > 0
+          ? currentSegments.length - 1
+          : null;
+
+    const atSec = cursorTimeSec;
+    const maxDurationSec = wf.waveform?.durationSec ?? 0;
+
+    const current = getCurrentEditorSnapshot();
+    const { insertedIndex, segment } = insertBlankSegmentInSnapshot(
+      current,
+      afterIndex,
+      atSec,
+      maxDurationSec,
+    );
+
+    applyEditorPatch({ kind: "insert_segment", index: insertedIndex, segment });
+    setActiveSegmentIndex(insertedIndex);
+    wf.setWaveformCursorSec(segment.start);
+    setEditorError("");
+    setEditorStatus(`Segment vide inséré à ${segment.start.toFixed(3)}s.`);
+  }
+
   async function saveEditedJson(overwrite: boolean) {
-    if (!isTranscriptEditorReadyForIo(editorSourcePath, editorSegmentsRef.current.length)) {
+    if (!hasTranscriptSourcePath(editorSourcePath)) {
       setEditorError(TRANSCRIPT_EDITOR_NOT_LOADED_ERROR);
       return;
     }
@@ -486,12 +558,24 @@ export function useTranscriptEditor({
           segments: editorSegmentsRef.current,
           overwrite,
         });
+        if (outPath.trim() && outPath !== editorSourcePath) {
+          setEditorSourcePath(outPath);
+        }
         const savedSnapshot = getCurrentEditorSnapshot();
         editorBaselineRef.current = savedSnapshot;
         updateEditorDirtyFromSnapshot(savedSnapshot);
         resetDraftAfterSuccessfulJsonSave();
         setEditorLastOutputPath(outPath);
         setEditorStatus(`JSON sauvegarde: ${outPath}`);
+        const rd = runDirForPlayerSync?.trim();
+        if (rd) {
+          try {
+            await tauriSyncPlayerTimelineFromTranscript(rd);
+            onTranscriptPersistedForPlayer?.();
+          } catch (syncErr) {
+            setEditorError(`Sync Player: ${String(syncErr)}`);
+          }
+        }
         await refreshJobs();
       });
     } catch (e) {
@@ -672,7 +756,9 @@ export function useTranscriptEditor({
     canSplitActiveSegment,
     canMergePrev,
     canMergeNext,
+    canDeleteSegment,
     loadTranscriptEditor,
+    knownSpeakers,
     updateEditorSegmentText,
     updateEditorSegmentSpeaker,
     updateEditorLanguage,
@@ -694,6 +780,8 @@ export function useTranscriptEditor({
     onWaveformMouseLeave,
     splitActiveSegmentAtCursor,
     mergeActiveSegment,
+    deleteActiveSegment,
+    insertBlankSegment,
     loadAnnotationTier,
     insertAnnotationMark,
   };

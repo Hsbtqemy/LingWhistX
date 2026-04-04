@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { clampNumber, formatClockSeconds } from "../../../appUtils";
 import type { EventTurnRow, QueryWindowResult } from "../../../types";
-import { speakerColor, turnTextFromIpus } from "./viewUtils";
+import { speakerColor, turnDisplayTextForTurn } from "./viewUtils";
 
 type LanesLayoutMode = "timeline" | "columns";
 
@@ -23,7 +23,7 @@ function enrichTurns(
   const speakers = Array.from(new Set(sorted.map((t) => t.speaker || "\u2014"))).sort();
 
   const enriched: LanesTurnEnriched[] = sorted.map((t, i) => {
-    const text = turnTextFromIpus(t, slice.ipus);
+    const text = turnDisplayTextForTurn(t, slice);
     const durMs = t.endMs - t.startMs;
 
     let pauseBeforeMs: number | null = null;
@@ -216,10 +216,10 @@ export function PlayerLanesBody({
 
   const { enriched, speakers } = useMemo(
     () => enrichTurns(slice, longPauseMs),
-    // `slice` object reference changes on every IPC query even when data is identical;
-    // depend on the inner arrays so we only recompute when the content actually changes.
+    // Dépendre des tableaux (pas seulement de `slice`) pour limiter les recalculs inutiles ;
+    // inclure `slice.words` : sinon le libellé reste figé quand la couche mots arrive ou change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [slice.turns, slice.ipus, slice.pauses, longPauseMs],
+    [slice.turns, slice.words, slice.ipus, slice.pauses, longPauseMs],
   );
 
   const activeIndex = useMemo(() => {

@@ -4,7 +4,7 @@ import os
 import re
 import sys
 import zlib
-from typing import Callable, Optional, TextIO
+from typing import Any, Callable, Optional, TextIO
 
 from whisperx.numeric import as_float  # noqa: F401 — réexport (timeline, chunk_merge, etc.)
 
@@ -754,6 +754,25 @@ def write_open_science_dataset_readme(
         handle.write("\n".join(lines))
 
 
+def empty_canonical_timeline_payload() -> dict[str, Any]:
+    """Squelette timeline WX-600+ (identique au fallback de ``write_data_science_exports``)."""
+    return {
+        "version": 1,
+        "words": [],
+        "segments": [],
+        "speaker_turns": [],
+        "events": [],
+        "analysis": {
+            "config": {},
+            "pauses": [],
+            "nonspeech_intervals": [],
+            "ipus": [],
+            "transitions": [],
+            "overlaps": [],
+        },
+    }
+
+
 def write_data_science_exports(
     output_dir: str,
     audio_path: str,
@@ -773,21 +792,7 @@ def write_data_science_exports(
 
     timeline_payload = result.get("timeline")
     if not isinstance(timeline_payload, dict):
-        timeline_payload = {
-            "version": 1,
-            "words": [],
-            "segments": [],
-            "speaker_turns": [],
-            "events": [],
-            "analysis": {
-                "config": {},
-                "pauses": [],
-                "nonspeech_intervals": [],
-                "ipus": [],
-                "transitions": [],
-                "overlaps": [],
-            },
-        }
+        timeline_payload = empty_canonical_timeline_payload()
 
     analysis_payload = timeline_payload.get("analysis")
     if not isinstance(analysis_payload, dict):

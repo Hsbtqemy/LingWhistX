@@ -395,6 +395,21 @@ fn query_ipus_window(
     Ok((out, truncated))
 }
 
+/// Sur une fenêtre très large (ex. full_run sur 24 h), un plafond bas (2000) avec
+/// `ORDER BY start_ms LIMIT` ne renvoie que le début du fichier : tours / IPU autour de la
+/// lecture courante sont absents → textes vides (… partout). On monte le plafond effectif.
+fn effective_window_row_limit(requested: u32, window_ms: i64) -> u32 {
+    const SHORT_WINDOW_MS: i64 = 120_000; // 2 min
+    const LONG_WINDOW_MS: i64 = 3_600_000; // 1 h
+    if window_ms <= SHORT_WINDOW_MS {
+        return requested;
+    }
+    if window_ms <= LONG_WINDOW_MS {
+        return requested.max(10_000);
+    }
+    requested.max(500_000).min(5_000_000)
+}
+
 /// Fenêtre temporelle `[t0_ms, t1_ms)` : overlap `start_ms < t1_ms AND end_ms > t0_ms`.
 pub fn query_run_events_window_inner(
     request: QueryWindowRequest,
@@ -413,9 +428,15 @@ pub fn query_run_events_window_inner(
     let conn = open_events_connection(&db_path)?;
     let t0 = request.t0_ms;
     let t1 = request.t1_ms;
+    let window_ms = t1 - t0;
     let speakers = &request.speakers;
     let layers = &request.layers;
     let lim = &request.limits;
+
+    let max_words = effective_window_row_limit(lim.max_words, window_ms);
+    let max_turns = effective_window_row_limit(lim.max_turns, window_ms);
+    let max_pauses = effective_window_row_limit(lim.max_pauses, window_ms);
+    let max_ipus = effective_window_row_limit(lim.max_ipus, window_ms);
 
     let mut words = Vec::new();
     let mut turns = Vec::new();
@@ -427,22 +448,22 @@ pub fn query_run_events_window_inner(
     let mut ti = false;
 
     if layers.words {
-        let (v, tr) = query_words_window(&conn, t0, t1, speakers, lim.max_words)?;
+        let (v, tr) = query_words_window(&conn, t0, t1, speakers, max_words)?;
         words = v;
         tw = tr;
     }
     if layers.turns {
-        let (v, tr) = query_turns_window(&conn, t0, t1, speakers, lim.max_turns)?;
+        let (v, tr) = query_turns_window(&conn, t0, t1, speakers, max_turns)?;
         turns = v;
         tt = tr;
     }
     if layers.pauses {
-        let (v, tr) = query_pauses_window(&conn, t0, t1, speakers, lim.max_pauses)?;
+        let (v, tr) = query_pauses_window(&conn, t0, t1, speakers, max_pauses)?;
         pauses = v;
         tp = tr;
     }
     if layers.ipus {
-        let (v, tr) = query_ipus_window(&conn, t0, t1, speakers, lim.max_ipus)?;
+        let (v, tr) = query_ipus_window(&conn, t0, t1, speakers, max_ipus)?;
         ipus = v;
         ti = tr;
     }

@@ -3,6 +3,8 @@ import type { EditableSegment } from "../../types";
 import { formatClockSeconds } from "../../appUtils";
 
 export type EditorSegmentListProps = {
+  /** Chemin du JSON chargé (vide = pas encore ouvert). */
+  transcriptSourcePath: string;
   segments: EditableSegment[];
   /** Tous les segments (y compris non affichés) — utilisé pour dériver la liste des locuteurs. */
   allSegments: EditableSegment[];
@@ -19,6 +21,7 @@ export type EditorSegmentListProps = {
 };
 
 export const EditorSegmentList = memo(function EditorSegmentList({
+  transcriptSourcePath,
   segments,
   allSegments,
   allSegmentsCount,
@@ -41,9 +44,20 @@ export const EditorSegmentList = memo(function EditorSegmentList({
   }, [allSegments]);
 
   if (segments.length === 0 && allSegmentsCount === 0) {
+    const hasPath = transcriptSourcePath.trim().length > 0;
     return (
       <div className="editor-segment-list editor-segment-list--empty">
-        <p className="small">Aucun segment. Ouvrez un transcript JSON pour commencer.</p>
+        {hasPath ? (
+          <>
+            <p className="small">Transcript ouvert : aucun segment (run vide ou audio seul).</p>
+            <p className="small editor-segment-list__empty-hint">
+              Utilisez <strong>+ Segment</strong> dans la barre d’outils (curseur sur la waveform), ou
+              l’onglet Import pour WhisperX / import d’un fichier. Enregistrez le JSON lorsque c’est prêt.
+            </p>
+          </>
+        ) : (
+          <p className="small">Aucun segment. Ouvrez un transcript JSON pour commencer.</p>
+        )}
       </div>
     );
   }

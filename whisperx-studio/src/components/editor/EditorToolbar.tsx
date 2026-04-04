@@ -31,6 +31,7 @@ export type EditorToolbarProps = {
   redoEditorChange: () => void;
   splitActiveSegmentAtCursor: () => void;
   mergeActiveSegment: (direction: "prev" | "next") => void;
+  insertBlankSegment: () => void;
   updateEditorLanguage: (lang: string) => void;
   saveEditedJson: (overwrite: boolean) => void;
   exportEditedTranscript: (format: ExportFormat) => void;
@@ -64,6 +65,7 @@ export const EditorToolbar = memo(function EditorToolbar({
   redoEditorChange,
   splitActiveSegmentAtCursor,
   mergeActiveSegment,
+  insertBlankSegment,
   updateEditorLanguage,
   saveEditedJson,
   exportEditedTranscript,
@@ -166,6 +168,16 @@ export const EditorToolbar = memo(function EditorToolbar({
           aria-label="Fusionner suivant"
         >
           ↓ Merge
+        </button>
+        <button
+          type="button"
+          className="ghost small"
+          disabled={busy || !editorSourcePath.trim()}
+          onClick={insertBlankSegment}
+          title="Insérer un segment vide après le segment actif (position du curseur sur la waveform)"
+          aria-label="Insérer un segment vide"
+        >
+          + Segment
         </button>
 
         <span className="editor-toolbar__sep" aria-hidden />

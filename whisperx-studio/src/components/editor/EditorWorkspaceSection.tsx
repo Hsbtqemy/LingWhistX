@@ -13,11 +13,16 @@ import { EditorSegmentList } from "./EditorSegmentList";
 export type EditorWorkspaceSectionProps = {
   activeRun: ActiveRun;
   onOpenPlayer: () => void;
+  onTranscriptPersistedForPlayer?: () => void;
 };
 
 const noopAsync = async () => {};
 
-export function EditorWorkspaceSection({ activeRun, onOpenPlayer }: EditorWorkspaceSectionProps) {
+export function EditorWorkspaceSection({
+  activeRun,
+  onOpenPlayer,
+  onTranscriptPersistedForPlayer,
+}: EditorWorkspaceSectionProps) {
   const playback = usePlayerPlayback(activeRun.runDir);
 
   const wf = useWaveformWorkspace({
@@ -33,6 +38,8 @@ export function EditorWorkspaceSection({ activeRun, onOpenPlayer }: EditorWorksp
     refreshJobs: noopAsync,
     previewOutput: noopAsync,
     selectedJobId: "",
+    runDirForPlayerSync: activeRun.runDir,
+    onTranscriptPersistedForPlayer,
   });
 
   const conventions = useAnnotationConventions();
@@ -86,6 +93,7 @@ export function EditorWorkspaceSection({ activeRun, onOpenPlayer }: EditorWorksp
         redoEditorChange={editor.redoEditorChange}
         splitActiveSegmentAtCursor={editor.splitActiveSegmentAtCursor}
         mergeActiveSegment={editor.mergeActiveSegment}
+        insertBlankSegment={editor.insertBlankSegment}
         updateEditorLanguage={editor.updateEditorLanguage}
         saveEditedJson={editor.saveEditedJson}
         exportEditedTranscript={editor.exportEditedTranscript}
@@ -120,6 +128,7 @@ export function EditorWorkspaceSection({ activeRun, onOpenPlayer }: EditorWorksp
         />
 
         <EditorSegmentList
+          transcriptSourcePath={editor.editorSourcePath}
           segments={editor.displayedEditorSegments}
           allSegments={editor.editorSegments}
           allSegmentsCount={editor.editorSegments.length}

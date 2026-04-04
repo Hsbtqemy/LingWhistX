@@ -13,21 +13,24 @@ export const STUDIO_HUB_CARDS: {
   {
     title: "Transcrire",
     kicker: "Import",
-    description: "Importer un média, configurer le pipeline et lancer la transcription.",
+    description:
+      "Importer un média, régler le pipeline WhisperX et lancer la transcription.",
     view: "import",
     cardId: "import",
   },
   {
     title: "Annoter",
     kicker: "Éditeur",
-    description: "Corriger et annoter le transcript aligné.",
+    description:
+      "Annoter sans ASR : ouvrir le menu pour choisir un mode d’entrée (audio, transcript ou bibliothèque).",
     view: "editor",
     cardId: "editor",
   },
   {
     title: "Analyser",
     kicker: "Player",
-    description: "Lecture, vues alignées et statistiques prosodiques.",
+    description:
+      "Lire le média, aligner les vues et consulter les statistiques prosodiques.",
     view: "player",
     cardId: "player",
   },

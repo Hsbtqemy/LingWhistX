@@ -2,7 +2,7 @@ export type JobStatus = "queued" | "running" | "done" | "error" | "cancelled";
 export type JobFormStep = "import" | "configure";
 
 /** Vues principales de l’application (navigation par onglets) */
-export type StudioView = "import" | "editor" | "player" | "settings";
+export type StudioView = "hub" | "import" | "editor" | "player" | "settings";
 
 // ─── WX-655 : sous-interfaces sémantiques ────────────────────────────────────
 // La shape JSON sérialisée reste identique (intersections plates) — aucun impact
@@ -491,6 +491,19 @@ export type SpeakerChangePatch = {
   nextSpeaker: string | null | undefined;
 };
 
+export type InsertSegmentPatch = {
+  kind: "insert_segment";
+  /** Index où le segment est inséré (0 = début). */
+  index: number;
+  segment: EditableSegment;
+};
+
+export type DeleteSegmentPatch = {
+  kind: "delete_segment";
+  index: number;
+  segment: EditableSegment;
+};
+
 /** Union de toutes les mutations atomiques inversibles sur un `EditorSnapshot`. */
 export type SegmentPatch =
   | TextChangePatch
@@ -498,7 +511,9 @@ export type SegmentPatch =
   | SplitPatch
   | MergePatch
   | LanguageChangePatch
-  | SpeakerChangePatch;
+  | SpeakerChangePatch
+  | InsertSegmentPatch
+  | DeleteSegmentPatch;
 
 /**
  * Entrée d'historique undo/redo.
@@ -824,4 +839,29 @@ export type AnnotationConvention = {
   description: string;
   isBuiltin?: boolean;
   marks: AnnotationMark[];
+};
+
+// ─── WX-726/727 : superpositions waveform (marqueurs + lanes + sélection) ────
+
+export type WaveformMarkerToggles = {
+  longPauses: boolean;
+  overlaps: boolean;
+  speakerChanges: boolean;
+  lowConfWords: boolean;
+};
+
+export type WaveformLaneToggles = {
+  speechRate: boolean;
+  density: boolean;
+  confidence: boolean;
+};
+
+/** Données événements passées au canvas pour dessiner marqueurs et lanes. */
+export type WaveformOverlayData = {
+  pauses: EventPauseRow[];
+  turns: EventTurnRow[];
+  words: EventWordRow[];
+  ipus: EventIpuRow[];
+  longPauseMs: number;
+  durationMs: number;
 };

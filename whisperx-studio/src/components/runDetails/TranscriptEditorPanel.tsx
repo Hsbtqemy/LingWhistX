@@ -63,7 +63,9 @@ export type TranscriptEditorPanelProps = {
   activeSegmentIndex: number | null;
   setActiveSegmentIndex: (n: number | null) => void;
   updateEditorSegmentBoundary: (index: number, edge: "start" | "end", value: number) => void;
+  knownSpeakers: string[];
   updateEditorSegmentText: (index: number, text: string) => void;
+  updateEditorSegmentSpeaker: (index: number, speaker: string | null) => void;
   focusSegment: (index: number) => void;
   hasMoreEditorSegments: boolean;
   setEditorVisibleCount: Dispatch<SetStateAction<number>>;
@@ -77,6 +79,14 @@ export type TranscriptEditorPanelProps = {
   editorLastOutputPath: string;
   openLocalPath: (path: string) => void;
   previewOutput: (path: string) => void;
+  splitActiveSegmentAtCursor: () => void;
+  canSplitActiveSegment: boolean;
+  mergeActiveSegment: (dir: "prev" | "next") => void;
+  canMergePrev: boolean;
+  canMergeNext: boolean;
+  deleteActiveSegment: () => void;
+  canDeleteSegment: boolean;
+  insertBlankSegment: () => void;
 };
 
 export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
@@ -124,8 +134,10 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
     editorRedoStack,
     activeSegmentIndex,
     setActiveSegmentIndex,
+    knownSpeakers,
     updateEditorSegmentBoundary,
     updateEditorSegmentText,
+    updateEditorSegmentSpeaker,
     focusSegment,
     hasMoreEditorSegments,
     setEditorVisibleCount,
@@ -139,6 +151,14 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
     editorLastOutputPath,
     openLocalPath,
     previewOutput,
+    splitActiveSegmentAtCursor,
+    canSplitActiveSegment,
+    mergeActiveSegment,
+    canMergePrev,
+    canMergeNext,
+    deleteActiveSegment,
+    canDeleteSegment,
+    insertBlankSegment,
   } = props;
 
   const hasBlockingAlerts = Boolean(editorError || editorAutosaveError);
@@ -527,6 +547,14 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
         <h3 id="transcript-editor-segments-title" className="transcript-editor-section__title">
           Segments
         </h3>
+        {editorSegments.length === 0 && (
+          <div className="transcript-empty-state">
+            <p className="small">Aucun segment pour l'instant.</p>
+            <button type="button" className="ghost" onClick={insertBlankSegment}>
+              + Créer le premier segment
+            </button>
+          </div>
+        )}
         <div className="editor-segments">
           {displayedEditorSegments.map((segment, index) => (
             <div
@@ -536,7 +564,6 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
             >
               <p className="small">
                 #{index + 1} | {segment.start.toFixed(3)}s - {segment.end.toFixed(3)}s
-                {segment.speaker ? ` | ${segment.speaker}` : ""}
               </p>
               <div className="segment-controls">
                 <label>
@@ -567,6 +594,23 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
                     }}
                   />
                 </label>
+                <label>
+                  Locuteur
+                  <input
+                    list={`speakers-list-${index}`}
+                    value={segment.speaker ?? ""}
+                    onChange={(e) =>
+                      updateEditorSegmentSpeaker(index, e.currentTarget.value || null)
+                    }
+                    placeholder="Locuteur…"
+                    className="segment-speaker-input"
+                  />
+                  <datalist id={`speakers-list-${index}`}>
+                    {knownSpeakers.map((s) => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
+                </label>
                 <button type="button" className="ghost" onClick={() => focusSegment(index)}>
                   Focus waveform
                 </button>
@@ -576,6 +620,54 @@ export function TranscriptEditorPanel(props: TranscriptEditorPanelProps) {
                 onChange={(e) => updateEditorSegmentText(index, e.currentTarget.value)}
                 rows={2}
               />
+              {activeSegmentIndex === index && (
+                <div className="segment-inline-actions">
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={insertBlankSegment}
+                    title="Insérer un segment vide après celui-ci"
+                  >
+                    + Insérer
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={splitActiveSegmentAtCursor}
+                    disabled={!canSplitActiveSegment}
+                    title="Couper au curseur waveform"
+                  >
+                    Couper
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => mergeActiveSegment("prev")}
+                    disabled={!canMergePrev}
+                    title="Fusionner avec le segment précédent"
+                  >
+                    ← Fusionner
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => mergeActiveSegment("next")}
+                    disabled={!canMergeNext}
+                    title="Fusionner avec le segment suivant"
+                  >
+                    Fusionner →
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost segment-delete-btn"
+                    onClick={deleteActiveSegment}
+                    disabled={!canDeleteSegment}
+                    title="Supprimer ce segment"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

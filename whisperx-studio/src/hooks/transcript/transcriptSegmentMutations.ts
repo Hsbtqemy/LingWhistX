@@ -1,4 +1,4 @@
-import { MIN_SEGMENT_DURATION_SEC } from "../../constants";
+import { DEFAULT_INSERT_SEGMENT_DURATION_SEC, MIN_SEGMENT_DURATION_SEC } from "../../constants";
 import { buildEditorSnapshot, cloneEditableSegments, roundSecondsMs } from "../../appUtils";
 import type { EditableSegment, EditorSnapshot, SegmentEdge } from "../../types";
 
@@ -93,6 +93,50 @@ export function replaceSegmentWithPair(
   }
   nextSegments.splice(targetIndex, 1, left, right);
   return buildEditorSnapshot(current.language, nextSegments);
+}
+
+/**
+ * Insère un segment vide après `afterIndex` (ou au début si `afterIndex` est null).
+ * Le segment est positionné sur `atSec` (position curseur) avec une durée par défaut.
+ * Si un segment adjacent existe, les bornes sont clampées pour éviter les overlaps.
+ */
+export function insertBlankSegmentInSnapshot(
+  current: EditorSnapshot,
+  afterIndex: number | null,
+  atSec: number,
+  maxDurationSec: number,
+): { snapshot: EditorSnapshot; insertedIndex: number; segment: EditableSegment } {
+  const segments = cloneEditableSegments(current.segments);
+  const insertIndex = afterIndex === null ? 0 : afterIndex + 1;
+
+  const prevSeg = afterIndex !== null ? segments[afterIndex] : undefined;
+  const nextSeg = segments[insertIndex];
+
+  // Borne le début sur la fin du segment précédent
+  const start = roundSecondsMs(Math.max(atSec, prevSeg ? prevSeg.end : 0));
+
+  // Borne la fin sur le début du segment suivant, ou durée média
+  const maxEnd = nextSeg
+    ? nextSeg.start
+    : Number.isFinite(maxDurationSec) && maxDurationSec > 0
+      ? maxDurationSec
+      : start + DEFAULT_INSERT_SEGMENT_DURATION_SEC;
+
+  const end = roundSecondsMs(
+    Math.min(start + DEFAULT_INSERT_SEGMENT_DURATION_SEC, Math.max(maxEnd, start + MIN_SEGMENT_DURATION_SEC)),
+  );
+
+  // Réutilise le locuteur du segment précédent ou suivant pour minimiser la saisie
+  const speaker =
+    prevSeg?.speaker ?? nextSeg?.speaker ?? "SPEAKER_00";
+
+  const segment: EditableSegment = { start, end, text: "", speaker };
+  segments.splice(insertIndex, 0, segment);
+  return {
+    snapshot: buildEditorSnapshot(current.language, segments),
+    insertedIndex: insertIndex,
+    segment,
+  };
 }
 
 export function mergeTwoSegmentsAt(

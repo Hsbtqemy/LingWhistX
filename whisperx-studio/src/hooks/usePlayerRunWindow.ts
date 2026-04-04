@@ -155,12 +155,14 @@ export function usePlayerRunWindow({
               t1Ms,
               layers,
               speakers,
+              // Plafonds alignés sur `QueryWindowLimits` côté Rust (WX-613) — ne pas caper words à 2000 :
+              // une fenêtre dense pouvait tronquer mots + IPU et laisser des tours sans texte (… partout).
               limits: layers.words
                 ? {
-                    maxWords: Math.min(2000, QUERY_WINDOW_DEFAULT_MAX.words),
-                    maxTurns: 2000,
-                    maxPauses: 2000,
-                    maxIpus: 2000,
+                    maxWords: QUERY_WINDOW_DEFAULT_MAX.words,
+                    maxTurns: QUERY_WINDOW_DEFAULT_MAX.turns,
+                    maxPauses: QUERY_WINDOW_DEFAULT_MAX.pauses,
+                    maxIpus: QUERY_WINDOW_DEFAULT_MAX.ipus,
                   }
                 : undefined,
             },

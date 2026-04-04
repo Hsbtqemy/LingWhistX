@@ -34,6 +34,7 @@ import {
   computeSpeechDensity,
   computeSpeechRate,
   computeTransitions,
+  type BrushRange,
 } from "../../player/playerSpeakerStats";
 import { useAnnotationRunImport } from "../../hooks/useAnnotationRunImport";
 import { PlayerJumpPanel } from "./PlayerJumpPanel";
@@ -142,6 +143,9 @@ export function PlayerWorkspaceSection({
   const [exportPackBusy, setExportPackBusy] = useState(false);
   const [exportPackError, setExportPackError] = useState("");
   const [exportPackHint, setExportPackHint] = useState("");
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportHint, setReportHint] = useState("");
+  const [reportError, setReportError] = useState("");
   const [followPlayhead, setFollowPlayhead] = useState(true);
   const [speakerSolo, setSpeakerSolo] = useState<string | null>(null);
   const [runSpeakerIds, setRunSpeakerIds] = useState<string[]>([]);
@@ -251,7 +255,20 @@ export function PlayerWorkspaceSection({
     );
   }, [runWindow.slice?.turns]);
 
-  useWaveformCanvas(wf, overlaySegments, null, null, null, loopAsec, loopBsec, waveformCompact);
+  // WX-726/727 — données événements pour marqueurs, lanes et sélection d'analyse
+  const waveformOverlay = useMemo(() => {
+    if (!runWindow.slice) return null;
+    return {
+      pauses: runWindow.slice.pauses,
+      turns: runWindow.slice.turns,
+      words: runWindow.slice.words,
+      ipus: runWindow.slice.ipus,
+      longPauseMs,
+      durationMs: durationSec != null ? durationSec * 1000 : Math.max(0, ...runWindow.slice.turns.map((t) => t.endMs), 0),
+    };
+  }, [runWindow.slice, longPauseMs, durationSec]);
+
+  useWaveformCanvas(wf, overlaySegments, null, null, null, loopAsec, loopBsec, waveformCompact, waveformOverlay);
 
   // WX-725 — sync transport → waveform : le canvas lit wf.mediaCurrentSec, pas currentTimeSec
   // webAudioMode (audio) : la position courante vient du Web Audio, pas du timeupdate natif
@@ -419,6 +436,22 @@ export function PlayerWorkspaceSection({
     }
   }, [runDir]);
 
+  const exportHtmlReport = useCallback(async () => {
+    if (!runDir) return;
+    setReportError("");
+    setReportHint("");
+    setReportBusy(true);
+    try {
+      const r = await invoke<{ outputPath: string }>("export_prosody_report", { runDir });
+      setReportHint(`Rapport généré · ${r.outputPath}`);
+      await invoke("open_local_path", { path: r.outputPath });
+    } catch (e) {
+      setReportError(String(e));
+    } finally {
+      setReportBusy(false);
+    }
+  }, [runDir]);
+
   useEffect(() => {
     setSpeakerSolo(null);
     setAlertListFilter("all");
@@ -527,6 +560,25 @@ export function PlayerWorkspaceSection({
       /* presse-papiers indisponible */
     }
   }, [currentTimeSec, mediaSrc, manifestError, mediaLoadError]);
+
+  // WX-724/WX-727 — brush stats mirrors wf.analysisSelection to keep a single source of truth
+  const statsBrushRange = useMemo<BrushRange | null>(
+    () =>
+      wf.analysisSelection
+        ? { startMs: wf.analysisSelection.start * 1000, endMs: wf.analysisSelection.end * 1000 }
+        : null,
+    [wf.analysisSelection],
+  );
+  const handleStatsBrushChange = useCallback(
+    (range: BrushRange | null) => {
+      if (range) {
+        wf.setAnalysisSelection({ start: range.startMs / 1000, end: range.endMs / 1000 });
+      } else {
+        wf.clearAnalysisSelection();
+      }
+    },
+    [wf.setAnalysisSelection, wf.clearAnalysisSelection],
+  );
 
   const toggleVideoFullscreen = useCallback(async () => {
     const el = mediaRef.current;
@@ -770,6 +822,13 @@ export function PlayerWorkspaceSection({
                   <strong>Annoter directement</strong> — ouvre un audio sans transcription ASR. Tu
                   peux importer un transcript existant (SRT/VTT/JSON) ou annoter manuellement.
                 </p>
+                <p className="player-empty-annotation-steps small">
+                  <strong>Étapes :</strong> 1) fichier audio · 2) dossier <em>parent</em> où le run
+                  sera créé (un sous-dossier est ajouté automatiquement — ce n’est pas
+                  l’enregistrement d’un fichier transcript). Après succès, tu restes sur{" "}
+                  <strong>Player</strong> avec le run chargé : ouvre l’onglet <strong>Éditeur</strong>{" "}
+                  pour annoter, ou écoute l’audio ici.
+                </p>
                 {annotationImport.error ? (
                   <p className="player-empty-annotation-error small">{annotationImport.error}</p>
                 ) : null}
@@ -802,8 +861,12 @@ export function PlayerWorkspaceSection({
               </div>
             ) : null}
             <div className="player-empty-cta">
-              <Button type="button" variant="primary" onClick={onBack}>
-                Aller à Import
+              <p className="player-empty-cta-hint small">
+                Pour lancer un <strong>job WhisperX</strong> (pipeline ASR) depuis un média, va sur
+                l’onglet Import.
+              </p>
+              <Button type="button" variant="secondary" onClick={onBack}>
+                Ouvrir l’onglet Import
               </Button>
             </div>
           </div>
@@ -987,6 +1050,7 @@ export function PlayerWorkspaceSection({
                     isVideo={isVideo}
                     compact={waveformCompact}
                     onToggleCompact={() => setWaveformCompact((c) => !c)}
+                    waveformOverlay={waveformOverlay}
                   />
                 ) : null}
                 {mediaSrc ? (
@@ -1066,6 +1130,9 @@ export function PlayerWorkspaceSection({
                   onSetLoopRange={setLoopRange}
                   runSpeakerIds={runSpeakerIds}
                   longPauseMs={longPauseMs}
+                  highlightRangeMs={statsBrushRange ? { start: statsBrushRange.startMs, end: statsBrushRange.endMs } : null}
+                  statsBrushRange={statsBrushRange}
+                  onStatsBrushChange={handleStatsBrushChange}
                 />
               </div>
               {runDir ? <p className="small mono player-viewport-path">{runDir}</p> : null}
@@ -1099,6 +1166,15 @@ export function PlayerWorkspaceSection({
                   >
                     {exportPackBusy ? "Export…" : "Export pack"}
                   </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={!runDir || reportBusy}
+                    title="Rapport HTML complet (metadata + stats + transcript)"
+                    onClick={() => void exportHtmlReport()}
+                  >
+                    {reportBusy ? "Rapport…" : "Rapport HTML"}
+                  </button>
                 </div>
                 {exportFolderError ? (
                   <span className="player-export-error" role="alert">
@@ -1115,6 +1191,16 @@ export function PlayerWorkspaceSection({
                     {exportPackHint.length > 80
                       ? `${exportPackHint.slice(0, 80)}…`
                       : exportPackHint}
+                  </span>
+                ) : null}
+                {reportError ? (
+                  <span className="player-export-error" role="alert">
+                    {reportError}
+                  </span>
+                ) : null}
+                {reportHint ? (
+                  <span className="player-export-hint mono" title={reportHint}>
+                    {reportHint.length > 80 ? `${reportHint.slice(0, 80)}…` : reportHint}
                   </span>
                 ) : null}
               </div>

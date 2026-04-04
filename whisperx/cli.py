@@ -607,7 +607,7 @@ def _handle_import_transcript(args: argparse.Namespace, argv: list[str]) -> None
     from whisperx.transcript_import import load_transcript, segments_to_whisperx_result
     from whisperx.timeline import build_canonical_timeline
     from whisperx.timeline_analysis_config import build_timeline_analysis_config
-    from whisperx.utils import get_writer
+    from whisperx.utils import empty_canonical_timeline_payload, get_writer
     from whisperx.run_manifest import (
         RunManifestBuildInput,
         build_run_manifest_v1,
@@ -676,8 +676,17 @@ def _handle_import_transcript(args: argparse.Namespace, argv: list[str]) -> None
     )
     result["timeline"] = build_canonical_timeline(result, analysis_config=timeline_analysis_config)
 
-    # Écrire les sorties (JSON + data-science exports)
     audio_stem = os.path.splitext(os.path.basename(audio_path))[0]
+    timeline_json_rel = f"{audio_stem}.timeline.json"
+    timeline_path = os.path.join(run_dir_str, timeline_json_rel)
+    timeline_payload = result.get("timeline")
+    if not isinstance(timeline_payload, dict):
+        timeline_payload = empty_canonical_timeline_payload()
+    with open(timeline_path, "w", encoding="utf-8") as handle:
+        json.dump(timeline_payload, handle, ensure_ascii=False, indent=2)
+
+    # JSON run WhisperX (segments + timeline embarquée). Le manifest doit référencer
+    # artifacts.timeline_json pour que le Player importe events.sqlite (run_events/mod.rs).
     pseudo_audio_path = os.path.join(run_dir_str, f"{audio_stem}.wav")
 
     json_writer = get_writer("json", run_dir_str)
@@ -688,8 +697,7 @@ def _handle_import_transcript(args: argparse.Namespace, argv: list[str]) -> None
     except importlib.metadata.PackageNotFoundError:
         wx_version = "unknown"
 
-    # Construire le manifest compatible avec les vues Player
-    timeline_json_rel = f"{audio_stem}.timeline.json"
+    # Construire le manifest compatible avec les vues Player (artifacts.timeline_json requis pour events.sqlite)
     run_json_rel = f"{audio_stem}.json"
     artifact_keys: dict[str, str] = {}
     if os.path.isfile(os.path.join(run_dir_str, timeline_json_rel)):

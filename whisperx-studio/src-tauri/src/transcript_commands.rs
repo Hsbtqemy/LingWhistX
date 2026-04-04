@@ -58,9 +58,7 @@ pub fn load_transcript_document(path: String) -> Result<TranscriptDocument, Stri
         .and_then(|lang| lang.as_str())
         .map(ToOwned::to_owned);
     let segments = load_segments_from_json(&value);
-    if segments.is_empty() {
-        return Err("No usable segments were found in transcript JSON".into());
-    }
+    // Segments vides : valide (run « audio seul », transcript pas encore enrichi, etc.) — l’éditeur affiche un état vide.
 
     Ok(TranscriptDocument {
         path,

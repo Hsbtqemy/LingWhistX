@@ -1,3 +1,4 @@
+import type { BrushRange } from "../../player/playerSpeakerStats";
 import type { QueryWindowResult } from "../../types";
 import type { PlayerViewportMode } from "./playerViewportContract";
 import { PlayerChatBody } from "./views/ChatView";
@@ -32,6 +33,11 @@ type Props = {
   runSpeakerIds?: string[];
   /** WX-713 — Seuil de pause visible dans Lanes et Rythmo (ms). */
   longPauseMs?: number;
+  /** WX-727 — Plage de sélection d'analyse pour highlight des segments. */
+  highlightRangeMs?: { start: number; end: number } | null;
+  /** WX-724/WX-727 — Brush stats synchronisé avec analysisSelection. */
+  statsBrushRange?: BrushRange | null;
+  onStatsBrushChange?: (range: BrushRange | null) => void;
 };
 
 /**
@@ -52,6 +58,8 @@ export function PlayerRunWindowViews({
   onSetLoopRange,
   longPauseMs = 300,
   runSpeakerIds,
+  statsBrushRange,
+  onStatsBrushChange,
 }: Props) {
   if (queryError) {
     return null;
@@ -128,6 +136,8 @@ export function PlayerRunWindowViews({
         playheadMs={playheadMs}
         durationSec={durationSec}
         onSeekToMs={onSeekToMs}
+        brushRange={statsBrushRange}
+        onBrushChange={onStatsBrushChange}
       />
     );
   }

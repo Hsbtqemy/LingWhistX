@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  hasTranscriptSourcePath,
   isTranscriptEditorReadyForIo,
   runWithEditorSavingFlag,
   TRANSCRIPT_EDITOR_NOT_LOADED_ERROR,
@@ -10,7 +11,13 @@ describe("transcriptEditorIoHelpers", () => {
     expect(TRANSCRIPT_EDITOR_NOT_LOADED_ERROR.length).toBeGreaterThan(10);
   });
 
-  it("isTranscriptEditorReadyForIo exige chemin et segments", () => {
+  it("hasTranscriptSourcePath exige un chemin non vide", () => {
+    expect(hasTranscriptSourcePath("")).toBe(false);
+    expect(hasTranscriptSourcePath("  ")).toBe(false);
+    expect(hasTranscriptSourcePath("/run/x.json")).toBe(true);
+  });
+
+  it("isTranscriptEditorReadyForIo exige chemin et au moins un segment (export / pack)", () => {
     expect(isTranscriptEditorReadyForIo("", 1)).toBe(false);
     expect(isTranscriptEditorReadyForIo("/a.json", 0)).toBe(false);
     expect(isTranscriptEditorReadyForIo("/a.json", 2)).toBe(true);

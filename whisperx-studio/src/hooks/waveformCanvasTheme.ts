@@ -20,6 +20,21 @@ export type WaveformCanvasThemeColors = {
   loopBand: string;
   handleCold: string;
   handleHot: string;
+  // WX-726 marqueurs contextuels
+  markerLongPause: string;
+  markerOverlap: string;
+  markerSpeakerChange: string;
+  markerLowConf: string;
+  // WX-726 lanes d'analyse
+  laneDensityFill: string;
+  laneSpeechRateFill: string;
+  laneConfFill: string;
+  laneBg: string;
+  laneGrid: string;
+  laneLabel: string;
+  // WX-727 sélection analyse
+  analysisSelFill: string;
+  analysisSelHandle: string;
 };
 
 function readWaveformCanvasThemeColors(): WaveformCanvasThemeColors {
@@ -41,6 +56,18 @@ function readWaveformCanvasThemeColors(): WaveformCanvasThemeColors {
     loopBand: v("--lx-waveform-loop-band", "rgba(138, 75, 22, 0.18)"),
     handleCold: v("--lx-waveform-handle-cold", "#1a6fb0"),
     handleHot: v("--lx-waveform-handle-hot", "#e06b2f"),
+    markerLongPause: v("--lx-waveform-marker-long-pause", "rgba(210, 50, 50, 0.7)"),
+    markerOverlap: v("--lx-waveform-marker-overlap", "rgba(220, 120, 30, 0.28)"),
+    markerSpeakerChange: v("--lx-waveform-marker-speaker-change", "rgba(30, 120, 200, 0.55)"),
+    markerLowConf: v("--lx-waveform-marker-low-conf", "rgba(220, 140, 30, 0.85)"),
+    laneDensityFill: v("--lx-waveform-lane-density", "rgba(19, 111, 126, 0.55)"),
+    laneSpeechRateFill: v("--lx-waveform-lane-speech-rate", "rgba(80, 140, 60, 0.6)"),
+    laneConfFill: v("--lx-waveform-lane-conf", "rgba(52, 140, 88, 0.7)"),
+    laneBg: v("--lx-waveform-lane-bg", "rgba(240, 248, 252, 0.9)"),
+    laneGrid: v("--lx-waveform-lane-grid", "rgba(16, 93, 103, 0.15)"),
+    laneLabel: v("--lx-waveform-lane-label", "#4a7a85"),
+    analysisSelFill: v("--lx-waveform-analysis-sel-fill", "rgba(100, 60, 200, 0.12)"),
+    analysisSelHandle: v("--lx-waveform-analysis-sel-handle", "rgba(100, 60, 200, 0.8)"),
   };
 }
 

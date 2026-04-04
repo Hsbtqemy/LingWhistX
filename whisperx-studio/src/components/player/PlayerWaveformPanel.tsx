@@ -10,6 +10,7 @@ import {
   formatClockSeconds,
   parseFiniteNumberInput,
 } from "../../appUtils";
+import type { WaveformOverlayData } from "../../types";
 import type { WaveformWorkspace } from "../../hooks/useWaveformWorkspace";
 import {
   secondsFromWaveformPointer,
@@ -27,6 +28,8 @@ export type PlayerWaveformPanelProps = {
   /** Mode compact — canvas réduit, contrôles détaillés masqués. */
   compact?: boolean;
   onToggleCompact?: () => void;
+  /** WX-726/727 — données événements pour marqueurs, lanes et sélection d'analyse. */
+  waveformOverlay?: WaveformOverlayData | null;
 };
 
 /**
@@ -39,9 +42,16 @@ export function PlayerWaveformPanel({
   isVideo,
   compact,
   onToggleCompact,
+  waveformOverlay,
 }: PlayerWaveformPanelProps) {
   const [wx623Hint, setWx623Hint] = useState<string | null>(null);
   const [selectedPauseCsvPath, setSelectedPauseCsvPath] = useState("");
+  // WX-726 — tooltip marqueur survolé
+  const [markerTooltip, setMarkerTooltip] = useState<{
+    label: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     setSelectedPauseCsvPath(pauseCsvPaths[0] ?? "");
@@ -69,7 +79,8 @@ export function PlayerWaveformPanel({
     [wf.waveform, wf.waveformVisibleDurationSec, wf.waveformViewStartSec, wf.applySnap],
   );
 
-  const waveformCursorStyle = wf.rangeDragStartSec !== null ? "col-resize" : ("crosshair" as const);
+  const waveformCursorStyle =
+    wf.rangeDragStartSec !== null || wf.analysisSelDragStart !== null ? "col-resize" : "crosshair";
 
   const waveformAriaLabel = useMemo(() => {
     const pos = formatClockSeconds(wf.mediaCurrentSec);
@@ -106,7 +117,10 @@ export function PlayerWaveformPanel({
   const onWaveformMouseDown = useCallback(
     (event: MouseEvent<HTMLCanvasElement>) => {
       const seconds = secondsFromWaveformPointer(waveformPointerCtx, event);
-      if (seconds === null) {
+      if (seconds === null) return;
+      if (wf.analysisSelectionMode) {
+        wf.beginAnalysisDrag(seconds);
+        wf.setWaveformCursorSec(seconds);
         return;
       }
       if (wf.rangeSelectionMode) {
@@ -119,9 +133,135 @@ export function PlayerWaveformPanel({
     [wf, waveformPointerCtx],
   );
 
-  const onWaveformMouseMove = useCallback(() => undefined, []);
+  const onWaveformDblClick = useCallback(() => {
+    if (wf.analysisSelectionMode) {
+      wf.clearAnalysisSelection();
+    }
+  }, [wf]);
+
+  // WX-726 — détection de survol des marqueurs pour le tooltip
+  const onWaveformMouseMove = useCallback(
+    (event: MouseEvent<HTMLCanvasElement>) => {
+      if (!waveformOverlay || !wf.waveform) {
+        setMarkerTooltip((prev) => (prev !== null ? null : prev));
+        return;
+      }
+      const seconds = secondsFromWaveformPointer(waveformPointerCtx, event);
+      if (seconds === null) {
+        setMarkerTooltip((prev) => (prev !== null ? null : prev));
+        return;
+      }
+      const ms = seconds * 1000;
+      const { pauses, turns, words, longPauseMs } = waveformOverlay;
+
+      // Tolérance en secondes selon le zoom
+      const tolSec = Math.max(0.1, wf.waveformVisibleDurationSec * 0.005);
+      const tolMs = tolSec * 1000;
+
+      // Long pause proche ?
+      if (wf.markerToggles.longPauses) {
+        const pause = pauses.find(
+          (p) =>
+            p.durMs >= longPauseMs &&
+            Math.abs(p.startMs - ms) < tolMs * 3,
+        );
+        if (pause) {
+          const speaker = pause.speaker ? ` (${pause.speaker})` : "";
+          setMarkerTooltip({
+            label: `Pause ${(pause.durMs / 1000).toFixed(2)} s${speaker}`,
+            x: event.nativeEvent.offsetX,
+            y: event.nativeEvent.offsetY,
+          });
+          return;
+        }
+      }
+
+      // Chevauchement au curseur ?
+      if (wf.markerToggles.overlaps) {
+        const sorted = [...turns].sort((a, b) => a.startMs - b.startMs);
+        for (let i = 0; i < sorted.length - 1; i++) {
+          const a = sorted[i];
+          for (let j = i + 1; j < sorted.length; j++) {
+            const b = sorted[j];
+            if (b.startMs >= a.endMs) break;
+            if (a.speaker === b.speaker) continue;
+            const olStart = Math.max(a.startMs, b.startMs);
+            const olEnd = Math.min(a.endMs, b.endMs);
+            if (ms >= olStart - tolMs && ms <= olEnd + tolMs) {
+              setMarkerTooltip({
+                label: `Chevauch. ${a.speaker}/${b.speaker} — ${((olEnd - olStart) / 1000).toFixed(2)} s`,
+                x: event.nativeEvent.offsetX,
+                y: event.nativeEvent.offsetY,
+              });
+              return;
+            }
+          }
+        }
+      }
+
+      // Mot à faible confiance proche ?
+      if (wf.markerToggles.lowConfWords) {
+        const word = words.find(
+          (w) =>
+            (w.confidence ?? 1) < 0.65 &&
+            Math.abs((w.startMs + w.endMs) / 2 - ms) < tolMs * 2,
+        );
+        if (word) {
+          setMarkerTooltip({
+            label: `"${word.token ?? "?"}" — conf. ${((word.confidence ?? 0) * 100).toFixed(0)}%`,
+            x: event.nativeEvent.offsetX,
+            y: event.nativeEvent.offsetY,
+          });
+          return;
+        }
+      }
+
+      setMarkerTooltip((prev) => (prev !== null ? null : prev));
+    },
+    [waveformOverlay, waveformPointerCtx, wf],
+  );
+
   const onWaveformMouseUp = useCallback(() => undefined, []);
-  const onWaveformMouseLeave = useCallback(() => undefined, []);
+
+  const onWaveformMouseLeave = useCallback(() => {
+    setMarkerTooltip(null);
+  }, []);
+
+  // WX-727 — stats scopées pour la sélection active
+  const scopedStats = useMemo(() => {
+    const sel = wf.analysisSelection;
+    if (!sel || !waveformOverlay) return null;
+    const selStartMs = sel.start * 1000;
+    const selEndMs = sel.end * 1000;
+    const durMs = selEndMs - selStartMs;
+    if (durMs <= 0) return null;
+
+    const turns = waveformOverlay.turns.filter(
+      (t) => t.endMs > selStartMs && t.startMs < selEndMs,
+    );
+    const pauses = waveformOverlay.pauses.filter(
+      (p) => p.endMs > selStartMs && p.startMs < selEndMs,
+    );
+    const words = waveformOverlay.words.filter(
+      (w) => w.endMs > selStartMs && w.startMs < selEndMs,
+    );
+
+    const speechMs = turns.reduce((sum, t) => {
+      const ol = Math.max(0, Math.min(t.endMs, selEndMs) - Math.max(t.startMs, selStartMs));
+      return sum + ol;
+    }, 0);
+
+    const speakers = [...new Set(turns.map((t) => t.speaker))];
+
+    return {
+      durSec: durMs / 1000,
+      nTurns: turns.length,
+      nPauses: pauses.length,
+      nWords: words.length,
+      speechRatio: speechMs / durMs,
+      speakers,
+    };
+  }, [wf.analysisSelection, waveformOverlay]);
 
   async function exportSnippetWav() {
     if (!wf.previewRangeSec) {
@@ -156,6 +296,42 @@ export function PlayerWaveformPanel({
     >
       <div className="player-waveform-panel__header">
         <h4 className="player-panel-title player-waveform-panel__title">Ondeforme</h4>
+        {/* WX-726 — Marqueurs rapides (compact) */}
+        {waveformOverlay ? (
+          <div className="player-waveform-marker-toggles">
+            {(
+              [
+                { key: "longPauses", icon: "⏸", title: "Pauses longues" },
+                { key: "overlaps", icon: "⇔", title: "Chevauchements" },
+                { key: "speakerChanges", icon: "↕", title: "Changements de locuteur" },
+                { key: "lowConfWords", icon: "⚠", title: "Mots à faible confiance" },
+              ] as const
+            ).map(({ key, icon, title }) => (
+              <button
+                key={key}
+                type="button"
+                className={`ghost small player-waveform-marker-btn${wf.markerToggles[key] ? " is-active" : ""}`}
+                title={title}
+                onClick={() => wf.setMarkerToggles({ ...wf.markerToggles, [key]: !wf.markerToggles[key] })}
+              >
+                {icon}
+              </button>
+            ))}
+            <span className="player-waveform-marker-sep" aria-hidden />
+            {/* WX-727 — Mode sélection analyse */}
+            <button
+              type="button"
+              className={`ghost small player-waveform-marker-btn${wf.analysisSelectionMode ? " is-active" : ""}`}
+              title={wf.analysisSelectionMode ? "Sélection analyse active — double-clic pour effacer" : "Activer la sélection de région"}
+              onClick={() => {
+                wf.setAnalysisSelectionMode(!wf.analysisSelectionMode);
+                if (wf.analysisSelectionMode) wf.clearAnalysisSelection();
+              }}
+            >
+              ▣
+            </button>
+          </div>
+        ) : null}
         {onToggleCompact ? (
           <button
             type="button"
@@ -618,20 +794,88 @@ export function PlayerWaveformPanel({
             isLoading={wf.isOverviewLoading}
             setViewStartSec={wf.setWaveformViewStart}
           />
-          <canvas
-            ref={wf.waveformCanvasRef}
-            className="waveform-canvas"
-            style={{ cursor: waveformCursorStyle }}
-            role="img"
-            aria-label={waveformAriaLabel}
-            tabIndex={0}
-            onMouseDown={onWaveformMouseDown}
-            onMouseMove={onWaveformMouseMove}
-            onMouseUp={onWaveformMouseUp}
-            onMouseLeave={onWaveformMouseLeave}
-            onWheel={wf.onWaveformWheel}
-            onKeyDown={onWaveformKeyDown}
-          />
+          {/* WX-726 — lanes toggles (mode étendu) */}
+          {!compact && waveformOverlay ? (
+            <div className="player-waveform-lane-toggles small">
+              <span className="player-waveform-lane-toggles-label">Lanes :</span>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={wf.laneToggles.density}
+                  onChange={(e) => wf.setLaneToggles({ ...wf.laneToggles, density: e.target.checked })}
+                />
+                Densité
+              </label>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={wf.laneToggles.speechRate}
+                  onChange={(e) => wf.setLaneToggles({ ...wf.laneToggles, speechRate: e.target.checked })}
+                />
+                Débit
+              </label>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={wf.laneToggles.confidence}
+                  onChange={(e) => wf.setLaneToggles({ ...wf.laneToggles, confidence: e.target.checked })}
+                />
+                Confiance
+              </label>
+            </div>
+          ) : null}
+          <div className="player-waveform-canvas-wrap">
+            <canvas
+              ref={wf.waveformCanvasRef}
+              className="waveform-canvas"
+              style={{ cursor: waveformCursorStyle }}
+              role="img"
+              aria-label={waveformAriaLabel}
+              tabIndex={0}
+              onMouseDown={onWaveformMouseDown}
+              onMouseMove={onWaveformMouseMove}
+              onMouseUp={onWaveformMouseUp}
+              onMouseLeave={onWaveformMouseLeave}
+              onDoubleClick={onWaveformDblClick}
+              onWheel={wf.onWaveformWheel}
+              onKeyDown={onWaveformKeyDown}
+            />
+            {/* WX-726 — Tooltip marqueur */}
+            {markerTooltip ? (
+              <div
+                className="player-waveform-tooltip small"
+                style={{ left: markerTooltip.x + 12, top: markerTooltip.y - 8 }}
+                aria-live="polite"
+              >
+                {markerTooltip.label}
+              </div>
+            ) : null}
+          </div>
+          {/* WX-727 — Panneau stats scopées */}
+          {scopedStats && wf.analysisSelection ? (
+            <div className="player-waveform-analysis-stats small">
+              <span className="player-waveform-analysis-stats-title">
+                Sélection {formatClockSeconds(wf.analysisSelection.start)}–
+                {formatClockSeconds(wf.analysisSelection.end)} (
+                {formatClockSeconds(scopedStats.durSec)})
+              </span>
+              <span>{scopedStats.nTurns} tours</span>
+              <span>{scopedStats.nPauses} pauses</span>
+              <span>{(scopedStats.speechRatio * 100).toFixed(0)}% parole</span>
+              {scopedStats.nWords > 0 ? <span>{scopedStats.nWords} mots</span> : null}
+              {scopedStats.speakers.length > 0 ? (
+                <span>{scopedStats.speakers.join(", ")}</span>
+              ) : null}
+              <button
+                type="button"
+                className="ghost small"
+                onClick={wf.clearAnalysisSelection}
+                title="Effacer la sélection"
+              >
+                ✕
+              </button>
+            </div>
+          ) : null}
           {!compact ? (
             <p className="small">
               Durée : {formatClockSeconds(wf.waveform.durationSec)} | Lecture :{" "}

@@ -12,6 +12,7 @@ import type {
   SessionRestorePrompt,
 } from "../types";
 import { parseLiveTranscriptPayload } from "../utils/liveTranscript";
+import { unlistenFromPromise } from "../utils/tauriUnlisten";
 
 /** Rafraîchissement liste jobs quand au moins un job est `queued` ou `running`. */
 const JOBS_REFRESH_MS_ACTIVE = 1500;
@@ -234,10 +235,10 @@ export function useJobsList({
     );
 
     return () => {
-      void unlistenJobPromise.then((unlisten) => unlisten());
-      void unlistenDeletedPromise.then((unlisten) => unlisten());
-      void unlistenLogPromise.then((unlisten) => unlisten());
-      void unlistenAudioQualityPromise.then((unlisten) => unlisten());
+      unlistenFromPromise(unlistenJobPromise);
+      unlistenFromPromise(unlistenDeletedPromise);
+      unlistenFromPromise(unlistenLogPromise);
+      unlistenFromPromise(unlistenAudioQualityPromise);
     };
   }, []);
 

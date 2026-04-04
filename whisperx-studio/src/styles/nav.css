@@ -78,6 +78,33 @@
   color: transparent;
 }
 
+/* Le dégradé (background-clip: text) doit cibler un span interne — pas le <button> (invisible sur WebKit). */
+button.studio-nav-brand__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  color: inherit;
+}
+
+button.studio-nav-brand__btn:hover {
+  filter: brightness(1.08);
+}
+
+button.studio-nav-brand__btn:focus-visible {
+  outline: 2px solid var(--lx-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
 .studio-nav-tabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

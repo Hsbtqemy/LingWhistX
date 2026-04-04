@@ -102,6 +102,7 @@ export const profilePresets: ProfilePreset[] = [
 ];
 
 export const MIN_SEGMENT_DURATION_SEC = 0.02;
+export const DEFAULT_INSERT_SEGMENT_DURATION_SEC = 3.0;
 export const MIN_WAVEFORM_ZOOM = 1;
 export const MAX_WAVEFORM_ZOOM = 20;
 export const DEFAULT_KEYBOARD_SEEK_SEC = 1;

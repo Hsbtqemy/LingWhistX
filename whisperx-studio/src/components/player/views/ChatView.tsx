@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatClockSeconds } from "../../../appUtils";
 import type { EventTurnRow, QueryWindowResult } from "../../../types";
-import { speakerColor, turnTextFromIpus } from "./viewUtils";
+import { speakerColor, turnDisplayTextForTurn } from "./viewUtils";
 
 export function PlayerChatBody({
   slice,
@@ -56,9 +56,9 @@ export function PlayerChatBody({
 
   const getTurnText = useCallback(
     (turn: EventTurnRow): string => {
-      return turnTextFromIpus(turn, slice.ipus);
+      return turnDisplayTextForTurn(turn, slice);
     },
-    [slice.ipus],
+    [slice],
   );
 
   return (

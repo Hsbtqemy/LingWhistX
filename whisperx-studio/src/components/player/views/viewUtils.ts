@@ -1,4 +1,4 @@
-import type { EditableSegment, EventTurnRow, QueryWindowResult } from "../../../types";
+import type { EditableSegment, EventTurnRow, EventWordRow, QueryWindowResult } from "../../../types";
 import { LX_THEME_CHANGED_EVENT } from "../../../theme/applyStoredTheme";
 
 /** Noms des variables `tokens.css` — même ordre que --lx-speaker-0 … 7 */
@@ -76,12 +76,65 @@ export function invalidateSpeakerColorCache(): void {
 export const SPEAKER_COLORS = SPEAKER_VAR.map((v) => `var(${v})`) as readonly string[];
 
 export function turnTextFromIpus(turn: EventTurnRow, ipus: QueryWindowResult["ipus"]): string {
-  const overlapping = ipus.filter((ipu) => ipu.endMs > turn.startMs && ipu.startMs < turn.endMs);
+  const list = ipus ?? [];
+  const overlap = (a0: number, a1: number, b0: number, b1: number) => a1 > b0 && a0 < b1;
+  const joinText = (rows: typeof list) =>
+    rows
+      .map((ipu) => ipu.text?.trim())
+      .filter(Boolean)
+      .join(" ");
+
+  let rows = list.filter((ipu) => overlap(turn.startMs, turn.endMs, ipu.startMs, ipu.endMs));
+  let s = joinText(rows);
+  if (s) return s;
+  // Frontières tangentes ou segmentation légèrement décalée (±25 ms)
+  const pad = 25;
+  rows = list.filter((ipu) =>
+    overlap(turn.startMs - pad, turn.endMs + pad, ipu.startMs, ipu.endMs),
+  );
+  s = joinText(rows);
+  if (s) return s;
+  // Dernier repli : même locuteur, IPU dont le centre est le plus proche du centre du tour
+  const tMid = (turn.startMs + turn.endMs) / 2;
+  const sameSp = (ipu: (typeof list)[0]) => {
+    const a = turn.speaker ?? "";
+    const b = ipu.speaker ?? "";
+    return !a || !b || a === b;
+  };
+  const maxD = Math.max(15_000, (turn.endMs - turn.startMs) * 3);
+  let best: (typeof list)[0] | null = null;
+  let bestScore = Infinity;
+  for (const ipu of list) {
+    if (!sameSp(ipu)) continue;
+    const mid = (ipu.startMs + ipu.endMs) / 2;
+    const d = Math.abs(mid - tMid);
+    if (d < bestScore && d <= maxD) {
+      bestScore = d;
+      best = ipu;
+    }
+  }
+  const t = best?.text?.trim();
+  return t ?? "";
+}
+
+/** Texte mot à mot (fenêtre SQLite) — préférable aux seuls IPU quand les tokens sont riches. */
+export function turnTextFromWords(turn: EventTurnRow, words: EventWordRow[]): string {
+  const overlapping = words.filter((w) => w.endMs > turn.startMs && w.startMs < turn.endMs);
   if (overlapping.length === 0) return "";
   return overlapping
-    .map((ipu) => ipu.text?.trim())
+    .map((w) => (w.token ?? "").trim())
     .filter(Boolean)
     .join(" ");
+}
+
+/**
+ * Texte affiché pour un tour dans les vues Lanes / similaires : mots d’abord, sinon IPU.
+ * Les IPU peuvent résumer grossièrement (ex. sport) alors que `token` porte la transcription fine.
+ */
+export function turnDisplayTextForTurn(turn: EventTurnRow, slice: QueryWindowResult): string {
+  const fromWords = turnTextFromWords(turn, slice.words);
+  if (fromWords.trim()) return fromWords;
+  return turnTextFromIpus(turn, slice.ipus);
 }
 
 export function turnTextFromSegments(turn: EventTurnRow, segments: EditableSegment[]): string {

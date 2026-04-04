@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { formatClockSeconds } from "../../../appUtils";
 import {
   buildSpeechTimeline,
+  clipRowsToBrush,
   computeOverlaps as computeTurnOverlaps,
   computeSpeakerStats,
   computeSpeechDensity,
@@ -9,6 +10,7 @@ import {
   computeTransitions,
   percentile,
 } from "../../../player/playerSpeakerStats";
+import type { BrushRange } from "../../../player/playerSpeakerStats";
 import type { EventPauseRow, QueryWindowResult } from "../../../types";
 import { speakerColor } from "./viewUtils";
 import {
@@ -24,27 +26,53 @@ export function PlayerStatsBody({
   playheadMs,
   durationSec,
   onSeekToMs,
+  brushRange = null,
+  onBrushChange,
 }: {
   slice: QueryWindowResult;
   playheadMs: number;
   durationSec?: number | null;
   onSeekToMs?: (ms: number) => void;
+  brushRange?: BrushRange | null;
+  onBrushChange?: (range: BrushRange | null) => void;
 }) {
   const totalDurationMs =
     durationSec != null && Number.isFinite(durationSec) ? durationSec * 1000 : undefined;
 
   const hasWords = slice.words.length > 0;
 
+  const durMs = totalDurationMs ?? Math.max(0, ...slice.turns.map((t) => t.endMs));
+
+  // Rows clipped to brush for stats — unclipped for canvas rendering
+  const activeTurns = useMemo(
+    () => (brushRange ? clipRowsToBrush(slice.turns, brushRange) : slice.turns),
+    [slice.turns, brushRange],
+  );
+  const activePauses = useMemo(
+    () => (brushRange ? clipRowsToBrush(slice.pauses, brushRange) : slice.pauses),
+    [slice.pauses, brushRange],
+  );
+  const activeIpus = useMemo(
+    () => (brushRange ? clipRowsToBrush(slice.ipus, brushRange) : slice.ipus),
+    [slice.ipus, brushRange],
+  );
+  const activeWords = useMemo(
+    () => (brushRange ? clipRowsToBrush(slice.words, brushRange) : slice.words),
+    [slice.words, brushRange],
+  );
+
+  const brushDurMs = brushRange ? brushRange.endMs - brushRange.startMs : durMs;
+
   const stats = useMemo(
     () =>
       computeSpeakerStats(
-        slice.turns,
-        slice.pauses,
-        slice.ipus,
-        totalDurationMs,
-        hasWords ? slice.words : undefined,
+        activeTurns,
+        activePauses,
+        activeIpus,
+        brushDurMs,
+        hasWords ? activeWords : undefined,
       ),
-    [slice.turns, slice.pauses, slice.ipus, slice.words, totalDurationMs, hasWords],
+    [activeTurns, activePauses, activeIpus, activeWords, brushDurMs, hasWords],
   );
 
   const activeSpeaker = useMemo(() => {
@@ -54,15 +82,17 @@ export function PlayerStatsBody({
 
   const speakers = useMemo(() => stats.map((s) => s.speaker), [stats]);
 
+  // Full timeline for canvas rendering (always unfiltered)
   const timeline = useMemo(() => buildSpeechTimeline(slice.turns), [slice.turns]);
 
-  const durMs = totalDurationMs ?? Math.max(0, ...slice.turns.map((t) => t.endMs));
-
-  const overlaps = useMemo(() => computeTurnOverlaps(slice.turns, durMs), [slice.turns, durMs]);
+  const overlaps = useMemo(
+    () => computeTurnOverlaps(activeTurns, brushDurMs),
+    [activeTurns, brushDurMs],
+  );
 
   const rateSeries = useMemo(() => computeSpeechRate(slice.ipus, durMs), [slice.ipus, durMs]);
 
-  const transitions = useMemo(() => computeTransitions(slice.turns), [slice.turns]);
+  const transitions = useMemo(() => computeTransitions(activeTurns), [activeTurns]);
 
   const densityPoints = useMemo(
     () => computeSpeechDensity(slice.turns, durMs),
@@ -79,19 +109,30 @@ export function PlayerStatsBody({
     });
   }, []);
 
+  const [expandedCharts, setExpandedCharts] = useState<Set<string>>(new Set());
+  const toggleChartExpand = useCallback((id: string) => {
+    setExpandedCharts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
   const [pauseMinMs, setPauseMinMs] = useState(0);
   const [pauseSpeakerFilter, setPauseSpeakerFilter] = useState<string>("__all__");
   const [pauseTypeFilter, setPauseTypeFilter] = useState<string>("__all__");
   const [pauseListExpanded, setPauseListExpanded] = useState(false);
 
-  const allPauses = slice.pauses;
+  // Intentionally unfiltered: context words before/after a pause benefit from the full word list,
+  // including words just outside the brush boundary.
   const sortedWords = useMemo(
     () => [...slice.words].sort((a, b) => a.startMs - b.startMs),
     [slice.words],
   );
 
   const filteredPauses = useMemo(() => {
-    let result = allPauses.filter((p) => p.durMs >= pauseMinMs);
+    let result = activePauses.filter((p) => p.durMs >= pauseMinMs);
     if (pauseSpeakerFilter !== "__all__") {
       result = result.filter((p) => (p.speaker ?? "?") === pauseSpeakerFilter);
     }
@@ -99,15 +140,15 @@ export function PlayerStatsBody({
       result = result.filter((p) => (p.type ?? "unknown") === pauseTypeFilter);
     }
     return result.sort((a, b) => a.startMs - b.startMs);
-  }, [allPauses, pauseMinMs, pauseSpeakerFilter, pauseTypeFilter]);
+  }, [activePauses, pauseMinMs, pauseSpeakerFilter, pauseTypeFilter]);
 
   const allPauseDurationsMs = useMemo(() => filteredPauses.map((p) => p.durMs), [filteredPauses]);
 
   const pauseTypes = useMemo(() => {
     const s = new Set<string>();
-    for (const p of allPauses) s.add(p.type ?? "unknown");
+    for (const p of activePauses) s.add(p.type ?? "unknown");
     return [...s].sort();
-  }, [allPauses]);
+  }, [activePauses]);
 
   const pauseContextLookup = useCallback(
     (p: EventPauseRow) => {
@@ -123,7 +164,7 @@ export function PlayerStatsBody({
 
   const totalSpeechMs = stats.reduce((s, st) => s + st.speechMs, 0);
   const totalWords = stats.reduce((s, st) => s + st.nWords, 0);
-  const silenceMs = Math.max(0, durMs - totalSpeechMs);
+  const silenceMs = Math.max(0, brushDurMs - totalSpeechMs);
   const globalRate = totalSpeechMs > 0 ? (totalWords / (totalSpeechMs / 1000)) * 60 : 0;
 
   const qualityScore = useMemo(() => {
@@ -154,24 +195,46 @@ export function PlayerStatsBody({
 
   return (
     <div className="player-stats-body">
+      {/* Brush indicator */}
+      {brushRange && (
+        <div className="stats-brush-info">
+          <span className="stats-brush-range">
+            {formatClockSeconds(brushRange.startMs / 1000)}
+            {" – "}
+            {formatClockSeconds(brushRange.endMs / 1000)}
+            {" · "}
+            {formatClockSeconds(brushDurMs / 1000)}
+          </span>
+          <button
+            type="button"
+            className="stats-brush-reset-btn"
+            onClick={() => onBrushChange?.(null)}
+          >
+            Réinitialiser ×
+          </button>
+        </div>
+      )}
+
       {/* Résumé global */}
       <div className="stats-summary">
         <div className="stats-summary-item">
-          <span className="stats-summary-value mono">{formatClockSeconds(durMs / 1000)}</span>
-          <span className="stats-summary-label">Durée totale</span>
+          <span className="stats-summary-value mono">{formatClockSeconds(brushDurMs / 1000)}</span>
+          <span className="stats-summary-label">
+            {brushRange ? "Sélection" : "Durée totale"}
+          </span>
         </div>
         <div className="stats-summary-item">
           <span className="stats-summary-value mono">
             {formatClockSeconds(totalSpeechMs / 1000)}
           </span>
           <span className="stats-summary-label">
-            Parole ({durMs > 0 ? ((totalSpeechMs / durMs) * 100).toFixed(1) : "0"}%)
+            Parole ({brushDurMs > 0 ? ((totalSpeechMs / brushDurMs) * 100).toFixed(1) : "0"}%)
           </span>
         </div>
         <div className="stats-summary-item">
           <span className="stats-summary-value mono">{formatClockSeconds(silenceMs / 1000)}</span>
           <span className="stats-summary-label">
-            Silence ({durMs > 0 ? ((silenceMs / durMs) * 100).toFixed(1) : "0"}%)
+            Silence ({brushDurMs > 0 ? ((silenceMs / brushDurMs) * 100).toFixed(1) : "0"}%)
           </span>
         </div>
         <div className="stats-summary-item">
@@ -206,7 +269,12 @@ export function PlayerStatsBody({
 
       {/* Répartition du temps de parole */}
       <div className="player-stats-section">
-        <h4 className="player-stats-section-title">Répartition du temps de parole</h4>
+        <h4 className="player-stats-section-title">
+          Répartition du temps de parole
+          <button type="button" className="stats-chart-expand-btn" onClick={() => toggleChartExpand("bar")} title={expandedCharts.has("bar") ? "Réduire" : "Agrandir"}>
+            {expandedCharts.has("bar") ? "↙" : "↗"}
+          </button>
+        </h4>
         <div className="player-stats-legend">
           {stats.map((s, i) => (
             <span key={s.speaker} className="player-stats-legend-item">
@@ -218,7 +286,8 @@ export function PlayerStatsBody({
             </span>
           ))}
         </div>
-        <SpeechBarCanvas stats={stats} totalDurationMs={durMs} activeSpeaker={activeSpeaker} />
+        <SpeechBarCanvas stats={stats} totalDurationMs={durMs} activeSpeaker={activeSpeaker} onSeekToMs={onSeekToMs} expanded={expandedCharts.has("bar")} />
+
       </div>
 
       {/* Timeline alternances + overlaps */}
@@ -231,6 +300,9 @@ export function PlayerStatsBody({
               {formatClockSeconds(overlaps.totalMs / 1000)} ({(overlaps.ratio * 100).toFixed(1)}%)
             </span>
           )}
+          <button type="button" className="stats-chart-expand-btn" onClick={() => toggleChartExpand("timeline")} title={expandedCharts.has("timeline") ? "Réduire" : "Agrandir"}>
+            {expandedCharts.has("timeline") ? "↙" : "↗"}
+          </button>
         </h4>
         <SpeechTimelineCanvas
           timeline={timeline}
@@ -239,13 +311,21 @@ export function PlayerStatsBody({
           playheadMs={playheadMs}
           onSeekToMs={onSeekToMs}
           overlapSegments={overlaps.segments}
+          expanded={expandedCharts.has("timeline")}
+          brushRange={brushRange}
+          onBrushChange={onBrushChange}
         />
       </div>
 
       {/* Débit de parole */}
       {rateSeries.length > 0 && (
         <div className="player-stats-section">
-          <h4 className="player-stats-section-title">Débit de parole (mots/min)</h4>
+          <h4 className="player-stats-section-title">
+            Débit de parole (mots/min)
+            <button type="button" className="stats-chart-expand-btn" onClick={() => toggleChartExpand("rate")} title={expandedCharts.has("rate") ? "Réduire" : "Agrandir"}>
+              {expandedCharts.has("rate") ? "↙" : "↗"}
+            </button>
+          </h4>
           <div className="player-stats-legend">
             {rateSeries.map((s) => {
               const si = speakers.indexOf(s.speaker);
@@ -266,6 +346,9 @@ export function PlayerStatsBody({
             totalDurationMs={durMs}
             playheadMs={playheadMs}
             onSeekToMs={onSeekToMs}
+            expanded={expandedCharts.has("rate")}
+            brushRange={brushRange}
+            onBrushChange={onBrushChange}
           />
         </div>
       )}
@@ -275,12 +358,18 @@ export function PlayerStatsBody({
         <div className="player-stats-section">
           <h4 className="player-stats-section-title">
             Densit{"é"} de parole (activit{"é"} vocale)
+            <button type="button" className="stats-chart-expand-btn" onClick={() => toggleChartExpand("density")} title={expandedCharts.has("density") ? "Réduire" : "Agrandir"}>
+              {expandedCharts.has("density") ? "↙" : "↗"}
+            </button>
           </h4>
           <SpeechDensityCanvas
             points={densityPoints}
             totalDurationMs={durMs}
             playheadMs={playheadMs}
             onSeekToMs={onSeekToMs}
+            expanded={expandedCharts.has("density")}
+            brushRange={brushRange}
+            onBrushChange={onBrushChange}
           />
         </div>
       )}
@@ -310,11 +399,11 @@ export function PlayerStatsBody({
       )}
 
       {/* Pauses — section dédiée */}
-      {allPauses.length > 0 && (
+      {activePauses.length > 0 && (
         <div className="player-stats-section">
           <h4 className="player-stats-section-title">
             Pauses ({filteredPauses.length}
-            {filteredPauses.length !== allPauses.length ? ` / ${allPauses.length}` : ""})
+            {filteredPauses.length !== activePauses.length ? ` / ${activePauses.length}` : ""})
           </h4>
 
           {/* Filtres */}
@@ -361,9 +450,16 @@ export function PlayerStatsBody({
           {/* Histogramme agrégé */}
           {allPauseDurationsMs.length > 0 && (
             <div className="player-stats-histogram">
+              <div className="player-stats-histogram-header">
+                <span className="player-stats-histogram-label small">Distribution</span>
+                <button type="button" className="stats-chart-expand-btn" onClick={() => toggleChartExpand("pauses-hist")} title={expandedCharts.has("pauses-hist") ? "Réduire" : "Agrandir"}>
+                  {expandedCharts.has("pauses-hist") ? "↙" : "↗"}
+                </button>
+              </div>
               <PauseHistogramCanvas
                 durationsMs={allPauseDurationsMs}
                 activeColor="var(--lx-accent)"
+                expanded={expandedCharts.has("pauses-hist")}
               />
             </div>
           )}

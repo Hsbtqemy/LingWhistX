@@ -111,13 +111,6 @@
   background: var(--lx-surface);
 }
 
-.player-stats-section-title {
-  margin: 0 0 8px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--lx-text-1);
-}
-
 .player-stats-legend {
   display: flex;
   flex-wrap: wrap;
@@ -177,8 +170,11 @@
   background: var(--lx-surface-muted);
 }
 
+/* Tooltip partagé pour tous les canvas stats */
+.stats-canvas-tooltip,
 .stats-rate-tooltip {
   position: absolute;
+  pointer-events: none;
   padding: 4px 8px;
   border-radius: 4px;
   background: var(--lx-surface);
@@ -189,6 +185,95 @@
   color: var(--lx-text-0);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--lx-text-0) 14%, transparent);
   z-index: 10;
+  pointer-events: none;
+}
+
+/* Bouton expand/collapse par chart */
+.player-stats-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--lx-text-1);
+}
+
+.stats-chart-expand-btn {
+  margin-left: auto;
+  padding: 1px 5px;
+  border: 1px solid var(--lx-border);
+  border-radius: 4px;
+  background: var(--lx-surface-muted);
+  color: var(--lx-text-2);
+  font-size: 0.7rem;
+  line-height: 1.4;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.stats-chart-expand-btn:hover {
+  background: var(--lx-surface-hover);
+  color: var(--lx-text-0);
+}
+
+.player-stats-histogram-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.stats-canvas-wrap {
+  position: relative;
+  width: 100%;
+}
+
+/* Brush overlay — live drag preview inside canvas wrap */
+.stats-brush-overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--lx-stats-brush-fill, rgba(99, 102, 241, 0.12));
+  border: 1px solid var(--lx-stats-brush-stroke, rgba(99, 102, 241, 0.5));
+  pointer-events: none;
+  display: none;
+  border-radius: 1px;
+}
+
+/* Brush info bar */
+.stats-brush-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: color-mix(in srgb, var(--lx-accent) 8%, var(--lx-surface-muted));
+  border: 1px solid color-mix(in srgb, var(--lx-accent) 30%, var(--lx-border));
+  border-radius: 5px;
+  flex-wrap: wrap;
+}
+
+.stats-brush-range {
+  font-size: 0.78rem;
+  font-family: var(--lx-mono, monospace);
+  color: var(--lx-text-1);
+  flex: 1;
+}
+
+.stats-brush-reset-btn {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--lx-accent) 35%, var(--lx-border));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--lx-accent) 12%, var(--lx-surface));
+  color: var(--lx-accent);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+
+.stats-brush-reset-btn:hover {
+  background: color-mix(in srgb, var(--lx-accent) 22%, var(--lx-surface));
 }
 
 /* Stats summary bar */

@@ -30,6 +30,11 @@ export async function tauriSaveTranscriptJson(request: SaveTranscriptJsonRequest
   return invoke<string>("save_transcript_json", { request });
 }
 
+/** Après sauvegarde transcript : met à jour timeline + réimporte events.sqlite pour le Player. */
+export async function tauriSyncPlayerTimelineFromTranscript(runDir: string): Promise<void> {
+  await invoke("sync_player_timeline_from_transcript", { runDir });
+}
+
 export type ExportTranscriptRequest = {
   path: string;
   language: string | null;

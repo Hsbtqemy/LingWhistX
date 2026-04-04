@@ -163,7 +163,7 @@
       var(--lx-body-gradient-stop-3) 100%
     );
   /*
-   * Hub — 4 familles (teal / ambre / indigo / violet) : réservé à l’accueil.
+   * Hub — onglets Transcrire / Annoter / Analyser + familles legacy (workspace / player / jobs / about).
    */
   --lx-hub-panel-bg: rgba(255, 255, 255, 0.97);
   --lx-hub-panel-border: rgba(15, 23, 42, 0.1);
@@ -176,6 +176,28 @@
   --lx-hub-player-bar: #ea580c;
   --lx-hub-jobs-bar: #4338ca;
   --lx-hub-about-bar: #7c3aed;
+  /* Onglets hub (Transcrire / Annoter / Analyser) — une teinte par carte */
+  --lx-hub-tab-transcribe-bar: #0d9488;
+  --lx-hub-tab-transcribe-icon-bg: color-mix(
+    in srgb,
+    var(--lx-hub-tab-transcribe-bar) 14%,
+    var(--lx-text-inverse)
+  );
+  --lx-hub-tab-transcribe-icon-fg: #0f766e;
+  --lx-hub-tab-annotate-bar: #4f46e5;
+  --lx-hub-tab-annotate-icon-bg: color-mix(
+    in srgb,
+    var(--lx-hub-tab-annotate-bar) 14%,
+    var(--lx-text-inverse)
+  );
+  --lx-hub-tab-annotate-icon-fg: #4338ca;
+  --lx-hub-tab-analyze-bar: #ea580c;
+  --lx-hub-tab-analyze-icon-bg: color-mix(
+    in srgb,
+    var(--lx-hub-tab-analyze-bar) 14%,
+    var(--lx-text-inverse)
+  );
+  --lx-hub-tab-analyze-icon-fg: #9a3412;
   --lx-hub-workspace-icon-bg: color-mix(
     in srgb,
     var(--lx-hub-workspace-bar) 14%,
@@ -338,6 +360,15 @@ html::-webkit-scrollbar-thumb {
     --lx-hub-player-bar: #fbbf24;
     --lx-hub-jobs-bar: #c4b5fd;
     --lx-hub-about-bar: #e879f9;
+    --lx-hub-tab-transcribe-bar: #2dd4bf;
+    --lx-hub-tab-transcribe-icon-bg: color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 24%, transparent);
+    --lx-hub-tab-transcribe-icon-fg: #ecfdf5;
+    --lx-hub-tab-annotate-bar: #818cf8;
+    --lx-hub-tab-annotate-icon-bg: color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 26%, transparent);
+    --lx-hub-tab-annotate-icon-fg: #e0e7ff;
+    --lx-hub-tab-analyze-bar: #fbbf24;
+    --lx-hub-tab-analyze-icon-bg: color-mix(in srgb, var(--lx-hub-tab-analyze-bar) 26%, transparent);
+    --lx-hub-tab-analyze-icon-fg: #fffbeb;
     --lx-hub-workspace-icon-bg: color-mix(in srgb, var(--lx-hub-workspace-bar) 24%, transparent);
     --lx-hub-workspace-icon-fg: #ecfeff;
     --lx-hub-player-icon-bg: color-mix(in srgb, var(--lx-hub-player-bar) 26%, transparent);
@@ -475,6 +506,15 @@ html::-webkit-scrollbar-thumb {
   --lx-hub-player-bar: #fbbf24;
   --lx-hub-jobs-bar: #c4b5fd;
   --lx-hub-about-bar: #e879f9;
+  --lx-hub-tab-transcribe-bar: #2dd4bf;
+  --lx-hub-tab-transcribe-icon-bg: color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 24%, transparent);
+  --lx-hub-tab-transcribe-icon-fg: #ecfdf5;
+  --lx-hub-tab-annotate-bar: #818cf8;
+  --lx-hub-tab-annotate-icon-bg: color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 26%, transparent);
+  --lx-hub-tab-annotate-icon-fg: #e0e7ff;
+  --lx-hub-tab-analyze-bar: #fbbf24;
+  --lx-hub-tab-analyze-icon-bg: color-mix(in srgb, var(--lx-hub-tab-analyze-bar) 26%, transparent);
+  --lx-hub-tab-analyze-icon-fg: #fffbeb;
   --lx-hub-workspace-icon-bg: color-mix(in srgb, var(--lx-hub-workspace-bar) 24%, transparent);
   --lx-hub-workspace-icon-fg: #ecfeff;
   --lx-hub-player-icon-bg: color-mix(in srgb, var(--lx-hub-player-bar) 26%, transparent);

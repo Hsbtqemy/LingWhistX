@@ -216,12 +216,27 @@ button.player-artifacts-strip__key {
   align-items: center;
 }
 
+.player-empty-annotation-steps {
+  margin: 8px 0 0;
+  max-width: 520px;
+  line-height: 1.45;
+  color: var(--lx-text-2);
+}
+
 .player-empty-cta {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   margin-top: 14px;
-  justify-content: center;
+}
+
+.player-empty-cta-hint {
+  margin: 0;
+  max-width: 480px;
+  text-align: center;
+  line-height: 1.45;
+  color: var(--lx-text-2);
 }
 
 .player-body {
@@ -825,6 +840,87 @@ details[open] > .player-panel-section-summary::before {
 
 .player-waveform-panel__web-audio {
   margin-bottom: 0.35rem;
+}
+
+/* WX-726 — marqueurs contextuels (compact header) */
+.player-waveform-marker-toggles {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.player-waveform-marker-btn {
+  font-size: 0.7rem;
+  padding: 1px 4px;
+  min-width: 1.6rem;
+  line-height: 1.4;
+  opacity: 0.45;
+  transition: opacity 0.12s;
+}
+.player-waveform-marker-btn.is-active {
+  opacity: 1;
+}
+.player-waveform-marker-sep {
+  width: 1px;
+  height: 1rem;
+  background: var(--lx-border);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* WX-726 — lanes toggles (expanded) */
+.player-waveform-lane-toggles {
+  display: flex;
+  align-items: center;
+  gap: var(--lx-space-3);
+  flex-wrap: wrap;
+  padding: var(--lx-space-1) 0;
+  color: var(--lx-text-2);
+}
+.player-waveform-lane-toggles-label {
+  color: var(--lx-text-2);
+  margin-right: var(--lx-space-1);
+}
+
+/* WX-726 — canvas wrapper (pour positionner le tooltip) */
+.player-waveform-canvas-wrap {
+  position: relative;
+  width: 100%;
+}
+
+/* WX-726 — tooltip marqueur */
+.player-waveform-tooltip {
+  position: absolute;
+  background: var(--lx-surface-1);
+  border: 1px solid var(--lx-border-accent-mid);
+  border-radius: var(--lx-radius-sm);
+  padding: 2px 6px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  max-width: 260px;
+  color: var(--lx-text-0);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+/* WX-727 — panneau stats scopées */
+.player-waveform-analysis-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--lx-space-2);
+  padding: var(--lx-space-1) var(--lx-space-2);
+  background: color-mix(in srgb, var(--lx-accent) 6%, var(--lx-surface-1));
+  border: 1px solid color-mix(in srgb, var(--lx-accent) 25%, var(--lx-border));
+  border-radius: var(--lx-radius-sm);
+  margin-top: var(--lx-space-1);
+  color: var(--lx-text-1);
+}
+.player-waveform-analysis-stats-title {
+  font-weight: 600;
+  color: var(--lx-text-0);
+  margin-right: var(--lx-space-1);
 }
 
 .player-empty--error {

@@ -365,6 +365,11 @@ select:focus {
   flex-wrap: wrap;
 }
 
+/*
+ * Boutons CTA par défaut. Ne pas utiliser :not(.…) trop spécifiques ici : ça écrase
+ * `.studio-nav-tab` (les onglets reprendraient le dégradé teal).
+ * Hub : `.home-hub-card__annoter-*` surchargent dans base.css (spécificité classe).
+ */
 button {
   border: none;
   border-radius: 10px;
@@ -381,12 +386,16 @@ button {
     border-color 0.14s ease;
 }
 
-button:hover:not(:disabled):not(.studio-nav-tab):not(.step-tab):not(.lx-btn) {
+button:hover:not(:disabled):not(.studio-nav-tab):not(.step-tab):not(.lx-btn):not(.home-hub-card__annoter-mode):not(
+  .home-hub-card__annoter-toggle
+) {
   filter: brightness(1.05);
   box-shadow: var(--lx-shadow-accent-float);
 }
 
-button:focus-visible:not(.studio-nav-tab):not(.step-tab) {
+button:focus-visible:not(.studio-nav-tab):not(.step-tab):not(.home-hub-card__annoter-mode):not(
+  .home-hub-card__annoter-toggle
+) {
   outline: none;
   box-shadow: var(--lx-focus-ring);
 }

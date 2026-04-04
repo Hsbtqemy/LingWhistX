@@ -3,6 +3,34 @@
  */
 import type { EventIpuRow, EventPauseRow, EventTurnRow, EventWordRow } from "../types";
 
+/** Plage temporelle sélectionnée par brush (ms). */
+export type BrushRange = { startMs: number; endMs: number };
+
+/**
+ * Filtre et clippe un tableau de rows EventRow à une plage temporelle.
+ * Les rows qui ne chevauchent pas la plage sont éliminés.
+ * `startMs`/`endMs` sont clampés aux bornes de la plage ; `durMs` est recalculé si présent.
+ */
+export function clipRowsToBrush<T extends { startMs: number; endMs: number }>(
+  rows: T[],
+  brush: BrushRange,
+): T[] {
+  const result: T[] = [];
+  for (const row of rows) {
+    if (row.endMs <= brush.startMs || row.startMs >= brush.endMs) continue;
+    const clipped: T = {
+      ...row,
+      startMs: Math.max(row.startMs, brush.startMs),
+      endMs: Math.min(row.endMs, brush.endMs),
+    };
+    if ("durMs" in clipped) {
+      (clipped as { durMs: number }).durMs = clipped.endMs - clipped.startMs;
+    }
+    result.push(clipped);
+  }
+  return result;
+}
+
 export type PausesByType = Record<string, { count: number; totalMs: number }>;
 
 export type TopIpu = {

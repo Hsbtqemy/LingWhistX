@@ -532,6 +532,11 @@
   text-align: center;
 }
 
+.editor-segment-list__empty-hint {
+  margin-top: 0.5rem;
+  opacity: 0.92;
+}
+
 .editor-segment-list__header {
   display: flex;
   align-items: center;

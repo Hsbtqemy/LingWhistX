@@ -3,6 +3,7 @@ import type { StudioView } from "../types";
 import { Button } from "./ui";
 
 export const STUDIO_TAB_IDS: Record<StudioView, string> = {
+  hub: "studio-tab-hub",
   import: "studio-tab-import",
   editor: "studio-tab-editor",
   player: "studio-tab-player",
@@ -10,6 +11,7 @@ export const STUDIO_TAB_IDS: Record<StudioView, string> = {
 };
 
 export const STUDIO_PANEL_IDS: Record<StudioView, string> = {
+  hub: "studio-panel-hub",
   import: "studio-panel-import",
   editor: "studio-panel-editor",
   player: "studio-panel-player",
@@ -70,6 +72,10 @@ export type StudioNavProps = {
   /** Au moins un job `queued` ou `running` — pastille sur l'onglet Import. */
   workspaceHasActiveJobs?: boolean;
   onToggleHelp?: () => void;
+  onOpenLibrary?: () => void;
+  libraryOpen?: boolean;
+  /** Clic sur la marque « LingWhistX » — retour à la vue hub (cartes), depuis n’importe quel onglet. */
+  onBrandClick?: () => void;
 };
 
 const TABS: { view: StudioView; label: string; Icon: () => React.ReactElement | null }[] = [
@@ -78,16 +84,36 @@ const TABS: { view: StudioView; label: string; Icon: () => React.ReactElement | 
   { view: "player", label: "Player", Icon: IconPlayer },
 ];
 
+function IconLibrary() {
+  return (
+    <svg {...navIconProps}>
+      <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+    </svg>
+  );
+}
+
 export function StudioNav({
   activeView,
   onViewChange,
   workspaceHasActiveJobs = false,
   onToggleHelp,
+  onOpenLibrary,
+  libraryOpen = false,
+  onBrandClick,
 }: StudioNavProps) {
   return (
     <nav className="studio-nav studio-nav--topbar" aria-label="Studio LingWhistX">
       <div className="studio-nav-brand">
-        <span className="studio-nav-brand__name">LingWhistX</span>
+        <button
+          type="button"
+          className="studio-nav-brand__btn"
+          onClick={onBrandClick}
+          title="Hub d’accueil — Transcrire, Annoter, Analyser"
+          aria-label="Accueil LingWhistX — afficher le hub"
+        >
+          <span className="studio-nav-brand__name">LingWhistX</span>
+        </button>
       </div>
       <div className="studio-nav-tabs" role="tablist" aria-label="Sections du studio">
         {TABS.map(({ view, label, Icon }) => {
@@ -131,6 +157,18 @@ export function StudioNav({
         })}
       </div>
       <div className="studio-nav-actions">
+        {onOpenLibrary ? (
+          <button
+            type="button"
+            className="studio-nav-library-btn"
+            onClick={onOpenLibrary}
+            aria-pressed={libraryOpen}
+            title="Bibliothèque de runs"
+            aria-label="Bibliothèque de runs"
+          >
+            <IconLibrary />
+          </button>
+        ) : null}
         <button
           type="button"
           className="studio-nav-settings-btn"

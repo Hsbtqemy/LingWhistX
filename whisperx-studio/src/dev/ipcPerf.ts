@@ -14,19 +14,16 @@ export async function ipcInvokeDev<T>(
     const result = args === undefined ? await invoke<T>(cmd) : await invoke<T>(cmd, args);
     if (import.meta.env.DEV) {
       const ms = performance.now() - t0;
-      console.debug(
-        `[ipc] ${cmd} ${ms.toFixed(1)}ms`,
-        label,
-        sanitizeMetaForDevLog(ipcMeta(cmd, result)),
-      );
+      const meta = sanitizeMetaForDevLog(ipcMeta(cmd, result));
+      const metaSuffix = Object.keys(meta).length ? ` · ${JSON.stringify(meta)}` : "";
+      // Une seule chaîne : évite l’expansion « Object Prototype » bruyante dans Safari/WebKit.
+      console.debug(`[ipc] ${cmd} ${ms.toFixed(1)}ms · ${label}${metaSuffix}`);
     }
     return result;
   } catch (err) {
     if (import.meta.env.DEV) {
       console.debug(
-        `[ipc] ${cmd} FAIL ${(performance.now() - t0).toFixed(1)}ms`,
-        label,
-        redactHomeLikeInString(ipcErrorToString(err)),
+        `[ipc] ${cmd} FAIL ${(performance.now() - t0).toFixed(1)}ms · ${label} · ${redactHomeLikeInString(ipcErrorToString(err))}`,
       );
     }
     throw err;

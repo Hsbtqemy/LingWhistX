@@ -13,6 +13,8 @@ export type StatsCanvasThemeColors = {
   accent: string;
   densityFill: string;
   densityStroke: string;
+  brushFill: string;
+  brushStroke: string;
 };
 
 export function getStatsCanvasThemeColors(): StatsCanvasThemeColors {
@@ -30,5 +32,7 @@ export function getStatsCanvasThemeColors(): StatsCanvasThemeColors {
     accent: v("--lx-accent", "#0f8a94"),
     densityFill: v("--lx-stats-density-fill", "rgba(52, 152, 219, 0.08)"),
     densityStroke: v("--lx-stats-density-stroke", "rgba(52, 152, 219, 0.9)"),
+    brushFill: v("--lx-stats-brush-fill", "rgba(99, 102, 241, 0.12)"),
+    brushStroke: v("--lx-stats-brush-stroke", "rgba(99, 102, 241, 0.5)"),
   };
 }

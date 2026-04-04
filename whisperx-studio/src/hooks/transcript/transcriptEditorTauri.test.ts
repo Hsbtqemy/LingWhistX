@@ -6,6 +6,7 @@ import {
   tauriLoadTranscriptDocument,
   tauriLoadTranscriptDraft,
   tauriSaveTranscriptJson,
+  tauriSyncPlayerTimelineFromTranscript,
 } from "./transcriptEditorTauri";
 
 const emptyReport = (): ExportCorrectionReport => ({
@@ -95,5 +96,12 @@ describe("transcriptEditorTauri", () => {
         rules,
       },
     });
+  });
+
+  it("tauriSyncPlayerTimelineFromTranscript appelle sync_player_timeline_from_transcript", async () => {
+    vi.mocked(invoke).mockResolvedValue({});
+    await tauriSyncPlayerTimelineFromTranscript("/run/foo");
+    expect(vi.mocked(invoke).mock.calls[0]?.[0]).toBe("sync_player_timeline_from_transcript");
+    expect(vi.mocked(invoke).mock.calls[0]?.[1]).toEqual({ runDir: "/run/foo" });
   });
 });

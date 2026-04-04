@@ -368,13 +368,28 @@ pub fn delete_run_directory(app: AppHandle, run_dir: String) -> Result<(), Strin
     remove_recent_run_impl(&app, &run_dir)
 }
 
-/// Cherche le meilleur fichier JSON transcript dans un dossier de run.
-/// Priorité : fichier `.json` simple (pas .run.json, .timeline.json, run_manifest.json),
-/// puis `.timeline.json` en fallback.
-#[tauri::command]
-pub fn find_run_transcript_json(run_dir: String) -> Result<Option<String>, String> {
-    validate_path_string(&run_dir)?;
-    let dir = Path::new(run_dir.trim());
+fn is_transcript_sidecar_json(name_lower: &str) -> bool {
+    name_lower.ends_with(".json")
+        && name_lower != "run_manifest.json"
+        && !name_lower.ends_with(".run.json")
+        && !name_lower.ends_with(".words.json")
+        && !name_lower.ends_with(".timeline.json")
+        && !name_lower.ends_with(".draft.json")
+}
+
+/// Parmi les JSON transcript du run, prend le plus récemment modifié (mtime).
+/// Ainsi : sauvegarde vers `*.edited.json` > source inchangée ; « Écraser » sur la source
+/// > fichier `.json` principal ; pas de fichier obsolète servi par erreur.
+fn pick_best_plain_transcript_json(candidates: &[PathBuf]) -> Option<PathBuf> {
+    candidates.iter().max_by(|a, b| {
+        let ta = fs::metadata(a).and_then(|m| m.modified()).ok();
+        let tb = fs::metadata(b).and_then(|m| m.modified()).ok();
+        ta.cmp(&tb)
+    }).cloned()
+}
+
+/// Même logique que [`find_run_transcript_json`] mais sur un [`Path`] déjà résolu.
+pub(crate) fn find_run_transcript_json_path_in_dir(dir: &Path) -> Result<Option<PathBuf>, String> {
     if !dir.is_dir() {
         return Err(format!(
             "Not a directory: {}",
@@ -389,7 +404,7 @@ pub fn find_run_transcript_json(run_dir: String) -> Result<Option<String>, Strin
         )
     })?;
 
-    let mut plain_json: Option<PathBuf> = None;
+    let mut plain_candidates: Vec<PathBuf> = Vec::new();
     let mut timeline_json: Option<PathBuf> = None;
 
     for entry in entries.flatten() {
@@ -401,26 +416,27 @@ pub fn find_run_transcript_json(run_dir: String) -> Result<Option<String>, Strin
             Some(n) => n.to_lowercase(),
             None => continue,
         };
-        if !name.ends_with(".json") {
-            continue;
-        }
-        if name == "run_manifest.json" {
-            continue;
-        }
-        if name.ends_with(".run.json") || name.ends_with(".words.json") {
-            continue;
-        }
         if name.ends_with(".timeline.json") {
             timeline_json = Some(path);
             continue;
         }
-        if plain_json.is_none() {
-            plain_json = Some(path);
+        if is_transcript_sidecar_json(&name) {
+            plain_candidates.push(path);
         }
     }
 
-    // Préférer le JSON brut qui contient les timestamps mot par mot (words[])
-    // dans chaque segment ; .timeline.json sépare les mots du reste.
-    let best = plain_json.or(timeline_json);
-    Ok(best.map(|p| p.to_string_lossy().into_owned()))
+    let best = pick_best_plain_transcript_json(&plain_candidates).or(timeline_json);
+    Ok(best)
+}
+
+/// Cherche le meilleur fichier JSON transcript dans un dossier de run.
+/// Priorité : JSON transcript « plain » (`*.json` hors manifest / run / words / timeline / draft),
+/// en préférant `*.edited.json` si présent (cohérent avec save_transcript_json overwrite=false),
+/// puis `.timeline.json` en dernier recours.
+#[tauri::command]
+pub fn find_run_transcript_json(run_dir: String) -> Result<Option<String>, String> {
+    validate_path_string(&run_dir)?;
+    let dir = Path::new(run_dir.trim());
+    find_run_transcript_json_path_in_dir(dir)
+        .map(|o| o.map(|p| p.to_string_lossy().into_owned()))
 }

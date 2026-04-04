@@ -69,6 +69,9 @@ export type AlignmentWorkspacePanelProps = {
   mergeActiveSegment: (dir: "prev" | "next") => void;
   canMergePrev: boolean;
   canMergeNext: boolean;
+  knownSpeakers: string[];
+  updateEditorSegmentSpeaker: (index: number, speaker: string | null) => void;
+  insertBlankSegment: () => void;
   seekMedia: (sec: number) => void;
   buildWaveformPyramid: () => void;
   isPyramidBuilding: boolean;
@@ -154,6 +157,9 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
     mergeActiveSegment,
     canMergePrev,
     canMergeNext,
+    knownSpeakers,
+    updateEditorSegmentSpeaker,
+    insertBlankSegment,
     seekMedia,
     buildWaveformPyramid,
     isPyramidBuilding,
@@ -861,6 +867,26 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                   {focusedSegment.distanceSec.toFixed(3)}s
                 </p>
                 <p className="mono">{focusedSegment.segment.text}</p>
+                <label className="segment-speaker-label">
+                  Locuteur
+                  <input
+                    list="alignment-speakers-list"
+                    value={focusedSegment.segment.speaker ?? ""}
+                    onChange={(e) =>
+                      updateEditorSegmentSpeaker(
+                        focusedSegment.index,
+                        e.currentTarget.value || null,
+                      )
+                    }
+                    placeholder="Locuteur…"
+                    className="segment-speaker-input"
+                  />
+                  <datalist id="alignment-speakers-list">
+                    {knownSpeakers.map((s) => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
+                </label>
                 <div className="file-actions">
                   <button
                     type="button"
@@ -868,6 +894,14 @@ export function AlignmentWorkspacePanel(props: AlignmentWorkspacePanelProps) {
                     onClick={() => setActiveSegmentIndex(focusedSegment.index)}
                   >
                     Definir segment actif
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={insertBlankSegment}
+                    title="Insérer un segment vide après le segment actif (position curseur)"
+                  >
+                    + Segment
                   </button>
                   <button
                     type="button"

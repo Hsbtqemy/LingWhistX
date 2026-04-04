@@ -6,7 +6,7 @@ import {
   uniqueSpeakersFromTurns,
 } from "../../../player/playerColumnsBins";
 import type { QueryWindowResult } from "../../../types";
-import { speakerColor, turnTextFromIpus } from "./viewUtils";
+import { speakerColor, turnDisplayTextForTurn } from "./viewUtils";
 
 type ColumnsLayoutMode = "time" | "turn";
 
@@ -35,10 +35,10 @@ export function PlayerColumnsBody({
   const turnTextCache = useMemo(() => {
     const cache = new Map<number, string>();
     for (const t of slice.turns) {
-      cache.set(t.id, turnTextFromIpus(t, slice.ipus));
+      cache.set(t.id, turnDisplayTextForTurn(t, slice));
     }
     return cache;
-  }, [slice.turns, slice.ipus]);
+  }, [slice]);
 
   const activeIndex = useMemo(() => {
     for (let i = sortedTurns.length - 1; i >= 0; i--) {

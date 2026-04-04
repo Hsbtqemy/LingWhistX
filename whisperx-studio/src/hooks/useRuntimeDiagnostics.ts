@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { LocalRuntimePanelProps } from "../model/localRuntimePanel";
 import { isRuntimeReady, runtimeFfmpegInstallHint, runtimeMissingComponents } from "../appUtils";
+import { unlistenFromPromise } from "../utils/tauriUnlisten";
 import type {
   RuntimeSetupFinishedEvent,
   RuntimeSetupLogEvent,
@@ -278,10 +279,10 @@ export function useRuntimeDiagnostics({ setError }: UseRuntimeDiagnosticsOptions
     );
 
     return () => {
-      void unlistenRuntimeSetupLogPromise.then((unlisten) => unlisten());
-      void unlistenRuntimeSetupFinishedPromise.then((unlisten) => unlisten());
-      void unlistenFfmpegLogPromise.then((unlisten) => unlisten());
-      void unlistenFfmpegFinishedPromise.then((unlisten) => unlisten());
+      unlistenFromPromise(unlistenRuntimeSetupLogPromise);
+      unlistenFromPromise(unlistenRuntimeSetupFinishedPromise);
+      unlistenFromPromise(unlistenFfmpegLogPromise);
+      unlistenFromPromise(unlistenFfmpegFinishedPromise);
     };
   }, [
     refreshRuntimeStatus,
