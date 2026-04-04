@@ -6,7 +6,7 @@ from typing import Union
 
 import torch
 
-from whisperx.diarize import Segment as SegmentX
+from whisperx.diarize_types import Segment as SegmentX
 from whisperx.vads.vad import Vad
 from whisperx.log_utils import get_logger
 

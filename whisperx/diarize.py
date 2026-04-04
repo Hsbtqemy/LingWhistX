@@ -7,21 +7,11 @@ from typing import Optional, Union, List, Tuple
 import torch
 
 from whisperx.audio import load_audio, SAMPLE_RATE
+from whisperx.diarize_types import Segment
 from whisperx.schema import TranscriptionResult, AlignedTranscriptionResult, ProgressCallback
 from whisperx.log_utils import get_logger
 
 logger = get_logger(__name__)
-
-
-class Segment:
-    """Intervalle VAD (start, end, locuteur) — utilisé par whisperx.vads (pyannote, silero)."""
-
-    __slots__ = ("start", "end", "speaker")
-
-    def __init__(self, start: float, end: float, speaker: str) -> None:
-        self.start = float(start)
-        self.end = float(end)
-        self.speaker = speaker
 
 
 class IntervalTree:

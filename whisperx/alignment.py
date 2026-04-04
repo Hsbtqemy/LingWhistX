@@ -471,6 +471,8 @@ def backtrack(trellis, emission, tokens, blank_id=0):
 # Merge the labels
 @dataclass
 class Segment:
+    """Segment CTC (frames + label) — distinct de ``whisperx.diarize_types.Segment`` (temps/locuteur VAD)."""
+
     label: str
     start: int
     end: int

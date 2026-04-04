@@ -27,7 +27,17 @@ from whisperx.utils import (
 )
 
 SUBCOMMANDS = frozenset(
-    {"run", "transcribe", "align", "diarize", "analyze", "export", "import_annotation", "help"}
+    {
+        "run",
+        "transcribe",
+        "align",
+        "diarize",
+        "analyze",
+        "export",
+        "import_annotation",
+        "import_transcript",
+        "help",
+    }
 )
 
 
@@ -595,9 +605,9 @@ def _handle_import_transcript(args: argparse.Namespace, argv: list[str]) -> None
     from datetime import datetime, timezone
 
     from whisperx.transcript_import import load_transcript, segments_to_whisperx_result
-    from whisperx.transcribe import _build_timeline_analysis_config
     from whisperx.timeline import build_canonical_timeline
-    from whisperx.writers import get_writer
+    from whisperx.timeline_analysis_config import build_timeline_analysis_config
+    from whisperx.utils import get_writer
     from whisperx.run_manifest import (
         RunManifestBuildInput,
         build_run_manifest_v1,
@@ -643,8 +653,8 @@ def _handle_import_transcript(args: argparse.Namespace, argv: list[str]) -> None
     language = args.language or "unknown"
     result = segments_to_whisperx_result(segments, audio_path, language=language)
 
-    # Analyse prosodique
-    timeline_analysis_config = _build_timeline_analysis_config(
+    # Analyse prosodique (sans importer whisperx.transcribe → évite pyannote/torchcodec au démarrage)
+    timeline_analysis_config = build_timeline_analysis_config(
         analysis_pause_min=args.analysis_pause_min,
         analysis_pause_ignore_below=args.analysis_pause_ignore_below,
         analysis_pause_max=args.analysis_pause_max,
