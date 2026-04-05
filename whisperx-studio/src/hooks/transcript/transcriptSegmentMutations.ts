@@ -141,6 +141,60 @@ export function insertBlankSegmentInSnapshot(
   };
 }
 
+/**
+ * Crée un segment dont les bornes correspondent à une plage dessinée sur la waveform.
+ * Les bornes sont clampées pour ne pas chevaucher les segments existants.
+ */
+export function createSegmentFromRangeInSnapshot(
+  current: EditorSnapshot,
+  startSec: number,
+  endSec: number,
+  maxDurationSec: number,
+): { snapshot: EditorSnapshot; insertedIndex: number; segment: EditableSegment } | null {
+  if (endSec - startSec < MIN_SEGMENT_DURATION_SEC) {
+    return null;
+  }
+  const segments = cloneEditableSegments(current.segments);
+
+  let start = roundSecondsMs(Math.max(0, Math.min(startSec, endSec)));
+  let end = roundSecondsMs(Math.max(startSec, endSec));
+  if (Number.isFinite(maxDurationSec) && maxDurationSec > 0) {
+    end = Math.min(end, maxDurationSec);
+  }
+
+  // Trouve l'index d'insertion (trié par start)
+  let insertIndex = 0;
+  for (let i = 0; i < segments.length; i++) {
+    if (segments[i].start <= start) {
+      insertIndex = i + 1;
+    }
+  }
+
+  // Clamp pour éviter les chevauchements
+  const prev = insertIndex > 0 ? segments[insertIndex - 1] : undefined;
+  const next = insertIndex < segments.length ? segments[insertIndex] : undefined;
+  if (prev && start < prev.end) {
+    start = roundSecondsMs(prev.end);
+  }
+  if (next && end > next.start) {
+    end = roundSecondsMs(next.start);
+  }
+
+  if (end - start < MIN_SEGMENT_DURATION_SEC) {
+    return null;
+  }
+
+  const speaker = prev?.speaker ?? next?.speaker ?? "SPEAKER_00";
+  const segment: EditableSegment = { start, end, text: "", speaker };
+  segments.splice(insertIndex, 0, segment);
+
+  return {
+    snapshot: buildEditorSnapshot(current.language, segments),
+    insertedIndex: insertIndex,
+    segment,
+  };
+}
+
 export function mergeTwoSegmentsAt(
   current: EditorSnapshot,
   firstIndex: number,

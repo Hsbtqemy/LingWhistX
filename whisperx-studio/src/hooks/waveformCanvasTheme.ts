@@ -35,6 +35,9 @@ export type WaveformCanvasThemeColors = {
   // WX-727 sélection analyse
   analysisSelFill: string;
   analysisSelHandle: string;
+  // Dessin de plage (création de segment)
+  drawRangeFill: string;
+  drawRangeStroke: string;
 };
 
 function readWaveformCanvasThemeColors(): WaveformCanvasThemeColors {
@@ -68,6 +71,8 @@ function readWaveformCanvasThemeColors(): WaveformCanvasThemeColors {
     laneLabel: v("--lx-waveform-lane-label", "#4a7a85"),
     analysisSelFill: v("--lx-waveform-analysis-sel-fill", "rgba(100, 60, 200, 0.12)"),
     analysisSelHandle: v("--lx-waveform-analysis-sel-handle", "rgba(100, 60, 200, 0.8)"),
+    drawRangeFill: v("--lx-waveform-draw-range-fill", "rgba(80, 200, 120, 0.18)"),
+    drawRangeStroke: v("--lx-waveform-draw-range-stroke", "rgba(80, 200, 120, 0.7)"),
   };
 }
 

@@ -58,6 +58,10 @@ const EDITOR_SHORTCUTS: ShortcutEntry[] = [
   { keys: "Alt + J", description: "Seek média −1 s" },
   { keys: "Alt + L", description: "Seek média +1 s" },
   { keys: "Alt + K", description: "Lecture / pause média" },
+  { keys: "Glisser (waveform)", description: "Sélectionner une plage" },
+  { keys: "Entrée (waveform)", description: "Créer un segment depuis la sélection" },
+  { keys: "Z (waveform)", description: "Zoom sur le segment actif" },
+  { keys: "D (waveform)", description: "Écouter le segment actif" },
 ];
 
 const WORKSPACE_TIPS: string[] = [

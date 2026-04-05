@@ -81,10 +81,19 @@ cd whisperx-studio && npm run tauri dev
 
 ## 6. Éditeur (transcript)
 
-| #   | Cas                                                 | OK  | Notes |
-| --- | --------------------------------------------------- | --- | ----- |
-| 6.1 | Ouverture d’un transcript JSON : segments affichés. |     |       |
-| 6.2 | Sauvegarde / exports utilisés en routine.           |     |       |
+**Prérequis :** run ouvert depuis la bibliothèque ou l’import ; onglet **Éditeur** actif ; `data-lx-editor-view` sur `<html>` (pas de défilement de toute la page : la **barre du bas** reste dans le viewport).
+
+| #   | Cas                                                                                                                                                                                                                                                                                                                                 | OK  | Notes |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ----- |
+| 6.1 | Ouverture / détection auto d’un **transcript JSON** dans le run : segments affichés, pas d’erreur bloquante.                                                                                                                                                                                                                        |     |       |
+| 6.2 | **Barre Fichier** (au-dessus de la waveform) : chemin / état, **langue**, **Sauvegarder**, **Ouvrir le lecteur** — actions cohérentes (dont dirty / chargement).                                                                                                                                                                    |     |       |
+| 6.3 | **Mini-player** : média + waveform ; pas de transport dupliqué ici (lecture dans la barre du bas).                                                                                                                                                                                                                                    |     |       |
+| 6.4 | **Lecture** (toolbar) : temps, play/pause, vitesse, boucle A–B, **Autres…** en vue étroite si présent.                                                                                                                                                                                                                                |     |       |
+| 6.5 | **Segments** : **Undo / Redo** (icônes seules), **Split**, **Merge** (↑ \| Merge \| ↓), **+ Segment**, **Supprimer** ; en vue étroite, **Autres…** regroupe les actions secondaires.                                                                                                                                                    |     |       |
+| 6.6 | **Convention** (même ligne que les boutons segments si place) : libellé + liste + **marques** ; pas de bandeau défilant imposé sur les pilules ; groupe **Convention + liste** ne se coupe pas (libellé au-dessus du menu seul).                                                                                                      |     |       |
+| 6.7 | **Export** : choix de format, case **chevauchements**, aide **?** ; vue **étroite** : format + chevauchements sans régression.                                                                                                                                                                                                       |     |       |
+| 6.8 | **Barre du bas** (Lecture + Segments + Export + statut) : reste **visible** en bas du panneau en faisant défiler **uniquement** la liste de segments (pas la page entière).                                                                                                                                                           |     |       |
+| 6.9 | **Sauvegarde** + **exports** (JSON, SRT, etc.) : chemins / messages de statut attendus.                                                                                                                                                                                                                                            |     |       |
 
 ---
 
@@ -104,6 +113,7 @@ Avant une release, depuis `whisperx-studio/` :
 
 | Date       | Changement                                                                                                      |
 | ---------- | --------------------------------------------------------------------------------------------------------------- |
+| 2026-03-27 | Section 6 (éditeur) : plan détaillé — barre fichier, mini-player, toolbar Lecture/Segments/Convention/Export, merge cluster, viewport `data-lx-editor-view`, barre du bas fixe dans le panneau. |
 | 2026-04-04 | Création : hub sur Import, marque LingWhistX, bibliothèque (placeholder + hints), brush stats.                  |
 | 2026-04-04 | Section 1 (navigation & hub) : tous les cas cochés ; note de suivi sur refonte du hub (longueur / spécificité). |
 | 2026-04-04 | Section 2 (bibliothèque de runs) : tous les cas cochés.                                                         |

@@ -1,4 +1,4 @@
-import { useEffect, type MouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ActiveRun } from "../EditorPanel";
 import { usePlayerPlayback } from "../../hooks/usePlayerPlayback";
@@ -53,7 +53,93 @@ export function EditorWorkspaceSection({
     editor.dragSegmentState,
     playback.loopAsec,
     playback.loopBsec,
+    false,
+    null,
+    editor.drawRange,
   );
+
+  const playSegmentTimeoutRef = useRef<number | null>(null);
+  const [waveformHeight, setWaveformHeight] = useState(200);
+  const splitDragRef = useRef<{ startY: number; startH: number } | null>(null);
+
+  const handleCommitDrawRange = useCallback(() => {
+    if (!editor.drawRange) return;
+    editor.createSegmentFromRange(editor.drawRange.startSec, editor.drawRange.endSec);
+    editor.clearDrawRange();
+  }, [editor]);
+
+  const handleZoomToSegment = useCallback(() => {
+    const idx = editor.focusedSegmentIndex;
+    if (idx === null) return;
+    const seg = editor.editorSegments[idx];
+    if (!seg) return;
+    const margin = Math.max(1, (seg.end - seg.start) * 0.3);
+    wf.ensureTimeVisible(seg.start - margin);
+    const range = seg.end - seg.start + margin * 2;
+    const totalDuration = wf.waveform?.durationSec ?? range;
+    if (totalDuration > 0 && range < totalDuration) {
+      wf.setWaveformZoomAround(totalDuration / range, (seg.start + seg.end) / 2);
+    }
+  }, [editor.focusedSegmentIndex, editor.editorSegments, wf]);
+
+  const handleResetZoom = useCallback(() => {
+    wf.resetWaveformZoom();
+  }, [wf]);
+
+  const handlePlaySegment = useCallback(() => {
+    const idx = editor.focusedSegmentIndex;
+    if (idx === null) return;
+    const seg = editor.editorSegments[idx];
+    if (!seg) return;
+    playback.seek(seg.start);
+    void playback.play();
+    if (playSegmentTimeoutRef.current !== null) {
+      window.clearTimeout(playSegmentTimeoutRef.current);
+    }
+    const durationMs = (seg.end - seg.start) * 1000;
+    playSegmentTimeoutRef.current = window.setTimeout(() => {
+      playback.pause();
+      playSegmentTimeoutRef.current = null;
+    }, durationMs);
+  }, [editor.focusedSegmentIndex, editor.editorSegments, playback]);
+
+  useEffect(() => {
+    return () => {
+      if (playSegmentTimeoutRef.current !== null) {
+        window.clearTimeout(playSegmentTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const onSplitHandleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      splitDragRef.current = { startY: e.clientY, startH: waveformHeight };
+
+      const onMove = (ev: globalThis.MouseEvent) => {
+        if (!splitDragRef.current) return;
+        const delta = ev.clientY - splitDragRef.current.startY;
+        setWaveformHeight(Math.max(100, Math.min(500, splitDragRef.current.startH + delta)));
+      };
+      const onUp = () => {
+        splitDragRef.current = null;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [waveformHeight],
+  );
+
+  // Sync waveform lorsque le segment focalisé change
+  useEffect(() => {
+    const idx = editor.focusedSegmentIndex;
+    if (idx === null) return;
+    const seg = editor.editorSegments[idx];
+    if (!seg) return;
+    wf.ensureTimeVisible(seg.start);
+  }, [editor.focusedSegmentIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Découverte automatique du transcript JSON au chargement du run
   useEffect(() => {
@@ -90,6 +176,7 @@ export function EditorWorkspaceSection({
         />
       </div>
       <div className="editor-workspace-section__body">
+        <div className="editor-waveform-pane" style={{ height: waveformHeight }}>
         <EditorMiniPlayer
           playback={playback}
           wf={wf}
@@ -105,8 +192,21 @@ export function EditorWorkspaceSection({
           onWaveformMouseLeave={
             editor.onWaveformMouseLeave as unknown as (e: MouseEvent<HTMLDivElement>) => void
           }
+          hoveredSegmentEdge={editor.hoveredSegmentEdge}
+          drawRange={editor.drawRange}
+          onCommitDrawRange={handleCommitDrawRange}
+          onClearDrawRange={editor.clearDrawRange}
+          onZoomToSegment={handleZoomToSegment}
+          onResetZoom={handleResetZoom}
+          onPlaySegment={handlePlaySegment}
         />
-
+        </div>
+        <div
+          className="editor-split-handle"
+          onMouseDown={onSplitHandleMouseDown}
+        >
+          <div className="editor-split-handle__bar" />
+        </div>
         <EditorSegmentList
           transcriptSourcePath={editor.editorSourcePath}
           segments={editor.displayedEditorSegments}

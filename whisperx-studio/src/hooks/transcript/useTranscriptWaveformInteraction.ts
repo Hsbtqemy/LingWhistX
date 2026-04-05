@@ -10,6 +10,8 @@ import {
 import { resizeSegmentBoundaryInSnapshot } from "./transcriptSegmentMutations";
 import type { WaveformWorkspace } from "../useWaveformWorkspace";
 
+export type DrawRange = { startSec: number; endSec: number };
+
 export type UseTranscriptWaveformInteractionArgs = {
   wf: WaveformWorkspace;
   waveformPointerCtx: WaveformPointerContext;
@@ -36,8 +38,13 @@ export function useTranscriptWaveformInteraction({
 }: UseTranscriptWaveformInteractionArgs) {
   const [hoveredSegmentEdge, setHoveredSegmentEdge] = useState<SegmentEdge | null>(null);
   const [dragSegmentState, setDragSegmentState] = useState<SegmentDragState | null>(null);
+  const [drawRange, setDrawRange] = useState<DrawRange | null>(null);
+  const drawRangeAnchorRef = useRef<number | null>(null);
+  const drawPendingRef = useRef<{ seconds: number; clientX: number; clientY: number } | null>(null);
   const dragStartSnapshotRef = useRef<EditorSnapshot | null>(null);
   const dragHasHistoryChangeRef = useRef(false);
+
+  const DRAW_DRAG_THRESHOLD_PX = 4;
 
   const maxDurationSec =
     wf.waveform?.durationSec && wf.waveform.durationSec > 0 ? wf.waveform.durationSec : Number.NaN;
@@ -71,6 +78,7 @@ export function useTranscriptWaveformInteraction({
         return;
       }
     }
+
     const edge = hitTestFocusedSegmentEdge(
       waveformPointerCtx,
       editorSegments,
@@ -78,6 +86,7 @@ export function useTranscriptWaveformInteraction({
       event,
     );
     if (edge && focusedSegmentIndex !== null) {
+      drawPendingRef.current = null;
       dragStartSnapshotRef.current = getCurrentEditorSnapshot();
       dragHasHistoryChangeRef.current = false;
       setDragSegmentState({ segmentIndex: focusedSegmentIndex, edge });
@@ -90,7 +99,14 @@ export function useTranscriptWaveformInteraction({
     if (seconds === null) {
       return;
     }
+
+    // Clear previous draw range and prepare for potential drag-to-select
+    setDrawRange(null);
+    drawRangeAnchorRef.current = null;
+    drawPendingRef.current = { seconds, clientX: event.clientX, clientY: event.clientY };
+
     wf.seekMedia(seconds);
+    wf.setWaveformCursorSec(seconds);
     const nearest = closestSegmentIndex(editorSegments, seconds);
     if (nearest !== null) {
       setActiveSegmentIndex(nearest);
@@ -101,6 +117,40 @@ export function useTranscriptWaveformInteraction({
     if (wf.rangeDragStartSec !== null) {
       return;
     }
+
+    // Pending draw: activate draw mode once drag threshold is crossed
+    if (drawPendingRef.current !== null && drawRangeAnchorRef.current === null) {
+      const dx = event.clientX - drawPendingRef.current.clientX;
+      const dy = event.clientY - drawPendingRef.current.clientY;
+      if (Math.abs(dx) > DRAW_DRAG_THRESHOLD_PX || Math.abs(dy) > DRAW_DRAG_THRESHOLD_PX) {
+        const anchor = drawPendingRef.current.seconds;
+        drawRangeAnchorRef.current = anchor;
+        const seconds = secondsFromWaveformPointer(waveformPointerCtx, event);
+        if (seconds !== null) {
+          setDrawRange({
+            startSec: Math.min(anchor, seconds),
+            endSec: Math.max(anchor, seconds),
+          });
+          wf.setWaveformCursorSec(seconds);
+        }
+      }
+      return;
+    }
+
+    // Active draw: update range while dragging
+    if (drawRangeAnchorRef.current !== null) {
+      const seconds = secondsFromWaveformPointer(waveformPointerCtx, event);
+      if (seconds !== null) {
+        const anchor = drawRangeAnchorRef.current;
+        setDrawRange({
+          startSec: Math.min(anchor, seconds),
+          endSec: Math.max(anchor, seconds),
+        });
+        wf.setWaveformCursorSec(seconds);
+      }
+      return;
+    }
+
     if (dragSegmentState) {
       const seconds = secondsFromWaveformPointer(waveformPointerCtx, event);
       if (seconds === null) {
@@ -150,12 +200,22 @@ export function useTranscriptWaveformInteraction({
   }
 
   function onWaveformMouseUp() {
+    drawPendingRef.current = null;
+    if (drawRangeAnchorRef.current !== null) {
+      drawRangeAnchorRef.current = null;
+      return;
+    }
     if (dragSegmentState) {
       stopWaveformDrag();
     }
   }
 
   function onWaveformMouseLeave() {
+    drawPendingRef.current = null;
+    if (drawRangeAnchorRef.current !== null) {
+      drawRangeAnchorRef.current = null;
+      return;
+    }
     if (dragSegmentState) {
       stopWaveformDrag();
       return;
@@ -163,12 +223,19 @@ export function useTranscriptWaveformInteraction({
     setHoveredSegmentEdge(null);
   }
 
+  const clearDrawRange = useCallback(() => {
+    drawPendingRef.current = null;
+    drawRangeAnchorRef.current = null;
+    setDrawRange(null);
+  }, []);
+
   const resetWaveformInteraction = useCallback(() => {
     dragStartSnapshotRef.current = null;
     dragHasHistoryChangeRef.current = false;
     setDragSegmentState(null);
     setHoveredSegmentEdge(null);
-  }, []);
+    clearDrawRange();
+  }, [clearDrawRange]);
 
   useEffect(() => {
     if (!dragSegmentState) {
@@ -187,6 +254,8 @@ export function useTranscriptWaveformInteraction({
     setHoveredSegmentEdge,
     dragSegmentState,
     setDragSegmentState,
+    drawRange,
+    clearDrawRange,
     updateEditorSegmentBoundary,
     onWaveformMouseDown,
     onWaveformMouseMove,

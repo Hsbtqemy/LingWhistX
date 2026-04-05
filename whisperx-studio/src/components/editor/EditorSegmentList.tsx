@@ -1,6 +1,64 @@
-import { memo, useMemo, type Dispatch, type SetStateAction } from "react";
+import {
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import type { EditableSegment } from "../../types";
-import { formatClockSeconds } from "../../appUtils";
+import { formatClockSeconds, roundSecondsMs } from "../../appUtils";
+
+type SegmentBoundaryTimeInputProps = {
+  ariaLabel: string;
+  seconds: number;
+  onCommit: (nextSeconds: number) => void;
+};
+
+/** État local pour éviter que les re-rendus fréquents (curseur waveform, etc.) réinitialisent la saisie. */
+function SegmentBoundaryTimeInput({ ariaLabel, seconds, onCommit }: SegmentBoundaryTimeInputProps) {
+  const [text, setText] = useState(() => seconds.toFixed(3));
+  const [focused, setFocused] = useState(false);
+  const secondsRef = useRef(seconds);
+  secondsRef.current = seconds;
+
+  useEffect(() => {
+    if (!focused) {
+      setText(seconds.toFixed(3));
+    }
+  }, [seconds, focused]);
+
+  return (
+    <input
+      type="number"
+      className="editor-segment-row__time-input mono small"
+      value={text}
+      step={0.001}
+      min={0}
+      aria-label={ariaLabel}
+      onFocus={() => setFocused(true)}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        setFocused(false);
+        const v = parseFloat(text);
+        if (!Number.isFinite(v)) {
+          setText(secondsRef.current.toFixed(3));
+          return;
+        }
+        if (roundSecondsMs(v) !== roundSecondsMs(secondsRef.current)) {
+          onCommit(v);
+          // Après mutation, le parent peut mettre à jour `seconds` au prochain tick ; on resynchronise.
+          setTimeout(() => {
+            setText(secondsRef.current.toFixed(3));
+          }, 0);
+        } else {
+          setText(secondsRef.current.toFixed(3));
+        }
+      }}
+    />
+  );
+}
 
 export type EditorSegmentListProps = {
   transcriptSourcePath: string;
@@ -120,22 +178,10 @@ export const EditorSegmentList = memo(function EditorSegmentList({
                 <span className="editor-segment-row__arrow small" aria-hidden>
                   →
                 </span>
-                <input
-                  type="number"
-                  className="editor-segment-row__time-input mono small"
-                  value={seg.end.toFixed(3)}
-                  step={0.001}
-                  min={0}
-                  aria-label={`Fin segment ${visIndex + 1}`}
-                  onBlur={(e) => {
-                    const v = parseFloat(e.target.value);
-                    if (Number.isFinite(v) && v !== seg.end) {
-                      updateSegmentBoundary(visIndex, "end", v);
-                    }
-                  }}
-                  onChange={() => {
-                    /* commit on blur */
-                  }}
+                <SegmentBoundaryTimeInput
+                  ariaLabel={`Fin segment ${visIndex + 1}`}
+                  seconds={seg.end}
+                  onCommit={(v) => updateSegmentBoundary(visIndex, "end", v)}
                 />
 
                 <span className="editor-segment-row__dur mono small" aria-label="Durée">

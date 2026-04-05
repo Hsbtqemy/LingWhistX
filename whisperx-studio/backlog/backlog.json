@@ -1,7 +1,12 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-04-04T19:00:22.398Z",
-  "statuses": ["todo", "in_progress", "blocked", "done"],
+  "statuses": [
+    "todo",
+    "in_progress",
+    "blocked",
+    "done"
+  ],
   "tasks": [
     {
       "id": "WX-201",
@@ -10,8 +15,15 @@
       "priority": "P0",
       "estimate": "2d",
       "dependsOn": [],
-      "scope": ["src/App.tsx", "src/App.css", "src-tauri/src/lib.rs"],
-      "execute": ["npm run build", "cargo check"],
+      "scope": [
+        "src/App.tsx",
+        "src/App.css",
+        "src-tauri/src/lib.rs"
+      ],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Chaque segment editable expose start/end dans l UI.",
         "L utilisateur peut modifier start/end par drag handles sur la waveform.",
@@ -29,9 +41,16 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1.5d",
-      "dependsOn": ["WX-201"],
-      "scope": ["src/App.tsx", "src/App.css"],
-      "execute": ["npm run build"],
+      "dependsOn": [
+        "WX-201"
+      ],
+      "scope": [
+        "src/App.tsx",
+        "src/App.css"
+      ],
+      "execute": [
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Zoom horizontal de la waveform disponible (x1 a x20).",
         "Snap optionnel au pas configurable (10/20/40 ms).",
@@ -49,9 +68,17 @@
       "status": "done",
       "priority": "P0",
       "estimate": "1.5d",
-      "dependsOn": ["WX-201"],
-      "scope": ["src/App.tsx", "src-tauri/src/lib.rs"],
-      "execute": ["npm run build", "cargo check"],
+      "dependsOn": [
+        "WX-201"
+      ],
+      "scope": [
+        "src/App.tsx",
+        "src-tauri/src/lib.rs"
+      ],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Split segment a la position curseur.",
         "Merge segment courant avec precedent/suivant.",
@@ -69,9 +96,16 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2d",
-      "dependsOn": ["WX-201", "WX-203"],
-      "scope": ["src/App.tsx"],
-      "execute": ["npm run build"],
+      "dependsOn": [
+        "WX-201",
+        "WX-203"
+      ],
+      "scope": [
+        "src/App.tsx"
+      ],
+      "execute": [
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Historique en memoire avec limite configurable.",
         "Undo/redo couvrent edit texte, split/merge, drag timings.",
@@ -88,9 +122,17 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1d",
-      "dependsOn": ["WX-201"],
-      "scope": ["src/App.tsx", "src-tauri/src/lib.rs"],
-      "execute": ["npm run build", "cargo check"],
+      "dependsOn": [
+        "WX-201"
+      ],
+      "scope": [
+        "src/App.tsx",
+        "src-tauri/src/lib.rs"
+      ],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Autosave toutes les N secondes sur fichier .draft.json.",
         "Prompt recovery au chargement d un transcript source.",
@@ -107,9 +149,18 @@
       "status": "done",
       "priority": "P0",
       "estimate": "1.5d",
-      "dependsOn": ["WX-201", "WX-203"],
-      "scope": ["src-tauri/src/lib.rs", "src/App.tsx"],
-      "execute": ["cargo check", "npm run build"],
+      "dependsOn": [
+        "WX-201",
+        "WX-203"
+      ],
+      "scope": [
+        "src-tauri/src/lib.rs",
+        "src/App.tsx"
+      ],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Regles min duration / min gap configurables.",
         "Suppression overlaps automatiquement corrigeable.",
@@ -126,9 +177,16 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1.5d",
-      "dependsOn": ["WX-206"],
-      "scope": ["src/App.tsx", "src/App.css"],
-      "execute": ["npm run build"],
+      "dependsOn": [
+        "WX-206"
+      ],
+      "scope": [
+        "src/App.tsx",
+        "src/App.css"
+      ],
+      "execute": [
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Liste anomalies temporelles et texte.",
         "Jump direct vers segment en erreur.",
@@ -146,14 +204,23 @@
       "priority": "P1",
       "estimate": "2d",
       "dependsOn": [],
-      "scope": ["src-tauri/src/lib.rs", "src/App.tsx"],
-      "execute": ["cargo check", "npm run build"],
+      "scope": [
+        "src-tauri/src/lib.rs",
+        "src/App.tsx"
+      ],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Generation peaks non bloquante avec events de progression.",
         "Annulation generation waveform possible.",
         "Cache invalide automatiquement sur changement media."
       ],
-      "acceptance": ["Fichier 2h traite sans freeze UI.", "Cancel stoppe ffmpeg proprement."]
+      "acceptance": [
+        "Fichier 2h traite sans freeze UI.",
+        "Cancel stoppe ffmpeg proprement."
+      ]
     },
     {
       "id": "WX-209",
@@ -162,8 +229,15 @@
       "priority": "P0",
       "estimate": "1.5d",
       "dependsOn": [],
-      "scope": ["src/App.tsx", "scripts/setup-local-runtime.ps1", "README.md"],
-      "execute": ["npm run build", "npm run tauri build"],
+      "scope": [
+        "src/App.tsx",
+        "scripts/setup-local-runtime.ps1",
+        "README.md"
+      ],
+      "execute": [
+        "npm run build",
+        "npm run tauri build"
+      ],
       "definitionOfDone": [
         "Wizard detecte absence Python/WhisperX/ffmpeg.",
         "Bouton lance setup local et affiche logs.",
@@ -180,9 +254,21 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1d",
-      "dependsOn": ["WX-203", "WX-206", "WX-209"],
-      "scope": ["scripts", "README.md", "package.json"],
-      "execute": ["npm run build", "cargo check", "npm run tauri build"],
+      "dependsOn": [
+        "WX-203",
+        "WX-206",
+        "WX-209"
+      ],
+      "scope": [
+        "scripts",
+        "README.md",
+        "package.json"
+      ],
+      "execute": [
+        "npm run build",
+        "cargo check",
+        "npm run tauri build"
+      ],
       "definitionOfDone": [
         "Script smoke test lance job mock + edition + export.",
         "Checklist release versionnee.",
@@ -226,7 +312,9 @@
       "status": "done",
       "priority": "P0",
       "estimate": "3d",
-      "dependsOn": ["WX-301"],
+      "dependsOn": [
+        "WX-301"
+      ],
       "scope": [
         "whisperx/audio.py",
         "whisperx/transcribe.py",
@@ -254,7 +342,9 @@
       "status": "done",
       "priority": "P0",
       "estimate": "2d",
-      "dependsOn": ["WX-301"],
+      "dependsOn": [
+        "WX-301"
+      ],
       "scope": [
         "whisperx/diarize.py",
         "whisperx/transcribe.py",
@@ -283,9 +373,18 @@
       "status": "done",
       "priority": "P0",
       "estimate": "2d",
-      "dependsOn": ["WX-301", "WX-303"],
-      "scope": ["whisperx/transcribe.py", "whisperx/vads", "whisperx-studio/src-tauri/src/lib.rs"],
-      "execute": ["uv run --with pytest pytest -q tests"],
+      "dependsOn": [
+        "WX-301",
+        "WX-303"
+      ],
+      "scope": [
+        "whisperx/transcribe.py",
+        "whisperx/vads",
+        "whisperx-studio/src-tauri/src/lib.rs"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests"
+      ],
       "definitionOfDone": [
         "pauses intra-speaker calculees depuis words[] avec min_pause/ignore_below/max_pause.",
         "nonspeech_intervals acoustiques exposes en option.",
@@ -302,9 +401,16 @@
       "status": "done",
       "priority": "P0",
       "estimate": "2d",
-      "dependsOn": ["WX-304"],
-      "scope": ["whisperx/transcribe.py", "whisperx-studio/src-tauri/src/lib.rs"],
-      "execute": ["uv run --with pytest pytest -q tests"],
+      "dependsOn": [
+        "WX-304"
+      ],
+      "scope": [
+        "whisperx/transcribe.py",
+        "whisperx-studio/src-tauri/src/lib.rs"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests"
+      ],
       "definitionOfDone": [
         "ipus[] calcules entre pauses avec regles ipu_min_words/ipu_min_duration.",
         "transitions[] calculees (from,to,gap,start,end).",
@@ -321,14 +427,20 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2d",
-      "dependsOn": ["WX-304", "WX-305"],
+      "dependsOn": [
+        "WX-304",
+        "WX-305"
+      ],
       "scope": [
         "whisperx/alignment.py",
         "whisperx/transcribe.py",
         "whisperx-studio/src-tauri/src/lib.rs",
         "whisperx-studio/src/App.tsx"
       ],
-      "execute": ["uv run --with pytest pytest -q tests", "npm run build"],
+      "execute": [
+        "uv run --with pytest pytest -q tests",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "KPIs stockes: ratio mots interpoles/non aligns, ratio overlap, stats par speaker.",
         "Flags zones suspectes: overlap long, faible confiance, instabilite VAD.",
@@ -345,13 +457,19 @@
       "status": "done",
       "priority": "P0",
       "estimate": "2d",
-      "dependsOn": ["WX-301", "WX-304", "WX-305"],
+      "dependsOn": [
+        "WX-301",
+        "WX-304",
+        "WX-305"
+      ],
       "scope": [
         "whisperx/utils.py",
         "whisperx/transcribe.py",
         "whisperx-studio/src-tauri/src/lib.rs"
       ],
-      "execute": ["uv run --with pytest pytest -q tests"],
+      "execute": [
+        "uv run --with pytest pytest -q tests"
+      ],
       "definitionOfDone": [
         "run.json inclut config, versions, media source, parametres et infos chunk offsets.",
         "timeline.json/jsonl exporte segments+words+speaker_turns+events.",
@@ -368,9 +486,19 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2d",
-      "dependsOn": ["WX-301", "WX-302", "WX-307"],
-      "scope": ["whisperx/__main__.py", "whisperx/transcribe.py", "README.md"],
-      "execute": ["uv run --with pytest pytest -q tests"],
+      "dependsOn": [
+        "WX-301",
+        "WX-302",
+        "WX-307"
+      ],
+      "scope": [
+        "whisperx/__main__.py",
+        "whisperx/transcribe.py",
+        "README.md"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests"
+      ],
       "definitionOfDone": [
         "Commandes run/transcribe/align/diarize/analyze/export disponibles.",
         "Fichier config YAML ou TOML chargeable pour runs reproductibles.",
@@ -387,7 +515,9 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1.5d",
-      "dependsOn": ["WX-303"],
+      "dependsOn": [
+        "WX-303"
+      ],
       "scope": [
         "whisperx-studio/src/App.tsx",
         "whisperx-studio/src-tauri/src/lib.rs",
@@ -413,13 +543,20 @@
       "status": "done",
       "priority": "P0",
       "estimate": "1.5d",
-      "dependsOn": ["WX-304", "WX-305", "WX-307"],
+      "dependsOn": [
+        "WX-304",
+        "WX-305",
+        "WX-307"
+      ],
       "scope": [
         "whisperx/transcribe.py",
         "whisperx-studio/src-tauri/src/lib.rs",
         "whisperx-studio/src/App.tsx"
       ],
-      "execute": ["uv run --with pytest pytest -q tests", "npm run build"],
+      "execute": [
+        "uv run --with pytest pytest -q tests",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Un run analytique relit timeline existante et recalcule metriques avec nouveaux seuils.",
         "Aucun appel ASR/alignment/diarization n est relance en analyze-only.",
@@ -436,9 +573,19 @@
       "status": "done",
       "priority": "P2",
       "estimate": "2d",
-      "dependsOn": ["WX-301", "WX-303", "WX-307"],
-      "scope": ["whisperx/utils.py", "whisperx/transcribe.py", "README.md"],
-      "execute": ["uv run --with pytest pytest -q tests"],
+      "dependsOn": [
+        "WX-301",
+        "WX-303",
+        "WX-307"
+      ],
+      "scope": [
+        "whisperx/utils.py",
+        "whisperx/transcribe.py",
+        "README.md"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests"
+      ],
       "definitionOfDone": [
         "Export RTTM genere depuis speaker_turns.",
         "Export TextGrid et EAF disponibles en mode optionnel.",
@@ -455,8 +602,15 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2d",
-      "dependsOn": ["WX-302", "WX-307"],
-      "scope": ["tests", ".github/workflows/audio-e2e-nightly.yml", "README.md"],
+      "dependsOn": [
+        "WX-302",
+        "WX-307"
+      ],
+      "scope": [
+        "tests",
+        ".github/workflows/audio-e2e-nightly.yml",
+        "README.md"
+      ],
       "execute": [
         "uv run --with pytest pytest -q tests",
         "uv run --with pytest pytest -q tests/test_pipeline_e2e_real_audio.py -r a"
@@ -511,7 +665,10 @@
         "whisperx-studio/src/hooks/transcript/**/*.ts",
         "whisperx-studio/src/components/runDetails/TranscriptEditorPanel.tsx"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npx tsc --noEmit"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npx tsc --noEmit"
+      ],
       "definitionOfDone": [
         "Le fichier useTranscriptEditor.ts ne concentre plus toute la logique (cible: domaines separes: segments, undo, QA, autosave, export, alignement waveform).",
         "API exposee au reste de l app inchangee ou migration documentee en un commit.",
@@ -556,7 +713,9 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1d",
-      "dependsOn": ["WX-403"],
+      "dependsOn": [
+        "WX-403"
+      ],
       "scope": [
         "whisperx-studio/package.json",
         "whisperx-studio/src/**/*.test.ts",
@@ -617,12 +776,17 @@
         "whisperx-studio/src/types ou whisperx-studio/src/model/localRuntimePanel.ts",
         "whisperx-studio/src/hooks/useRuntimeDiagnostics.ts"
       ],
-      "execute": ["cd whisperx-studio && npm run build"],
+      "execute": [
+        "cd whisperx-studio && npm run build"
+      ],
       "definitionOfDone": [
         "Le type est importe depuis un module neutre (pas de cycle hooks -> UI inutile).",
         "LocalRuntimePanel et useRuntimeDiagnostics compilent sans changement fonctionnel."
       ],
-      "acceptance": ["tsc strict OK.", "Aucun changement visuel du panneau runtime."]
+      "acceptance": [
+        "tsc strict OK.",
+        "Aucun changement visuel du panneau runtime."
+      ]
     },
     {
       "id": "WX-407",
@@ -630,9 +794,16 @@
       "status": "done",
       "priority": "P2",
       "estimate": "1d",
-      "dependsOn": ["WX-401"],
-      "scope": ["whisperx-studio/src-tauri/src/**/*.rs", "audit interne (notes)"],
-      "execute": ["cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"],
+      "dependsOn": [
+        "WX-401"
+      ],
+      "scope": [
+        "whisperx-studio/src-tauri/src/**/*.rs",
+        "audit interne (notes)"
+      ],
+      "execute": [
+        "cargo check --manifest-path whisperx-studio/src-tauri/Cargo.toml"
+      ],
       "definitionOfDone": [
         "Cartographie des invoke qui acceptent des chemins ou lancent des processus.",
         "Optionnel: cargo clippy / cargo audit sur le crate et suivi des alertes.",
@@ -651,7 +822,10 @@
       "priority": "P2",
       "estimate": "0.25d",
       "dependsOn": [],
-      "scope": [".github/workflows/studio-ci.yml", "whisperx-studio/AGENTS.md"],
+      "scope": [
+        ".github/workflows/studio-ci.yml",
+        "whisperx-studio/AGENTS.md"
+      ],
       "execute": [
         "cd whisperx-studio && npm run lint && npm run test",
         "cargo clippy --manifest-path whisperx-studio/src-tauri/Cargo.toml -- -D warnings",
@@ -672,7 +846,9 @@
       "status": "done",
       "priority": "P2",
       "estimate": "0.15d",
-      "dependsOn": ["WX-408"],
+      "dependsOn": [
+        "WX-408"
+      ],
       "scope": [
         "whisperx-studio/src-tauri/src/**/*.rs",
         ".github/workflows/studio-ci.yml",
@@ -725,9 +901,16 @@
       "status": "done",
       "priority": "P0",
       "estimate": "2d",
-      "dependsOn": ["WX-501"],
-      "scope": ["whisperx/timeline.py", "tests/test_timeline_validators.py"],
-      "execute": ["uv run --with pytest pytest -q tests"],
+      "dependsOn": [
+        "WX-501"
+      ],
+      "scope": [
+        "whisperx/timeline.py",
+        "tests/test_timeline_validators.py"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests"
+      ],
       "definitionOfDone": [
         "Word: word_id, token, norm optionnel, segment_id, chunk_id, confidence, flags, alignment_status enum aligned|interpolated|missing.",
         "Invariants: si status != missing alors start/end non nuls et start < end; token non vide; regle mot dans segment avec tolerance 20-50 ms + flag si chevauchement deux segments.",
@@ -745,9 +928,16 @@
       "status": "done",
       "priority": "P0",
       "estimate": "2d",
-      "dependsOn": ["WX-502"],
-      "scope": ["whisperx/transcribe.py ou module analysis/", "tests/"],
-      "execute": ["uv run --with pytest pytest -q tests"],
+      "dependsOn": [
+        "WX-502"
+      ],
+      "scope": [
+        "whisperx/transcribe.py ou module analysis/",
+        "tests/"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests"
+      ],
       "definitionOfDone": [
         "Pause: types enum intra_speaker_word_gap, transition_gap, global_nonspeech; duration = round(end-start,3) > 0; context prev/next word ou segment ids.",
         "IPU: n_words == len(word_ids); texte concat stable; flags contains_interpolated.",
@@ -765,9 +955,18 @@
       "status": "done",
       "priority": "P0",
       "estimate": "1.5d",
-      "dependsOn": ["WX-501", "WX-503"],
-      "scope": ["whisperx/utils.py", "whisperx/transcribe.py", "tests/"],
-      "execute": ["uv run --with pytest pytest -q tests"],
+      "dependsOn": [
+        "WX-501",
+        "WX-503"
+      ],
+      "scope": [
+        "whisperx/utils.py",
+        "whisperx/transcribe.py",
+        "tests/"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests"
+      ],
       "definitionOfDone": [
         "Chaque run produit run_manifest.json (ou nom fige documente), timeline.jsonl OU transcript.json monolithique, words.csv, pauses.csv, ipus.csv, segments.srt + segments.vtt.",
         "UTF-8; en-tetes CSV stables; memes quantificateurs temps que le manifest.",
@@ -784,9 +983,16 @@
       "status": "done",
       "priority": "P0",
       "estimate": "1.5d",
-      "dependsOn": ["WX-503"],
-      "scope": ["tests/test_analysis_pure.py", "whisperx (helpers temps)"],
-      "execute": ["uv run --with pytest pytest -q tests/test_analysis_pure.py"],
+      "dependsOn": [
+        "WX-503"
+      ],
+      "scope": [
+        "tests/test_analysis_pure.py",
+        "whisperx (helpers temps)"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests/test_analysis_pure.py"
+      ],
       "definitionOfDone": [
         "quantize_time: pas de derive cumulative sur longues chaines.",
         "validate_interval rejette start>=end, NaN, None.",
@@ -805,9 +1011,15 @@
       "status": "done",
       "priority": "P0",
       "estimate": "1.5d",
-      "dependsOn": ["WX-505"],
-      "scope": ["tests/test_synthetic_timeline.py"],
-      "execute": ["uv run --with pytest pytest -q tests/test_synthetic_timeline.py"],
+      "dependsOn": [
+        "WX-505"
+      ],
+      "scope": [
+        "tests/test_synthetic_timeline.py"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests/test_synthetic_timeline.py"
+      ],
       "definitionOfDone": [
         "Cas: 1 speaker pauses 0.10 / 0.15 / 0.50 vs seuils.",
         "2 speakers alternes sans gap: transitions, 0 pause intra.",
@@ -825,7 +1037,10 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2d",
-      "dependsOn": ["WX-504", "WX-506"],
+      "dependsOn": [
+        "WX-504",
+        "WX-506"
+      ],
       "scope": [
         "tests/test_pipeline_e2e_real_audio.py",
         "tests/fixtures (ou telechargement documente)"
@@ -850,9 +1065,16 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2d",
-      "dependsOn": ["WX-504"],
-      "scope": ["tests/test_chunking_merge.py", "whisperx/transcribe.py"],
-      "execute": ["uv run --with pytest pytest -q tests/test_chunking_merge.py"],
+      "dependsOn": [
+        "WX-504"
+      ],
+      "scope": [
+        "tests/test_chunking_merge.py",
+        "whisperx/transcribe.py"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests/test_chunking_merge.py"
+      ],
       "definitionOfDone": [
         "Offsets globaux corrects apres merge; pas de doublons mots aux frontieres.",
         "Timeline monotone (pas de retour en arriere).",
@@ -870,19 +1092,25 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1.5d",
-      "dependsOn": ["WX-507"],
+      "dependsOn": [
+        "WX-507"
+      ],
       "scope": [
         "tests/test_robustness_errors.py",
         "whisperx-studio/src-tauri ou worker (messages)"
       ],
-      "execute": ["uv run --with pytest pytest -q tests/test_robustness_errors.py"],
+      "execute": [
+        "uv run --with pytest pytest -q tests/test_robustness_errors.py"
+      ],
       "definitionOfDone": [
         "ffmpeg absent: message clair + code retour non zero.",
         "Diarisation sans token: message + speaker None possible.",
         "Fichier corrompu: echec controle sans panic.",
         "Langue non supportee aligner: fallback segment-level + warning dans manifest ou logs."
       ],
-      "acceptance": ["Chaque cas mockable sans GPU (chemins invalides, env, fichiers mini)."]
+      "acceptance": [
+        "Chaque cas mockable sans GPU (chemins invalides, env, fichiers mini)."
+      ]
     },
     {
       "id": "WX-510",
@@ -890,15 +1118,25 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1d",
-      "dependsOn": ["WX-505", "WX-506"],
-      "scope": ["tests/test_regression_golden.py", "tests/fixtures/golden_metrics.json"],
-      "execute": ["uv run --with pytest pytest -q tests/test_regression_golden.py"],
+      "dependsOn": [
+        "WX-505",
+        "WX-506"
+      ],
+      "scope": [
+        "tests/test_regression_golden.py",
+        "tests/fixtures/golden_metrics.json"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests/test_regression_golden.py"
+      ],
       "definitionOfDone": [
         "Figer n_words aligned/interpolated/missing, n_pauses_intra (min_pause=0.15, ignore_below=0.12), mean/p95 pauses.",
         "Comparer avec tolerance ±X% documentee; echouer si explosion > seuil.",
         "Manifest enregistre model_version pour expliquer drift."
       ],
-      "acceptance": ["Une commande unique met a jour les golden avec review humaine (documentee)."]
+      "acceptance": [
+        "Une commande unique met a jour les golden avec review humaine (documentee)."
+      ]
     },
     {
       "id": "WX-511",
@@ -906,8 +1144,14 @@
       "status": "done",
       "priority": "P2",
       "estimate": "0.5d",
-      "dependsOn": ["WX-501", "WX-505"],
-      "scope": ["whisperx-studio/backlog/backlog.json", "README.md ou docs/data-model.md"],
+      "dependsOn": [
+        "WX-501",
+        "WX-505"
+      ],
+      "scope": [
+        "whisperx-studio/backlog/backlog.json",
+        "README.md ou docs/data-model.md"
+      ],
       "execute": [
         "npm run backlog:list:unix --prefix whisperx-studio 2>/dev/null || node whisperx-studio/scripts/backlog.mjs -Action list"
       ],
@@ -926,8 +1170,16 @@
       "status": "done",
       "priority": "P0",
       "estimate": "2d",
-      "dependsOn": ["WX-503", "WX-506"],
-      "scope": ["whisperx/timeline.py", "whisperx/analysis.py", "whisperx/schema.py", "tests/"],
+      "dependsOn": [
+        "WX-503",
+        "WX-506"
+      ],
+      "scope": [
+        "whisperx/timeline.py",
+        "whisperx/analysis.py",
+        "whisperx/schema.py",
+        "tests/"
+      ],
       "execute": [
         "uv run --with pytest pytest -q tests/test_wx503_analysis.py tests/test_synthetic_timeline.py"
       ],
@@ -948,13 +1200,18 @@
       "status": "done",
       "priority": "P0",
       "estimate": "3d",
-      "dependsOn": ["WX-601", "WX-505"],
+      "dependsOn": [
+        "WX-601",
+        "WX-505"
+      ],
       "scope": [
         "whisperx/timeline.py ou whisperx/analytics_metrics.py",
         "whisperx/utils.py",
         "tests/"
       ],
-      "execute": ["uv run --with pytest pytest -q tests"],
+      "execute": [
+        "uv run --with pytest pytest -q tests"
+      ],
       "definitionOfDone": [
         "Par speaker: duree parole, mots/min, ratio silence/parole, distribution pauses (moy mediane p90 p95), longueur IPU.",
         "Interaction: taux interruptions, latences transition_gap A vers B, proportion et duree overlap, sequences IPU courts (burstiness).",
@@ -972,14 +1229,18 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2.5d",
-      "dependsOn": ["WX-503"],
+      "dependsOn": [
+        "WX-503"
+      ],
       "scope": [
         "whisperx/timeline.py",
         "whisperx/transcribe.py",
         "whisperx-studio/python/worker.py",
         "tests/"
       ],
-      "execute": ["uv run --with pytest pytest -q tests/test_analysis_pure.py"],
+      "execute": [
+        "uv run --with pytest pytest -q tests/test_analysis_pure.py"
+      ],
       "definitionOfDone": [
         "Mode calibration sur fenetre (ex 60s): distribution des gaps par speaker, quantiles pour ignore_below et heuristique min_pause.",
         "Presets nommes sport_tv et interview avec bornes documentees.",
@@ -997,14 +1258,19 @@
       "status": "done",
       "priority": "P1",
       "estimate": "4d",
-      "dependsOn": ["WX-302", "WX-504"],
+      "dependsOn": [
+        "WX-302",
+        "WX-504"
+      ],
       "scope": [
         "whisperx/transcribe.py",
         "whisperx/chunk_merge.py",
         "whisperx/utils.py",
         "tests/test_chunking_merge.py"
       ],
-      "execute": ["uv run --with pytest pytest -q tests/test_chunking_merge.py"],
+      "execute": [
+        "uv run --with pytest pytest -q tests/test_chunking_merge.py"
+      ],
       "definitionOfDone": [
         "chunk_manifest.json (ou equivalent) listant chunks et statut.",
         "Reprise: relancer uniquement les chunks en echec sans doublons aux frontieres.",
@@ -1022,9 +1288,17 @@
       "status": "done",
       "priority": "P2",
       "estimate": "2d",
-      "dependsOn": ["WX-601", "WX-303"],
-      "scope": ["whisperx/diarize.py ou whisperx/timeline.py", "tests/"],
-      "execute": ["uv run --with pytest pytest -q tests"],
+      "dependsOn": [
+        "WX-601",
+        "WX-303"
+      ],
+      "scope": [
+        "whisperx/diarize.py ou whisperx/timeline.py",
+        "tests/"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests"
+      ],
       "definitionOfDone": [
         "Regles: fusion gap < X ms meme speaker, split si silence > Y entre mots du meme speaker (parametrable).",
         "Preset sport duo (min/max speakers) documente.",
@@ -1042,16 +1316,27 @@
       "status": "done",
       "priority": "P2",
       "estimate": "2d",
-      "dependsOn": ["WX-502", "WX-503"],
-      "scope": ["whisperx/timeline.py", "whisperx/alignment.py", "tests/"],
-      "execute": ["uv run --with pytest pytest -q tests/test_timeline_validators.py"],
+      "dependsOn": [
+        "WX-502",
+        "WX-503"
+      ],
+      "scope": [
+        "whisperx/timeline.py",
+        "whisperx/alignment.py",
+        "tests/"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests/test_timeline_validators.py"
+      ],
       "definitionOfDone": [
         "Detection mots aberrants (duree min/max vs voisins) -> flags.",
         "Lissage optionnel ordre conserve, documente dans analysis config.",
         "Pas de modification silencieuse sans flag ou sans mode explicite.",
         "Tests unitaires sur sequences de mots."
       ],
-      "acceptance": ["Desactive par defaut ou mode strict pour ne pas casser les runs existants."]
+      "acceptance": [
+        "Desactive par defaut ou mode strict pour ne pas casser les runs existants."
+      ]
     },
     {
       "id": "WX-607",
@@ -1059,16 +1344,26 @@
       "status": "done",
       "priority": "P2",
       "estimate": "3d",
-      "dependsOn": ["WX-301"],
-      "scope": ["whisperx/", "README.md", "whisperx-studio/python/worker.py"],
-      "execute": ["uv run --with pytest pytest -q tests"],
+      "dependsOn": [
+        "WX-301"
+      ],
+      "scope": [
+        "whisperx/",
+        "README.md",
+        "whisperx-studio/python/worker.py"
+      ],
+      "execute": [
+        "uv run --with pytest pytest -q tests"
+      ],
       "definitionOfDone": [
         "Interface CLI ou config pour lancer pipeline alignement externe (binaire ou script documente).",
         "Import des timestamps dans timeline ou segment words (format documente).",
         "Echec clair si dependances MFA absentes.",
         "Marque source alignment dans metadata."
       ],
-      "acceptance": ["Feature desactivee par defaut; pas de regression pipeline WhisperX standard."]
+      "acceptance": [
+        "Feature desactivee par defaut; pas de regression pipeline WhisperX standard."
+      ]
     },
     {
       "id": "WX-608",
@@ -1076,8 +1371,15 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2d",
-      "dependsOn": ["WX-307", "WX-311"],
-      "scope": ["whisperx/utils.py", "docs/ ou README", "tests/"],
+      "dependsOn": [
+        "WX-307",
+        "WX-311"
+      ],
+      "scope": [
+        "whisperx/utils.py",
+        "docs/ ou README",
+        "tests/"
+      ],
       "execute": [
         "uv run --with pytest pytest -q tests/test_annotation_exports.py tests/test_interop_dataset_exports.py"
       ],
@@ -1099,8 +1401,13 @@
       "priority": "P3",
       "estimate": "2d",
       "dependsOn": [],
-      "scope": ["scripts/ ou whisperx/gui_tk.py", "README.md"],
-      "execute": ["python -m whisperx.gui_tk --help"],
+      "scope": [
+        "scripts/ ou whisperx/gui_tk.py",
+        "README.md"
+      ],
+      "execute": [
+        "python -m whisperx.gui_tk --help"
+      ],
       "definitionOfDone": [
         "Fenetre: choix fichier, preset, lancement worker ou CLI, zone log.",
         "Bouton ouvrir dossier sortie (os.startfile / xdg-open).",
@@ -1118,8 +1425,14 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2d",
-      "dependsOn": ["WX-602", "WX-507"],
-      "scope": ["tests/", "docs/fixtures.md"],
+      "dependsOn": [
+        "WX-602",
+        "WX-507"
+      ],
+      "scope": [
+        "tests/",
+        "docs/fixtures.md"
+      ],
       "execute": [
         "uv run --with pytest pytest -q tests/test_wx610_integration_sport.py -m integration"
       ],
@@ -1146,7 +1459,10 @@
         "whisperx-studio/src/",
         "docs/ ou README whisperx-studio"
       ],
-      "execute": ["npm run build", "cargo check"],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Convention de chemins: media source reference, sorties WhisperX et artefacts dans le run.",
         "run_manifest.json (ou equivalent) lu par Studio avec schema_version.",
@@ -1164,9 +1480,16 @@
       "status": "done",
       "priority": "P0",
       "estimate": "4d",
-      "dependsOn": ["WX-611"],
-      "scope": ["whisperx-studio/src-tauri/src/", "tests/ rust ou integration"],
-      "execute": ["cargo test -p whisperx-studio"],
+      "dependsOn": [
+        "WX-611"
+      ],
+      "scope": [
+        "whisperx-studio/src-tauri/src/",
+        "tests/ rust ou integration"
+      ],
+      "execute": [
+        "cargo test -p whisperx-studio"
+      ],
       "definitionOfDone": [
         "Tables: words, turns, pauses, ipus (colonnes start_ms/end_ms minimum + flags).",
         "CREATE INDEX sur start_ms (et requetes fenetre documentees).",
@@ -1183,9 +1506,17 @@
       "status": "done",
       "priority": "P0",
       "estimate": "3d",
-      "dependsOn": ["WX-612"],
-      "scope": ["whisperx-studio/src-tauri/src/", "whisperx-studio/src/types.ts"],
-      "execute": ["npm run build", "cargo check"],
+      "dependsOn": [
+        "WX-612"
+      ],
+      "scope": [
+        "whisperx-studio/src-tauri/src/",
+        "whisperx-studio/src/types.ts"
+      ],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "WHERE start_ms < t1 AND end_ms > t0 avec filtres layers et speaker.",
         "Limites explicites (ex. words max 5000 par fenetre) documentees.",
@@ -1201,13 +1532,17 @@
       "status": "done",
       "priority": "P1",
       "estimate": "5d",
-      "dependsOn": ["WX-611"],
+      "dependsOn": [
+        "WX-611"
+      ],
       "scope": [
         "whisperx-studio/src-tauri/src/waveform.rs",
         "format binaire envelope_Lk.bin",
         "whisperx-studio/src/"
       ],
-      "execute": ["cargo check"],
+      "execute": [
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Header magic WXENV1, sample_rate, block_size, n_blocks; payload int16 min/max.",
         "Niveaux block_size alignes spec (256, 1024, 4096, 16384, 65536 a 16 kHz).",
@@ -1225,9 +1560,17 @@
       "status": "done",
       "priority": "P1",
       "estimate": "5d",
-      "dependsOn": ["WX-613", "WX-614"],
-      "scope": ["whisperx-studio/src/", "lecture .bin via FS plugin ou API Rust slice"],
-      "execute": ["npm run build"],
+      "dependsOn": [
+        "WX-613",
+        "WX-614"
+      ],
+      "scope": [
+        "whisperx-studio/src/",
+        "lecture .bin via FS plugin ou API Rust slice"
+      ],
+      "execute": [
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Overview duree complete + fenetre detail draggable (rectangle).",
         "Selection niveau Lk selon samples_per_pixel; overview L3/L4 seulement.",
@@ -1244,9 +1587,17 @@
       "status": "done",
       "priority": "P1",
       "estimate": "4d",
-      "dependsOn": ["WX-611", "WX-613"],
-      "scope": ["whisperx-studio/src/", "whisperx-studio/src/App.css"],
-      "execute": ["npm run build"],
+      "dependsOn": [
+        "WX-611",
+        "WX-613"
+      ],
+      "scope": [
+        "whisperx-studio/src/",
+        "whisperx-studio/src/App.css"
+      ],
+      "execute": [
+        "npm run build"
+      ],
       "definitionOfDone": [
         "TopBar: Open file, Open run, resume fichier/duree, device CPU/CUDA, statuts Words/Speakers/Overlap/Missing timing.",
         "Layers toggles: turns, pauses, IPU, overlap, words (auto zoom), segments.",
@@ -1263,9 +1614,17 @@
       "status": "done",
       "priority": "P1",
       "estimate": "4d",
-      "dependsOn": ["WX-613"],
-      "scope": ["whisperx-studio/src-tauri/src/", "whisperx-studio/src/"],
-      "execute": ["npm run build", "cargo check"],
+      "dependsOn": [
+        "WX-613"
+      ],
+      "scope": [
+        "whisperx-studio/src-tauri/src/",
+        "whisperx-studio/src/"
+      ],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Sliders min_pause, ignore_below: changement declenche recalcul local sur timeline (invoke dedie).",
         "Commande recalc_pauses_ipu(run_id, cfg) reecrit tables pauses/ipus depuis words/turns.",
@@ -1282,20 +1641,27 @@
       "status": "done",
       "priority": "P2",
       "estimate": "4d",
-      "dependsOn": ["WX-611"],
+      "dependsOn": [
+        "WX-611"
+      ],
       "scope": [
         "whisperx-studio/src/",
         "whisperx-studio/src-tauri/src/jobs.rs",
         "whisperx-studio/python/worker.py"
       ],
-      "execute": ["npm run build", "cargo check"],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Actions lourdes uniquement via boutons explicites + dialogue confirmation.",
         "Progression sidecar: stdout JSON lines parse par Rust, relais evenements UI.",
         "Annulation propre (kill tree documente).",
         "Sous-section debug overlays (interpole, nonspeech) si donnees presentes."
       ],
-      "acceptance": ["Run WhisperX impossible par simple deplacement de slider d analyse."]
+      "acceptance": [
+        "Run WhisperX impossible par simple deplacement de slider d analyse."
+      ]
     },
     {
       "id": "WX-619",
@@ -1303,15 +1669,24 @@
       "status": "done",
       "priority": "P2",
       "estimate": "3d",
-      "dependsOn": ["WX-611"],
-      "scope": ["whisperx-studio/src/", "ffmpeg decode ou fichier wav cache par run"],
-      "execute": ["npm run build"],
+      "dependsOn": [
+        "WX-611"
+      ],
+      "scope": [
+        "whisperx-studio/src/",
+        "ffmpeg decode ou fichier wav cache par run"
+      ],
+      "execute": [
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Lecture depuis media/wav derive; cache ±10s autour position.",
         "Play/pause percu < 100ms en conditions nominales.",
         "Pas de decode waveform brut cote JS pour le rendu (seulement audio)."
       ],
-      "acceptance": ["Seek sur fichier 2h: pas de freeze UI > 200ms."]
+      "acceptance": [
+        "Seek sur fichier 2h: pas de freeze UI > 200ms."
+      ]
     },
     {
       "id": "WX-620",
@@ -1319,20 +1694,28 @@
       "status": "done",
       "priority": "P2",
       "estimate": "2d",
-      "dependsOn": ["WX-615", "WX-616"],
+      "dependsOn": [
+        "WX-615",
+        "WX-616"
+      ],
       "scope": [
         "whisperx-studio/src/",
         "whisperx-studio/src-tauri/",
         "docs internes backlog ou README"
       ],
-      "execute": ["npm run build", "cargo check"],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Revue invoke: aucune commande ne renvoie transcript complet par defaut.",
         "Checklist manuelle 2h: overview < 1s si cache pret; drag overview -> detail < 100ms (cible).",
         "Hooks/timers dev optionnels pour mesurer redraw et taille payloads.",
         "Documenter regles IPC dans README Studio (section architecture)."
       ],
-      "acceptance": ["Scenario 2h documente avec resultats notes (meme si hors CI automatise)."]
+      "acceptance": [
+        "Scenario 2h documente avec resultats notes (meme si hors CI automatise)."
+      ]
     },
     {
       "id": "WX-621",
@@ -1340,14 +1723,20 @@
       "status": "done",
       "priority": "P1",
       "estimate": "4d",
-      "dependsOn": ["WX-615", "WX-619"],
+      "dependsOn": [
+        "WX-615",
+        "WX-619"
+      ],
       "scope": [
         "whisperx-studio/src/App.tsx",
         "whisperx-studio/src/components/",
         "whisperx-studio/src/hooks/",
         "whisperx-studio/src/App.css"
       ],
-      "execute": ["npm run build", "cargo check"],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Tant qu un media est connu (import job ou run selectionne), un panneau affiche le lecteur (video si extension video, sinon UI audio dediee).",
         "Si video: lecteur video dans une zone; ondeforme (peaks ou WXENV) dans une zone distincte sous ou a cote, meme largeur utile.",
@@ -1367,13 +1756,17 @@
       "status": "done",
       "priority": "P2",
       "estimate": "5d",
-      "dependsOn": ["WX-621"],
+      "dependsOn": [
+        "WX-621"
+      ],
       "scope": [
         "whisperx-studio/src/hooks/",
         "whisperx-studio/src/components/runDetails/",
         "whisperx-studio/src/webAudioPlayback.ts"
       ],
-      "execute": ["npm run build"],
+      "execute": [
+        "npm run build"
+      ],
       "definitionOfDone": [
         "L utilisateur pose deux marqueurs ou drag sur l ondeforme pour definir [t0, t1] (plage active).",
         "La fenetre zoom / intervalle visible peut pre-remplir t0/t1 en option.",
@@ -1393,7 +1786,9 @@
       "status": "done",
       "priority": "P2",
       "estimate": "6d",
-      "dependsOn": ["WX-622"],
+      "dependsOn": [
+        "WX-622"
+      ],
       "scope": [
         "whisperx-studio/python/studio_audio_modules.py",
         "whisperx-studio/python/worker.py",
@@ -1424,7 +1819,11 @@
       "status": "done",
       "priority": "P1",
       "estimate": "25d",
-      "dependsOn": ["WX-611", "WX-612", "WX-613"],
+      "dependsOn": [
+        "WX-611",
+        "WX-612",
+        "WX-613"
+      ],
       "scope": [
         "whisperx-studio/src/components/player/",
         "whisperx-studio/src/hooks/usePlayerPlayback.ts",
@@ -1534,7 +1933,10 @@
         "whisperx-studio/src/App.css",
         "whisperx-studio/src/App.tsx"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Variables CSS --lx-surface, --lx-text, --lx-accent, --lx-border, --lx-space-*, --lx-radius-*, --lx-focus-ring documentées en tête de App.css (ou fichier tokens importé).",
         "body / .studio-shell / fond utilisent les tokens sans régression visuelle > 5 % sur écrans pilotes (accueil + Studio)."
@@ -1550,19 +1952,26 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1d",
-      "dependsOn": ["WX-626"],
+      "dependsOn": [
+        "WX-626"
+      ],
       "scope": [
         "audit/ui-ux-harmonization-spec.md",
         "whisperx-studio/src/components/ui/",
         "whisperx-studio/src/components/StudioNav.tsx"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Composants réutilisables Button (variants primary/secondary/ghost/danger) et Badge (tons).",
         "StudioNav utilise Button ou classes alignées ; focus-visible conforme --lx-focus-ring.",
         "Pas de régression clavier sur les onglets."
       ],
-      "acceptance": ["Tabulation : focus visible sur au moins StudioNav + un panneau pilote."]
+      "acceptance": [
+        "Tabulation : focus visible sur au moins StudioNav + un panneau pilote."
+      ]
     },
     {
       "id": "WX-628",
@@ -1570,13 +1979,18 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1d",
-      "dependsOn": ["WX-627"],
+      "dependsOn": [
+        "WX-627"
+      ],
       "scope": [
         "audit/ui-ux-harmonization-spec.md",
         "whisperx-studio/src/components/StudioExplorerChrome.tsx",
         "whisperx-studio/src/App.css"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Topbar Explorer : max 3 groupes visuels (fichier/index-export/nav temps) selon spec section B.4.",
         "Stats manifest en grille lisible (Badge / StatsCard), pas une liste de spans hétérogènes.",
@@ -1592,19 +2006,26 @@
       "status": "done",
       "priority": "P2",
       "estimate": "1.5d",
-      "dependsOn": ["WX-627"],
+      "dependsOn": [
+        "WX-627"
+      ],
       "scope": [
         "audit/ui-ux-harmonization-spec.md",
         "whisperx-studio/src/components/runDetails/RunDetailsPanel.tsx",
         "whisperx-studio/src/components/ui/"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Tabs avec role=tablist / aria-controls / panneaux associés.",
         "Contenu actuel de RunDetailsPanel réparti sans perte de fonctionnalité.",
         "Navigation clavier entre onglets."
       ],
-      "acceptance": ["Sélection job + éditeur + alignement inchangés fonctionnellement."]
+      "acceptance": [
+        "Sélection job + éditeur + alignement inchangés fonctionnellement."
+      ]
     },
     {
       "id": "WX-630",
@@ -1612,13 +2033,18 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1d",
-      "dependsOn": ["WX-626"],
+      "dependsOn": [
+        "WX-626"
+      ],
       "scope": [
         "audit/ui-ux-harmonization-spec.md",
         "whisperx-studio/src/components/WhisperxOptionsForm.tsx",
         "whisperx-studio/src/components/StudioNewJobSection.tsx"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Par défaut : média + profil rapide visibles ; device/chunking/diarize/analyse lourde sous repliable ou toggle « Avancé ».",
         "Aucun slider n’impose un recalcul pipeline lourd sans action explicite (règle produit)."
@@ -1633,18 +2059,25 @@
       "status": "done",
       "priority": "P2",
       "estimate": "1d",
-      "dependsOn": ["WX-627"],
+      "dependsOn": [
+        "WX-627"
+      ],
       "scope": [
         "audit/ui-ux-harmonization-spec.md",
         "whisperx-studio/src/components/StudioExplorerChrome.tsx",
         "whisperx-studio/src/hooks/useStudioExplorer.ts"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Texte « branchement à venir » retiré ou remplacé par comportement réel ou masquage des calques non branchés.",
         "Calques overlap désactivés ou cachés tant que non supportés (spec A3)."
       ],
-      "acceptance": ["Aucune case à cocher sans effet documenté pour l’utilisateur."]
+      "acceptance": [
+        "Aucune case à cocher sans effet documenté pour l’utilisateur."
+      ]
     },
     {
       "id": "WX-632",
@@ -1652,12 +2085,17 @@
       "status": "done",
       "priority": "P1",
       "estimate": "0.5d",
-      "dependsOn": ["WX-626"],
+      "dependsOn": [
+        "WX-626"
+      ],
       "scope": [
         "audit/ui-ux-harmonization-spec.md",
         "whisperx-studio/src/components/player/PlayerWorkspaceSection.tsx"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Si runDir null : message + boutons vers vues create/workspace (spec B.2).",
         "Pas d’écran vide sans explication."
@@ -1672,19 +2110,25 @@
       "status": "done",
       "priority": "P2",
       "estimate": "0.5d",
-      "dependsOn": ["WX-627"],
+      "dependsOn": [
+        "WX-627"
+      ],
       "scope": [
         "audit/ui-ux-harmonization-spec.md",
         "whisperx-studio/src/App.tsx",
         "whisperx-studio/src/components/StudioNav.tsx"
       ],
-      "execute": ["cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Historique & run renommé en « Studio » (ou libellé défini produit) — provisoire jusqu’à WX-637.",
         "Chaque vue a un conteneur role=tabpanel avec id relié par aria-labelledby ou aria-controls.",
         "Documenter dans le ticket que le nom final du workspace est à arbitrer (WX-637)."
       ],
-      "acceptance": ["VoiceOver / NVDA : annonce cohérente onglet + panneau actif."]
+      "acceptance": [
+        "VoiceOver / NVDA : annonce cohérente onglet + panneau actif."
+      ]
     },
     {
       "id": "WX-634",
@@ -1692,19 +2136,25 @@
       "status": "done",
       "priority": "P2",
       "estimate": "0.5d",
-      "dependsOn": ["WX-626"],
+      "dependsOn": [
+        "WX-626"
+      ],
       "scope": [
         "audit/ui-ux-harmonization-spec.md",
         "whisperx-studio/src/hooks/useAppErrorStack.ts",
         "whisperx-studio/src/App.tsx",
         "whisperx-studio/src/App.css"
       ],
-      "execute": ["cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Styles erreurs utilisent tokens danger/surface ; lisibilité contraste WCAG visé.",
         "Comportement pile max 5 inchangé fonctionnellement."
       ],
-      "acceptance": ["setError message long : pas de overflow hors fenêtre."]
+      "acceptance": [
+        "setError message long : pas de overflow hors fenêtre."
+      ]
     },
     {
       "id": "WX-635",
@@ -1713,13 +2163,18 @@
       "priority": "P3",
       "estimate": "0.5d",
       "dependsOn": [],
-      "scope": ["audit/ui-ux-harmonization-spec.md", "whisperx-studio/README.md"],
+      "scope": [
+        "audit/ui-ux-harmonization-spec.md",
+        "whisperx-studio/README.md"
+      ],
       "execute": [],
       "definitionOfDone": [
         "Section README (ou docs/studio-user-flow.md) avec les 4 étapes et captures ou listes à puces.",
         "Lien vers audit/ui-ux-harmonization-spec.md section F.2."
       ],
-      "acceptance": ["Relu par un pair ou auteur : compréhensible sans jargon GPU."]
+      "acceptance": [
+        "Relu par un pair ou auteur : compréhensible sans jargon GPU."
+      ]
     },
     {
       "id": "WX-636",
@@ -1727,7 +2182,10 @@
       "status": "done",
       "priority": "P3",
       "estimate": "0.25d",
-      "dependsOn": ["WX-635", "WX-626"],
+      "dependsOn": [
+        "WX-635",
+        "WX-626"
+      ],
       "scope": [
         "audit/ui-ux-harmonization-spec.md",
         "whisperx-studio/docs/qa-ui.md",
@@ -1738,7 +2196,9 @@
         "Checklist section F.1 copiée ou référencée dans README ou docs/qa-ui.md avec cases à cocher.",
         "Une passe manuelle macOS + Windows notée (date + version app)."
       ],
-      "acceptance": ["Au moins 5 items F.1 validés sur build release candidate."]
+      "acceptance": [
+        "Au moins 5 items F.1 validés sur build release candidate."
+      ]
     },
     {
       "id": "WX-637",
@@ -1747,13 +2207,18 @@
       "priority": "P3",
       "estimate": "0.1d",
       "dependsOn": [],
-      "scope": ["whisperx-studio/src/components/StudioNav.tsx", "whisperx-studio/README.md"],
+      "scope": [
+        "whisperx-studio/src/components/StudioNav.tsx",
+        "whisperx-studio/README.md"
+      ],
       "execute": [],
       "definitionOfDone": [
         "Décision écrite (issue ou README) : nom final pour l’onglet workspace (ex. Travail, Édition, etc.).",
         "Mise à jour des chaînes UI + doc ; fermer ou mettre à jour WX-633 si libellé provisoire remplacé."
       ],
-      "acceptance": ["Cohérence des menus, aide intégrée, et messages Player/Explorer."]
+      "acceptance": [
+        "Cohérence des menus, aide intégrée, et messages Player/Explorer."
+      ]
     },
     {
       "id": "WX-638",
@@ -1776,7 +2241,9 @@
         "Workflow CI (ou doc équivalente) exécute au minimum : npm test + cargo clippy/test sur whisperx-studio.",
         "Échec bloquant sur régression évidente ; badge ou lien doc dans README whisperx-studio."
       ],
-      "acceptance": ["PR de test : CI rouge si test Vitest ou test Rust volontairement cassé."]
+      "acceptance": [
+        "PR de test : CI rouge si test Vitest ou test Rust volontairement cassé."
+      ]
     },
     {
       "id": "WX-639",
@@ -1789,12 +2256,16 @@
         "whisperx-studio/python/worker.py",
         "whisperx-studio/python/test_worker_argparse.py"
       ],
-      "execute": ["cd whisperx-studio && python -m unittest discover -s python -p 'test_*.py' -q"],
+      "execute": [
+        "cd whisperx-studio && python -m unittest discover -s python -p 'test_*.py' -q"
+      ],
       "definitionOfDone": [
         "Test(s) qui invoquent le parseur d’arguments du worker et vérifient les valeurs acceptées pour --output_format.",
         "Régression argparse documentée dans le commit ou le ticket."
       ],
-      "acceptance": ["Changement volontaire de choices casse le test."]
+      "acceptance": [
+        "Changement volontaire de choices casse le test."
+      ]
     },
     {
       "id": "WX-640",
@@ -1829,7 +2300,9 @@
         "whisperx-studio/src/hooks/transcript/computeEditorDirty.ts",
         "whisperx-studio/audit/use-transcript-editor-split-plan.md"
       ],
-      "execute": ["cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Document (issue ou audit) listant responsabilités actuelles et cibles après découpe.",
         "Au moins une extraction sans régression de comportement (tests verts)."
@@ -1850,7 +2323,9 @@
         "whisperx-studio/src/webAudioPlayback.ts",
         "whisperx-studio/README.md"
       ],
-      "execute": ["cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Seuil documenté (taille base64 ou durée) au-delà duquel l’UI avertit ou refuse.",
         "Issue ou note technique pour évolution IPC binaire si besoin perf."
@@ -1866,7 +2341,9 @@
       "priority": "P4",
       "estimate": "0.25d",
       "dependsOn": [],
-      "scope": ["whisperx-studio/audit/review-2026-03-27/01-inventaire-fichiers.md"],
+      "scope": [
+        "whisperx-studio/audit/review-2026-03-27/01-inventaire-fichiers.md"
+      ],
       "execute": [],
       "definitionOfDone": [
         "Checklist release : si refactor hooks/Rust majeur, régénérer ou ajuster 01-inventaire-fichiers.md.",
@@ -1883,8 +2360,12 @@
       "priority": "P2",
       "estimate": "0.5d",
       "dependsOn": [],
-      "scope": ["whisperx-studio/src-tauri/src/wxenv.rs"],
-      "execute": ["cd whisperx-studio/src-tauri && cargo clippy -- -D warnings"],
+      "scope": [
+        "whisperx-studio/src-tauri/src/wxenv.rs"
+      ],
+      "execute": [
+        "cd whisperx-studio/src-tauri && cargo clippy -- -D warnings"
+      ],
       "definitionOfDone": [
         "Passage sur les unwrap hors #[cfg(test)] ; remplacer par gestion d’erreur ou contexte.",
         "Clippy sans nouvelle dette sur les fichiers modifiés."
@@ -1899,14 +2380,20 @@
       "status": "done",
       "priority": "P4",
       "estimate": "2d",
-      "dependsOn": ["WX-638"],
-      "scope": ["whisperx-studio/README.md"],
+      "dependsOn": [
+        "WX-638"
+      ],
+      "scope": [
+        "whisperx-studio/README.md"
+      ],
       "execute": [],
       "definitionOfDone": [
         "Soit pipeline E2E minimal (ouverture app + une commande), soit script + checklist dans README.",
         "Décision écrite : automatisé vs manuel pour la release."
       ],
-      "acceptance": ["Nouveau contributeur peut valider une RC en suivant la doc seule."]
+      "acceptance": [
+        "Nouveau contributeur peut valider une RC en suivant la doc seule."
+      ]
     },
     {
       "id": "WX-646",
@@ -1942,13 +2429,18 @@
       "status": "done",
       "priority": "P2",
       "estimate": "2d",
-      "dependsOn": ["WX-646"],
+      "dependsOn": [
+        "WX-646"
+      ],
       "scope": [
         "whisperx-studio/src/styles/main.css",
         "whisperx-studio/src/styles/tokens.css",
         "whisperx-studio/src/theme/applyStoredTheme.ts"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Migrer fonds et bordures des zones run details, jobs, explorer, alignement, player : plus de #fcffff / teal clair fige seul ; utiliser var(--lx-surface-*), --lx-border, color-mix ou nouveaux tokens WX-646.",
         "Verifier coherences avec prefers-color-scheme: dark et data-lx-theme=\"dark\" (preference utilisateur).",
@@ -1965,12 +2457,17 @@
       "status": "done",
       "priority": "P2",
       "estimate": "1d",
-      "dependsOn": ["WX-646"],
+      "dependsOn": [
+        "WX-646"
+      ],
       "scope": [
         "whisperx-studio/src/hooks/useWaveformCanvas.ts",
         "whisperx-studio/src/components/runDetails/WaveformOverviewStrip.tsx"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Resoudre les couleurs canvas via getComputedStyle sur :root (ou hook dedie) pour fond, grilles, traits, selection active/inactive, bandes plage — alignes sur --lx-accent / surfaces / texte.",
         "Reagir au changement de theme (listener prefers-color-scheme ou event theme app) avec redraw.",
@@ -1994,7 +2491,10 @@
         "whisperx-studio/src/components/player/PlayerWorkspaceSection.tsx",
         "audit/player-multi-view.md"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Remplacer le placeholder ⌃4 par une vue Colonnes exploitable : sous-modes time-aligned (bins 1s/2s/5s) et/ou turn-aligned, lignes virtualisees, clic cellule -> seek.",
         "Requetes `query_run_events_window` bornees (pas de generation 2h d un coup) ; documenter limites dans audit."
@@ -2015,12 +2515,17 @@
         "whisperx-studio/src/components/player/PlayerRunWindowViews.tsx",
         "whisperx-studio/src/hooks/usePlayerRunWindow.ts"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Remplacer le placeholder ⌃5 : ligne NOW fixe, segments/IPU dans une fenetre glissante virtualisee (~±60s), drag scrub -> seek.",
         "Pas d IPC supplementaire a haute frequence : aligne sur grille existante + RAF."
       ],
-      "acceptance": ["Seek depuis scrub et depuis clic ligne ; pas de gel UI sur run 1h+ indexe."]
+      "acceptance": [
+        "Seek depuis scrub et depuis clic ligne ; pas de gel UI sur run 1h+ indexe."
+      ]
     },
     {
       "id": "WX-651",
@@ -2035,7 +2540,10 @@
         "whisperx-studio/src/player/karaokeWords.ts",
         "whisperx-studio/src/styles/main.css"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Remplacer le placeholder ⌃6 : bande horizontale ou verticale, prefixe locuteur, surlignage segment et mot si fenetre mots <= 30s, virtualisation ±N segments.",
         "Words : respect des plafonds Rust + message degrade si truncated."
@@ -2083,12 +2591,17 @@
         "whisperx-studio/src/hooks/usePlayerPlayback.ts",
         "whisperx-studio/src/styles/main.css"
       ],
-      "execute": ["cd whisperx-studio && npm run build", "cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run build",
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Mini-map overview option liee a la fenetre detail ; drag sur plage pour definir loop A-B (ou spec alternative documentee).",
         "Option : prototype canvas pour lanes si la perf DOM insuffisante (documenter choix dans audit)."
       ],
-      "acceptance": ["Run long : interaction loop + overview sans regression seek existant."]
+      "acceptance": [
+        "Run long : interaction loop + overview sans regression seek existant."
+      ]
     },
     {
       "id": "WX-654",
@@ -2102,7 +2615,9 @@
         "whisperx-studio/src/player/playerRunWindowBounds.ts",
         "audit/player-multi-view.md"
       ],
-      "execute": ["cd whisperx-studio && npm run test"],
+      "execute": [
+        "cd whisperx-studio && npm run test"
+      ],
       "definitionOfDone": [
         "Strategie explicite : debounce au seek/scroll/zoom, fenetre [t0,t1] avec marge buffer, pas de query_window a 60 Hz.",
         "Commentaires ou petit module doc : budgets cibles (typ <30 ms query) et mesure manuelle sur run 2h."
@@ -2124,7 +2639,11 @@
         "src/components/StudioPreferencesPanel.tsx",
         "src-tauri/src/models.rs"
       ],
-      "execute": ["npm run build", "cargo check", "npm test"],
+      "execute": [
+        "npm run build",
+        "cargo check",
+        "npm test"
+      ],
       "definitionOfDone": [
         "WhisperxOptions est decompose en sous-interfaces : ModelOptions, PipelineOptions, DiarizationOptions, AnalysisOptions, AudioPipelineOptions.",
         "Les types Rust (models.rs) sont mis a jour en coherence via serde flatten.",
@@ -2143,14 +2662,19 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2d",
-      "dependsOn": ["WX-655"],
+      "dependsOn": [
+        "WX-655"
+      ],
       "scope": [
         "src/types.ts",
         "src/constants.ts",
         "src/components/StudioPreferencesPanel.tsx",
         "src/hooks/useNewJobForm.ts"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Les presets sont definis comme Partial<WhisperxOptions> composables (base + overrides par categorie).",
         "L UI affiche un indicateur visuel par champ modifie depuis le preset actif.",
@@ -2171,8 +2695,14 @@
       "priority": "P2",
       "estimate": "2d",
       "dependsOn": [],
-      "scope": ["whisperx-studio/python/worker.py", "src-tauri/src/jobs.rs"],
-      "execute": ["cargo check", "python -m pytest whisperx-studio/python/"],
+      "scope": [
+        "whisperx-studio/python/worker.py",
+        "src-tauri/src/jobs.rs"
+      ],
+      "execute": [
+        "cargo check",
+        "python -m pytest whisperx-studio/python/"
+      ],
       "definitionOfDone": [
         "Le worker emet des lignes JSON-lines avec champ 'type' : progress, result, error, live_transcript.",
         "Rust parse via serde_json::from_str sans regex.",
@@ -2198,7 +2728,10 @@
         "src/hooks/transcript/computeEditorDirty.ts",
         "src/types.ts"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "L historique stocke des SegmentMutation[] au lieu de snapshots complets.",
         "Types de mutations couverts : text_change, timing_change, split, merge, delete, speaker_change.",
@@ -2226,7 +2759,10 @@
         "src-tauri/src/waveform.rs",
         "src-tauri/src/wxenv.rs"
       ],
-      "execute": ["npm run build", "cargo check"],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Un seul point d entree frontend : useWaveformService(runDir) qui expose getOverview() et getSlice(startSec, endSec, resolution).",
         "useWaveformWorkspace et useWaveformCanvas consomment exclusivement ce service.",
@@ -2253,7 +2789,10 @@
         "src/components/player/PlayerRunWindowViews.tsx",
         "src/types.ts"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "PlayerViewportContract definit par vue : tables requises (words/turns/pauses/ipus), windowMs, maxRows.",
         "usePlayerRunWindow interroge uniquement les tables requises par la vue active.",
@@ -2273,14 +2812,19 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1.5d",
-      "dependsOn": ["WX-655"],
+      "dependsOn": [
+        "WX-655"
+      ],
       "scope": [
         "whisperx/audio_assessment.py",
         "whisperx/cli.py",
         "src/types.ts",
         "src/components/StudioOpenRunSection.tsx"
       ],
-      "execute": ["cargo check", "npm run build"],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "whisperx/audio_assessment.py estime le SNR (via WADA-SNR ou approche spectrale simple), detecte le clipping (pics > 0.99), mesure la duree effective de parole.",
         "Le worker emet un AudioQualityReport avant de lancer la transcription.",
@@ -2300,9 +2844,18 @@
       "status": "done",
       "priority": "P2",
       "estimate": "1d",
-      "dependsOn": ["WX-655"],
-      "scope": ["whisperx/audio_preprocessing.py", "whisperx/cli.py", "src/types.ts"],
-      "execute": ["cargo check", "npm run build"],
+      "dependsOn": [
+        "WX-655"
+      ],
+      "scope": [
+        "whisperx/audio_preprocessing.py",
+        "whisperx/cli.py",
+        "src/types.ts"
+      ],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Un audioPipelineModule de type 'normalize_loudness' est disponible.",
         "Parametres : target_lufs (defaut -16.0), true_peak_limit (defaut -1.0 dBFS).",
@@ -2322,14 +2875,19 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2.5d",
-      "dependsOn": ["WX-655"],
+      "dependsOn": [
+        "WX-655"
+      ],
       "scope": [
         "whisperx/audio_preprocessing.py",
         "whisperx/cli.py",
         "src/types.ts",
         "src/components/StudioPreferencesPanel.tsx"
       ],
-      "execute": ["cargo check", "npm run build"],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Un audioPipelineModule 'denoise' est disponible avec backend configurable : 'noisereduce' (spectral gating, zéro GPU) ou 'deepfilternet' (neuronal, GPU optionnel).",
         "noisereduce : detectable sur bruit stationnaire (fond constant, ventilateur).",
@@ -2350,7 +2908,9 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2.5d",
-      "dependsOn": ["WX-655"],
+      "dependsOn": [
+        "WX-655"
+      ],
       "scope": [
         "whisperx/smart_chunking.py",
         "whisperx/cli.py",
@@ -2358,7 +2918,11 @@
         "src/types.ts",
         "src/components/StudioPreferencesPanel.tsx"
       ],
-      "execute": ["cargo check", "npm run build", "python -m pytest tests/"],
+      "execute": [
+        "cargo check",
+        "npm run build",
+        "python -m pytest tests/"
+      ],
       "definitionOfDone": [
         "Un audioPipelineModule 'smart_chunk' detecte les silences > silence_min_duration_sec via VAD (pyannote ou silero) et produit des frontieres de chunks sur ces silences.",
         "Parametres : silence_min_duration_sec (defaut 0.5), min_chunk_sec (defaut 30), max_chunk_sec (defaut 600).",
@@ -2378,14 +2942,20 @@
       "status": "done",
       "priority": "P2",
       "estimate": "2d",
-      "dependsOn": ["WX-662", "WX-663"],
+      "dependsOn": [
+        "WX-662",
+        "WX-663"
+      ],
       "scope": [
         "src/components/StudioOpenRunSection.tsx",
         "src/components/LocalRuntimePanel.tsx",
         "src-tauri/src/audio_preview.rs",
         "src-tauri/src/run_commands.rs"
       ],
-      "execute": ["cargo check", "npm run build"],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Un bouton 'Apercu traite' lance le preprocessing configure sur une fenetre de 30s (debut, milieu, ou segment selectionne).",
         "L apercu est lu directement dans l UI via l element audio existant.",
@@ -2405,14 +2975,19 @@
       "status": "done",
       "priority": "P3",
       "estimate": "3d",
-      "dependsOn": ["WX-655"],
+      "dependsOn": [
+        "WX-655"
+      ],
       "scope": [
         "whisperx/audio_preprocessing.py",
         "whisperx/cli.py",
         "src/types.ts",
         "src/components/StudioPreferencesPanel.tsx"
       ],
-      "execute": ["cargo check", "npm run build"],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Un audioPipelineModule 'source_separate' est disponible, backend Demucs (htdemucs ou htdemucs_ft).",
         "Mode 'vocals_only' : retient uniquement la piste voix extraite.",
@@ -2432,14 +3007,19 @@
       "status": "done",
       "priority": "P2",
       "estimate": "3d",
-      "dependsOn": ["WX-660"],
+      "dependsOn": [
+        "WX-660"
+      ],
       "scope": [
         "src/components/player/PlayerRunWindowViews.tsx",
         "src/components/player/PlayerWaveformPanel.tsx",
         "src/types.ts",
         "src-tauri/src/run_events/mod.rs"
       ],
-      "execute": ["npm run build", "cargo check"],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Une vue 'stats' affiche par locuteur : distribution des durees de pauses (histogramme), debit moyen (mots/sec), ratio parole/silence, nombre d IPU.",
         "Les statistiques sont calculees depuis events.sqlite (pauses, ipus, turns) sans requete Python.",
@@ -2459,13 +3039,18 @@
       "status": "done",
       "priority": "P2",
       "estimate": "2d",
-      "dependsOn": ["WX-660"],
+      "dependsOn": [
+        "WX-660"
+      ],
       "scope": [
         "src/player/karaokeWords.ts",
         "src/player/karaokeWords.test.ts",
         "src/components/player/PlayerRunWindowViews.tsx"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "La surbrillance mot-a-mot utilise start_ms/end_ms de chaque EventWordRow (pas interpolation).",
         "Les mots sans timestamp valide (alignmentStatus != 'aligned') sont affiches en style degrade.",
@@ -2485,13 +3070,17 @@
       "status": "done",
       "priority": "P3",
       "estimate": "2.5d",
-      "dependsOn": ["WX-660"],
+      "dependsOn": [
+        "WX-660"
+      ],
       "scope": [
         "src/components/player/PlayerRunWindowViews.tsx",
         "src/components/player/playerViewportContract.ts",
         "src/types.ts"
       ],
-      "execute": ["npm run build"],
+      "execute": [
+        "npm run build"
+      ],
       "definitionOfDone": [
         "La vue 'rythmo' affiche une bande horizontale defilante ou le texte avance proportionnellement au temps.",
         "Le curseur de lecture est fixe au centre, le texte defilant de droite a gauche.",
@@ -2518,7 +3107,11 @@
         "src/components/runDetails/RunExpectedExportsStrip.tsx",
         "src/types.ts"
       ],
-      "execute": ["cargo check", "npm run build", "python -m pytest tests/"],
+      "execute": [
+        "cargo check",
+        "npm run build",
+        "python -m pytest tests/"
+      ],
       "definitionOfDone": [
         "Export ELAN (.eaf) : tiers par locuteur avec annotations mot-a-mot (si disponibles) et segments.",
         "Export Praat TextGrid (.TextGrid) : tiers Speaker_N avec intervalles start/end/text.",
@@ -2538,13 +3131,18 @@
       "status": "done",
       "priority": "P2",
       "estimate": "2.5d",
-      "dependsOn": ["WX-667"],
+      "dependsOn": [
+        "WX-667"
+      ],
       "scope": [
         "whisperx/annotation_exports.py",
         "src-tauri/src/run_commands.rs",
         "src/components/runDetails/RunDetailsPanel.tsx"
       ],
-      "execute": ["cargo check", "npm run build"],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Un rapport HTML auto-contenu est generé par run : statistiques globales + par locuteur.",
         "Contenu : duree totale, nombre de tours, debit moyen, distribution pauses (tableau), ratio parole/silence.",
@@ -2564,14 +3162,21 @@
       "status": "done",
       "priority": "P3",
       "estimate": "3d",
-      "dependsOn": ["WX-655", "WX-656"],
+      "dependsOn": [
+        "WX-655",
+        "WX-656"
+      ],
       "scope": [
         "src/components/JobsHistoryPanel.tsx",
         "src/hooks/useJobsList.ts",
         "src-tauri/src/job_commands.rs",
         "src-tauri/src/db.rs"
       ],
-      "execute": ["cargo check", "npm run build", "npm test"],
+      "execute": [
+        "cargo check",
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "La file de jobs supporte une priorite (P0-P3) modifiable apres creation.",
         "Un panneau de monitoring affiche : jobs en attente, en cours, finis aujourd hui, taux d erreur.",
@@ -2592,8 +3197,13 @@
       "priority": "P2",
       "estimate": "2d",
       "dependsOn": [],
-      "scope": ["whisperx/annotation_imports.py", "whisperx/annotation_exports.py"],
-      "execute": ["python -m pytest tests/"],
+      "scope": [
+        "whisperx/annotation_imports.py",
+        "whisperx/annotation_exports.py"
+      ],
+      "execute": [
+        "python -m pytest tests/"
+      ],
       "definitionOfDone": [
         "parse_eaf(path) retourne ImportResult : segments plats + tiers structures + media_path + warnings.",
         "ALIGNABLE_ANNOTATION avec TIME_SLOT_REF1/REF2 sont convertis en {start_sec, end_sec, text, tier_id}.",
@@ -2619,8 +3229,12 @@
       "priority": "P2",
       "estimate": "0.5d",
       "dependsOn": [],
-      "scope": ["whisperx/annotation_imports.py"],
-      "execute": ["python -m pytest tests/"],
+      "scope": [
+        "whisperx/annotation_imports.py"
+      ],
+      "execute": [
+        "python -m pytest tests/"
+      ],
       "definitionOfDone": [
         "parse_textgrid(path) accepte le format long (Praat >= 5) et le format court (Praat < 5).",
         "IntervalTier : chaque intervalle {xmin, xmax, text} converti en segment.",
@@ -2641,13 +3255,19 @@
       "status": "done",
       "priority": "P2",
       "estimate": "0.5d",
-      "dependsOn": ["WX-673", "WX-674"],
+      "dependsOn": [
+        "WX-673",
+        "WX-674"
+      ],
       "scope": [
         "src-tauri/src/annotation_import_commands.rs",
         "src-tauri/src/lib.rs",
         "src/types.ts"
       ],
-      "execute": ["cargo check", "npm run build"],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Commande Tauri import_annotation_file(path) appelle le parseur Python (eaf ou textgrid selon extension) et retourne ImportAnnotationResult.",
         "ImportAnnotationResult : { tiers: [{tierId, segments: [{startSec, endSec, text}]}], mediaPath: string|null, warnings: string[], sourceFormat: 'eaf'|'textgrid' }.",
@@ -2668,13 +3288,18 @@
       "status": "done",
       "priority": "P2",
       "estimate": "0.5d",
-      "dependsOn": ["WX-675"],
+      "dependsOn": [
+        "WX-675"
+      ],
       "scope": [
         "src/hooks/useTranscriptEditor.ts",
         "src/components/runDetails/RunDetailsOutputFiles.tsx",
         "src/components/runDetails/TranscriptEditorPanel.tsx"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Un bouton 'Importer annotations (.eaf / .TextGrid)' est accessible depuis RunDetailsOutputFiles ou TranscriptEditorPanel.",
         "Chaque tier importe devient un groupe de segments avec speaker = tierId.",
@@ -2696,9 +3321,17 @@
       "status": "done",
       "priority": "P2",
       "estimate": "0.5d",
-      "dependsOn": ["WX-673", "WX-674"],
-      "scope": ["tests/test_annotation_imports.py", "tests/fixtures/"],
-      "execute": ["python -m pytest tests/test_annotation_imports.py -v"],
+      "dependsOn": [
+        "WX-673",
+        "WX-674"
+      ],
+      "scope": [
+        "tests/test_annotation_imports.py",
+        "tests/fixtures/"
+      ],
+      "execute": [
+        "python -m pytest tests/test_annotation_imports.py -v"
+      ],
       "definitionOfDone": [
         "Fixture .eaf ELAN 6.x avec ALIGNABLE + REF_ANNOTATION + LINKED_FILE.",
         "Fixture .eaf sans media associe.",
@@ -2718,8 +3351,12 @@
       "priority": "P1",
       "estimate": "0.5h",
       "dependsOn": [],
-      "scope": [".github/workflows/studio-ci.yml"],
-      "execute": ["python -m pytest tests/ -q --tb=short"],
+      "scope": [
+        ".github/workflows/studio-ci.yml"
+      ],
+      "execute": [
+        "python -m pytest tests/ -q --tb=short"
+      ],
       "definitionOfDone": [
         "Le step pytest tests/ -q --tb=short est présent dans studio-ci.yml.",
         "Les tests integration sont exclus via addopts dans pyproject.toml.",
@@ -2742,7 +3379,10 @@
         "src-tauri/src/job_commands.rs",
         "src-tauri/src/run_commands.rs"
       ],
-      "execute": ["cargo check", "cargo test"],
+      "execute": [
+        "cargo check",
+        "cargo test"
+      ],
       "definitionOfDone": [
         "PRAGMA journal_mode=WAL activé à l ouverture de chaque connexion.",
         "PRAGMA busy_timeout=5000 configuré pour retry automatique.",
@@ -2762,8 +3402,15 @@
       "priority": "P2",
       "estimate": "0.5d",
       "dependsOn": [],
-      "scope": ["src/types.ts", "src-tauri/src/wxenv.rs", "src-tauri/src/lib.rs"],
-      "execute": ["cargo check", "npm run build"],
+      "scope": [
+        "src/types.ts",
+        "src-tauri/src/wxenv.rs",
+        "src-tauri/src/lib.rs"
+      ],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Le type UserProfile dans types.ts expose schemaVersion: number.",
         "La lecture Rust détecte l absence de schemaVersion et applique les valeurs par défaut (migration v0→v1).",
@@ -2782,8 +3429,14 @@
       "priority": "P1",
       "estimate": "0.5d",
       "dependsOn": [],
-      "scope": ["src-tauri/src/jobs.rs", "src-tauri/src/app_events.rs"],
-      "execute": ["cargo check", "cargo test"],
+      "scope": [
+        "src-tauri/src/jobs.rs",
+        "src-tauri/src/app_events.rs"
+      ],
+      "execute": [
+        "cargo check",
+        "cargo test"
+      ],
       "definitionOfDone": [
         "Les événements progress sont coalesced à max 10 Hz (100 ms) par job.",
         "Les événements result/error/live_transcript ne sont pas throttlés (émis immédiatement).",
@@ -2801,9 +3454,15 @@
       "status": "done",
       "priority": "P1",
       "estimate": "0.5d",
-      "dependsOn": ["WX-679"],
-      "scope": ["src-tauri/src/db.rs"],
-      "execute": ["cargo test"],
+      "dependsOn": [
+        "WX-679"
+      ],
+      "scope": [
+        "src-tauri/src/db.rs"
+      ],
+      "execute": [
+        "cargo test"
+      ],
       "definitionOfDone": [
         "Tests unitaires Rust dans db.rs via SQLite :memory:.",
         "Couverture : init_database, migrate_schema v0→v3, persist_job, load_jobs_page, delete_job_row, count_jobs.",
@@ -2822,8 +3481,14 @@
       "priority": "P2",
       "estimate": "0.5d",
       "dependsOn": [],
-      "scope": ["src/components/player/PlayerWaveformPanel.tsx", "src/hooks/useWaveformCanvas.ts"],
-      "execute": ["npm run build", "npm run lint"],
+      "scope": [
+        "src/components/player/PlayerWaveformPanel.tsx",
+        "src/hooks/useWaveformCanvas.ts"
+      ],
+      "execute": [
+        "npm run build",
+        "npm run lint"
+      ],
       "definitionOfDone": [
         "Le canvas waveform expose role=\"img\" et aria-label décrivant l état courant.",
         "Le canvas reçoit tabIndex=0 et un onKeyDown minimal (espace = play/pause, flèches = seek).",
@@ -2847,7 +3512,9 @@
         "whisperx/pipeline.py",
         "tests/test_transcribe_cli_contract.py"
       ],
-      "execute": ["python -m pytest tests/ -q --tb=short"],
+      "execute": [
+        "python -m pytest tests/ -q --tb=short"
+      ],
       "definitionOfDone": [
         "transcribe.py est découpé en fonctions pures : load_audio_segment, run_asr, postprocess_words.",
         "Chaque stage est testable indépendamment sans charger de modèle réel.",
@@ -2872,14 +3539,20 @@
         "src-tauri/src/report_commands.rs",
         "src-tauri/src/transcript.rs"
       ],
-      "execute": ["cargo clippy -- -D warnings", "cargo test"],
+      "execute": [
+        "cargo clippy -- -D warnings",
+        "cargo test"
+      ],
       "definitionOfDone": [
         "cargo clippy -- -D warnings passe sans erreur.",
         "Imports inutilises supprimes dans annotation_import_commands.rs, jobs.rs, report_commands.rs.",
         "total_pause_ms utilise ou supprime de SpeakerStats.",
         "n % 2 == 0 remplace par n.is_multiple_of(2) dans transcript.rs et report_commands.rs."
       ],
-      "acceptance": ["cargo clippy -- -D warnings propre.", "cargo test 25 passed."]
+      "acceptance": [
+        "cargo clippy -- -D warnings propre.",
+        "cargo test 25 passed."
+      ]
     },
     {
       "id": "WX-686",
@@ -2887,12 +3560,17 @@
       "status": "done",
       "priority": "P2",
       "estimate": "0.5d",
-      "dependsOn": ["WX-671"],
+      "dependsOn": [
+        "WX-671"
+      ],
       "scope": [
         "src-tauri/src/report_commands.rs",
         "src/components/runDetails/RunDetailsPanel.tsx"
       ],
-      "execute": ["cargo check", "npm run build"],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Commande Tauri open_html_report_for_print ouvre le HTML dans une fenetre WebView dediee.",
         "La fenetre declenche window.print() automatiquement a l ouverture.",
@@ -2911,13 +3589,19 @@
       "priority": "P1",
       "estimate": "0.25d",
       "dependsOn": [],
-      "scope": [".github/workflows/studio-ci.yml"],
-      "execute": ["npm test"],
+      "scope": [
+        ".github/workflows/studio-ci.yml"
+      ],
+      "execute": [
+        "npm test"
+      ],
       "definitionOfDone": [
         "Step Vitest present dans le workflow CI.",
         "npm test passe en vert sur le runner CI."
       ],
-      "acceptance": ["npm test propre localement."]
+      "acceptance": [
+        "npm test propre localement."
+      ]
     },
     {
       "id": "WX-689",
@@ -2926,13 +3610,20 @@
       "priority": "P1",
       "estimate": "0.25d",
       "dependsOn": [],
-      "scope": [".github/workflows/studio-ci.yml"],
-      "execute": ["cargo clippy -- -D warnings", "cargo test"],
+      "scope": [
+        ".github/workflows/studio-ci.yml"
+      ],
+      "execute": [
+        "cargo clippy -- -D warnings",
+        "cargo test"
+      ],
       "definitionOfDone": [
         "Steps cargo clippy et cargo test presents dans le workflow CI.",
         "Cargo clippy -- -D warnings et cargo test passent proprement."
       ],
-      "acceptance": ["cargo clippy -- -D warnings propre localement."]
+      "acceptance": [
+        "cargo clippy -- -D warnings propre localement."
+      ]
     },
     {
       "id": "WX-690",
@@ -2941,14 +3632,21 @@
       "priority": "P1",
       "estimate": "0.5d",
       "dependsOn": [],
-      "scope": ["src/player/playerSpeakerStats.ts", "src/player/playerSpeakerStats.test.ts"],
-      "execute": ["npm test"],
+      "scope": [
+        "src/player/playerSpeakerStats.ts",
+        "src/player/playerSpeakerStats.test.ts"
+      ],
+      "execute": [
+        "npm test"
+      ],
       "definitionOfDone": [
         "Tests couvrent computeSpeakerStats : 2 locuteurs, speechMs, speechRatio, nWords, speechRate, pauses.",
         "Tests couvrent buildPauseHistogram : distribution, bins vides, cas limites.",
         "npm test propre."
       ],
-      "acceptance": ["npm test propre, pas de any TypeScript."]
+      "acceptance": [
+        "npm test propre, pas de any TypeScript."
+      ]
     },
     {
       "id": "WX-696",
@@ -2956,7 +3654,10 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1d",
-      "dependsOn": ["WX-675", "WX-676"],
+      "dependsOn": [
+        "WX-675",
+        "WX-676"
+      ],
       "scope": [
         "src-tauri/src/annotation_events_commands.rs",
         "src-tauri/src/lib.rs",
@@ -2964,7 +3665,10 @@
         "src/components/runDetails/buildRunDetailsPanelProps.ts",
         "src/hooks/useStudioWorkspace.ts"
       ],
-      "execute": ["cargo check", "npm run build"],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Nouvelle commande Tauri write_annotation_tiers_to_events(run_dir, tiers) insere les segments comme turns dans events.sqlite avec flags_json={source:annotation}.",
         "DELETE prealable des turns annotation existants (idempotent).",
@@ -2984,14 +3688,22 @@
       "status": "done",
       "priority": "P2",
       "estimate": "0.1d",
-      "dependsOn": ["WX-686"],
-      "scope": ["src-tauri/src/report_commands.rs"],
-      "execute": ["cargo check"],
+      "dependsOn": [
+        "WX-686"
+      ],
+      "scope": [
+        "src-tauri/src/report_commands.rs"
+      ],
+      "execute": [
+        "cargo check"
+      ],
       "definitionOfDone": [
         "La fenetre print-prosody-report se ferme automatiquement apres impression ou annulation.",
         "Listener afterprint ajoute dans initialization_script."
       ],
-      "acceptance": ["cargo check propre."]
+      "acceptance": [
+        "cargo check propre."
+      ]
     },
     {
       "id": "WX-687",
@@ -3000,8 +3712,13 @@
       "priority": "P1",
       "estimate": "0.5d",
       "dependsOn": [],
-      "scope": ["whisperx/annotation_exports.py", "tests/test_annotation_exports.py"],
-      "execute": ["python -m pytest tests/test_annotation_exports.py -q --tb=short"],
+      "scope": [
+        "whisperx/annotation_exports.py",
+        "tests/test_annotation_exports.py"
+      ],
+      "execute": [
+        "python -m pytest tests/test_annotation_exports.py -q --tb=short"
+      ],
       "definitionOfDone": [
         "Tests couvrent : RTTM 2 locuteurs, TextGrid IntervalTier multi-speakers, EAF time slots + alignable annotations.",
         "Test roundtrip : parse_textgrid(write_textgrid(...)) retourne les memes segments.",
@@ -3020,8 +3737,14 @@
       "priority": "P1",
       "estimate": "1.5d",
       "dependsOn": [],
-      "scope": ["src/components/player/PlayerRunWindowViews.tsx", "src/styles/main.css"],
-      "execute": ["npm run build", "npm test"],
+      "scope": [
+        "src/components/player/PlayerRunWindowViews.tsx",
+        "src/styles/main.css"
+      ],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Layout grid responsive sans troncature de texte.",
         "Clic segment → seek. Timecodes visibles.",
@@ -3040,15 +3763,24 @@
       "priority": "P1",
       "estimate": "1.5d",
       "dependsOn": [],
-      "scope": ["src/components/player/PlayerRunWindowViews.tsx", "src/styles/main.css"],
-      "execute": ["npm run build", "npm test"],
+      "scope": [
+        "src/components/player/PlayerRunWindowViews.tsx",
+        "src/styles/main.css"
+      ],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Layout chat-like avec bulles par speaker.",
         "Segment actif surligné, scroll follow mode.",
         "Clic segment → seek.",
         "Cohérence visuelle avec Karaoké v2."
       ],
-      "acceptance": ["npm run build propre.", "Lecture fluide sur transcript de 2h sans saccades."]
+      "acceptance": [
+        "npm run build propre.",
+        "Lecture fluide sur transcript de 2h sans saccades."
+      ]
     },
     {
       "id": "WX-699",
@@ -3057,15 +3789,24 @@
       "priority": "P1",
       "estimate": "1d",
       "dependsOn": [],
-      "scope": ["src/components/player/PlayerRunWindowViews.tsx", "src/styles/main.css"],
-      "execute": ["npm run build", "npm test"],
+      "scope": [
+        "src/components/player/PlayerRunWindowViews.tsx",
+        "src/styles/main.css"
+      ],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Mots affichés en inline-flow avec surlignage du mot actif.",
         "Mots non alignés marqués visuellement (pointillé).",
         "Clic mot → seek.",
         "Espacement et taille de police cohérents avec Karaoké v2."
       ],
-      "acceptance": ["npm run build propre.", "Mot actif visible et stable pendant la lecture."]
+      "acceptance": [
+        "npm run build propre.",
+        "Mot actif visible et stable pendant la lecture."
+      ]
     },
     {
       "id": "WX-700",
@@ -3074,15 +3815,24 @@
       "priority": "P2",
       "estimate": "1d",
       "dependsOn": [],
-      "scope": ["src/components/player/PlayerRunWindowViews.tsx", "src/styles/main.css"],
-      "execute": ["npm run build", "npm test"],
+      "scope": [
+        "src/components/player/PlayerRunWindowViews.tsx",
+        "src/styles/main.css"
+      ],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Grille temps / tours responsive.",
         "Headers de colonnes lisibles sans troncature.",
         "Cellules cliquables → seek.",
         "Breakpoints pour écrans étroits."
       ],
-      "acceptance": ["npm run build propre.", "Grille lisible de 800px à 1920px de largeur."]
+      "acceptance": [
+        "npm run build propre.",
+        "Grille lisible de 800px à 1920px de largeur."
+      ]
     },
     {
       "id": "WX-701",
@@ -3096,14 +3846,20 @@
         "src/player/playerSpeakerStats.ts",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Stats par speaker : temps de parole, nombre de tours, débit moyen, IPU moyen.",
         "Histogramme de pauses par speaker (canvas).",
         "Résumé global : ratio parole/silence, nombre d'overlaps.",
         "Layout clair avec sections visuellement séparées."
       ],
-      "acceptance": ["npm run build propre.", "Stats cohérentes avec les données events.sqlite."]
+      "acceptance": [
+        "npm run build propre.",
+        "Stats cohérentes avec les données events.sqlite."
+      ]
     },
     {
       "id": "WX-702",
@@ -3111,12 +3867,20 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1.5d",
-      "dependsOn": ["WX-697", "WX-698", "WX-699", "WX-700"],
+      "dependsOn": [
+        "WX-697",
+        "WX-698",
+        "WX-699",
+        "WX-700"
+      ],
       "scope": [
         "src/components/player/PlayerRunWindowViews.tsx",
         "src/components/player/PlayerWorkspaceSection.tsx"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Toggle Mode édition fonctionne dans toutes les vues (cocher/décocher sans blocage).",
         "Double-clic sur un segment ouvre l'édition inline du texte.",
@@ -3135,9 +3899,17 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1d",
-      "dependsOn": ["WX-702"],
-      "scope": ["src/components/player/PlayerRunWindowViews.tsx", "src/styles/main.css"],
-      "execute": ["npm run build", "npm test"],
+      "dependsOn": [
+        "WX-702"
+      ],
+      "scope": [
+        "src/components/player/PlayerRunWindowViews.tsx",
+        "src/styles/main.css"
+      ],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Double-clic sur un segment en Rythmo ouvre un textarea inline.",
         "Double-clic sur un segment en Karaoké ouvre l'édition inline.",
@@ -3161,7 +3933,10 @@
         "src/hooks/usePlayerPlayback.ts",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Barre de transport visible et accessible : play/pause, prev/next segment, vitesse.",
         "Boucle A-B configurable par glisser-déposer ou raccourcis.",
@@ -3191,7 +3966,9 @@
       "definitionOfDone": [
         "Fusionné dans WX-725 : tous les critères (follow playhead, seek, segments overlay, zoom) sont repris dans la DoD de WX-725."
       ],
-      "acceptance": ["Voir WX-725."]
+      "acceptance": [
+        "Voir WX-725."
+      ]
     },
     {
       "id": "WX-706",
@@ -3199,16 +3976,27 @@
       "status": "done",
       "priority": "P2",
       "estimate": "1d",
-      "dependsOn": ["WX-702"],
-      "scope": ["src/components/player/PlayerWorkspaceSection.tsx", "src/styles/main.css"],
-      "execute": ["npm run build", "npm test"],
+      "dependsOn": [
+        "WX-702"
+      ],
+      "scope": [
+        "src/components/player/PlayerWorkspaceSection.tsx",
+        "src/styles/main.css"
+      ],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Panneau droit affiche les infos du segment sélectionné (speaker, durée, mots, score).",
         "Liste des alertes navigables (pauses longues, overlaps, mots interpolés).",
         "Clic alerte → seek au segment concerné.",
         "Section pliable pour ne pas encombrer."
       ],
-      "acceptance": ["npm run build propre.", "Navigation alerte → segment fonctionnelle."]
+      "acceptance": [
+        "npm run build propre.",
+        "Navigation alerte → segment fonctionnelle."
+      ]
     },
     {
       "id": "WX-707",
@@ -3217,15 +4005,24 @@
       "priority": "P1",
       "estimate": "1d",
       "dependsOn": [],
-      "scope": ["src/components/player/PlayerWorkspaceSection.tsx", "src/styles/main.css"],
-      "execute": ["npm run build", "npm test"],
+      "scope": [
+        "src/components/player/PlayerWorkspaceSection.tsx",
+        "src/styles/main.css"
+      ],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Sections visuellement séparées en boxes avec titres clairs.",
         "Ordre logique : Vues → Affichage → Édition → Filtres → Navigation.",
         "Labels explicites sans jargon technique.",
         "Responsive : panneau pliable sur écrans étroits."
       ],
-      "acceptance": ["npm run build propre.", "Panneau lisible de 180px à 280px de largeur."]
+      "acceptance": [
+        "npm run build propre.",
+        "Panneau lisible de 180px à 280px de largeur."
+      ]
     },
     {
       "id": "WX-708",
@@ -3233,13 +4030,18 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1.5d",
-      "dependsOn": ["WX-707"],
+      "dependsOn": [
+        "WX-707"
+      ],
       "scope": [
         "src/App.tsx",
         "src/hooks/useStudioWorkspace.ts",
         "src/components/player/PlayerWorkspaceSection.tsx"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Après un run terminé, le player s'ouvre automatiquement sur le run.",
         "Bouton 'Exporter' accessible directement depuis le player.",
@@ -3257,16 +4059,30 @@
       "status": "done",
       "priority": "P2",
       "estimate": "1d",
-      "dependsOn": ["WX-697", "WX-698", "WX-699", "WX-700", "WX-701"],
-      "scope": ["src/styles/tokens.css", "src/styles/main.css"],
-      "execute": ["npm run build"],
+      "dependsOn": [
+        "WX-697",
+        "WX-698",
+        "WX-699",
+        "WX-700",
+        "WX-701"
+      ],
+      "scope": [
+        "src/styles/tokens.css",
+        "src/styles/main.css"
+      ],
+      "execute": [
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Toutes les vues utilisent les mêmes tokens CSS (--lx-*).",
         "Espacement, tailles de police et border-radius cohérents.",
         "Thème sombre et clair fonctionnels.",
         "Pas de styles inline redondants."
       ],
-      "acceptance": ["npm run build propre.", "Switch thème sans artefacts visuels."]
+      "acceptance": [
+        "npm run build propre.",
+        "Switch thème sans artefacts visuels."
+      ]
     },
     {
       "id": "WX-710",
@@ -3274,13 +4090,18 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1.5d",
-      "dependsOn": ["WX-701"],
+      "dependsOn": [
+        "WX-701"
+      ],
       "scope": [
         "src/components/player/PlayerRunWindowViews.tsx",
         "src/player/playerSpeakerStats.ts",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Barre empilée par speaker (% temps de parole).",
         "Timeline segmentée montrant les alternances de parole.",
@@ -3298,18 +4119,26 @@
       "status": "done",
       "priority": "P2",
       "estimate": "1d",
-      "dependsOn": ["WX-710"],
+      "dependsOn": [
+        "WX-710"
+      ],
       "scope": [
         "src/components/player/PlayerRunWindowViews.tsx",
         "src/player/playerSpeakerStats.ts"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Courbe de débit (mots/min) par fenêtre glissante (ex. 30s).",
         "Une courbe par speaker, couleur distincte.",
         "Note : hover tooltip enrichi et clic-to-seek précis déportés vers WX-723 (stats interactives). Implémentation basique existante."
       ],
-      "acceptance": ["npm run build propre.", "Courbe stable sur transcript 2h."]
+      "acceptance": [
+        "npm run build propre.",
+        "Courbe stable sur transcript 2h."
+      ]
     },
     {
       "id": "WX-712",
@@ -3317,13 +4146,18 @@
       "status": "done",
       "priority": "P1",
       "estimate": "2d",
-      "dependsOn": ["WX-701"],
+      "dependsOn": [
+        "WX-701"
+      ],
       "scope": [
         "src/components/player/PlayerRunWindowViews.tsx",
         "src/player/playerSpeakerStats.ts",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Section pauses dans Stats : histogramme de distribution des durées.",
         "Filtres : seuil minimum (ex. 300ms, 500ms, 1s), par speaker.",
@@ -3331,7 +4165,10 @@
         "Clic pause → seek au moment de la pause.",
         "Distinction pauses intra-tour vs inter-tour."
       ],
-      "acceptance": ["npm run build propre.", "Navigation entre pauses fluide sur transcript 2h."]
+      "acceptance": [
+        "npm run build propre.",
+        "Navigation entre pauses fluide sur transcript 2h."
+      ]
     },
     {
       "id": "WX-713",
@@ -3339,9 +4176,17 @@
       "status": "done",
       "priority": "P2",
       "estimate": "1d",
-      "dependsOn": ["WX-712"],
-      "scope": ["src/components/player/PlayerRunWindowViews.tsx", "src/styles/main.css"],
-      "execute": ["npm run build", "npm test"],
+      "dependsOn": [
+        "WX-712"
+      ],
+      "scope": [
+        "src/components/player/PlayerRunWindowViews.tsx",
+        "src/styles/main.css"
+      ],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Pauses > seuil affichées en overlay discret dans Lanes.",
         "Pauses affichées comme marqueurs dans la bande Rythmo.",
@@ -3361,8 +4206,13 @@
       "priority": "P1",
       "estimate": "1.5d",
       "dependsOn": [],
-      "scope": ["whisperx/annotation_exports.py", "tests/test_annotation_exports.py"],
-      "execute": ["python -m pytest tests/test_annotation_exports.py -v"],
+      "scope": [
+        "whisperx/annotation_exports.py",
+        "tests/test_annotation_exports.py"
+      ],
+      "execute": [
+        "python -m pytest tests/test_annotation_exports.py -v"
+      ],
       "definitionOfDone": [
         "Export SRT : timecodes corrects, encodage UTF-8, numérotation séquentielle.",
         "Export VTT : header WEBVTT, styles speaker si supporté.",
@@ -3391,7 +4241,9 @@
       "definitionOfDone": [
         "Fusionné dans WX-714 : tous les critères (EAF, TextGrid, roundtrip, Unicode) sont repris dans la DoD de WX-714."
       ],
-      "acceptance": ["Voir WX-714."]
+      "acceptance": [
+        "Voir WX-714."
+      ]
     },
     {
       "id": "WX-716",
@@ -3399,13 +4251,18 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1d",
-      "dependsOn": ["WX-714"],
+      "dependsOn": [
+        "WX-714"
+      ],
       "scope": [
         "src/components/player/PlayerWorkspaceSection.tsx",
         "src-tauri/src/transcript_commands.rs",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "cargo check"],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Bouton Export dans le player ouvre un menu de choix de format.",
         "Formats disponibles : SRT, VTT, JSON, CSV, EAF, TextGrid, RTTM.",
@@ -3423,12 +4280,18 @@
       "status": "done",
       "priority": "P2",
       "estimate": "1.5d",
-      "dependsOn": ["WX-716", "WX-710"],
+      "dependsOn": [
+        "WX-716",
+        "WX-710"
+      ],
       "scope": [
         "src-tauri/src/report_commands.rs",
         "src/components/player/PlayerWorkspaceSection.tsx"
       ],
-      "execute": ["npm run build", "cargo check"],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "Rapport HTML autonome contenant : metadata du run, stats par speaker, transcript complet.",
         "Sections cliquables pour naviguer dans le rapport.",
@@ -3456,7 +4319,11 @@
         "src-tauri/src/run_commands.rs",
         "whisperx/cli.py"
       ],
-      "execute": ["npm run build", "cargo check", "npm test"],
+      "execute": [
+        "npm run build",
+        "cargo check",
+        "npm test"
+      ],
       "definitionOfDone": [
         "L'utilisateur peut ouvrir un fichier audio (wav, mp3, flac, etc.) sans lancer de transcription.",
         "Le player charge le fichier avec la waveform et permet la lecture.",
@@ -3480,7 +4347,9 @@
       "status": "done",
       "priority": "P2",
       "estimate": "3d",
-      "dependsOn": ["WX-729"],
+      "dependsOn": [
+        "WX-729"
+      ],
       "scope": [
         "src/types.ts",
         "src/constants.ts",
@@ -3491,7 +4360,11 @@
         "src-tauri/src/transcript_commands.rs",
         "src-tauri/src/lib.rs"
       ],
-      "execute": ["npm run build", "cargo check", "npm test"],
+      "execute": [
+        "npm run build",
+        "cargo check",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Système de conventions d'annotation configurable : un jeu de conventions est un ensemble de tags, symboles et règles applicables au texte transcrit.",
         "Conventions prédéfinies fournies : ICOR (ICAR Lyon), CHAT (CHILDES/TalkBank), conventions minimalistes (pauses, chevauchements, troncations).",
@@ -3518,7 +4391,10 @@
       "status": "done",
       "priority": "P2",
       "estimate": "2.5d",
-      "dependsOn": ["WX-697", "WX-704"],
+      "dependsOn": [
+        "WX-697",
+        "WX-704"
+      ],
       "scope": [
         "src/App.tsx",
         "src/components/player/PlayerWorkspaceSection.tsx",
@@ -3527,7 +4403,11 @@
         "src/hooks/usePlayerPlayback.ts",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "cargo check", "npm test"],
+      "execute": [
+        "npm run build",
+        "cargo check",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Un bouton 'Plein écran' dans le player déclenche un mode immersif qui occupe toute la fenêtre.",
         "Le mode plein écran affiche le player audio/vidéo, la waveform, et un panneau de texte synchronisé en dessous.",
@@ -3559,7 +4439,10 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1d",
-      "dependsOn": ["WX-697", "WX-719"],
+      "dependsOn": [
+        "WX-697",
+        "WX-719"
+      ],
       "scope": [
         "src/types.ts",
         "src/App.tsx",
@@ -3567,7 +4450,10 @@
         "src/components/player/PlayerWorkspaceSection.tsx",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "cargo check"],
+      "execute": [
+        "npm run build",
+        "cargo check"
+      ],
       "definitionOfDone": [
         "SPIKE — livrable : document de décision + prototype minimal si la conclusion est favorable.",
         "Analyser le couplage actuel entre le mode édition (toggle) et les 6 vues du player (lanes, chat, mots, colonnes, rythmo, karaoke).",
@@ -3600,7 +4486,10 @@
         "src/components/WorkspaceSection.tsx",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "npm run lint"],
+      "execute": [
+        "npm run build",
+        "npm run lint"
+      ],
       "definitionOfDone": [
         "Composant HelpDialog global créé (src/components/HelpDialog.tsx) avec contenu contextuel par vue active.",
         "Bouton « ? » rond ajouté dans StudioNav, visible depuis tous les onglets (workspace, player, jobs, about).",
@@ -3630,14 +4519,20 @@
       "status": "done",
       "priority": "P2",
       "estimate": "2d",
-      "dependsOn": ["WX-710", "WX-711"],
+      "dependsOn": [
+        "WX-710",
+        "WX-711"
+      ],
       "scope": [
         "src/components/player/PlayerRunWindowViews.tsx",
         "src/components/player/views/StatsView.tsx",
         "src/components/player/views/statsCanvases.tsx",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "npm run lint"],
+      "execute": [
+        "npm run build",
+        "npm run lint"
+      ],
       "definitionOfDone": [
         "Tooltips au survol sur tous les canvas temporels (SpeechTimelineCanvas, SpeechRateCanvas, SpeechDensityCanvas, SpeechBarCanvas) : affichent le timestamp, le speaker concerné et la valeur (mots/min, % activité, durée du segment).",
         "Tooltip au survol sur PauseHistogramCanvas : affiche le nombre de pauses et la plage de durées de la barre survolée.",
@@ -3662,13 +4557,19 @@
       "status": "done",
       "priority": "P3",
       "estimate": "2.5d",
-      "dependsOn": ["WX-723"],
+      "dependsOn": [
+        "WX-723"
+      ],
       "scope": [
         "src/components/player/PlayerRunWindowViews.tsx",
         "src/player/playerSpeakerStats.ts",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "npm run lint", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm run lint",
+        "npm test"
+      ],
       "definitionOfDone": [
         "L'utilisateur peut sélectionner une plage temporelle par cliquer-glisser (brush) sur n'importe quel canvas temporel (timeline, rate, density).",
         "La plage sélectionnée est visualisée par un rectangle semi-transparent sur le canvas source.",
@@ -3701,7 +4602,10 @@
         "src/hooks/useWaveformCanvas.ts",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "npm run lint"],
+      "execute": [
+        "npm run build",
+        "npm run lint"
+      ],
       "definitionOfDone": [
         "La waveform est toujours visible dans le player, quel que soit le mode de vue actif (lanes, chat, words, columns, rythmo, karaoke, stats).",
         "La waveform reste visible y compris en mode édition (editMode).",
@@ -3730,14 +4634,19 @@
       "status": "done",
       "priority": "P2",
       "estimate": "3d",
-      "dependsOn": ["WX-725"],
+      "dependsOn": [
+        "WX-725"
+      ],
       "scope": [
         "src/components/player/PlayerWaveformPanel.tsx",
         "src/hooks/useWaveformCanvas.ts",
         "src/player/playerSpeakerStats.ts",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "npm run lint"],
+      "execute": [
+        "npm run build",
+        "npm run lint"
+      ],
       "definitionOfDone": [
         "Des lanes d'analyse sont affichables sous la waveform, alignées sur le même axe temporel : débit de parole (mots/min), densité d'activité vocale, confiance de transcription.",
         "Chaque lane est activable/désactivable via des toggles dans la barre de la waveform.",
@@ -3763,7 +4672,10 @@
       "status": "done",
       "priority": "P2",
       "estimate": "2.5d",
-      "dependsOn": ["WX-725", "WX-726"],
+      "dependsOn": [
+        "WX-725",
+        "WX-726"
+      ],
       "scope": [
         "src/components/player/PlayerWorkspaceSection.tsx",
         "src/components/player/PlayerWaveformPanel.tsx",
@@ -3772,7 +4684,11 @@
         "src/hooks/useWaveformCanvas.ts",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "npm run lint", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm run lint",
+        "npm test"
+      ],
       "definitionOfDone": [
         "L'utilisateur peut sélectionner une région temporelle par cliquer-glisser (brush) directement sur la waveform.",
         "La région sélectionnée est affichée visuellement (rectangle semi-transparent avec poignées de redimensionnement).",
@@ -3808,7 +4724,11 @@
         "src/config/studioHubSections.ts",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "cargo check", "npm test"],
+      "execute": [
+        "npm run build",
+        "cargo check",
+        "npm test"
+      ],
       "definitionOfDone": [
         "StudioView réduit à 3 onglets principaux : 'import' (Importer & Transcrire), 'editor' (Édition & Annotation), 'player' (Player multi-vues).",
         "Navigation par barre d'onglets horizontale avec les 3 onglets + bouton engrenage (⚙) pour les paramètres.",
@@ -3834,7 +4754,9 @@
       "status": "done",
       "priority": "P0",
       "estimate": "3d",
-      "dependsOn": ["WX-728"],
+      "dependsOn": [
+        "WX-728"
+      ],
       "scope": [
         "src/components/editor/EditorWorkspaceSection.tsx",
         "src/components/editor/EditorSegmentList.tsx",
@@ -3845,7 +4767,11 @@
         "src/types.ts",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "cargo check", "npm test"],
+      "execute": [
+        "npm run build",
+        "cargo check",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Nouveau composant EditorWorkspaceSection.tsx dans src/components/editor/.",
         "Mini-player audio intégré : lecture, pause, seek, playback rate, volume — réutilise usePlayerPlayback.",
@@ -3876,7 +4802,9 @@
       "status": "done",
       "priority": "P1",
       "estimate": "1d",
-      "dependsOn": ["WX-729"],
+      "dependsOn": [
+        "WX-729"
+      ],
       "scope": [
         "src/components/player/PlayerWorkspaceSection.tsx",
         "src/components/player/PlayerRunWindowViews.tsx",
@@ -3884,7 +4812,11 @@
         "src/components/player/PlayerFullscreenView.tsx",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "cargo check", "npm test"],
+      "execute": [
+        "npm run build",
+        "cargo check",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Suppression complète de editMode, setEditMode et de toute logique conditionnelle associée dans PlayerWorkspaceSection.",
         "Suppression de la toolbar d'édition (undo/redo/sauvegarder).",
@@ -3909,7 +4841,9 @@
       "status": "done",
       "priority": "P2",
       "estimate": "2d",
-      "dependsOn": ["WX-728"],
+      "dependsOn": [
+        "WX-728"
+      ],
       "scope": [
         "src/components/shared/RunLibrary.tsx",
         "src/hooks/useRunLibrary.ts",
@@ -3917,7 +4851,11 @@
         "src-tauri/src/run_commands.rs",
         "src/styles/main.css"
       ],
-      "execute": ["npm run build", "cargo check", "npm test"],
+      "execute": [
+        "npm run build",
+        "cargo check",
+        "npm test"
+      ],
       "definitionOfDone": [
         "Composant RunLibrary accessible depuis un bouton dans la barre de navigation (visible sur tous les onglets).",
         "S'ouvre en panneau latéral ou modal, affiche la liste des runs précédents avec : label, date, durée, statut.",
@@ -3956,7 +4894,11 @@
         "src/styles/player-tab.css",
         "src/styles/components.css"
       ],
-      "execute": ["npm run build", "npm test", "npm run lint"],
+      "execute": [
+        "npm run build",
+        "npm test",
+        "npm run lint"
+      ],
       "definitionOfDone": [
         "PlayerRunWindowViews.tsx éclaté en 7 composants individuels dans src/components/player/views/ (LanesView, ChatView, WordsView, ColumnsView, RythmoView, KaraokeView, StatsView).",
         "PlayerRunWindowViews.tsx réduit à un dispatcher mince (~100 lignes) qui aiguille vers le bon composant.",
@@ -3978,13 +4920,18 @@
       "status": "done",
       "priority": "P1",
       "estimate": "0.5d",
-      "dependsOn": ["WX-718"],
+      "dependsOn": [
+        "WX-718"
+      ],
       "scope": [
         "src-tauri/src/annotation_run_commands.rs",
         "src/hooks/useAnnotationRunImport.ts",
         "src/components/player/PlayerWorkspaceSection.tsx"
       ],
-      "execute": ["cargo check", "npm run build"],
+      "execute": [
+        "cargo check",
+        "npm run build"
+      ],
       "definitionOfDone": [
         "create_blank_annotation_run commande Tauri crée le run entièrement en Rust (mkdir + 3 fichiers JSON).",
         "Le flux audio-seul n'invoque plus Python.",
@@ -4003,14 +4950,20 @@
       "status": "done",
       "priority": "P2",
       "estimate": "1d",
-      "dependsOn": ["WX-731", "WX-733"],
+      "dependsOn": [
+        "WX-731",
+        "WX-733"
+      ],
       "scope": [
         "src/App.tsx",
         "src/components/StudioNav.tsx",
         "src/components/HubPanel.tsx",
         "src/styles/nav.css"
       ],
-      "execute": ["npm run build", "npm run lint"],
+      "execute": [
+        "npm run build",
+        "npm run lint"
+      ],
       "definitionOfDone": [
         "Cliquer sur le logo LingWhistX ouvre un panneau/overlay hub plutôt que de scroller vers l'onglet Import.",
         "Le hub présente les actions principales : Import (3 modes), Bibliothèque de runs, Paramètres rapides.",
@@ -4031,13 +4984,18 @@
       "status": "done",
       "priority": "P1",
       "estimate": "0.5d",
-      "dependsOn": ["WX-733", "WX-731"],
+      "dependsOn": [
+        "WX-733",
+        "WX-731"
+      ],
       "scope": [
         "src/App.tsx",
         "src/components/StudioWorkspaceSection.tsx",
         "src/hooks/useAnnotationRunImport.ts"
       ],
-      "execute": ["npm run build"],
+      "execute": [
+        "npm run build"
+      ],
       "definitionOfDone": [
         "Le bouton Annoter ne force plus audio-seul (importAudioOnly) — il présente un choix.",
         "Choix 1 : Audio seul → run vide Rust (create_blank_annotation_run), ouvre l'éditeur.",
@@ -4066,7 +5024,10 @@
         "src/components/runDetails/buildRunDetailsPanelProps.ts",
         "src/styles/editor-tab.css"
       ],
-      "execute": ["npm run build", "npm test"],
+      "execute": [
+        "npm run build",
+        "npm test"
+      ],
       "definitionOfDone": [
         "useTranscriptEditor expose knownSpeakers: string[] (déduit des segments existants, trié).",
         "Chaque segment dans TranscriptEditorPanel affiche un input avec datalist des locuteurs connus.",
@@ -4094,7 +5055,10 @@
         "src/hooks/useTranscriptEditor.ts",
         "src/styles/editor-tab.css"
       ],
-      "execute": ["npm run build", "npm run lint"],
+      "execute": [
+        "npm run build",
+        "npm run lint"
+      ],
       "definitionOfDone": [
         "Les boutons Split, Merge prev/next, Delete segment apparaissent inline sur le segment actif dans TranscriptEditorPanel.",
         "Icônes compactes (icon-only avec title tooltip) pour ne pas alourdir la liste.",

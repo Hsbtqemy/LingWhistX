@@ -40,7 +40,10 @@ import {
   computeSplitAtCursor,
   mergeTwoEditableSegments,
 } from "./transcript/transcriptEditorSplitMerge";
-import { insertBlankSegmentInSnapshot } from "./transcript/transcriptSegmentMutations";
+import {
+  createSegmentFromRangeInSnapshot,
+  insertBlankSegmentInSnapshot,
+} from "./transcript/transcriptSegmentMutations";
 import { useTranscriptWaveformInteraction } from "./transcript/useTranscriptWaveformInteraction";
 import { useEditorDraftPersistence } from "./transcript/useEditorDraftPersistence";
 import { useEditorHistory } from "./transcript/useEditorHistory";
@@ -238,6 +241,8 @@ export function useTranscriptEditor({
     setHoveredSegmentEdge,
     dragSegmentState,
     setDragSegmentState,
+    drawRange,
+    clearDrawRange,
     updateEditorSegmentBoundary,
     onWaveformMouseDown,
     onWaveformMouseMove,
@@ -536,6 +541,23 @@ export function useTranscriptEditor({
     setEditorStatus(`Segment vide inséré à ${segment.start.toFixed(3)}s.`);
   }
 
+  function createSegmentFromRange(startSec: number, endSec: number) {
+    const current = getCurrentEditorSnapshot();
+    const maxDurationSec = wf.waveform?.durationSec ?? 0;
+    const result = createSegmentFromRangeInSnapshot(current, startSec, endSec, maxDurationSec);
+    if (!result) {
+      setEditorError("Plage trop courte ou chevauchement avec un segment existant.");
+      return;
+    }
+    applyEditorPatch({ kind: "insert_segment", index: result.insertedIndex, segment: result.segment });
+    setActiveSegmentIndex(result.insertedIndex);
+    wf.setWaveformCursorSec(result.segment.start);
+    setEditorError("");
+    setEditorStatus(
+      `Segment créé : ${result.segment.start.toFixed(2)}s → ${result.segment.end.toFixed(2)}s`,
+    );
+  }
+
   async function saveEditedJson(overwrite: boolean) {
     if (!hasTranscriptSourcePath(editorSourcePath)) {
       setEditorError(TRANSCRIPT_EDITOR_NOT_LOADED_ERROR);
@@ -703,6 +725,8 @@ export function useTranscriptEditor({
     setHoveredSegmentEdge,
     dragSegmentState,
     setDragSegmentState,
+    drawRange,
+    clearDrawRange,
     editorSourcePath,
     editorLanguage,
     setEditorLanguage,
@@ -782,6 +806,7 @@ export function useTranscriptEditor({
     mergeActiveSegment,
     deleteActiveSegment,
     insertBlankSegment,
+    createSegmentFromRange,
     loadAnnotationTier,
     insertAnnotationMark,
   };

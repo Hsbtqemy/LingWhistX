@@ -46,7 +46,7 @@ export function useWaveformWorkspace({
   const [waveformProgress, setWaveformProgress] = useState(0);
   const [waveformProgressMessage, setWaveformProgressMessage] = useState("");
   const [waveformError, setWaveformError] = useState("");
-  const [waveformBinsPerSecond, setWaveformBinsPerSecond] = useState("50");
+  const [waveformBinsPerSecond, setWaveformBinsPerSecond] = useState("200");
   const [waveformZoom, setWaveformZoom] = useState(1);
   const [waveformViewStartSec, setWaveformViewStartSec] = useState(0);
   const [snapEnabled, setSnapEnabled] = useState(false);
@@ -563,7 +563,7 @@ export function useWaveformWorkspace({
 
     const parsedBins = Number(waveformBinsPerSecond);
     const binsPerSecond =
-      Number.isFinite(parsedBins) && parsedBins > 0 ? Math.floor(parsedBins) : 50;
+      Number.isFinite(parsedBins) && parsedBins > 0 ? Math.floor(parsedBins) : 200;
 
     if (waveformTaskIdRef.current) {
       await requestCancelWaveformGeneration(waveformTaskIdRef.current);

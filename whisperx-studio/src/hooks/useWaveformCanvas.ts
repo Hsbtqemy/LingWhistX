@@ -9,6 +9,7 @@ import type {
   WaveformLaneToggles,
   WaveformOverlayData,
 } from "../types";
+import type { DrawRange } from "./transcript/useTranscriptWaveformInteraction";
 import type { WaveformWorkspace } from "./useWaveformWorkspace";
 import { getWaveformCanvasThemeColors, useWaveformThemeRevision } from "./waveformCanvasTheme";
 
@@ -28,6 +29,7 @@ export function useWaveformCanvas(
   loopBsec?: number | null,
   compact?: boolean,
   waveformOverlay?: WaveformOverlayData | null,
+  drawRange?: DrawRange | null,
 ): void {
   const {
     waveformCanvasRef,
@@ -177,6 +179,34 @@ export function useWaveformCanvas(
 
           drawHandle(startX, startActive || startHover);
           drawHandle(endX, endActive || endHover);
+
+          // Time label during drag or hover
+          const drawTimeLabel = (x: number, timeSec: number) => {
+            const label = `${timeSec.toFixed(2)}s`;
+            ctx.font = "bold 11px sans-serif";
+            const metrics = ctx.measureText(label);
+            const padX = 5;
+            const padY = 3;
+            const labelW = metrics.width + padX * 2;
+            const labelH = 16;
+            const labelX = Math.max(0, Math.min(widthCss - labelW, x - labelW / 2));
+            const labelY = baseH - labelH - 4;
+            ctx.fillStyle = colors.canvasBg;
+            ctx.fillRect(labelX, labelY, labelW, labelH);
+            ctx.strokeStyle = colors.handleHot;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(labelX + 0.5, labelY + 0.5, labelW - 1, labelH - 1);
+            ctx.fillStyle = colors.handleHot;
+            ctx.textBaseline = "middle";
+            ctx.fillText(label, labelX + padX, labelY + labelH / 2 + padY / 2 - 1);
+          };
+
+          if (startActive || startHover) {
+            drawTimeLabel(startX, focused.start);
+          }
+          if (endActive || endHover) {
+            drawTimeLabel(endX, focused.end);
+          }
         }
       }
     }
@@ -204,6 +234,21 @@ export function useWaveformCanvas(
     }
     if (loopAsec != null && loopBsec != null && loopBsec > loopAsec) {
       drawRangeBand(loopAsec, loopBsec, colors.loopBand);
+    }
+
+    // ── Draw range (segment creation preview) ─────────────────────────────────
+    if (drawRange && drawRange.endSec > drawRange.startSec) {
+      const drX0 = Math.max(0, Math.floor(toX(drawRange.startSec)));
+      const drX1 = Math.min(widthCss, Math.ceil(toX(drawRange.endSec)));
+      if (drX1 > drX0) {
+        ctx.fillStyle = colors.drawRangeFill ?? "rgba(80, 200, 120, 0.18)";
+        ctx.fillRect(drX0, 0, drX1 - drX0, baseH);
+        ctx.strokeStyle = colors.drawRangeStroke ?? "rgba(80, 200, 120, 0.7)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(drX0 + 0.5, 0.5, drX1 - drX0 - 1, baseH - 1);
+        ctx.setLineDash([]);
+      }
     }
 
     // ── Grille centrale ───────────────────────────────────────────────────────
@@ -537,5 +582,6 @@ export function useWaveformCanvas(
     laneToggles,
     analysisSelection,
     analysisSelDragPreview,
+    drawRange,
   ]);
 }
