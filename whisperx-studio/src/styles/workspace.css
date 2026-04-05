@@ -386,16 +386,16 @@ button {
     border-color 0.14s ease;
 }
 
-button:hover:not(:disabled):not(.studio-nav-tab):not(.step-tab):not(.lx-btn):not(.home-hub-card__annoter-mode):not(
-  .home-hub-card__annoter-toggle
-) {
+button:hover:not(:disabled):not(.studio-nav-tab):not(.step-tab):not(.lx-btn):not(
+    .home-hub-card__annoter-mode
+  ):not(.home-hub-card__annoter-toggle) {
   filter: brightness(1.05);
   box-shadow: var(--lx-shadow-accent-float);
 }
 
 button:focus-visible:not(.studio-nav-tab):not(.step-tab):not(.home-hub-card__annoter-mode):not(
-  .home-hub-card__annoter-toggle
-) {
+    .home-hub-card__annoter-toggle
+  ) {
   outline: none;
   box-shadow: var(--lx-focus-ring);
 }

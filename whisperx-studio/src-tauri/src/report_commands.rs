@@ -552,6 +552,8 @@ fn build_transcript_html(turns: &[TurnRow], words: &[WordRow]) -> String {
     out
 }
 
+// Rapport HTML : regroupe tout le contexte stats ; découper en structs n’apporte pas de clarté ici.
+#[allow(clippy::too_many_arguments)]
 fn build_html(
     meta: &ManifestMeta,
     run_dir: &str,

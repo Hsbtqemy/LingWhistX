@@ -186,7 +186,10 @@ pub fn create_blank_annotation_run(
         let day = b - d - (30.6001 * e as f64) as u64;
         let month = if e < 14 { e - 1 } else { e - 13 };
         let year = if month > 2 { c - 4716 } else { c - 4715 };
-        format!("{:04}{:02}{:02}T{:02}{:02}{:02}Z", year, month, day, h, m, s)
+        format!(
+            "{:04}{:02}{:02}T{:02}{:02}{:02}Z",
+            year, month, day, h, m, s
+        )
     };
     let short_id: String = {
         use std::collections::hash_map::DefaultHasher;
@@ -281,8 +284,8 @@ pub fn create_blank_annotation_run(
 }
 
 fn write_json(path: &Path, value: &serde_json::Value) -> Result<(), String> {
-    let text = serde_json::to_string_pretty(value)
-        .map_err(|e| format!("Sérialisation JSON : {}", e))?;
+    let text =
+        serde_json::to_string_pretty(value).map_err(|e| format!("Sérialisation JSON : {}", e))?;
     std::fs::write(path, text).map_err(|e| {
         format!(
             "Écriture {} : {}",

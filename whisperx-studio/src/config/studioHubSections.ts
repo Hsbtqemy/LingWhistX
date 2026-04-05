@@ -13,8 +13,7 @@ export const STUDIO_HUB_CARDS: {
   {
     title: "Transcrire",
     kicker: "Import",
-    description:
-      "Importer un média, régler le pipeline WhisperX et lancer la transcription.",
+    description: "Importer un média, régler le pipeline WhisperX et lancer la transcription.",
     view: "import",
     cardId: "import",
   },
@@ -29,8 +28,7 @@ export const STUDIO_HUB_CARDS: {
   {
     title: "Analyser",
     kicker: "Player",
-    description:
-      "Lire le média, aligner les vues et consulter les statistiques prosodiques.",
+    description: "Lire le média, aligner les vues et consulter les statistiques prosodiques.",
     view: "player",
     cardId: "player",
   },

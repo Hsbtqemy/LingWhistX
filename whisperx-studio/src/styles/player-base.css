@@ -901,7 +901,7 @@ details[open] > .player-panel-section-summary::before {
   z-index: 10;
   max-width: 260px;
   color: var(--lx-text-0);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 /* WX-727 — panneau stats scopées */

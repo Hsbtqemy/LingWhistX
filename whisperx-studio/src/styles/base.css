@@ -88,8 +88,16 @@ body {
   border-radius: var(--lx-radius-lg);
   /* Halos + dégradé (pas de ::before : le parent est une grille, le pseudo ferait une cellule parasite). */
   background:
-    radial-gradient(ellipse 120% 72% at 50% -18%, color-mix(in srgb, var(--lx-accent) 16%, transparent), transparent 52%),
-    radial-gradient(ellipse 70% 50% at 88% 18%, color-mix(in srgb, var(--lx-accent-secondary) 12%, transparent), transparent 48%),
+    radial-gradient(
+      ellipse 120% 72% at 50% -18%,
+      color-mix(in srgb, var(--lx-accent) 16%, transparent),
+      transparent 52%
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 88% 18%,
+      color-mix(in srgb, var(--lx-accent-secondary) 12%, transparent),
+      transparent 48%
+    ),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--lx-surface-muted) 88%, #e9ecf1) 0%,
@@ -136,7 +144,11 @@ body {
 
 @media (hover: hover) and (pointer: fine) {
   .home-hub--ambient .home-hub-card--import:hover {
-    border-color: color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 38%, var(--lx-hub-card-border));
+    border-color: color-mix(
+      in srgb,
+      var(--lx-hub-tab-transcribe-bar) 38%,
+      var(--lx-hub-card-border)
+    );
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.65) inset,
       0 8px 26px color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 24%, transparent);
@@ -160,8 +172,16 @@ body {
 @media (prefers-color-scheme: dark) {
   :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient {
     background:
-      radial-gradient(ellipse 120% 72% at 50% -18%, color-mix(in srgb, var(--lx-accent) 22%, transparent), transparent 55%),
-      radial-gradient(ellipse 70% 50% at 88% 18%, color-mix(in srgb, var(--lx-accent-secondary) 14%, transparent), transparent 50%),
+      radial-gradient(
+        ellipse 120% 72% at 50% -18%,
+        color-mix(in srgb, var(--lx-accent) 22%, transparent),
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse 70% 50% at 88% 18%,
+        color-mix(in srgb, var(--lx-accent-secondary) 14%, transparent),
+        transparent 50%
+      ),
       linear-gradient(
         180deg,
         color-mix(in srgb, var(--lx-surface-0) 92%, #0b1220) 0%,
@@ -179,7 +199,9 @@ body {
     text-shadow: 0 0 18px rgba(15, 23, 42, 0.9);
   }
 
-  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient .hero-card.hero-card--hub {
+  :root:is([data-lx-theme="system"], :not([data-lx-theme]))
+    .home-hub--ambient
+    .hero-card.hero-card--hub {
     background: rgba(30, 41, 59, 0.52);
     border-color: rgba(255, 255, 255, 0.12);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.32);
@@ -194,8 +216,16 @@ body {
 
 :root[data-lx-theme="dark"] .home-hub--ambient {
   background:
-    radial-gradient(ellipse 120% 72% at 50% -18%, color-mix(in srgb, var(--lx-accent) 22%, transparent), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 88% 18%, color-mix(in srgb, var(--lx-accent-secondary) 14%, transparent), transparent 50%),
+    radial-gradient(
+      ellipse 120% 72% at 50% -18%,
+      color-mix(in srgb, var(--lx-accent) 22%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 88% 18%,
+      color-mix(in srgb, var(--lx-accent-secondary) 14%, transparent),
+      transparent 50%
+    ),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--lx-surface-0) 92%, #0b1220) 0%,
@@ -226,21 +256,31 @@ body {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient .home-hub-card--import:hover {
-    border-color: color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 42%, var(--lx-hub-card-border));
+  :root:is([data-lx-theme="system"], :not([data-lx-theme]))
+    .home-hub--ambient
+    .home-hub-card--import:hover {
+    border-color: color-mix(
+      in srgb,
+      var(--lx-hub-tab-transcribe-bar) 42%,
+      var(--lx-hub-card-border)
+    );
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
       0 8px 28px color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 28%, transparent);
   }
 
-  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient .home-hub-card--editor:hover {
+  :root:is([data-lx-theme="system"], :not([data-lx-theme]))
+    .home-hub--ambient
+    .home-hub-card--editor:hover {
     border-color: color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 42%, var(--lx-hub-card-border));
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
       0 8px 28px color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 26%, transparent);
   }
 
-  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient .home-hub-card--player:hover {
+  :root:is([data-lx-theme="system"], :not([data-lx-theme]))
+    .home-hub--ambient
+    .home-hub-card--player:hover {
     border-color: color-mix(in srgb, var(--lx-hub-tab-analyze-bar) 42%, var(--lx-hub-card-border));
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
@@ -250,7 +290,11 @@ body {
 
 @media (hover: hover) and (pointer: fine) {
   :root[data-lx-theme="dark"] .home-hub--ambient .home-hub-card--import:hover {
-    border-color: color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 42%, var(--lx-hub-card-border));
+    border-color: color-mix(
+      in srgb,
+      var(--lx-hub-tab-transcribe-bar) 42%,
+      var(--lx-hub-card-border)
+    );
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
       0 8px 28px color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 28%, transparent);
@@ -345,7 +389,9 @@ body {
   flex-shrink: 0;
   opacity: 0.3;
   color: var(--lx-text-2);
-  transition: opacity 0.13s ease, transform 0.13s ease;
+  transition:
+    opacity 0.13s ease,
+    transform 0.13s ease;
 }
 
 .hub-mode-btn:hover:not(:disabled) svg {
@@ -529,7 +575,9 @@ body {
   font-weight: 650;
   color: var(--hub-tab-bar);
   opacity: 0.7;
-  transition: opacity 0.13s ease, gap 0.13s ease;
+  transition:
+    opacity 0.13s ease,
+    gap 0.13s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {

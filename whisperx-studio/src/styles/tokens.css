@@ -363,13 +363,25 @@ html::-webkit-scrollbar-thumb {
     --lx-hub-jobs-bar: #c4b5fd;
     --lx-hub-about-bar: #e879f9;
     --lx-hub-tab-transcribe-bar: #2dd4bf;
-    --lx-hub-tab-transcribe-icon-bg: color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 24%, transparent);
+    --lx-hub-tab-transcribe-icon-bg: color-mix(
+      in srgb,
+      var(--lx-hub-tab-transcribe-bar) 24%,
+      transparent
+    );
     --lx-hub-tab-transcribe-icon-fg: #ecfdf5;
     --lx-hub-tab-annotate-bar: #818cf8;
-    --lx-hub-tab-annotate-icon-bg: color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 26%, transparent);
+    --lx-hub-tab-annotate-icon-bg: color-mix(
+      in srgb,
+      var(--lx-hub-tab-annotate-bar) 26%,
+      transparent
+    );
     --lx-hub-tab-annotate-icon-fg: #e0e7ff;
     --lx-hub-tab-analyze-bar: #fbbf24;
-    --lx-hub-tab-analyze-icon-bg: color-mix(in srgb, var(--lx-hub-tab-analyze-bar) 26%, transparent);
+    --lx-hub-tab-analyze-icon-bg: color-mix(
+      in srgb,
+      var(--lx-hub-tab-analyze-bar) 26%,
+      transparent
+    );
     --lx-hub-tab-analyze-icon-fg: #fffbeb;
     --lx-hub-workspace-icon-bg: color-mix(in srgb, var(--lx-hub-workspace-bar) 24%, transparent);
     --lx-hub-workspace-icon-fg: #ecfeff;
@@ -509,10 +521,18 @@ html::-webkit-scrollbar-thumb {
   --lx-hub-jobs-bar: #c4b5fd;
   --lx-hub-about-bar: #e879f9;
   --lx-hub-tab-transcribe-bar: #2dd4bf;
-  --lx-hub-tab-transcribe-icon-bg: color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 24%, transparent);
+  --lx-hub-tab-transcribe-icon-bg: color-mix(
+    in srgb,
+    var(--lx-hub-tab-transcribe-bar) 24%,
+    transparent
+  );
   --lx-hub-tab-transcribe-icon-fg: #ecfdf5;
   --lx-hub-tab-annotate-bar: #818cf8;
-  --lx-hub-tab-annotate-icon-bg: color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 26%, transparent);
+  --lx-hub-tab-annotate-icon-bg: color-mix(
+    in srgb,
+    var(--lx-hub-tab-annotate-bar) 26%,
+    transparent
+  );
   --lx-hub-tab-annotate-icon-fg: #e0e7ff;
   --lx-hub-tab-analyze-bar: #fbbf24;
   --lx-hub-tab-analyze-icon-bg: color-mix(in srgb, var(--lx-hub-tab-analyze-bar) 26%, transparent);

@@ -777,7 +777,8 @@ export function useWaveformWorkspace({
       const rect = canvas.getBoundingClientRect();
       if (rect.width <= 0) return;
       const ratio = (e.clientX - rect.left) / rect.width;
-      const raw = waveformViewStartSec + Math.min(1, Math.max(0, ratio)) * waveformVisibleDurationSec;
+      const raw =
+        waveformViewStartSec + Math.min(1, Math.max(0, ratio)) * waveformVisibleDurationSec;
       updateAnalysisDrag(clampNumber(raw, 0, waveform.durationSec));
     };
     const onUp = () => commitAnalysisDrag();
@@ -787,7 +788,14 @@ export function useWaveformWorkspace({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [analysisSelDragStart, commitAnalysisDrag, updateAnalysisDrag, waveform, waveformViewStartSec, waveformVisibleDurationSec]);
+  }, [
+    analysisSelDragStart,
+    commitAnalysisDrag,
+    updateAnalysisDrag,
+    waveform,
+    waveformViewStartSec,
+    waveformVisibleDurationSec,
+  ]);
 
   useEffect(() => {
     if (!webAudioMode || selectedIsVideo) {

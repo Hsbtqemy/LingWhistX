@@ -7,7 +7,6 @@ from typing import Optional, Union, List, Tuple
 import torch
 
 from whisperx.audio import load_audio, SAMPLE_RATE
-from whisperx.diarize_types import Segment
 from whisperx.schema import TranscriptionResult, AlignedTranscriptionResult, ProgressCallback
 from whisperx.log_utils import get_logger
 

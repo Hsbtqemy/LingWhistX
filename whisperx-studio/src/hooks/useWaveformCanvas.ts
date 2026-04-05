@@ -339,7 +339,7 @@ export function useWaveformCanvas(
         ctx.fillStyle = colors.markerLowConf;
         for (const word of words) {
           if ((word.confidence ?? 1) >= LOW_CONF_THRESHOLD) continue;
-          const midSec = ((word.startMs + word.endMs) / 2) / 1000;
+          const midSec = (word.startMs + word.endMs) / 2 / 1000;
           const x = Math.round(toX(midSec));
           if (x < 0 || x > widthCss) continue;
           ctx.beginPath();

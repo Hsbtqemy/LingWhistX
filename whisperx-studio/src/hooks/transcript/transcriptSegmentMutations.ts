@@ -123,12 +123,14 @@ export function insertBlankSegmentInSnapshot(
       : start + DEFAULT_INSERT_SEGMENT_DURATION_SEC;
 
   const end = roundSecondsMs(
-    Math.min(start + DEFAULT_INSERT_SEGMENT_DURATION_SEC, Math.max(maxEnd, start + MIN_SEGMENT_DURATION_SEC)),
+    Math.min(
+      start + DEFAULT_INSERT_SEGMENT_DURATION_SEC,
+      Math.max(maxEnd, start + MIN_SEGMENT_DURATION_SEC),
+    ),
   );
 
   // Réutilise le locuteur du segment précédent ou suivant pour minimiser la saisie
-  const speaker =
-    prevSeg?.speaker ?? nextSeg?.speaker ?? "SPEAKER_00";
+  const speaker = prevSeg?.speaker ?? nextSeg?.speaker ?? "SPEAKER_00";
 
   const segment: EditableSegment = { start, end, text: "", speaker };
   segments.splice(insertIndex, 0, segment);

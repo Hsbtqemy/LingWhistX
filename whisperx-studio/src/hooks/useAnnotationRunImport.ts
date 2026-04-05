@@ -34,31 +34,38 @@ export function useAnnotationRunImport(): UseAnnotationRunImportReturn {
   const [error, setError] = useState("");
 
   /** WX-733 — run vide : Rust uniquement (pas de Python). */
-  const runBlankAnnotation = useCallback(async (audioPath: string, outputDir: string): Promise<string | null> => {
-    setStep("running");
-    setError("");
-    try {
-      const res = await invoke<CreateAnnotationRunResponse>("create_blank_annotation_run", {
-        audioPath,
-        outputDir,
-      });
-      const runDir = parseRunDir(res);
-      if (!runDir) {
-        setError("Réponse invalide : chemin du run (runDir) absent.");
+  const runBlankAnnotation = useCallback(
+    async (audioPath: string, outputDir: string): Promise<string | null> => {
+      setStep("running");
+      setError("");
+      try {
+        const res = await invoke<CreateAnnotationRunResponse>("create_blank_annotation_run", {
+          audioPath,
+          outputDir,
+        });
+        const runDir = parseRunDir(res);
+        if (!runDir) {
+          setError("Réponse invalide : chemin du run (runDir) absent.");
+          setStep("idle");
+          return null;
+        }
+        setStep("done");
+        return runDir;
+      } catch (e) {
+        setError(String(e));
         setStep("idle");
         return null;
       }
-      setStep("done");
-      return runDir;
-    } catch (e) {
-      setError(String(e));
-      setStep("idle");
-      return null;
-    }
-  }, []);
+    },
+    [],
+  );
 
   const runWithPython = useCallback(
-    async (audioPath: string, transcriptPath: string, outputDir: string): Promise<string | null> => {
+    async (
+      audioPath: string,
+      transcriptPath: string,
+      outputDir: string,
+    ): Promise<string | null> => {
       setStep("running");
       setError("");
       try {
@@ -132,7 +139,11 @@ export function useAnnotationRunImport(): UseAnnotationRunImportReturn {
   }, [runWithPython]);
 
   const importDirect = useCallback(
-    (audioPath: string, transcriptPath: string | null, outputDir: string): Promise<string | null> => {
+    (
+      audioPath: string,
+      transcriptPath: string | null,
+      outputDir: string,
+    ): Promise<string | null> => {
       const hasTranscript = transcriptPath != null && transcriptPath.trim().length > 0;
       if (!hasTranscript) {
         return runBlankAnnotation(audioPath, outputDir);

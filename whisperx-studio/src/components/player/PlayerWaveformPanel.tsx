@@ -161,9 +161,7 @@ export function PlayerWaveformPanel({
       // Long pause proche ?
       if (wf.markerToggles.longPauses) {
         const pause = pauses.find(
-          (p) =>
-            p.durMs >= longPauseMs &&
-            Math.abs(p.startMs - ms) < tolMs * 3,
+          (p) => p.durMs >= longPauseMs && Math.abs(p.startMs - ms) < tolMs * 3,
         );
         if (pause) {
           const speaker = pause.speaker ? ` (${pause.speaker})` : "";
@@ -202,9 +200,7 @@ export function PlayerWaveformPanel({
       // Mot à faible confiance proche ?
       if (wf.markerToggles.lowConfWords) {
         const word = words.find(
-          (w) =>
-            (w.confidence ?? 1) < 0.65 &&
-            Math.abs((w.startMs + w.endMs) / 2 - ms) < tolMs * 2,
+          (w) => (w.confidence ?? 1) < 0.65 && Math.abs((w.startMs + w.endMs) / 2 - ms) < tolMs * 2,
         );
         if (word) {
           setMarkerTooltip({
@@ -236,15 +232,11 @@ export function PlayerWaveformPanel({
     const durMs = selEndMs - selStartMs;
     if (durMs <= 0) return null;
 
-    const turns = waveformOverlay.turns.filter(
-      (t) => t.endMs > selStartMs && t.startMs < selEndMs,
-    );
+    const turns = waveformOverlay.turns.filter((t) => t.endMs > selStartMs && t.startMs < selEndMs);
     const pauses = waveformOverlay.pauses.filter(
       (p) => p.endMs > selStartMs && p.startMs < selEndMs,
     );
-    const words = waveformOverlay.words.filter(
-      (w) => w.endMs > selStartMs && w.startMs < selEndMs,
-    );
+    const words = waveformOverlay.words.filter((w) => w.endMs > selStartMs && w.startMs < selEndMs);
 
     const speechMs = turns.reduce((sum, t) => {
       const ol = Math.max(0, Math.min(t.endMs, selEndMs) - Math.max(t.startMs, selStartMs));
@@ -312,7 +304,9 @@ export function PlayerWaveformPanel({
                 type="button"
                 className={`ghost small player-waveform-marker-btn${wf.markerToggles[key] ? " is-active" : ""}`}
                 title={title}
-                onClick={() => wf.setMarkerToggles({ ...wf.markerToggles, [key]: !wf.markerToggles[key] })}
+                onClick={() =>
+                  wf.setMarkerToggles({ ...wf.markerToggles, [key]: !wf.markerToggles[key] })
+                }
               >
                 {icon}
               </button>
@@ -322,7 +316,11 @@ export function PlayerWaveformPanel({
             <button
               type="button"
               className={`ghost small player-waveform-marker-btn${wf.analysisSelectionMode ? " is-active" : ""}`}
-              title={wf.analysisSelectionMode ? "Sélection analyse active — double-clic pour effacer" : "Activer la sélection de région"}
+              title={
+                wf.analysisSelectionMode
+                  ? "Sélection analyse active — double-clic pour effacer"
+                  : "Activer la sélection de région"
+              }
               onClick={() => {
                 wf.setAnalysisSelectionMode(!wf.analysisSelectionMode);
                 if (wf.analysisSelectionMode) wf.clearAnalysisSelection();
@@ -802,7 +800,9 @@ export function PlayerWaveformPanel({
                 <input
                   type="checkbox"
                   checked={wf.laneToggles.density}
-                  onChange={(e) => wf.setLaneToggles({ ...wf.laneToggles, density: e.target.checked })}
+                  onChange={(e) =>
+                    wf.setLaneToggles({ ...wf.laneToggles, density: e.target.checked })
+                  }
                 />
                 Densité
               </label>
@@ -810,7 +810,9 @@ export function PlayerWaveformPanel({
                 <input
                   type="checkbox"
                   checked={wf.laneToggles.speechRate}
-                  onChange={(e) => wf.setLaneToggles({ ...wf.laneToggles, speechRate: e.target.checked })}
+                  onChange={(e) =>
+                    wf.setLaneToggles({ ...wf.laneToggles, speechRate: e.target.checked })
+                  }
                 />
                 Débit
               </label>
@@ -818,7 +820,9 @@ export function PlayerWaveformPanel({
                 <input
                   type="checkbox"
                   checked={wf.laneToggles.confidence}
-                  onChange={(e) => wf.setLaneToggles({ ...wf.laneToggles, confidence: e.target.checked })}
+                  onChange={(e) =>
+                    wf.setLaneToggles({ ...wf.laneToggles, confidence: e.target.checked })
+                  }
                 />
                 Confiance
               </label>

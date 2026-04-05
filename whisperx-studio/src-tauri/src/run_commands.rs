@@ -381,11 +381,14 @@ fn is_transcript_sidecar_json(name_lower: &str) -> bool {
 /// Ainsi : sauvegarde vers `*.edited.json` > source inchangée ; « Écraser » sur la source
 /// > fichier `.json` principal ; pas de fichier obsolète servi par erreur.
 fn pick_best_plain_transcript_json(candidates: &[PathBuf]) -> Option<PathBuf> {
-    candidates.iter().max_by(|a, b| {
-        let ta = fs::metadata(a).and_then(|m| m.modified()).ok();
-        let tb = fs::metadata(b).and_then(|m| m.modified()).ok();
-        ta.cmp(&tb)
-    }).cloned()
+    candidates
+        .iter()
+        .max_by(|a, b| {
+            let ta = fs::metadata(a).and_then(|m| m.modified()).ok();
+            let tb = fs::metadata(b).and_then(|m| m.modified()).ok();
+            ta.cmp(&tb)
+        })
+        .cloned()
 }
 
 /// Même logique que [`find_run_transcript_json`] mais sur un [`Path`] déjà résolu.
@@ -437,6 +440,5 @@ pub(crate) fn find_run_transcript_json_path_in_dir(dir: &Path) -> Result<Option<
 pub fn find_run_transcript_json(run_dir: String) -> Result<Option<String>, String> {
     validate_path_string(&run_dir)?;
     let dir = Path::new(run_dir.trim());
-    find_run_transcript_json_path_in_dir(dir)
-        .map(|o| o.map(|p| p.to_string_lossy().into_owned()))
+    find_run_transcript_json_path_in_dir(dir).map(|o| o.map(|p| p.to_string_lossy().into_owned()))
 }

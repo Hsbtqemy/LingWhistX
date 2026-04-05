@@ -264,11 +264,24 @@ export function PlayerWorkspaceSection({
       words: runWindow.slice.words,
       ipus: runWindow.slice.ipus,
       longPauseMs,
-      durationMs: durationSec != null ? durationSec * 1000 : Math.max(0, ...runWindow.slice.turns.map((t) => t.endMs), 0),
+      durationMs:
+        durationSec != null
+          ? durationSec * 1000
+          : Math.max(0, ...runWindow.slice.turns.map((t) => t.endMs), 0),
     };
   }, [runWindow.slice, longPauseMs, durationSec]);
 
-  useWaveformCanvas(wf, overlaySegments, null, null, null, loopAsec, loopBsec, waveformCompact, waveformOverlay);
+  useWaveformCanvas(
+    wf,
+    overlaySegments,
+    null,
+    null,
+    null,
+    loopAsec,
+    loopBsec,
+    waveformCompact,
+    waveformOverlay,
+  );
 
   // WX-725 — sync transport → waveform : le canvas lit wf.mediaCurrentSec, pas currentTimeSec
   // webAudioMode (audio) : la position courante vient du Web Audio, pas du timeupdate natif
@@ -826,8 +839,8 @@ export function PlayerWorkspaceSection({
                   <strong>Étapes :</strong> 1) fichier audio · 2) dossier <em>parent</em> où le run
                   sera créé (un sous-dossier est ajouté automatiquement — ce n’est pas
                   l’enregistrement d’un fichier transcript). Après succès, tu restes sur{" "}
-                  <strong>Player</strong> avec le run chargé : ouvre l’onglet <strong>Éditeur</strong>{" "}
-                  pour annoter, ou écoute l’audio ici.
+                  <strong>Player</strong> avec le run chargé : ouvre l’onglet{" "}
+                  <strong>Éditeur</strong> pour annoter, ou écoute l’audio ici.
                 </p>
                 {annotationImport.error ? (
                   <p className="player-empty-annotation-error small">{annotationImport.error}</p>
@@ -1130,7 +1143,11 @@ export function PlayerWorkspaceSection({
                   onSetLoopRange={setLoopRange}
                   runSpeakerIds={runSpeakerIds}
                   longPauseMs={longPauseMs}
-                  highlightRangeMs={statsBrushRange ? { start: statsBrushRange.startMs, end: statsBrushRange.endMs } : null}
+                  highlightRangeMs={
+                    statsBrushRange
+                      ? { start: statsBrushRange.startMs, end: statsBrushRange.endMs }
+                      : null
+                  }
                   statsBrushRange={statsBrushRange}
                   onStatsBrushChange={handleStatsBrushChange}
                 />

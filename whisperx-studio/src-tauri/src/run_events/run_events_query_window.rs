@@ -407,7 +407,7 @@ fn effective_window_row_limit(requested: u32, window_ms: i64) -> u32 {
     if window_ms <= LONG_WINDOW_MS {
         return requested.max(10_000);
     }
-    requested.max(500_000).min(5_000_000)
+    requested.clamp(500_000, 5_000_000)
 }
 
 /// Fenêtre temporelle `[t0_ms, t1_ms)` : overlap `start_ms < t1_ms AND end_ms > t0_ms`.

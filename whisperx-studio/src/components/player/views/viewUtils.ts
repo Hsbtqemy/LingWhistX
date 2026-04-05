@@ -1,4 +1,9 @@
-import type { EditableSegment, EventTurnRow, EventWordRow, QueryWindowResult } from "../../../types";
+import type {
+  EditableSegment,
+  EventTurnRow,
+  EventWordRow,
+  QueryWindowResult,
+} from "../../../types";
 import { LX_THEME_CHANGED_EVENT } from "../../../theme/applyStoredTheme";
 
 /** Noms des variables `tokens.css` — même ordre que --lx-speaker-0 … 7 */

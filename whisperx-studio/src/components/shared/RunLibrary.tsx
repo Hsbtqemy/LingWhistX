@@ -88,11 +88,17 @@ export function RunLibrary({ open, onClose, onOpenPlayer, onOpenEditor }: RunLib
 
   // Wrap callbacks so clicking an entry also closes the panel
   const handleOpenPlayer = useCallback(
-    (dir: string, lbl?: string) => { onOpenPlayer(dir, lbl); onClose(); },
+    (dir: string, lbl?: string) => {
+      onOpenPlayer(dir, lbl);
+      onClose();
+    },
     [onOpenPlayer, onClose],
   );
   const handleOpenEditor = useCallback(
-    (dir: string, lbl?: string) => { onOpenEditor(dir, lbl); onClose(); },
+    (dir: string, lbl?: string) => {
+      onOpenEditor(dir, lbl);
+      onClose();
+    },
     [onOpenEditor, onClose],
   );
 
@@ -131,7 +137,17 @@ export function RunLibrary({ open, onClose, onOpenPlayer, onOpenEditor }: RunLib
               title="Recharger la liste des runs depuis le disque"
               aria-label="Actualiser la liste des runs"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <polyline points="23 4 23 10 17 10" />
                 <polyline points="1 20 1 14 7 14" />
                 <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
@@ -169,9 +185,7 @@ export function RunLibrary({ open, onClose, onOpenPlayer, onOpenEditor }: RunLib
         </div>
 
         <div className="run-library-body">
-          {loading && (
-            <div className="run-library-state">Chargement…</div>
-          )}
+          {loading && <div className="run-library-state">Chargement…</div>}
           {!loading && error && (
             <div className="run-library-state run-library-state--error">{error}</div>
           )}
@@ -180,14 +194,16 @@ export function RunLibrary({ open, onClose, onOpenPlayer, onOpenEditor }: RunLib
               {query ? "Aucun résultat." : "Aucun run récent."}
             </div>
           )}
-          {!loading && !error && entries.map((entry) => (
-            <RunEntry
-              key={entry.runDir}
-              entry={entry}
-              onOpenPlayer={handleOpenPlayer}
-              onOpenEditor={handleOpenEditor}
-            />
-          ))}
+          {!loading &&
+            !error &&
+            entries.map((entry) => (
+              <RunEntry
+                key={entry.runDir}
+                entry={entry}
+                onOpenPlayer={handleOpenPlayer}
+                onOpenEditor={handleOpenEditor}
+              />
+            ))}
         </div>
       </div>
     </>

@@ -219,9 +219,7 @@ export function PlayerStatsBody({
       <div className="stats-summary">
         <div className="stats-summary-item">
           <span className="stats-summary-value mono">{formatClockSeconds(brushDurMs / 1000)}</span>
-          <span className="stats-summary-label">
-            {brushRange ? "Sélection" : "Durée totale"}
-          </span>
+          <span className="stats-summary-label">{brushRange ? "Sélection" : "Durée totale"}</span>
         </div>
         <div className="stats-summary-item">
           <span className="stats-summary-value mono">
@@ -271,7 +269,12 @@ export function PlayerStatsBody({
       <div className="player-stats-section">
         <h4 className="player-stats-section-title">
           Répartition du temps de parole
-          <button type="button" className="stats-chart-expand-btn" onClick={() => toggleChartExpand("bar")} title={expandedCharts.has("bar") ? "Réduire" : "Agrandir"}>
+          <button
+            type="button"
+            className="stats-chart-expand-btn"
+            onClick={() => toggleChartExpand("bar")}
+            title={expandedCharts.has("bar") ? "Réduire" : "Agrandir"}
+          >
             {expandedCharts.has("bar") ? "↙" : "↗"}
           </button>
         </h4>
@@ -286,8 +289,13 @@ export function PlayerStatsBody({
             </span>
           ))}
         </div>
-        <SpeechBarCanvas stats={stats} totalDurationMs={durMs} activeSpeaker={activeSpeaker} onSeekToMs={onSeekToMs} expanded={expandedCharts.has("bar")} />
-
+        <SpeechBarCanvas
+          stats={stats}
+          totalDurationMs={durMs}
+          activeSpeaker={activeSpeaker}
+          onSeekToMs={onSeekToMs}
+          expanded={expandedCharts.has("bar")}
+        />
       </div>
 
       {/* Timeline alternances + overlaps */}
@@ -300,7 +308,12 @@ export function PlayerStatsBody({
               {formatClockSeconds(overlaps.totalMs / 1000)} ({(overlaps.ratio * 100).toFixed(1)}%)
             </span>
           )}
-          <button type="button" className="stats-chart-expand-btn" onClick={() => toggleChartExpand("timeline")} title={expandedCharts.has("timeline") ? "Réduire" : "Agrandir"}>
+          <button
+            type="button"
+            className="stats-chart-expand-btn"
+            onClick={() => toggleChartExpand("timeline")}
+            title={expandedCharts.has("timeline") ? "Réduire" : "Agrandir"}
+          >
             {expandedCharts.has("timeline") ? "↙" : "↗"}
           </button>
         </h4>
@@ -322,7 +335,12 @@ export function PlayerStatsBody({
         <div className="player-stats-section">
           <h4 className="player-stats-section-title">
             Débit de parole (mots/min)
-            <button type="button" className="stats-chart-expand-btn" onClick={() => toggleChartExpand("rate")} title={expandedCharts.has("rate") ? "Réduire" : "Agrandir"}>
+            <button
+              type="button"
+              className="stats-chart-expand-btn"
+              onClick={() => toggleChartExpand("rate")}
+              title={expandedCharts.has("rate") ? "Réduire" : "Agrandir"}
+            >
               {expandedCharts.has("rate") ? "↙" : "↗"}
             </button>
           </h4>
@@ -358,7 +376,12 @@ export function PlayerStatsBody({
         <div className="player-stats-section">
           <h4 className="player-stats-section-title">
             Densit{"é"} de parole (activit{"é"} vocale)
-            <button type="button" className="stats-chart-expand-btn" onClick={() => toggleChartExpand("density")} title={expandedCharts.has("density") ? "Réduire" : "Agrandir"}>
+            <button
+              type="button"
+              className="stats-chart-expand-btn"
+              onClick={() => toggleChartExpand("density")}
+              title={expandedCharts.has("density") ? "Réduire" : "Agrandir"}
+            >
               {expandedCharts.has("density") ? "↙" : "↗"}
             </button>
           </h4>
@@ -452,7 +475,12 @@ export function PlayerStatsBody({
             <div className="player-stats-histogram">
               <div className="player-stats-histogram-header">
                 <span className="player-stats-histogram-label small">Distribution</span>
-                <button type="button" className="stats-chart-expand-btn" onClick={() => toggleChartExpand("pauses-hist")} title={expandedCharts.has("pauses-hist") ? "Réduire" : "Agrandir"}>
+                <button
+                  type="button"
+                  className="stats-chart-expand-btn"
+                  onClick={() => toggleChartExpand("pauses-hist")}
+                  title={expandedCharts.has("pauses-hist") ? "Réduire" : "Agrandir"}
+                >
                   {expandedCharts.has("pauses-hist") ? "↙" : "↗"}
                 </button>
               </div>

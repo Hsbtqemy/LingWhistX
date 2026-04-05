@@ -51,8 +51,9 @@ export const EditorSegmentList = memo(function EditorSegmentList({
           <>
             <p className="small">Transcript ouvert : aucun segment (run vide ou audio seul).</p>
             <p className="small editor-segment-list__empty-hint">
-              Utilisez <strong>+ Segment</strong> dans la barre d’outils (curseur sur la waveform), ou
-              l’onglet Import pour WhisperX / import d’un fichier. Enregistrez le JSON lorsque c’est prêt.
+              Utilisez <strong>+ Segment</strong> dans la barre d’outils (curseur sur la waveform),
+              ou l’onglet Import pour WhisperX / import d’un fichier. Enregistrez le JSON lorsque
+              c’est prêt.
             </p>
           </>
         ) : (

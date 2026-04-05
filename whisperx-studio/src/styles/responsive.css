@@ -557,8 +557,16 @@
  */
 .home-hub.home-hub--ambient {
   background:
-    radial-gradient(ellipse 110% 65% at 48% -12%, color-mix(in srgb, var(--lx-accent) 30%, transparent), transparent 55%),
-    radial-gradient(ellipse 55% 42% at 92% 12%, color-mix(in srgb, var(--lx-accent-secondary) 22%, transparent), transparent 52%),
+    radial-gradient(
+      ellipse 110% 65% at 48% -12%,
+      color-mix(in srgb, var(--lx-accent) 30%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 55% 42% at 92% 12%,
+      color-mix(in srgb, var(--lx-accent-secondary) 22%, transparent),
+      transparent 52%
+    ),
     /* Fin sur --lx-bg (défini dans tokens.css) : sinon le dégradé entier était invalide et l’effet disparaissait */
     linear-gradient(180deg, #cff2ea 0%, #ddeef8 48%, var(--lx-bg) 100%);
   box-shadow:
@@ -589,17 +597,35 @@
 @media (prefers-color-scheme: dark) {
   :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub.home-hub--ambient {
     background:
-      radial-gradient(ellipse 110% 65% at 48% -12%, color-mix(in srgb, var(--lx-accent) 32%, transparent), transparent 56%),
-      radial-gradient(ellipse 55% 42% at 92% 12%, color-mix(in srgb, var(--lx-accent-secondary) 20%, transparent), transparent 52%),
-      linear-gradient(180deg, color-mix(in srgb, var(--lx-surface-0) 88%, #0b1220) 0%, var(--lx-bg) 85%);
+      radial-gradient(
+        ellipse 110% 65% at 48% -12%,
+        color-mix(in srgb, var(--lx-accent) 32%, transparent),
+        transparent 56%
+      ),
+      radial-gradient(
+        ellipse 55% 42% at 92% 12%,
+        color-mix(in srgb, var(--lx-accent-secondary) 20%, transparent),
+        transparent 52%
+      ),
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--lx-surface-0) 88%, #0b1220) 0%,
+        var(--lx-bg) 85%
+      );
     box-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.1),
       inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 
-  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub.home-hub--ambient .home-hub-panel,
-  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub.home-hub--ambient .home-hub-card,
-  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub.home-hub--ambient .hero-card.hero-card--hub {
+  :root:is([data-lx-theme="system"], :not([data-lx-theme]))
+    .home-hub.home-hub--ambient
+    .home-hub-panel,
+  :root:is([data-lx-theme="system"], :not([data-lx-theme]))
+    .home-hub.home-hub--ambient
+    .home-hub-card,
+  :root:is([data-lx-theme="system"], :not([data-lx-theme]))
+    .home-hub.home-hub--ambient
+    .hero-card.hero-card--hub {
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
   }
@@ -607,9 +633,21 @@
 
 :root[data-lx-theme="dark"] .home-hub.home-hub--ambient {
   background:
-    radial-gradient(ellipse 110% 65% at 48% -12%, color-mix(in srgb, var(--lx-accent) 32%, transparent), transparent 56%),
-    radial-gradient(ellipse 55% 42% at 92% 12%, color-mix(in srgb, var(--lx-accent-secondary) 20%, transparent), transparent 52%),
-    linear-gradient(180deg, color-mix(in srgb, var(--lx-surface-0) 88%, #0b1220) 0%, var(--lx-bg) 85%);
+    radial-gradient(
+      ellipse 110% 65% at 48% -12%,
+      color-mix(in srgb, var(--lx-accent) 32%, transparent),
+      transparent 56%
+    ),
+    radial-gradient(
+      ellipse 55% 42% at 92% 12%,
+      color-mix(in srgb, var(--lx-accent-secondary) 20%, transparent),
+      transparent 52%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--lx-surface-0) 88%, #0b1220) 0%,
+      var(--lx-bg) 85%
+    );
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);

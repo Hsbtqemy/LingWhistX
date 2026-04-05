@@ -28,7 +28,11 @@ function startBrush(
 ) {
   dragRef.current = { startMs: ms, startCssX: cssX };
   const ov = overlayRef.current;
-  if (ov) { ov.style.left = `${cssX}px`; ov.style.width = "0px"; ov.style.display = "block"; }
+  if (ov) {
+    ov.style.left = `${cssX}px`;
+    ov.style.width = "0px";
+    ov.style.display = "block";
+  }
 }
 
 function moveBrush(
@@ -41,7 +45,10 @@ function moveBrush(
   const x0 = Math.min(drag.startCssX, cssX);
   const x1 = Math.max(drag.startCssX, cssX);
   const ov = overlayRef.current;
-  if (ov) { ov.style.left = `${x0}px`; ov.style.width = `${x1 - x0}px`; }
+  if (ov) {
+    ov.style.left = `${x0}px`;
+    ov.style.width = `${x1 - x0}px`;
+  }
   return true;
 }
 
@@ -78,13 +85,7 @@ function cancelBrush(
 
 // ─── Shared tooltip helpers ───────────────────────────────────────────────────
 
-function showTooltip(
-  tip: HTMLDivElement,
-  text: string,
-  x: number,
-  y: number,
-  canvasWidth: number,
-) {
+function showTooltip(tip: HTMLDivElement, text: string, x: number, y: number, canvasWidth: number) {
   tip.textContent = text;
   tip.style.display = "block";
   tip.style.left = `${Math.min(x + 8, canvasWidth - 130)}px`;
@@ -168,11 +169,20 @@ export function PauseHistogramCanvas({
       binsRef.current.length - 1,
       Math.floor((x / rect.width) * binsRef.current.length),
     );
-    if (binIdx < 0) { hideTooltip(tip); return; }
+    if (binIdx < 0) {
+      hideTooltip(tip);
+      return;
+    }
     const b = binsRef.current[binIdx];
     const loFmt = b.lo >= 1000 ? `${(b.lo / 1000).toFixed(1)}s` : `${Math.round(b.lo)}ms`;
     const hiFmt = b.hi >= 1000 ? `${(b.hi / 1000).toFixed(1)}s` : `${Math.round(b.hi)}ms`;
-    showTooltip(tip, `${loFmt} – ${hiFmt} : ${b.count} pause${b.count !== 1 ? "s" : ""}`, x, e.clientY - rect.top, rect.width);
+    showTooltip(
+      tip,
+      `${loFmt} – ${hiFmt} : ${b.count} pause${b.count !== 1 ? "s" : ""}`,
+      x,
+      e.clientY - rect.top,
+      rect.width,
+    );
   };
 
   return (
@@ -185,11 +195,7 @@ export function PauseHistogramCanvas({
         onMouseMove={handleMouseMove}
         onMouseLeave={() => hideTooltip(tooltipRef.current)}
       />
-      <div
-        ref={tooltipRef}
-        className="stats-canvas-tooltip"
-        style={{ display: "none" }}
-      />
+      <div ref={tooltipRef} className="stats-canvas-tooltip" style={{ display: "none" }} />
     </div>
   );
 }
@@ -212,7 +218,9 @@ export function SpeechBarCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   // Stores cumulative x boundaries per speaker for hit-testing
-  const segmentsRef = useRef<{ speaker: string; speechMs: number; xStart: number; xEnd: number }[]>([]);
+  const segmentsRef = useRef<{ speaker: string; speechMs: number; xStart: number; xEnd: number }[]>(
+    [],
+  );
   const themeRev = useWaveformThemeRevision();
   const H = expanded ? 76 : 38;
 
@@ -243,7 +251,10 @@ export function SpeechBarCanvas({
     for (let i = 0; i < stats.length; i++) {
       const s = stats[i];
       const w = (s.speechMs / totalDurationMs) * W;
-      if (w < 1) { segs.push({ speaker: s.speaker, speechMs: s.speechMs, xStart: x, xEnd: x }); continue; }
+      if (w < 1) {
+        segs.push({ speaker: s.speaker, speechMs: s.speechMs, xStart: x, xEnd: x });
+        continue;
+      }
       ctx.fillStyle = speakerColor(i);
       if (activeSpeaker && s.speaker !== activeSpeaker) ctx.globalAlpha = 0.35;
       else ctx.globalAlpha = 1;
@@ -293,9 +304,18 @@ export function SpeechBarCanvas({
     const cssX = e.clientX - rect.left;
     const segs = segmentsRef.current;
     const hit = segs.find((s) => cssX >= s.xStart && cssX < s.xEnd);
-    if (!hit) { hideTooltip(tip); return; }
+    if (!hit) {
+      hideTooltip(tip);
+      return;
+    }
     const pct = ((hit.speechMs / totalDurationMs) * 100).toFixed(1);
-    showTooltip(tip, `${hit.speaker} · ${formatClockSeconds(hit.speechMs / 1000)} · ${pct}%`, cssX, e.clientY - rect.top, rect.width);
+    showTooltip(
+      tip,
+      `${hit.speaker} · ${formatClockSeconds(hit.speechMs / 1000)} · ${pct}%`,
+      cssX,
+      e.clientY - rect.top,
+      rect.width,
+    );
   };
 
   return (
@@ -310,11 +330,7 @@ export function SpeechBarCanvas({
         onMouseLeave={() => hideTooltip(tooltipRef.current)}
         style={{ cursor: onSeekToMs ? "pointer" : "default" }}
       />
-      <div
-        ref={tooltipRef}
-        className="stats-canvas-tooltip"
-        style={{ display: "none" }}
-      />
+      <div ref={tooltipRef} className="stats-canvas-tooltip" style={{ display: "none" }} />
     </div>
   );
 }
@@ -468,7 +484,10 @@ export function SpeechTimelineCanvas({
     if (!tip || totalDurationMs <= 0) return;
     const y = e.clientY - rect.top;
     const ms = (cssX / rect.width) * totalDurationMs;
-    if (ms < 0 || ms > totalDurationMs) { hideTooltip(tip); return; }
+    if (ms < 0 || ms > totalDurationMs) {
+      hideTooltip(tip);
+      return;
+    }
 
     const laneH = getLaneH(rect.height);
     const si = Math.floor(y / laneH);
@@ -493,7 +512,10 @@ export function SpeechTimelineCanvas({
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
-        onMouseLeave={() => { cancelBrush(brushDragRef, brushOverlayRef); hideTooltip(tooltipRef.current); }}
+        onMouseLeave={() => {
+          cancelBrush(brushDragRef, brushOverlayRef);
+          hideTooltip(tooltipRef.current);
+        }}
         onDoubleClick={handleDoubleClick}
         title="Glisser pour une plage · Shift+clic pour effacer la sélection · double-clic efface aussi (un clic simple peut seek)"
         style={{ cursor: "crosshair" }}
@@ -684,7 +706,10 @@ export function SpeechRateCanvas({
     const tip = tooltipRef.current;
     if (!tip || totalDurationMs <= 0) return;
     const ms = toMs(cssX, rect.width);
-    if (ms < 0 || ms > totalDurationMs) { hideTooltip(tip); return; }
+    if (ms < 0 || ms > totalDurationMs) {
+      hideTooltip(tip);
+      return;
+    }
 
     let text = `${formatClockSeconds(ms / 1000)}`;
     for (let si = 0; si < series.length; si++) {
@@ -693,7 +718,10 @@ export function SpeechRateCanvas({
       let minDist = Infinity;
       for (const p of s.points) {
         const d = Math.abs(p.timeMs - ms);
-        if (d < minDist) { minDist = d; closest = p; }
+        if (d < minDist) {
+          minDist = d;
+          closest = p;
+        }
       }
       if (closest) text += `\n${s.speaker}: ${closest.wordsPerMin.toFixed(0)} m/min`;
     }
@@ -710,7 +738,10 @@ export function SpeechRateCanvas({
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
-        onMouseLeave={() => { cancelBrush(brushDragRef, brushOverlayRef); hideTooltip(tooltipRef.current); }}
+        onMouseLeave={() => {
+          cancelBrush(brushDragRef, brushOverlayRef);
+          hideTooltip(tooltipRef.current);
+        }}
         onDoubleClick={handleDoubleClick}
         title="Glisser pour une plage · Shift+clic pour effacer la sélection · double-clic efface aussi (un clic simple peut seek)"
         style={{ cursor: "crosshair" }}
@@ -791,8 +822,10 @@ export function SpeechDensityCanvas({
     for (const pt of points) {
       const x = PAD_L + (pt.timeMs / totalDurationMs) * gW;
       const y = PAD_T + gH * (1 - pt.density);
-      if (!started) { ctx.moveTo(x, y); started = true; }
-      else ctx.lineTo(x, y);
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else ctx.lineTo(x, y);
     }
     ctx.strokeStyle = t.densityStroke;
     ctx.lineWidth = 1.5;
@@ -871,13 +904,19 @@ export function SpeechDensityCanvas({
     const tip = tooltipRef.current;
     if (!tip || totalDurationMs <= 0 || points.length === 0) return;
     const ms = toMs(cssX, rect.width);
-    if (ms < 0 || ms > totalDurationMs) { hideTooltip(tip); return; }
+    if (ms < 0 || ms > totalDurationMs) {
+      hideTooltip(tip);
+      return;
+    }
 
     let closest = points[0];
     let minDist = Infinity;
     for (const pt of points) {
       const d = Math.abs(pt.timeMs - ms);
-      if (d < minDist) { minDist = d; closest = pt; }
+      if (d < minDist) {
+        minDist = d;
+        closest = pt;
+      }
     }
 
     showTooltip(
@@ -899,7 +938,10 @@ export function SpeechDensityCanvas({
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
-        onMouseLeave={() => { cancelBrush(brushDragRef, brushOverlayRef); hideTooltip(tooltipRef.current); }}
+        onMouseLeave={() => {
+          cancelBrush(brushDragRef, brushOverlayRef);
+          hideTooltip(tooltipRef.current);
+        }}
         onDoubleClick={handleDoubleClick}
         title="Glisser pour une plage · Shift+clic pour effacer la sélection · double-clic efface aussi (un clic simple peut seek)"
         style={{ cursor: "crosshair" }}

@@ -482,7 +482,9 @@ fn words_json_from_segments(segments: &[crate::models::EditableSegment]) -> Vec<
 
 /// Met à jour le fichier `timeline_json` du manifest à partir du transcript JSON le plus récent,
 /// puis réimporte `events.sqlite` afin que le Player reflète les tours de parole (et mots) de l’éditeur.
-pub fn sync_timeline_from_transcript_and_reimport(run_dir: &Path) -> Result<RunEventsImportResult, String> {
+pub fn sync_timeline_from_transcript_and_reimport(
+    run_dir: &Path,
+) -> Result<RunEventsImportResult, String> {
     let run_dir = run_dir
         .canonicalize()
         .map_err(|e| format!("run_dir: {}", redact_user_home_in_text(&e.to_string())))?;
@@ -537,7 +539,9 @@ pub fn sync_timeline_from_transcript_and_reimport(run_dir: &Path) -> Result<RunE
 }
 
 #[tauri::command]
-pub fn sync_player_timeline_from_transcript(run_dir: String) -> Result<RunEventsImportResult, String> {
+pub fn sync_player_timeline_from_transcript(
+    run_dir: String,
+) -> Result<RunEventsImportResult, String> {
     validate_path_string(&run_dir)?;
     sync_timeline_from_transcript_and_reimport(Path::new(run_dir.trim()))
 }

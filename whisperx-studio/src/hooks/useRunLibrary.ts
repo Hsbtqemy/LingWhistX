@@ -32,7 +32,7 @@ export function useRunLibrary(open: boolean) {
             // best-effort
           }
           const label = manifest?.inputMediaPath
-            ? (fileBasename(manifest.inputMediaPath) || run.runId)
+            ? fileBasename(manifest.inputMediaPath) || run.runId
             : run.runId;
           return { ...run, manifest, label };
         }),
@@ -53,9 +53,7 @@ export function useRunLibrary(open: boolean) {
   const q = query.trim().toLowerCase();
   const entries = q
     ? allEntries.filter(
-        (e) =>
-          e.label.toLowerCase().includes(q) ||
-          e.runId.toLowerCase().includes(q),
+        (e) => e.label.toLowerCase().includes(q) || e.runId.toLowerCase().includes(q),
       )
     : allEntries;
 

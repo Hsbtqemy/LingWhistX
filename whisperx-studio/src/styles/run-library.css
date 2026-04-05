@@ -59,7 +59,9 @@
   cursor: pointer;
   font-size: 1.2rem;
   line-height: 1;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 
 .run-library-refresh-btn {
@@ -78,7 +80,9 @@
   font-size: 0.8rem;
   font-weight: 500;
   line-height: 1;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 
 .run-library-refresh-label {
@@ -215,7 +219,10 @@
   background: var(--lx-surface-muted);
   color: var(--lx-text-1);
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    color 0.12s;
 }
 
 .run-library-entry__btn:hover {
