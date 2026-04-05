@@ -498,14 +498,16 @@
   gap: 8px;
 }
 
-.editor-toolbar {
+/* Uniquement le bloc « Commandes » du panneau transcript (Import / détail run).
+ * Ne pas cibler .editor-toolbar seul : sinon on écrase la barre de l’onglet Éditeur (EditorToolbar). */
+.editor-panel .editor-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: end;
 }
 
-.editor-toolbar button {
+.editor-panel .editor-toolbar button {
   padding: 7px 10px;
   font-size: 0.78rem;
 }

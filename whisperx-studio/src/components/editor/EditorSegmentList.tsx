@@ -3,10 +3,8 @@ import type { EditableSegment } from "../../types";
 import { formatClockSeconds } from "../../appUtils";
 
 export type EditorSegmentListProps = {
-  /** Chemin du JSON chargé (vide = pas encore ouvert). */
   transcriptSourcePath: string;
   segments: EditableSegment[];
-  /** Tous les segments (y compris non affichés) — utilisé pour dériver la liste des locuteurs. */
   allSegments: EditableSegment[];
   allSegmentsCount: number;
   activeSegmentIndex: number | null;
@@ -18,6 +16,14 @@ export type EditorSegmentListProps = {
   updateSegmentBoundary: (index: number, edge: "start" | "end", value: number) => void;
   updateSegmentSpeaker: (index: number, speaker: string | null) => void;
   setEditorVisibleCount: Dispatch<SetStateAction<number>>;
+  /* Actions contextuelles sur le segment actif */
+  canSplitActiveSegment: boolean;
+  canMergePrev: boolean;
+  canMergeNext: boolean;
+  canDeleteSegment: boolean;
+  splitActiveSegmentAtCursor: () => void;
+  mergeActiveSegment: (dir: "prev" | "next") => void;
+  deleteActiveSegment: () => void;
 };
 
 export const EditorSegmentList = memo(function EditorSegmentList({
@@ -34,6 +40,13 @@ export const EditorSegmentList = memo(function EditorSegmentList({
   updateSegmentBoundary,
   updateSegmentSpeaker,
   setEditorVisibleCount,
+  canSplitActiveSegment,
+  canMergePrev,
+  canMergeNext,
+  canDeleteSegment,
+  splitActiveSegmentAtCursor,
+  mergeActiveSegment,
+  deleteActiveSegment,
 }: EditorSegmentListProps) {
   const uniqueSpeakers = useMemo(() => {
     const seen = new Set<string>();
@@ -51,9 +64,9 @@ export const EditorSegmentList = memo(function EditorSegmentList({
           <>
             <p className="small">Transcript ouvert : aucun segment (run vide ou audio seul).</p>
             <p className="small editor-segment-list__empty-hint">
-              Utilisez <strong>+ Segment</strong> dans la barre d’outils (curseur sur la waveform),
-              ou l’onglet Import pour WhisperX / import d’un fichier. Enregistrez le JSON lorsque
-              c’est prêt.
+              Utilisez <strong>+ Segment</strong> dans la barre d'outils (curseur sur la waveform),
+              ou l'onglet Import pour WhisperX / import d'un fichier. Enregistrez le JSON lorsque
+              c'est prêt.
             </p>
           </>
         ) : (
@@ -128,6 +141,19 @@ export const EditorSegmentList = memo(function EditorSegmentList({
                 <span className="editor-segment-row__dur mono small" aria-label="Durée">
                   {formatClockSeconds(seg.end - seg.start)}
                 </span>
+
+                <button
+                  type="button"
+                  className="ghost small editor-segment-row__focus-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    focusSegment(visIndex);
+                  }}
+                  title="Aller à ce segment sur la waveform"
+                  aria-label={`Focus segment ${visIndex + 1}`}
+                >
+                  ⊙
+                </button>
               </div>
 
               <div className="editor-segment-row__speaker-row">
@@ -148,18 +174,55 @@ export const EditorSegmentList = memo(function EditorSegmentList({
                   )}
                 </select>
 
-                <button
-                  type="button"
-                  className="ghost small editor-segment-row__focus-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    focusSegment(visIndex);
-                  }}
-                  title="Aller à ce segment"
-                  aria-label={`Focus segment ${visIndex + 1}`}
-                >
-                  ⊙
-                </button>
+                {/* Actions inline — visibles uniquement sur le segment actif */}
+                {isActive && (
+                  <div className="editor-segment-row__inline-actions" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="ghost small"
+                      disabled={!canSplitActiveSegment}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={splitActiveSegmentAtCursor}
+                      title="Couper au curseur waveform"
+                      aria-label="Split"
+                    >
+                      ✂
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost small"
+                      disabled={!canMergePrev}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => mergeActiveSegment("prev")}
+                      title="Fusionner avec le précédent"
+                      aria-label="Fusionner précédent"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost small"
+                      disabled={!canMergeNext}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => mergeActiveSegment("next")}
+                      title="Fusionner avec le suivant"
+                      aria-label="Fusionner suivant"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost small editor-segment-row__delete-btn"
+                      disabled={!canDeleteSegment}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={deleteActiveSegment}
+                      title="Supprimer ce segment"
+                      aria-label="Supprimer"
+                    >
+                      🗑
+                    </button>
+                  </div>
+                )}
               </div>
 
               <textarea

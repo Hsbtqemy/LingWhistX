@@ -35,6 +35,82 @@ body {
   min-width: 0;
 }
 
+/*
+ * Onglet Éditeur : hauteur bornée (data-lx-editor-view posé depuis App.tsx) pour que la zone
+ * centrale + barre d’outils ne fassent pas défiler toute la page. Ne repose pas sur :has()
+ * (WebViews / anciens moteurs).
+ */
+html[data-lx-editor-view="1"] {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+html[data-lx-editor-view="1"] body {
+  height: 100%;
+  max-height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+html[data-lx-editor-view="1"] #root {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+html[data-lx-editor-view="1"] #root > .studio-shell.studio-shell--editor-fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  /* Marge verticale du shell : sinon hauteur + marges > #root et tout défile encore */
+  margin-block: 0;
+  margin-inline: auto;
+}
+
+.studio-shell.studio-shell--editor-fill {
+  align-items: stretch;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: calc(100dvh - clamp(24px, 5vw, 40px));
+}
+
+html[data-lx-editor-view="1"] .studio-shell.studio-shell--editor-fill {
+  min-height: 0;
+}
+
+.studio-shell.studio-shell--editor-fill .studio-shell__main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  height: 100%;
+  max-height: 100%;
+  align-self: stretch;
+}
+
+.studio-shell.studio-shell--editor-fill .studio-shell__main > [role="tabpanel"]:not([hidden]) {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.studio-shell.studio-shell--editor-fill
+  .studio-shell__main
+  > [role="tabpanel"]:not([hidden])
+  > .editor-panel-shell,
+.studio-shell.studio-shell--editor-fill
+  .studio-shell__main
+  > [role="tabpanel"]:not([hidden])
+  > .editor-workspace-section {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* --studio-bp-nav-stack (900px) */
 
 /* Page Hub (vue create) — cartes d’entrée */
@@ -946,6 +1022,7 @@ body {
 
 .checkbox-row--diarize {
   align-items: flex-start;
+  gap: 10px;
 }
 
 .checkbox-row__label-with-badge {

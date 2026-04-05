@@ -93,6 +93,18 @@ function App() {
     }
   }, [activeRun]);
 
+  /** Chaîne de hauteur viewport pour l’onglet Éditeur (barre du bas toujours dans le cadre). */
+  useEffect(() => {
+    if (activeView === "editor") {
+      document.documentElement.dataset.lxEditorView = "1";
+    } else {
+      delete document.documentElement.dataset.lxEditorView;
+    }
+    return () => {
+      delete document.documentElement.dataset.lxEditorView;
+    };
+  }, [activeView]);
+
   const handleOpenPlayer = useCallback((runDir: string, label?: string | null) => {
     setActiveRun({ runDir, label: label ?? runDir });
     setActiveView("player");
@@ -202,7 +214,10 @@ function App() {
   }, [jobForm.setWhisperxOptions]);
 
   return (
-    <main className="studio-shell" data-testid="studio-app-root">
+    <main
+      className={`studio-shell${activeView === "editor" ? " studio-shell--editor-fill" : ""}`}
+      data-testid="studio-app-root"
+    >
       <StudioNav
         activeView={activeView}
         onViewChange={setActiveView}

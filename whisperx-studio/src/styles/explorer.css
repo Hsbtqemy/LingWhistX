@@ -972,7 +972,8 @@
 .explorer-layer-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--lx-space-2) var(--lx-space-3);
+  column-gap: 10px;
+  row-gap: var(--lx-space-2);
   padding: var(--lx-space-3);
   margin: 0;
   border-radius: var(--lx-radius-sm);
@@ -982,18 +983,21 @@
 
 .explorer-layer-toggle {
   display: flex;
-  align-items: center;
-  gap: var(--lx-space-2);
+  align-items: flex-start;
+  gap: 10px;
   min-height: 28px;
   margin: 0;
+  padding-top: 2px;
   font-size: var(--lx-text-sm);
   color: var(--lx-text-0);
+  line-height: 1.35;
 }
 
 .explorer-layer-toggle input[type="checkbox"] {
   width: 1rem;
   height: 1rem;
   flex-shrink: 0;
+  margin-top: 0.12em;
   accent-color: var(--lx-accent);
 }
 

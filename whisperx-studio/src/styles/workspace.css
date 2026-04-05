@@ -689,6 +689,62 @@ button.lx-btn--danger:hover:not(:disabled) {
   accent-color: var(--lx-accent);
 }
 
+/* Radios sur une ligne (formats de sortie, etc.) — même lecture visuelle que .checkbox-row */
+.radio-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 40px;
+  border: 1px solid var(--lx-border);
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: var(--lx-surface-1);
+  box-sizing: border-box;
+}
+
+.radio-row input[type="radio"] {
+  width: auto;
+  margin: 0.28rem 0 0;
+  flex-shrink: 0;
+  accent-color: var(--lx-accent);
+}
+
+.radio-row > span {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.45;
+}
+
+/* Aide sous la case diarization : alignée sur le texte du libellé, pas sous la case */
+.field-help--diarize-indent {
+  padding-left: calc(10px + 1.125rem + 8px);
+  margin-top: 4px;
+}
+
+.whisperx-external-timings-card {
+  border: 1px solid var(--lx-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--lx-surface-1);
+  gap: 8px;
+}
+
+.whisperx-external-timings-card__header {
+  margin-bottom: 0;
+}
+
+.whisperx-external-timings-card__title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--lx-text-1);
+  font-size: 0.9rem;
+}
+
+.whisperx-adv-align-grid {
+  align-items: start;
+}
+
 .panel-subtle {
   margin: -4px 0 10px;
   font-size: 0.85rem;

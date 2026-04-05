@@ -312,9 +312,34 @@
 .editor-workspace-section {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  gap: 10px;
+  flex: 1 1 auto;
   min-height: 0;
+  /* Pas overflow:hidden ici : le défilement est confiné à __body (liste segments) ;
+     sinon la hauteur peut s’étendre et faire défiler toute la page avec la barre du bas. */
+  overflow: visible;
+}
+
+/* Fichier / Player / langue / sauvegarde — au-dessus de la waveform */
+.editor-workspace-section__file-bar {
+  flex-shrink: 0;
+  align-self: stretch;
+  container-type: inline-size;
+  container-name: editor-file-toolbar-w;
+}
+
+.editor-file-toolbar {
+  border-radius: var(--lx-radius-md);
+  border: 1px solid color-mix(in srgb, var(--lx-border) 80%, transparent);
+  background: var(--lx-surface-muted);
+  box-shadow:
+    0 4px 14px color-mix(in srgb, var(--lx-text-0) 5%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--lx-border) 55%, transparent);
   overflow: hidden;
+}
+
+.editor-file-toolbar .editor-toolbar__section--file {
+  border-top: none;
 }
 
 .editor-workspace-section__body {
@@ -333,28 +358,633 @@
   }
 }
 
+/* Barre d’actions : reste en bas du panneau éditeur ; sticky si la page / le panneau défile */
+.editor-workspace-section__toolbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 8;
+  flex-shrink: 0;
+  align-self: stretch;
+  margin-top: auto;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  /* Permet d’adapter la barre quand le panneau éditeur est étroit (split) sans regarder le viewport */
+  container-type: inline-size;
+  container-name: editor-toolbar-w;
+}
+
 /* Toolbar */
 .editor-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 12px;
+  gap: 0;
   border-bottom: 1px solid var(--lx-border);
   background: var(--lx-surface-muted);
   flex-shrink: 0;
+}
+
+.editor-workspace-section__toolbar .editor-toolbar {
+  border-bottom: none;
+  border-top: 1px solid var(--lx-border);
+  border-radius: var(--lx-radius-md);
+  box-shadow:
+    0 -6px 20px color-mix(in srgb, var(--lx-text-0) 6%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--lx-border) 80%, transparent);
+  /* visible : évite de rogner le libellé à côté de la case « chevauchements » (flex + min-width:0) */
+  overflow: visible;
+}
+
+/* Blocs Lecture / Segments / Fichier — grille libellé + contrôles */
+.editor-toolbar__section {
+  display: grid;
+  grid-template-columns: minmax(3.75rem, 4.5rem) minmax(0, 1fr);
+  align-items: start;
+  gap: 6px 12px;
+  padding: 8px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--lx-border) 85%, transparent);
+  background: color-mix(in srgb, var(--lx-surface-muted) 55%, var(--lx-surface));
+}
+
+/* Toutes les rangées d’outils (sauf contenu Export en colonne) occupent la grille */
+.editor-toolbar__section:not(.editor-toolbar__section--export) .editor-toolbar__row--section {
+  width: 100%;
+}
+
+/* Segments + convention : flex avec retour à la ligne si peu de place (pas de scroll forcé) */
+.editor-toolbar__segments-convention-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Ne pas faire grandir la rangée Segments (sinon flex-grow = toute la ligne → Convention toujours en dessous) */
+.editor-toolbar__section--segments .editor-toolbar__segments-convention-row .editor-toolbar__row--section {
+  width: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.editor-toolbar__section:first-of-type {
+  border-top: none;
+}
+
+.editor-toolbar__section-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lx-text-2);
+  padding-top: 7px;
+  line-height: 1.2;
+}
+
+.editor-toolbar__row--section {
+  padding: 0;
+  min-width: 0;
+}
+
+/* Fichier : deux groupes (navigation / sauvegarde) pour équilibrer la largeur */
+.editor-toolbar__row--file {
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+}
+
+.editor-toolbar__file-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 5px;
+  min-width: 0;
+}
+
+.editor-toolbar__file-cluster--actions {
+  flex-shrink: 0;
+}
+
+/* Lecture : transport centré sur toute la colonne de contrôles */
+.editor-toolbar__section--playback .editor-toolbar__row--playback {
+  width: 100%;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 3px 6px;
+}
+
+.editor-toolbar__time {
+  color: var(--lx-text-1);
+  white-space: nowrap;
+  margin-right: 2px;
+}
+
+.editor-toolbar__play-btn {
+  min-width: 28px;
+}
+
+.editor-toolbar__speed {
+  min-width: 38px;
+  text-align: center;
+  color: var(--lx-text-2);
 }
 
 .editor-toolbar__row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: 3px 5px;
+  padding: 6px 12px;
+}
+
+/* Export : lignes empilées pour éviter que la case « chevauchements » ne se confonde avec la convention */
+.editor-toolbar__export-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+}
+
+.editor-toolbar__export-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.editor-toolbar__export-row--format .editor-toolbar__export-select {
+  width: 100%;
+  max-width: min(100%, 22rem);
+}
+
+/* Format + case chevauchements sur une même ligne (vue large) */
+.editor-toolbar__export-row--format-overlaps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.editor-toolbar__export-row--format-overlaps .editor-toolbar__export-select {
+  flex: 1 1 12rem;
+  min-width: 0;
+  max-width: min(100%, 22rem);
+}
+
+.editor-toolbar__export-row--format-overlaps .editor-toolbar__fix-label-cluster {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 1 1 14rem;
+  min-width: 0;
+  max-width: min(100%, 40rem);
+}
+
+.editor-toolbar__export-row--format-overlaps .editor-toolbar__fix-label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.editor-toolbar__export-row--format-overlaps .editor-toolbar__fix-label-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.editor-toolbar__export-row--format-narrow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.editor-toolbar__export-row--format-narrow .editor-toolbar__export-select {
+  flex: 1 1 10rem;
+  min-width: 0;
+  max-width: none;
+  width: auto;
+}
+
+.editor-toolbar__export-row--format-narrow .editor-toolbar__fix-label-cluster--narrow {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 1 1 11rem;
+  min-width: 0;
+  max-width: min(100%, 26rem);
+}
+
+.editor-toolbar__export-row--format-narrow .editor-toolbar__fix-label-cluster--narrow .editor-toolbar__fix-label--narrow-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.editor-toolbar__export-row--format-narrow
+  .editor-toolbar__fix-label-cluster--narrow
+  .editor-toolbar__fix-label--narrow-toolbar
+  .editor-toolbar__fix-label-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.editor-toolbar__export-row--overlaps .editor-toolbar__fix-label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  width: 100%;
+  max-width: none;
+}
+
+/* Grille : le texte ne peut plus se réduire à 0 px (coche « seule » sous le menu format) */
+.editor-toolbar__export-row--overlaps .editor-toolbar__fix-label-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.editor-toolbar__export-inline-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lx-text-2);
+  flex-shrink: 0;
+}
+
+.editor-toolbar__convention-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+/* Libellé + liste + raccourcis marques sur une même ligne (wrap si besoin) */
+.editor-toolbar__convention-line--inline {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+}
+
+.editor-toolbar__convention-line--inline .editor-toolbar__export-inline-label {
+  flex-shrink: 0;
+  line-height: 1.2;
+  align-self: center;
+}
+
+.editor-toolbar__convention-line--inline .editor-toolbar__convention-select {
+  flex: 0 1 12rem;
+  min-width: 0;
+  max-width: min(100%, 16rem);
+  width: auto;
+  align-self: center;
+}
+
+.editor-toolbar__convention-line--inline .editor-toolbar__convention-marks {
+  flex: 0 1 auto;
+  min-width: 0;
+  justify-content: center;
+  align-self: center;
+}
+
+/* À côté des boutons Segments : groupe (libellé+liste) + marques sur une même ligne */
+.editor-toolbar__convention-line--segments-toolbar.editor-toolbar__convention-line--inline {
+  width: auto;
+  flex: 1 1 14rem;
+  min-width: 0;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+/* Libellé + liste : groupe soudé pour éviter « Convention » seul au-dessus du menu */
+.editor-toolbar__convention-line--segments-toolbar .editor-toolbar__convention-line-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px 10px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.editor-toolbar__convention-line--segments-toolbar
+  .editor-toolbar__convention-line-head
+  .editor-toolbar__convention-select {
+  min-width: 0;
+  max-width: min(100%, 16rem);
+}
+
+.editor-toolbar__convention-line--segments-toolbar.editor-toolbar__convention-line--inline
+  .editor-toolbar__convention-marks {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-start;
+}
+
+.editor-toolbar__convention-marks {
+  display: flex;
+  flex-wrap: wrap;
   gap: 4px 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: var(--lx-radius-sm);
+  background: color-mix(in srgb, var(--lx-surface) 55%, transparent);
+}
+
+.editor-toolbar__convention-marks .editor-toolbar__mark-btn {
+  flex-shrink: 0;
+}
+
+.editor-toolbar__export-hint-detail {
+  margin: 0;
+  padding: 0;
+  line-height: 1.45;
+  color: var(--lx-text-2);
+  max-width: 72ch;
+}
+
+.editor-toolbar__overlap-help-wrap {
+  position: relative;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.editor-toolbar__overlap-help-btn {
+  min-width: 1.5rem;
+  padding: 2px 6px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.editor-toolbar__overlap-help-flyout {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  z-index: 42;
+  min-width: 12rem;
+  max-width: min(100vw - 24px, 22rem);
+  padding: 8px 10px;
+  border-radius: var(--lx-radius-md);
+  border: 1px solid var(--lx-border);
+  background: var(--lx-surface);
+  box-shadow:
+    0 -4px 18px color-mix(in srgb, var(--lx-text-0) 10%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--lx-border) 50%, transparent);
+}
+
+/* Barre éditeur — focus clavier visible */
+.editor-workspace-section__toolbar .editor-toolbar .editor-toolbar__overflow-menu-item:focus-visible,
+.editor-workspace-section__toolbar .editor-toolbar .editor-toolbar__overflow-trigger:focus-visible,
+.editor-workspace-section__toolbar .editor-toolbar .editor-toolbar__merge-cluster-btn:focus-visible,
+.editor-workspace-section__toolbar .editor-toolbar .ghost:focus-visible,
+.editor-workspace-section__toolbar .editor-toolbar .primary:focus-visible,
+.editor-file-toolbar .editor-toolbar__lang-input:focus-visible,
+.editor-toolbar__export-select:focus-visible,
+.editor-toolbar__convention-select:focus-visible,
+.editor-toolbar__fix-label input[type="checkbox"]:focus-visible,
+.editor-toolbar__overlap-help-btn:focus-visible {
+  outline: 2px solid var(--lx-accent);
+  outline-offset: 2px;
+}
+
+/* Toolbar — menus « Autres… » (voir useEditorToolbarLayout) */
+.editor-toolbar__row--segments-bar,
+.editor-toolbar__row--playback-bar {
+  position: relative;
+}
+
+.editor-toolbar__overflow-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Merge : ↑ | libellé | ↓ (trois zones reliées) */
+.editor-toolbar__merge-cluster {
+  display: inline-flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.editor-toolbar__merge-cluster-btn {
+  margin: 0;
+  min-width: 1.65rem;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.editor-toolbar__merge-cluster-btn--prev {
+  border-radius: var(--lx-radius-sm) 0 0 var(--lx-radius-sm);
+}
+
+.editor-toolbar__merge-cluster-btn--next {
+  margin-left: -1px;
+  border-radius: 0 var(--lx-radius-sm) var(--lx-radius-sm) 0;
+}
+
+.editor-toolbar__merge-cluster-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  margin-left: -1px;
+  padding: 0 7px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--lx-text-2);
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  border-top: 1px solid var(--lx-chrome-border);
+  border-bottom: 1px solid var(--lx-chrome-border);
+  background: color-mix(in srgb, var(--lx-surface-muted) 65%, var(--lx-surface));
+  box-sizing: border-box;
+}
+
+.editor-toolbar__overflow-trigger {
+  min-width: 4.25rem;
+}
+
+.editor-toolbar__overflow-flyout {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  min-width: 13rem;
+  max-width: min(100vw - 24px, 18rem);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: var(--lx-radius-md);
+  border: 1px solid var(--lx-border);
+  background: var(--lx-surface);
+  box-shadow:
+    0 -4px 18px color-mix(in srgb, var(--lx-text-0) 10%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--lx-border) 50%, transparent);
+}
+
+.editor-toolbar__overflow-flyout .editor-toolbar__overflow-menu-item.ghost.small {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.editor-toolbar__playback-overflow-rate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 2px 2px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--lx-border) 80%, transparent);
+}
+
+/* Petites largeurs : sections empilées, Fichier en colonne */
+@media (max-width: 560px) {
+  .editor-toolbar__section {
+    grid-template-columns: 1fr;
+    gap: 6px 8px;
+  }
+
+  .editor-toolbar__section-label {
+    padding-top: 0;
+  }
+
+  .editor-toolbar__row--file {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .editor-toolbar__file-cluster--actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .editor-toolbar__section--playback .editor-toolbar__row--playback {
+    justify-content: flex-start;
+  }
+}
+
+/* Vue mobile / fenêtre étroite : export pleine largeur, marques défilantes */
+@media (max-width: 480px) {
+  .editor-toolbar__export-row--format .editor-toolbar__export-select,
+  .editor-toolbar__export-row--format-overlaps .editor-toolbar__export-select {
+    max-width: none;
+  }
+
+  .editor-toolbar__convention-marks {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .editor-toolbar__convention-line .editor-toolbar__convention-select {
+    max-width: 100%;
+    min-width: 0;
+    flex: 1 1 8rem;
+  }
+
+  .editor-toolbar__convention-line--inline .editor-toolbar__convention-marks {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+
+  .editor-toolbar__convention-line--segments-toolbar.editor-toolbar__convention-line--inline
+    .editor-toolbar__convention-marks {
+    flex-basis: auto;
+    justify-content: flex-start;
+  }
+
+  /* Barre Segments : pas de bandeau défilant sur les marques — retour à la ligne des pilules */
+  .editor-toolbar__convention-line--segments-toolbar .editor-toolbar__convention-marks {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    overflow: visible;
+  }
+}
+
+/* Panneau éditeur très étroit (split desktop) : compacter sans changer le viewport */
+@container editor-toolbar-w (max-width: 400px) {
+  .editor-toolbar__section {
+    padding: 6px 8px;
+    gap: 4px 8px;
+  }
+
+  .editor-toolbar__export-row--format .editor-toolbar__export-select,
+  .editor-toolbar__export-row--format-overlaps .editor-toolbar__export-select {
+    max-width: none;
+  }
+
+  .editor-toolbar__convention-marks {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .editor-toolbar__convention-line .editor-toolbar__convention-select {
+    max-width: 100%;
+    min-width: 0;
+    flex: 1 1 8rem;
+  }
+
+  .editor-toolbar__convention-line--inline .editor-toolbar__convention-marks {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+
+  .editor-toolbar__convention-line--segments-toolbar.editor-toolbar__convention-line--inline
+    .editor-toolbar__convention-marks {
+    flex-basis: auto;
+    justify-content: flex-start;
+  }
+
+  .editor-toolbar__convention-line--segments-toolbar .editor-toolbar__convention-marks {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    overflow: visible;
+  }
+}
+
+/* Rang secondaire : export + convention + marques */
+.editor-toolbar__row--secondary {
+  border-top: 1px solid var(--lx-border);
+  background: color-mix(in srgb, var(--lx-surface-muted) 60%, var(--lx-surface));
+  padding: 4px 12px;
+  flex-wrap: wrap;
 }
 
 .editor-toolbar__sep {
   display: inline-block;
   width: 1px;
-  height: 18px;
+  height: 16px;
   background: var(--lx-border);
   margin: 0 2px;
   flex-shrink: 0;
@@ -366,7 +996,7 @@
 }
 
 .editor-toolbar__lang-input {
-  width: 48px;
+  width: 44px;
   padding: 2px 5px;
   font-size: 0.78rem;
   border: 1px solid var(--lx-border);
@@ -383,22 +1013,44 @@
   background: var(--lx-surface);
   color: var(--lx-text-1);
   cursor: pointer;
+  min-width: 12rem;
+  max-width: min(100%, 18rem);
+  flex-shrink: 0;
 }
 
 .editor-toolbar__fix-label {
   display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 6px;
   cursor: pointer;
-  color: var(--lx-text-2);
-  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: min(100%, 28rem);
 }
 
-.editor-toolbar__annotation-placeholder {
-  color: var(--lx-text-2);
-  opacity: 0.6;
-  cursor: default;
-  white-space: nowrap;
+/* Réinitialiser workspace.css (input { width:100%; padding:10px 12px }) — sinon la case devient minuscule en grille */
+.editor-toolbar__fix-label input[type="checkbox"] {
+  width: 1.125rem;
+  height: 1.125rem;
+  min-width: 1.125rem;
+  min-height: 1.125rem;
+  max-width: none;
+  padding: 0;
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+  align-self: start;
+  border-radius: 4px;
+  accent-color: var(--lx-accent);
+}
+
+.editor-toolbar__fix-label-text {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--lx-text-1);
+}
+
+/* Bouton delete dans la toolbar — icône légèrement colorée au hover */
+.editor-toolbar__delete-btn:not(:disabled):hover {
+  color: var(--lx-danger);
 }
 
 .editor-toolbar__status-row {
@@ -406,7 +1058,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 10px;
-  min-height: 16px;
+  min-height: 14px;
+  padding: 6px 12px 6px;
+  border-top: 1px solid color-mix(in srgb, var(--lx-border) 80%, transparent);
+  background: color-mix(in srgb, var(--lx-surface-muted) 40%, transparent);
 }
 
 .editor-toolbar__source-path {
@@ -473,49 +1128,14 @@
   color: var(--lx-danger);
 }
 
-.editor-mini-player__transport {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  padding: 6px 10px;
-  border-top: 1px solid var(--lx-border);
-  background: var(--lx-surface-muted);
-  flex-shrink: 0;
-}
-
-.editor-mini-player__time {
-  color: var(--lx-text-2);
-  white-space: nowrap;
-}
-
-.editor-mini-player__transport-btns {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.editor-mini-player__play-btn {
-  min-width: 28px;
-}
-
-.editor-mini-player__transport-aux {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: auto;
-}
-
-.editor-mini-player__speed {
-  min-width: 36px;
-  text-align: center;
-  color: var(--lx-text-2);
-}
-
 .editor-mini-player__media-error {
   width: 100%;
   color: var(--lx-danger);
   margin: 0;
+  padding: 6px 10px;
+  border-top: 1px solid var(--lx-border);
+  background: color-mix(in srgb, var(--lx-danger) 6%, var(--lx-surface-muted));
+  flex-shrink: 0;
 }
 
 /* Segment List */
@@ -645,9 +1265,20 @@
   max-width: 140px;
 }
 
-.editor-segment-row__focus-btn {
+/* Actions inline : visibles seulement sur le segment actif */
+.editor-segment-row__inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   margin-left: auto;
-  opacity: 0.6;
+}
+
+.editor-segment-row__delete-btn:not(:disabled):hover {
+  color: var(--lx-danger);
+}
+
+.editor-segment-row__focus-btn {
+  opacity: 0.5;
 }
 
 .editor-segment-row__focus-btn:hover {

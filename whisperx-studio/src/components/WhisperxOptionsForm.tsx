@@ -309,7 +309,7 @@ export function WhisperxOptionsForm({
                   <HfScopeBadge variant="hf_required" />
                 </span>
               </label>
-              <p className="field-help full-width">
+              <p className="field-help full-width field-help--diarize-indent">
                 Modèles <strong>pyannote</strong> sur Hugging Face : un token de lecture valide est
                 <strong> obligatoire</strong> quand cette case est cochée — la carte « Token Hugging
                 Face » apparaît alors sous ces options (accords des modèles sur huggingface.co).
@@ -367,7 +367,7 @@ export function WhisperxOptionsForm({
             <h4 id="whisperx-adv-align-title" className="whisperx-adv-section__title">
               Alignement & horodatage des mots
             </h4>
-            <div className="option-grid">
+            <div className="option-grid whisperx-adv-align-grid">
               <label className="checkbox-row full-width">
                 <input
                   type="checkbox"
@@ -381,9 +381,9 @@ export function WhisperxOptionsForm({
                 No Align (plus rapide, horodatage moins fin)
               </label>
 
-              <label className="full-width">
-                <div className="actions" style={{ marginBottom: 6 }}>
-                  <span style={{ flex: 1, minWidth: 0 }}>
+              <label className="full-width whisperx-external-timings-card">
+                <div className="whisperx-external-timings-card__header actions">
+                  <span className="whisperx-external-timings-card__title">
                     Timings mots externes (JSON v1, WX-607)
                   </span>
                   <button
@@ -443,8 +443,10 @@ export function WhisperxOptionsForm({
                       setWhisperxOptionsDeferred(setWhisperxOptions, { outputFormat: "all" })
                     }
                   />
-                  Tous les formats (équivalent CLI <code className="mono">--output_format all</code>
-                  )
+                  <span>
+                    Tous les formats (équivalent CLI{" "}
+                    <code className="mono">--output_format all</code>)
+                  </span>
                 </label>
                 <label className="radio-row full-width">
                   <input
@@ -457,7 +459,7 @@ export function WhisperxOptionsForm({
                       })
                     }
                   />
-                  Choisir plusieurs formats
+                  <span>Choisir plusieurs formats</span>
                 </label>
                 {!useAllOutputFormats ? (
                   <div
