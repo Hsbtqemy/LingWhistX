@@ -78,7 +78,200 @@ body {
   text-align: center;
 }
 
-.home-hub-annoter-error {
+/*
+ * Ambiance type HIMYC_Tauri : fond doux, halos, panneaux et cartes « verre » (sans image externe).
+ */
+.home-hub--ambient {
+  position: relative;
+  isolation: isolate;
+  padding: clamp(6px, 1vw, 12px);
+  border-radius: var(--lx-radius-lg);
+  /* Halos + dégradé (pas de ::before : le parent est une grille, le pseudo ferait une cellule parasite). */
+  background:
+    radial-gradient(ellipse 120% 72% at 50% -18%, color-mix(in srgb, var(--lx-accent) 16%, transparent), transparent 52%),
+    radial-gradient(ellipse 70% 50% at 88% 18%, color-mix(in srgb, var(--lx-accent-secondary) 12%, transparent), transparent 48%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--lx-surface-muted) 88%, #e9ecf1) 0%,
+      var(--lx-bg) 78%
+    );
+}
+
+.home-hub--ambient > * {
+  position: relative;
+  z-index: 1;
+}
+
+.home-hub--ambient .home-hub-panel {
+  background: rgba(255, 255, 255, 0.52);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border-color: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 4px 28px rgba(15, 23, 42, 0.08);
+}
+
+.home-hub--ambient .home-hub-heading {
+  text-shadow: 0 0 22px rgba(255, 255, 255, 0.9);
+}
+
+.home-hub--ambient .hero-card.hero-card--hub {
+  background: rgba(255, 255, 255, 0.42);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.07);
+}
+
+.home-hub--ambient .hero-card--modern .hero-card-glow {
+  opacity: 0.5;
+}
+
+.home-hub--ambient .home-hub-card {
+  background: rgba(255, 255, 255, 0.48);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 16px rgba(15, 23, 42, 0.06);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home-hub--ambient .home-hub-card--import:hover {
+    border-color: color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 38%, var(--lx-hub-card-border));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.65) inset,
+      0 8px 26px color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 24%, transparent);
+  }
+
+  .home-hub--ambient .home-hub-card--editor:hover {
+    border-color: color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 38%, var(--lx-hub-card-border));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.65) inset,
+      0 8px 26px color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 22%, transparent);
+  }
+
+  .home-hub--ambient .home-hub-card--player:hover {
+    border-color: color-mix(in srgb, var(--lx-hub-tab-analyze-bar) 38%, var(--lx-hub-card-border));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.65) inset,
+      0 8px 26px color-mix(in srgb, var(--lx-hub-tab-analyze-bar) 24%, transparent);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient {
+    background:
+      radial-gradient(ellipse 120% 72% at 50% -18%, color-mix(in srgb, var(--lx-accent) 22%, transparent), transparent 55%),
+      radial-gradient(ellipse 70% 50% at 88% 18%, color-mix(in srgb, var(--lx-accent-secondary) 14%, transparent), transparent 50%),
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--lx-surface-0) 92%, #0b1220) 0%,
+        var(--lx-bg) 82%
+      );
+  }
+
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient .home-hub-panel {
+    background: rgba(30, 41, 59, 0.58);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 36px rgba(0, 0, 0, 0.35);
+  }
+
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient .home-hub-heading {
+    text-shadow: 0 0 18px rgba(15, 23, 42, 0.9);
+  }
+
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient .hero-card.hero-card--hub {
+    background: rgba(30, 41, 59, 0.52);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.32);
+  }
+
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient .home-hub-card {
+    background: rgba(30, 41, 59, 0.52);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28);
+  }
+}
+
+:root[data-lx-theme="dark"] .home-hub--ambient {
+  background:
+    radial-gradient(ellipse 120% 72% at 50% -18%, color-mix(in srgb, var(--lx-accent) 22%, transparent), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 88% 18%, color-mix(in srgb, var(--lx-accent-secondary) 14%, transparent), transparent 50%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--lx-surface-0) 92%, #0b1220) 0%,
+      var(--lx-bg) 82%
+    );
+}
+
+:root[data-lx-theme="dark"] .home-hub--ambient .home-hub-panel {
+  background: rgba(30, 41, 59, 0.58);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 36px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-lx-theme="dark"] .home-hub--ambient .home-hub-heading {
+  text-shadow: 0 0 18px rgba(15, 23, 42, 0.9);
+}
+
+:root[data-lx-theme="dark"] .home-hub--ambient .hero-card.hero-card--hub {
+  background: rgba(30, 41, 59, 0.52);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.32);
+}
+
+:root[data-lx-theme="dark"] .home-hub--ambient .home-hub-card {
+  background: rgba(30, 41, 59, 0.52);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient .home-hub-card--import:hover {
+    border-color: color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 42%, var(--lx-hub-card-border));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 8px 28px color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 28%, transparent);
+  }
+
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient .home-hub-card--editor:hover {
+    border-color: color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 42%, var(--lx-hub-card-border));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 8px 28px color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 26%, transparent);
+  }
+
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub--ambient .home-hub-card--player:hover {
+    border-color: color-mix(in srgb, var(--lx-hub-tab-analyze-bar) 42%, var(--lx-hub-card-border));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 8px 28px color-mix(in srgb, var(--lx-hub-tab-analyze-bar) 28%, transparent);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-lx-theme="dark"] .home-hub--ambient .home-hub-card--import:hover {
+    border-color: color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 42%, var(--lx-hub-card-border));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 8px 28px color-mix(in srgb, var(--lx-hub-tab-transcribe-bar) 28%, transparent);
+  }
+
+  :root[data-lx-theme="dark"] .home-hub--ambient .home-hub-card--editor:hover {
+    border-color: color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 42%, var(--lx-hub-card-border));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 8px 28px color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 26%, transparent);
+  }
+
+  :root[data-lx-theme="dark"] .home-hub--ambient .home-hub-card--player:hover {
+    border-color: color-mix(in srgb, var(--lx-hub-tab-analyze-bar) 42%, var(--lx-hub-card-border));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 8px 28px color-mix(in srgb, var(--lx-hub-tab-analyze-bar) 28%, transparent);
+  }
+}
+
+.home-hub-error {
   margin: clamp(10px, 2vw, 14px) 0 0;
   color: var(--lx-danger);
   text-align: center;
@@ -87,212 +280,90 @@ body {
   margin-right: auto;
 }
 
-/* ── Carte Annoter : modes sous l’en-tête (dépliage au clic) ── */
-.home-hub-card__annoter-toggle {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  min-width: 0;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  border-radius: inherit;
-}
-
-.home-hub-card__annoter-toggle:hover {
-  filter: none;
-  box-shadow: none;
-}
-
-.home-hub-card__annoter-toggle:focus-visible {
-  outline: 2px solid var(--lx-focus-ring-color);
-  outline-offset: 2px;
-  z-index: 1;
-  box-shadow: none;
-}
-
-.home-hub-card__body--annoter-head {
-  padding-right: clamp(10px, 1.5vw, 14px);
-}
-
-.home-hub-card__chevron--annoter svg {
-  transition: transform 0.2s ease;
-}
-
-.home-hub-card__chevron--annoter-open svg {
-  transform: rotate(90deg);
-}
-
-.home-hub-card__annoter-modes {
+/* ── Carte Annoter : modes intégrés ── */
+.home-hub-card__modes {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  margin: 0 clamp(14px, 2vw, 20px) clamp(12px, 2vw, 16px) clamp(16px, 2.2vw, 22px);
-  margin-top: 10px;
-  padding: 14px 0 0;
-  border: none;
-  border-radius: 0;
-  border-top: 1px solid color-mix(in srgb, var(--lx-hub-tab-annotate-bar) 30%, var(--lx-border));
-  overflow: visible;
-  background: transparent;
-  box-shadow: none;
+  padding: 0 0 clamp(6px, 1vw, 10px);
+  flex: 1 1 auto;
 }
 
-.home-hub-card__annoter-modes[hidden] {
-  display: none !important;
-}
-
-.home-hub-card__annoter-mode {
+.hub-mode-btn {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
   text-align: left;
-  margin: 0;
-  padding: 12px 4px 12px 0;
+  padding: 10px clamp(14px, 2vw, 18px);
   border: none;
-  border-radius: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--lx-border) 48%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--lx-border) 35%, transparent);
   background: transparent;
-  background-image: none;
   cursor: pointer;
-  box-shadow: none;
-  filter: none;
   font: inherit;
-  font-weight: inherit;
   color: inherit;
-  transition:
-    background 0.16s ease,
-    color 0.12s ease;
+  transition: background 0.13s ease;
+  border-radius: 0;
 }
 
-.home-hub-card__annoter-mode:last-child {
+.hub-mode-btn:last-child {
   border-bottom: none;
-  padding-bottom: 4px;
 }
 
-.home-hub-card__annoter-mode:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--lx-text-0) 06%, transparent);
-  filter: none;
-  box-shadow: none;
+.hub-mode-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--lx-text-0) 04%, transparent);
 }
 
-.home-hub-card__annoter-mode:active:not(:disabled) {
-  background: color-mix(in srgb, var(--lx-text-0) 09%, transparent);
-}
-
-.home-hub-card__annoter-mode:disabled {
-  opacity: 0.5;
+.hub-mode-btn:disabled {
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-.home-hub-card__annoter-mode__text {
+.hub-mode-btn__content {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
+  gap: 1px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
-.home-hub-card__annoter-mode__text strong {
-  font-size: 0.92rem;
+.hub-mode-btn__label {
+  font-size: 0.875rem;
   font-weight: 650;
   letter-spacing: -0.01em;
   color: var(--lx-text-0);
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
-.home-hub-card__annoter-mode__text .small {
+.hub-mode-btn__desc {
+  font-size: 0.75rem;
   color: var(--lx-text-2);
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
-.home-hub-card__annoter-mode__chevron {
+.hub-mode-btn svg {
   flex-shrink: 0;
-  opacity: 0.38;
+  opacity: 0.3;
   color: var(--lx-text-2);
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.13s ease, transform 0.13s ease;
 }
 
-.home-hub-card__annoter-mode:hover:not(:disabled) .home-hub-card__annoter-mode__chevron {
-  opacity: 0.72;
+.hub-mode-btn:hover:not(:disabled) svg {
+  opacity: 0.65;
   transform: translateX(2px);
 }
 
-.home-hub-card__annoter-mode:disabled .home-hub-card__annoter-mode__chevron {
-  opacity: 0.2;
-}
-
-.home-hub-card__annoter-mode:focus-visible {
+.hub-mode-btn:focus-visible {
   outline: 2px solid var(--lx-focus-ring-color);
   outline-offset: -2px;
   z-index: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-hub-card__annoter-mode:hover:not(:disabled) .home-hub-card__annoter-mode__chevron {
-    transform: none;
-  }
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .home-hub-card--annoter:hover {
-    transform: none;
-    border-color: color-mix(in srgb, var(--lx-text-0) 14%, var(--lx-hub-card-border));
-    box-shadow:
-      0 1px 0 var(--lx-hub-icon-wrap-highlight) inset,
-      0 14px 36px color-mix(in srgb, var(--lx-text-0) 12%, transparent);
-  }
-}
-
-/* ── Hub Overlay (logo click) ── */
-.hub-overlay-backdrop {
-  position: fixed;
-  inset: 0;
-  background: color-mix(in srgb, var(--lx-bg) 55%, transparent);
-  backdrop-filter: blur(3px);
-  z-index: 300;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
-.hub-overlay-panel {
-  position: relative;
-  background: var(--lx-surface);
-  border: 1px solid var(--lx-border);
-  border-radius: 16px;
-  padding: 24px;
-  width: 100%;
-  max-width: 680px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 8px 40px color-mix(in srgb, var(--lx-bg) 60%, transparent);
-}
-
-.hub-overlay-close {
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  font-size: 1rem;
-  line-height: 1;
-  padding: 4px 8px;
-  color: var(--lx-text-2);
 }
 
 /* Mobile-first : 1 col ; ≥900px : Transcrire, Annoter, Analyser sur une ligne */
 .home-hub-grid {
   display: grid;
   grid-template-columns: 1fr;
+  align-items: stretch;
   gap: clamp(14px, 2.2vw, 18px);
   margin: 0;
   padding: 0;
@@ -315,7 +386,18 @@ body {
 
 .home-hub-grid__cell {
   min-width: 0;
+  min-height: 0;
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Même hauteur de ligne que la carte la plus haute (Annoter) : flex > height:100% seul. */
+.home-hub-grid__cell > .home-hub-card {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
 }
 
 .home-hub-card {
@@ -324,10 +406,9 @@ body {
   --hub-tab-bar: var(--lx-text-0);
   position: relative;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: stretch;
   width: 100%;
-  min-height: 148px;
   padding: 0;
   border: 1px solid var(--lx-hub-card-border);
   border-radius: var(--lx-radius-md);
@@ -344,53 +425,17 @@ body {
     transform 0.14s ease;
 }
 
-/* Après `.home-hub-card` (flex row) : en-tête puis modes en dessous. */
-.home-hub-card.home-hub-card--annoter {
-  flex-direction: column;
-  align-items: stretch;
-  min-height: auto;
-  cursor: default;
-}
-
-.home-hub-card--import .home-hub-card__accent {
-  background: var(--lx-hub-tab-transcribe-bar);
-}
-
 .home-hub-card--import {
   --hub-tab-bar: var(--lx-hub-tab-transcribe-bar);
   --hub-icon-bg: var(--lx-hub-tab-transcribe-icon-bg);
   --hub-icon-fg: var(--lx-hub-tab-transcribe-icon-fg);
 }
 
-.home-hub-card--editor .home-hub-card__accent {
-  background: var(--lx-hub-tab-annotate-bar);
-}
-
 .home-hub-card--editor {
   --hub-tab-bar: var(--lx-hub-tab-annotate-bar);
   --hub-icon-bg: var(--lx-hub-tab-annotate-icon-bg);
   --hub-icon-fg: var(--lx-hub-tab-annotate-icon-fg);
-}
-
-.home-hub-card--workspace .home-hub-card__accent {
-  background: var(--lx-hub-workspace-bar);
-}
-
-.home-hub-card--player .home-hub-card__accent {
-  background: var(--lx-hub-tab-analyze-bar);
-}
-
-.home-hub-card--jobs .home-hub-card__accent {
-  background: var(--lx-hub-jobs-bar);
-}
-
-.home-hub-card--about .home-hub-card__accent {
-  background: var(--lx-hub-about-bar);
-}
-
-.home-hub-card--workspace {
-  --hub-icon-bg: var(--lx-hub-workspace-icon-bg);
-  --hub-icon-fg: var(--lx-hub-workspace-icon-fg);
+  cursor: default;
 }
 
 .home-hub-card--player {
@@ -399,31 +444,22 @@ body {
   --hub-icon-fg: var(--lx-hub-tab-analyze-icon-fg);
 }
 
-.home-hub-card--jobs {
-  --hub-icon-bg: var(--lx-hub-jobs-icon-bg);
-  --hub-icon-fg: var(--lx-hub-jobs-icon-fg);
-}
-
-.home-hub-card--about {
-  --hub-icon-bg: var(--lx-hub-about-icon-bg);
-  --hub-icon-fg: var(--lx-hub-about-icon-fg);
-}
-
 .home-hub-card__accent {
-  flex: 0 0 14px;
-  min-height: 100%;
-  border-radius: var(--lx-radius-md) 0 0 var(--lx-radius-md);
+  flex: 0 0 3px;
+  width: 100%;
+  background: var(--hub-tab-bar);
+  opacity: 0.85;
 }
 
-.home-hub-card__body {
-  flex: 1;
+/* ── Header : icône + kicker + titre, centrés en colonne ── */
+.home-hub-card__header {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-  gap: clamp(12px, 2vw, 16px);
-  min-width: 0;
-  padding: clamp(16px, 2.4vw, 22px) clamp(16px, 2.2vw, 20px) clamp(16px, 2.4vw, 22px)
-    clamp(12px, 1.8vw, 16px);
+  text-align: center;
+  gap: 6px;
+  padding: clamp(20px, 2.8vw, 28px) clamp(16px, 2.2vw, 22px) clamp(14px, 2vw, 18px);
+  flex-shrink: 0;
 }
 
 .home-hub-card__icon-wrap {
@@ -431,94 +467,83 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
   background: var(--hub-icon-bg);
   color: var(--hub-icon-fg);
   box-shadow: 0 1px 0 var(--lx-hub-icon-wrap-highlight) inset;
-}
-
-.home-hub-card__title-row .home-hub-card__icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: 13px;
-}
-
-.home-hub-card__text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.home-hub-card__title-row {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  width: 100%;
-}
-
-.home-hub-card__title-row .home-hub-card__title {
-  flex: 1;
-  min-width: 0;
+  margin-bottom: 2px;
 }
 
 .home-hub-card__kicker {
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   font-weight: 800;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
-  color: var(--lx-text-2);
+  color: var(--hub-tab-bar);
+  opacity: 0.85;
+  line-height: 1;
 }
 
 .home-hub-card__title {
-  font-size: clamp(1.08rem, 2.3vw, 1.22rem);
+  font-size: clamp(1.05rem, 2vw, 1.15rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--lx-text-0);
-  line-height: 1.22;
+  line-height: 1.2;
+}
+
+/* Divider between header and content */
+.home-hub-card__divider {
+  height: 1px;
+  margin: 0;
+  background: color-mix(in srgb, var(--lx-border) 55%, transparent);
+  flex-shrink: 0;
+}
+
+/* Footer for simple cards (import / player) */
+.home-hub-card__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: clamp(10px, 1.6vw, 14px) clamp(16px, 2.2vw, 22px) clamp(16px, 2.2vw, 20px);
+  flex: 1 1 auto;
 }
 
 .home-hub-card__desc {
-  font-size: clamp(0.9rem, 1.6vw, 0.98rem);
-  line-height: 1.5;
-  color: var(--lx-text-1);
-  margin-top: 2px;
+  font-size: clamp(0.79rem, 1.3vw, 0.855rem);
+  line-height: 1.55;
+  color: var(--lx-text-2);
+  flex: 1 1 auto;
+  max-width: 22ch;
 }
 
-.home-hub-card__chevron {
-  flex-shrink: 0;
-  align-self: center;
-  display: flex;
+.home-hub-card__cta {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  color: var(--lx-hub-chevron);
-  opacity: 0.72;
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--hub-tab-bar);
+  opacity: 0.7;
+  transition: opacity 0.13s ease, gap 0.13s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .home-hub-card:hover {
-    border-color: color-mix(in srgb, var(--lx-text-0) 14%, var(--lx-hub-card-border));
+    border-color: color-mix(in srgb, var(--hub-tab-bar) 40%, var(--lx-hub-card-border));
     box-shadow:
       0 1px 0 var(--lx-hub-icon-wrap-highlight) inset,
-      0 14px 36px color-mix(in srgb, var(--lx-text-0) 12%, transparent);
+      0 10px 28px color-mix(in srgb, var(--lx-text-0) 10%, transparent);
     transform: translateY(-2px);
   }
 
-  .home-hub-card:hover .home-hub-card__chevron {
+  .home-hub-card:hover .home-hub-card__cta {
     opacity: 1;
-    color: var(--lx-hub-chevron);
-    transform: translateX(2px);
+    gap: 6px;
   }
 }
 
@@ -565,7 +590,7 @@ body {
     transform: none;
   }
 
-  .home-hub-card:hover .home-hub-card__chevron {
+  .hub-mode-btn:hover:not(:disabled) svg {
     transform: none;
   }
 }

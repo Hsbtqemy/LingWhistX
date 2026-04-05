@@ -72,9 +72,9 @@
     height: 48px;
   }
 
-  .home-hub-card__title-row .home-hub-card__icon-wrap {
-    width: 40px;
-    height: 40px;
+  .home-hub-card__text > .home-hub-card__icon-wrap {
+    width: 46px;
+    height: 46px;
   }
 
   .player-body {
@@ -464,10 +464,6 @@
     display: none;
   }
 
-  .home-hub-card__chevron--annoter {
-    display: flex;
-  }
-
   .home-hub-card__title {
     font-size: 1rem;
   }
@@ -553,4 +549,75 @@
   .lx-stats-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/*
+ * Hub « ambiance » — renfort visuel (ce fichier est importé en dernier dans App.css).
+ * Si tu ne vois pas l’effet : ouvre la vue Accueil (hub), pas Import/Éditeur ; recharge sans cache.
+ */
+.home-hub.home-hub--ambient {
+  background:
+    radial-gradient(ellipse 110% 65% at 48% -12%, color-mix(in srgb, var(--lx-accent) 30%, transparent), transparent 55%),
+    radial-gradient(ellipse 55% 42% at 92% 12%, color-mix(in srgb, var(--lx-accent-secondary) 22%, transparent), transparent 52%),
+    /* Fin sur --lx-bg (défini dans tokens.css) : sinon le dégradé entier était invalide et l’effet disparaissait */
+    linear-gradient(180deg, #cff2ea 0%, #ddeef8 48%, var(--lx-bg) 100%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--lx-accent) 28%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.home-hub.home-hub--ambient .home-hub-panel {
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+  border-color: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 10px 36px rgba(15, 23, 42, 0.11);
+}
+
+.home-hub.home-hub--ambient .hero-card.hero-card--hub {
+  background: rgba(255, 255, 255, 0.58);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.home-hub.home-hub--ambient .home-hub-card {
+  background: rgba(255, 255, 255, 0.62);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub.home-hub--ambient {
+    background:
+      radial-gradient(ellipse 110% 65% at 48% -12%, color-mix(in srgb, var(--lx-accent) 32%, transparent), transparent 56%),
+      radial-gradient(ellipse 55% 42% at 92% 12%, color-mix(in srgb, var(--lx-accent-secondary) 20%, transparent), transparent 52%),
+      linear-gradient(180deg, color-mix(in srgb, var(--lx-surface-0) 88%, #0b1220) 0%, var(--lx-bg) 85%);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub.home-hub--ambient .home-hub-panel,
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub.home-hub--ambient .home-hub-card,
+  :root:is([data-lx-theme="system"], :not([data-lx-theme])) .home-hub.home-hub--ambient .hero-card.hero-card--hub {
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+  }
+}
+
+:root[data-lx-theme="dark"] .home-hub.home-hub--ambient {
+  background:
+    radial-gradient(ellipse 110% 65% at 48% -12%, color-mix(in srgb, var(--lx-accent) 32%, transparent), transparent 56%),
+    radial-gradient(ellipse 55% 42% at 92% 12%, color-mix(in srgb, var(--lx-accent-secondary) 20%, transparent), transparent 52%),
+    linear-gradient(180deg, color-mix(in srgb, var(--lx-surface-0) 88%, #0b1220) 0%, var(--lx-bg) 85%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+:root[data-lx-theme="dark"] .home-hub.home-hub--ambient .home-hub-panel,
+:root[data-lx-theme="dark"] .home-hub.home-hub--ambient .home-hub-card,
+:root[data-lx-theme="dark"] .home-hub.home-hub--ambient .hero-card.hero-card--hub {
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
 }

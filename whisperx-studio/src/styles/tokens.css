@@ -12,6 +12,8 @@
 :root {
   /* Surfaces — neutre pierre / ardoise (mockup hub : fond gris très clair, pas de dominante verte) */
   --lx-surface-0: #f4f4f5;
+  /* Fond page (alias) — hub ambiance, overlays ; suit --lx-surface-0 quand le thème change */
+  --lx-bg: var(--lx-surface-0);
   --lx-surface-1: rgba(255, 255, 255, 0.96);
   --lx-surface-2: rgba(228, 231, 235, 0.55);
   /* Alias pratique (player / composants) — même surface que la carte principale */

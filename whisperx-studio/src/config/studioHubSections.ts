@@ -22,7 +22,7 @@ export const STUDIO_HUB_CARDS: {
     title: "Annoter",
     kicker: "Éditeur",
     description:
-      "Annoter sans ASR : ouvrir le menu pour choisir un mode d’entrée (audio, transcript ou bibliothèque).",
+      "Annoter sans ASR. Choisissez un mode ci-dessous : audio seul, avec transcript ou depuis la bibliothèque.",
     view: "editor",
     cardId: "editor",
   },
