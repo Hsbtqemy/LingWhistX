@@ -158,12 +158,26 @@ export function useNewJobForm({
     setJobFormStep("configure");
   }
 
+  function continueToReviewPanel() {
+    setError("");
+    if (!inputPath.trim()) {
+      setError("Le chemin du media est requis.");
+      return;
+    }
+    setJobFormStep("review");
+  }
+
   async function submitJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
     if (jobFormStep === "import") {
       continueToConfigurationPanel();
+      return;
+    }
+
+    if (jobFormStep === "configure") {
+      continueToReviewPanel();
       return;
     }
 
@@ -383,8 +397,7 @@ export function useNewJobForm({
       setSelectedJobId(created.id);
       await refreshJobs();
       onJobCreated?.();
-      setInputPath("");
-      setJobFormStep("import");
+      setJobFormStep("results");
     } catch (e) {
       setError(String(e));
     } finally {
@@ -459,6 +472,7 @@ export function useNewJobForm({
     pickInputPath,
     pickOutputDir,
     continueToConfigurationPanel,
+    continueToReviewPanel,
     submitJob,
     dirtyFields,
     applyProfile,

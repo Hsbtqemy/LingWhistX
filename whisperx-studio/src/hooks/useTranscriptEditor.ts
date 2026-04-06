@@ -549,7 +549,11 @@ export function useTranscriptEditor({
       setEditorError("Plage trop courte ou chevauchement avec un segment existant.");
       return;
     }
-    applyEditorPatch({ kind: "insert_segment", index: result.insertedIndex, segment: result.segment });
+    applyEditorPatch({
+      kind: "insert_segment",
+      index: result.insertedIndex,
+      segment: result.segment,
+    });
     setActiveSegmentIndex(result.insertedIndex);
     wf.setWaveformCursorSec(result.segment.start);
     setEditorError("");

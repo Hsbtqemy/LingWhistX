@@ -15,7 +15,7 @@
   box-shadow:
     0 1px 0 color-mix(in srgb, var(--lx-text-0) 8%, transparent) inset,
     0 26px 56px color-mix(in srgb, var(--lx-text-0) 12%, transparent);
-  overflow: hidden;
+  overflow: clip;
 }
 
 .player-workspace-top {
@@ -241,9 +241,7 @@ button.player-artifacts-strip__key {
 
 .player-body {
   display: grid;
-  /* min 0 : évite le débordement horizontal quand la fenêtre est étroite (sinon overflow:hidden
-     sur .player-workspace rogne le bord gauche des colonnes — titres « FILTRES » → « LTRES », etc.). */
-  grid-template-columns: minmax(0, 220px) minmax(0, 1fr) minmax(0, 220px);
+  grid-template-columns: minmax(170px, 220px) minmax(0, 1fr) minmax(170px, 220px);
   min-height: 0;
   min-width: 0;
   flex: 1;
@@ -357,7 +355,6 @@ details[open] > .player-panel-section-summary::before {
   border: 1px solid var(--lx-hairline);
   background: color-mix(in srgb, var(--lx-surface-1) 60%, var(--lx-surface-muted) 40%);
   min-width: 0;
-  overflow: hidden;
 }
 
 .player-panel-box[open] {
@@ -460,11 +457,14 @@ details[open] > .player-panel-section-summary::before {
 /* ── Panel toggles & actions ── */
 
 .player-panel-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: block;
   padding: 2px 0;
   cursor: pointer;
+}
+
+.player-panel-toggle input[type="checkbox"] {
+  vertical-align: middle;
+  margin-right: 6px;
 }
 
 .player-panel-action-btn {

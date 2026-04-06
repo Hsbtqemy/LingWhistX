@@ -16,7 +16,6 @@ export type StudioOpenRunSectionProps = {
   setError: (message: string) => void;
   setActiveView: (view: StudioView) => void;
   setSelectedJobId: (id: string) => void;
-  /** WX-624 — ouvre le workspace Player avec ce dossier de run. */
   onOpenPlayer?: (runDir: string, runLabel?: string | null) => void;
 };
 
@@ -236,7 +235,6 @@ export function StudioOpenRunSection({
     >
       <header className="panel-header">
         <h2 id="open-run-title">Ouvrir un run</h2>
-        <span className="field-help">WX-611 — dossier avec run_manifest.json (schema v1)</span>
       </header>
 
       <div className="open-run-actions">
@@ -340,7 +338,7 @@ export function StudioOpenRunSection({
               disabled={busy}
               onClick={() => void importEventsSqlite()}
             >
-              Indexer events.sqlite (WX-612)
+              Indexer events
             </button>
             {eventsImport ? (
               <span className="open-run-events-stats">
@@ -363,7 +361,7 @@ export function StudioOpenRunSection({
                 disabled={busy}
                 onClick={() => void testQueryWindow()}
               >
-                Tester fenêtre 0–30 s (WX-613)
+                Tester fenêtre 0–30 s
               </button>
             ) : null}
             {queryWindowPreview ? (
@@ -383,11 +381,7 @@ export function StudioOpenRunSection({
                 Ouvrir dans l’espace de travail
               </button>
             ) : (
-              <p className="field-help">
-                Aucun job Studio ne pointe vers ce dossier de sortie. Lance un traitement avec ce
-                dossier comme répertoire de sortie, ou ouvre les fichiers depuis le dossier
-                manuellement.
-              </p>
+              <p className="field-help">Aucun job associé à ce dossier.</p>
             )}
             {onOpenPlayer && summary ? (
               <button
@@ -395,15 +389,11 @@ export function StudioOpenRunSection({
                 className="ghost inline"
                 onClick={() => onOpenPlayer(summary.runDir, summary.runId)}
               >
-                Ouvrir le Player (WX-624)
+                Ouvrir le Player
               </button>
             ) : null}
           </div>
           <div className="open-run-danger-zone">
-            <p className="field-help">
-              Supprimer le dossier efface définitivement les fichiers du run (hors périmètre
-              sécurisé, la suppression est refusée).
-            </p>
             <Button
               type="button"
               variant="danger"

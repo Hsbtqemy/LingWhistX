@@ -91,7 +91,16 @@ export function EditorMiniPlayer({
         return;
       }
     },
-    [drawRange, onCommitDrawRange, onClearDrawRange, onResetZoom, onZoomToSegment, onPlaySegment, togglePlayPause, seekRelative],
+    [
+      drawRange,
+      onCommitDrawRange,
+      onClearDrawRange,
+      onResetZoom,
+      onZoomToSegment,
+      onPlaySegment,
+      togglePlayPause,
+      seekRelative,
+    ],
   );
 
   const onEditorWaveformWheel = useCallback(
@@ -138,7 +147,7 @@ export function EditorMiniPlayer({
         />
       )}
 
-        <div
+      <div
         className="editor-mini-player__waveform"
         tabIndex={0}
         onKeyDown={onWaveformKeyDown}
@@ -171,8 +180,7 @@ export function EditorMiniPlayer({
         )}
         {drawRange && drawRange.endSec > drawRange.startSec && (
           <div className="editor-mini-player__draw-range-hint small">
-            {drawRange.startSec.toFixed(2)}s → {drawRange.endSec.toFixed(2)}s
-            {" · "}
+            {drawRange.startSec.toFixed(2)}s → {drawRange.endSec.toFixed(2)}s{" · "}
             <kbd>Entrée</kbd> créer · <kbd>Échap</kbd> annuler
           </div>
         )}

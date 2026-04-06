@@ -388,7 +388,9 @@
   height: 3px;
   border-radius: 2px;
   background: var(--lx-border);
-  transition: background 0.15s, width 0.15s;
+  transition:
+    background 0.15s,
+    width 0.15s;
 }
 
 .editor-split-handle:hover .editor-split-handle__bar,
@@ -459,7 +461,9 @@
 }
 
 /* Ne pas faire grandir la rangée Segments (sinon flex-grow = toute la ligne → Convention toujours en dessous) */
-.editor-toolbar__section--segments .editor-toolbar__segments-convention-row .editor-toolbar__row--section {
+.editor-toolbar__section--segments
+  .editor-toolbar__segments-convention-row
+  .editor-toolbar__row--section {
   width: auto;
   flex: 0 1 auto;
   min-width: 0;
@@ -626,7 +630,9 @@
   max-width: min(100%, 26rem);
 }
 
-.editor-toolbar__export-row--format-narrow .editor-toolbar__fix-label-cluster--narrow .editor-toolbar__fix-label--narrow-toolbar {
+.editor-toolbar__export-row--format-narrow
+  .editor-toolbar__fix-label-cluster--narrow
+  .editor-toolbar__fix-label--narrow-toolbar {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
@@ -794,7 +800,9 @@
 }
 
 /* Barre éditeur — focus clavier visible */
-.editor-workspace-section__toolbar .editor-toolbar .editor-toolbar__overflow-menu-item:focus-visible,
+.editor-workspace-section__toolbar
+  .editor-toolbar
+  .editor-toolbar__overflow-menu-item:focus-visible,
 .editor-workspace-section__toolbar .editor-toolbar .editor-toolbar__overflow-trigger:focus-visible,
 .editor-workspace-section__toolbar .editor-toolbar .editor-toolbar__merge-cluster-btn:focus-visible,
 .editor-workspace-section__toolbar .editor-toolbar .ghost:focus-visible,

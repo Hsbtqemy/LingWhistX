@@ -318,6 +318,73 @@ button.step-tab:disabled {
   color: var(--lx-warning-text);
 }
 
+.import-summary-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--lx-surface-muted);
+  border: 1px solid var(--lx-border);
+}
+
+.import-summary-compact .ghost.inline {
+  margin-left: auto;
+}
+
+/* ── Récapitulatif job (étape 3) ── */
+.job-review-summary {
+  border: 1px solid var(--lx-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--lx-surface-muted);
+}
+
+.job-review-summary h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+
+.job-review-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  font-size: 0.85rem;
+}
+
+.job-review-dl dt {
+  font-weight: 600;
+  color: var(--lx-text-2);
+}
+
+.job-review-dl dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+.job-review-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* ── Options avancées flat ── */
+.whisperx-advanced-flat,
+.analysis-timing-flat {
+  display: grid;
+  gap: 10px;
+}
+
+.advanced-job-body--flat {
+  display: grid;
+  gap: 16px;
+}
+
+.job-form-diarize-speakers {
+  margin-top: -4px;
+}
+
 .path-input-row {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1146,4 +1213,18 @@ button.lx-btn--danger:hover:not(:disabled) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 14px;
+}
+
+/* ── Étape 4 : Résultats ── */
+.job-results-step {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.job-results-nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
 }

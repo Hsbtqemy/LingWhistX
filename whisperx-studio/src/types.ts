@@ -1,5 +1,5 @@
 export type JobStatus = "queued" | "running" | "done" | "error" | "cancelled";
-export type JobFormStep = "import" | "configure";
+export type JobFormStep = "import" | "configure" | "review" | "results";
 
 /** Vues principales de l’application (navigation par onglets) */
 export type StudioView = "hub" | "import" | "editor" | "player" | "settings";

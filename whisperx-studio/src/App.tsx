@@ -9,7 +9,6 @@ import { RunLibrary } from "./components/shared/RunLibrary";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { STUDIO_PANEL_IDS, STUDIO_TAB_IDS, StudioNav } from "./components/StudioNav";
 import { PlayerWorkspaceSection } from "./components/player/PlayerWorkspaceSection";
-import { StudioJobsSection } from "./components/StudioJobsSection";
 import { StudioWorkspaceSection } from "./components/StudioWorkspaceSection";
 import { useAppErrorStack } from "./hooks/useAppErrorStack";
 import { useAnnotationRunImport } from "./hooks/useAnnotationRunImport";
@@ -120,12 +119,12 @@ function App() {
   const handleAnnoterAudioOnly = useCallback(async () => {
     const runDir = await hubAnnotationImport.importAudioOnly();
     if (runDir) handleOpenEditor(runDir, fileBasename(runDir));
-  }, [hubAnnotationImport.importAudioOnly, handleOpenEditor]);
+  }, [hubAnnotationImport, handleOpenEditor]);
 
   const handleAnnoterWithTranscript = useCallback(async () => {
     const runDir = await hubAnnotationImport.importWithTranscript();
     if (runDir) handleOpenEditor(runDir, fileBasename(runDir));
-  }, [hubAnnotationImport.importWithTranscript, handleOpenEditor]);
+  }, [hubAnnotationImport, handleOpenEditor]);
 
   const handleAnnoterFromLibrary = useCallback(() => {
     setLibraryOpen(true);
@@ -167,28 +166,21 @@ function App() {
     };
   }, []);
 
-  const {
-    jobsHistory,
-    runDetails,
-    runningJobs,
-    refreshJobs,
-    setSelectedJobId,
-    jobForm,
-    explorer,
-    sessionRestore,
-  } = useStudioWorkspace({
-    runDetailsRef,
-    setError,
-    runtimeReady,
-    runtimeCoreReady,
-    runtimeStatus,
-    onJobCreated: () => setActiveView("import"),
-    injectAudioPipelineSegmentsJson,
-    onOpenPlayerRun: handleOpenPlayer,
-    onJobBecameDone: handleJobBecameDone,
-    onNavigateToWorkspace: () => setActiveView("hub"),
-    onAnnotationWrittenToPlayer: handleAnnotationWrittenToPlayer,
-  });
+  const { runDetails, runningJobs, setSelectedJobId, jobForm, sessionRestore } = useStudioWorkspace(
+    {
+      runDetailsRef,
+      setError,
+      runtimeReady,
+      runtimeCoreReady,
+      runtimeStatus,
+      onJobCreated: () => setActiveView("import"),
+      injectAudioPipelineSegmentsJson,
+      onOpenPlayerRun: handleOpenPlayer,
+      onJobBecameDone: handleJobBecameDone,
+      onNavigateToWorkspace: () => setActiveView("hub"),
+      onAnnotationWrittenToPlayer: handleAnnotationWrittenToPlayer,
+    },
+  );
 
   const handlePlayerImportPick = useCallback(async () => {
     setError("");
@@ -260,9 +252,7 @@ function App() {
           {activeView === "import" && (
             <>
               <StudioWorkspaceSection
-                runDetailsRef={runDetailsRef}
                 runDetails={runDetails}
-                explorer={explorer}
                 sessionRestore={sessionRestore}
                 setError={setError}
                 setActiveView={setActiveView}
@@ -270,10 +260,8 @@ function App() {
                 onOpenPlayer={handleOpenPlayer}
                 runningJobs={runningJobs}
                 errors={appErrors}
-                refreshJobs={refreshJobs}
                 jobForm={jobForm}
               />
-              <StudioJobsSection jobsHistory={jobsHistory} />
             </>
           )}
         </div>

@@ -146,7 +146,12 @@ export const EditorToolbar = memo(function EditorToolbar({
   const closeSegmentsOverflow = () => setSegmentsOverflowOpen(false);
 
   return (
-    <div ref={toolbarRef} className="editor-toolbar" role="region" aria-label="Panneau lecture et édition">
+    <div
+      ref={toolbarRef}
+      className="editor-toolbar"
+      role="region"
+      aria-label="Panneau lecture et édition"
+    >
       {/* ── Lecture (transport + boucle — déplacé depuis le mini-lecteur) ── */}
       <div className="editor-toolbar__section editor-toolbar__section--playback">
         <span className="editor-toolbar__section-label" id="editor-toolbar-sec-playback">
@@ -357,222 +362,220 @@ export const EditorToolbar = memo(function EditorToolbar({
           Segments
         </span>
         <div className="editor-toolbar__segments-convention-row">
-        <div
-          className={`editor-toolbar__row editor-toolbar__row--section${narrowSegments ? " editor-toolbar__row--segments-bar" : ""}`}
-          aria-labelledby="editor-toolbar-sec-segments"
-        >
-          <button
-            type="button"
-            className="ghost small"
-            disabled={!canUndoEditor || busy}
-            onClick={undoEditorChange}
-            title="Annuler (Alt+Z)"
-            aria-label="Annuler"
+          <div
+            className={`editor-toolbar__row editor-toolbar__row--section${narrowSegments ? " editor-toolbar__row--segments-bar" : ""}`}
+            aria-labelledby="editor-toolbar-sec-segments"
           >
-            ↩
-          </button>
-          <button
-            type="button"
-            className="ghost small"
-            disabled={!canRedoEditor || busy}
-            onClick={redoEditorChange}
-            title="Rétablir (Alt+⇧+Z)"
-            aria-label="Rétablir"
-          >
-            ↪
-          </button>
-          <span className="editor-toolbar__sep" aria-hidden />
-          <button
-            type="button"
-            className="ghost small"
-            disabled={!canSplitActiveSegment || busy}
-            onClick={splitActiveSegmentAtCursor}
-            title="Couper le segment au curseur waveform"
-            aria-label="Split"
-          >
-            ✂ Split
-          </button>
-          {!narrowSegments ? (
-            <>
-              <span className="editor-toolbar__sep" aria-hidden />
-              <div
-                className="editor-toolbar__merge-cluster"
-                role="group"
-                aria-label="Fusion avec le segment voisin"
-              >
-                <button
-                  type="button"
-                  className="ghost small editor-toolbar__merge-cluster-btn editor-toolbar__merge-cluster-btn--prev"
-                  disabled={!canMergePrev || busy}
-                  onClick={() => mergeActiveSegment("prev")}
-                  title="Fusionner avec le segment précédent"
-                  aria-label="Fusionner avec le précédent"
+            <button
+              type="button"
+              className="ghost small"
+              disabled={!canUndoEditor || busy}
+              onClick={undoEditorChange}
+              title="Annuler (Alt+Z)"
+              aria-label="Annuler"
+            >
+              ↩
+            </button>
+            <button
+              type="button"
+              className="ghost small"
+              disabled={!canRedoEditor || busy}
+              onClick={redoEditorChange}
+              title="Rétablir (Alt+⇧+Z)"
+              aria-label="Rétablir"
+            >
+              ↪
+            </button>
+            <span className="editor-toolbar__sep" aria-hidden />
+            <button
+              type="button"
+              className="ghost small"
+              disabled={!canSplitActiveSegment || busy}
+              onClick={splitActiveSegmentAtCursor}
+              title="Couper le segment au curseur waveform"
+              aria-label="Split"
+            >
+              ✂ Split
+            </button>
+            {!narrowSegments ? (
+              <>
+                <span className="editor-toolbar__sep" aria-hidden />
+                <div
+                  className="editor-toolbar__merge-cluster"
+                  role="group"
+                  aria-label="Fusion avec le segment voisin"
                 >
-                  ↑
-                </button>
-                <span className="editor-toolbar__merge-cluster-label" aria-hidden>
-                  Merge
-                </span>
-                <button
-                  type="button"
-                  className="ghost small editor-toolbar__merge-cluster-btn editor-toolbar__merge-cluster-btn--next"
-                  disabled={!canMergeNext || busy}
-                  onClick={() => mergeActiveSegment("next")}
-                  title="Fusionner avec le segment suivant"
-                  aria-label="Fusionner avec le suivant"
-                >
-                  ↓
-                </button>
-              </div>
-              <button
-                type="button"
-                className="ghost small"
-                disabled={busy || !editorSourcePath.trim()}
-                onClick={insertBlankSegment}
-                title="Insérer un segment vide (position curseur waveform)"
-                aria-label="Insérer un segment vide"
-              >
-                + Segment
-              </button>
-              <button
-                type="button"
-                className="ghost small editor-toolbar__delete-btn"
-                disabled={!canDeleteSegment || busy}
-                onClick={deleteActiveSegment}
-                title="Supprimer le segment actif"
-                aria-label="Supprimer segment"
-              >
-                🗑
-              </button>
-            </>
-          ) : (
-            <>
-              <span className="editor-toolbar__sep" aria-hidden />
-              <div ref={segmentsOverflowWrapRef} className="editor-toolbar__overflow-wrap">
-                <button
-                  type="button"
-                  className="ghost small editor-toolbar__overflow-trigger"
-                  disabled={busy}
-                  onClick={() => setSegmentsOverflowOpen((o) => !o)}
-                  aria-expanded={segmentsOverflowOpen}
-                  aria-haspopup="menu"
-                  aria-controls="editor-toolbar-segments-overflow"
-                  id="editor-toolbar-segments-trigger"
-                  title="Fusion, insertion, suppression…"
-                >
-                  Autres…
-                </button>
-                {segmentsOverflowOpen && (
-                  <div
-                    id="editor-toolbar-segments-overflow"
-                    role="menu"
-                    className="editor-toolbar__overflow-flyout"
-                    aria-labelledby="editor-toolbar-segments-trigger"
-                  >
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="ghost small editor-toolbar__overflow-menu-item"
-                      disabled={!canMergePrev || busy}
-                      onClick={() => {
-                        mergeActiveSegment("prev");
-                        closeSegmentsOverflow();
-                      }}
-                    >
-                      ↑ Fusionner avec le précédent
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="ghost small editor-toolbar__overflow-menu-item"
-                      disabled={!canMergeNext || busy}
-                      onClick={() => {
-                        mergeActiveSegment("next");
-                        closeSegmentsOverflow();
-                      }}
-                    >
-                      ↓ Fusionner avec le suivant
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="ghost small editor-toolbar__overflow-menu-item"
-                      disabled={busy || !editorSourcePath.trim()}
-                      onClick={() => {
-                        insertBlankSegment();
-                        closeSegmentsOverflow();
-                      }}
-                    >
-                      + Segment vide
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="ghost small editor-toolbar__overflow-menu-item editor-toolbar__delete-btn"
-                      disabled={!canDeleteSegment || busy}
-                      onClick={() => {
-                        deleteActiveSegment();
-                        closeSegmentsOverflow();
-                      }}
-                    >
-                      🗑 Supprimer le segment
-                    </button>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-        {availableConventions.length > 0 ? (
-          <div className="editor-toolbar__convention-line editor-toolbar__convention-line--inline editor-toolbar__convention-line--segments-toolbar">
-            <div className="editor-toolbar__convention-line-head">
-              <span
-                className="editor-toolbar__export-inline-label"
-                id="editor-toolbar-conv-label"
-              >
-                Convention
-              </span>
-              <select
-                className="editor-toolbar__convention-select small"
-                value={activeConventionId}
-                onChange={(e) => onChangeConvention(e.target.value)}
-                aria-labelledby="editor-toolbar-conv-label"
-                title="Convention d’annotation pour les raccourcis de marques"
-              >
-                {availableConventions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {hasMarks ? (
-              <div
-                className="editor-toolbar__convention-marks"
-                role="group"
-                aria-label="Raccourcis de marques (convention active)"
-              >
-                {activeConvention?.marks.map((mark) => (
                   <button
-                    key={mark.id}
                     type="button"
-                    className="ghost small editor-toolbar__mark-btn"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      onInsertMark(mark.symbol);
-                    }}
-                    title={
-                      mark.description ? `${mark.label} — ${mark.description}` : mark.label
-                    }
-                    aria-label={`Insérer ${mark.label}`}
+                    className="ghost small editor-toolbar__merge-cluster-btn editor-toolbar__merge-cluster-btn--prev"
+                    disabled={!canMergePrev || busy}
+                    onClick={() => mergeActiveSegment("prev")}
+                    title="Fusionner avec le segment précédent"
+                    aria-label="Fusionner avec le précédent"
                   >
-                    {mark.symbol}
+                    ↑
                   </button>
-                ))}
-              </div>
-            ) : null}
+                  <span className="editor-toolbar__merge-cluster-label" aria-hidden>
+                    Merge
+                  </span>
+                  <button
+                    type="button"
+                    className="ghost small editor-toolbar__merge-cluster-btn editor-toolbar__merge-cluster-btn--next"
+                    disabled={!canMergeNext || busy}
+                    onClick={() => mergeActiveSegment("next")}
+                    title="Fusionner avec le segment suivant"
+                    aria-label="Fusionner avec le suivant"
+                  >
+                    ↓
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="ghost small"
+                  disabled={busy || !editorSourcePath.trim()}
+                  onClick={insertBlankSegment}
+                  title="Insérer un segment vide (position curseur waveform)"
+                  aria-label="Insérer un segment vide"
+                >
+                  + Segment
+                </button>
+                <button
+                  type="button"
+                  className="ghost small editor-toolbar__delete-btn"
+                  disabled={!canDeleteSegment || busy}
+                  onClick={deleteActiveSegment}
+                  title="Supprimer le segment actif"
+                  aria-label="Supprimer segment"
+                >
+                  🗑
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="editor-toolbar__sep" aria-hidden />
+                <div ref={segmentsOverflowWrapRef} className="editor-toolbar__overflow-wrap">
+                  <button
+                    type="button"
+                    className="ghost small editor-toolbar__overflow-trigger"
+                    disabled={busy}
+                    onClick={() => setSegmentsOverflowOpen((o) => !o)}
+                    aria-expanded={segmentsOverflowOpen}
+                    aria-haspopup="menu"
+                    aria-controls="editor-toolbar-segments-overflow"
+                    id="editor-toolbar-segments-trigger"
+                    title="Fusion, insertion, suppression…"
+                  >
+                    Autres…
+                  </button>
+                  {segmentsOverflowOpen && (
+                    <div
+                      id="editor-toolbar-segments-overflow"
+                      role="menu"
+                      className="editor-toolbar__overflow-flyout"
+                      aria-labelledby="editor-toolbar-segments-trigger"
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="ghost small editor-toolbar__overflow-menu-item"
+                        disabled={!canMergePrev || busy}
+                        onClick={() => {
+                          mergeActiveSegment("prev");
+                          closeSegmentsOverflow();
+                        }}
+                      >
+                        ↑ Fusionner avec le précédent
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="ghost small editor-toolbar__overflow-menu-item"
+                        disabled={!canMergeNext || busy}
+                        onClick={() => {
+                          mergeActiveSegment("next");
+                          closeSegmentsOverflow();
+                        }}
+                      >
+                        ↓ Fusionner avec le suivant
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="ghost small editor-toolbar__overflow-menu-item"
+                        disabled={busy || !editorSourcePath.trim()}
+                        onClick={() => {
+                          insertBlankSegment();
+                          closeSegmentsOverflow();
+                        }}
+                      >
+                        + Segment vide
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="ghost small editor-toolbar__overflow-menu-item editor-toolbar__delete-btn"
+                        disabled={!canDeleteSegment || busy}
+                        onClick={() => {
+                          deleteActiveSegment();
+                          closeSegmentsOverflow();
+                        }}
+                      >
+                        🗑 Supprimer le segment
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
-        ) : null}
+          {availableConventions.length > 0 ? (
+            <div className="editor-toolbar__convention-line editor-toolbar__convention-line--inline editor-toolbar__convention-line--segments-toolbar">
+              <div className="editor-toolbar__convention-line-head">
+                <span
+                  className="editor-toolbar__export-inline-label"
+                  id="editor-toolbar-conv-label"
+                >
+                  Convention
+                </span>
+                <select
+                  className="editor-toolbar__convention-select small"
+                  value={activeConventionId}
+                  onChange={(e) => onChangeConvention(e.target.value)}
+                  aria-labelledby="editor-toolbar-conv-label"
+                  title="Convention d’annotation pour les raccourcis de marques"
+                >
+                  {availableConventions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {hasMarks ? (
+                <div
+                  className="editor-toolbar__convention-marks"
+                  role="group"
+                  aria-label="Raccourcis de marques (convention active)"
+                >
+                  {activeConvention?.marks.map((mark) => (
+                    <button
+                      key={mark.id}
+                      type="button"
+                      className="ghost small editor-toolbar__mark-btn"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        onInsertMark(mark.symbol);
+                      }}
+                      title={mark.description ? `${mark.label} — ${mark.description}` : mark.label}
+                      aria-label={`Insérer ${mark.label}`}
+                    >
+                      {mark.symbol}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 

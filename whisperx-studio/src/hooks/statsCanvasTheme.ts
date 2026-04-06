@@ -29,7 +29,7 @@ export function getStatsCanvasThemeColors(): StatsCanvasThemeColors {
     grid: v("--lx-stats-grid", "rgba(128, 128, 128, 0.15)"),
     overlapFill: v("--lx-stats-overlap-fill", "rgba(217, 83, 79, 0.25)"),
     overlapStroke: v("--lx-stats-overlap-stroke", "rgba(217, 83, 79, 0.6)"),
-    accent: v("--lx-accent", "#0f8a94"),
+    accent: v("--lx-accent", "#0369a1"),
     densityFill: v("--lx-stats-density-fill", "rgba(52, 152, 219, 0.08)"),
     densityStroke: v("--lx-stats-density-stroke", "rgba(52, 152, 219, 0.9)"),
     brushFill: v("--lx-stats-brush-fill", "rgba(99, 102, 241, 0.12)"),

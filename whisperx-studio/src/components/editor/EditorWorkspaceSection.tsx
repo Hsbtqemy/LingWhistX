@@ -177,34 +177,31 @@ export function EditorWorkspaceSection({
       </div>
       <div className="editor-workspace-section__body">
         <div className="editor-waveform-pane" style={{ height: waveformHeight }}>
-        <EditorMiniPlayer
-          playback={playback}
-          wf={wf}
-          onWaveformMouseDown={
-            editor.onWaveformMouseDown as unknown as (e: MouseEvent<HTMLDivElement>) => void
-          }
-          onWaveformMouseMove={
-            editor.onWaveformMouseMove as unknown as (e: MouseEvent<HTMLDivElement>) => void
-          }
-          onWaveformMouseUp={
-            editor.onWaveformMouseUp as unknown as (e: MouseEvent<HTMLDivElement>) => void
-          }
-          onWaveformMouseLeave={
-            editor.onWaveformMouseLeave as unknown as (e: MouseEvent<HTMLDivElement>) => void
-          }
-          hoveredSegmentEdge={editor.hoveredSegmentEdge}
-          drawRange={editor.drawRange}
-          onCommitDrawRange={handleCommitDrawRange}
-          onClearDrawRange={editor.clearDrawRange}
-          onZoomToSegment={handleZoomToSegment}
-          onResetZoom={handleResetZoom}
-          onPlaySegment={handlePlaySegment}
-        />
+          <EditorMiniPlayer
+            playback={playback}
+            wf={wf}
+            onWaveformMouseDown={
+              editor.onWaveformMouseDown as unknown as (e: MouseEvent<HTMLDivElement>) => void
+            }
+            onWaveformMouseMove={
+              editor.onWaveformMouseMove as unknown as (e: MouseEvent<HTMLDivElement>) => void
+            }
+            onWaveformMouseUp={
+              editor.onWaveformMouseUp as unknown as (e: MouseEvent<HTMLDivElement>) => void
+            }
+            onWaveformMouseLeave={
+              editor.onWaveformMouseLeave as unknown as (e: MouseEvent<HTMLDivElement>) => void
+            }
+            hoveredSegmentEdge={editor.hoveredSegmentEdge}
+            drawRange={editor.drawRange}
+            onCommitDrawRange={handleCommitDrawRange}
+            onClearDrawRange={editor.clearDrawRange}
+            onZoomToSegment={handleZoomToSegment}
+            onResetZoom={handleResetZoom}
+            onPlaySegment={handlePlaySegment}
+          />
         </div>
-        <div
-          className="editor-split-handle"
-          onMouseDown={onSplitHandleMouseDown}
-        >
+        <div className="editor-split-handle" onMouseDown={onSplitHandleMouseDown}>
           <div className="editor-split-handle__bar" />
         </div>
         <EditorSegmentList

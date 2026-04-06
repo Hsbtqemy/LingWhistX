@@ -222,7 +222,10 @@ export const EditorSegmentList = memo(function EditorSegmentList({
 
                 {/* Actions inline — visibles uniquement sur le segment actif */}
                 {isActive && (
-                  <div className="editor-segment-row__inline-actions" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="editor-segment-row__inline-actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <button
                       type="button"
                       className="ghost small"

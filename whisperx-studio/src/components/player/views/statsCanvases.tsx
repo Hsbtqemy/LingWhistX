@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { formatClockSeconds } from "../../../appUtils";
 import { getStatsCanvasThemeColors } from "../../../hooks/statsCanvasTheme";
 import { useWaveformThemeRevision } from "../../../hooks/waveformCanvasTheme";
@@ -365,8 +365,11 @@ export function SpeechTimelineCanvas({
   const H = expanded ? 120 : 60;
   const maxLaneH = expanded ? 36 : 20;
   const themeRev = useWaveformThemeRevision();
-  const getLaneH = (containerH: number) =>
-    speakers.length > 0 ? Math.min(maxLaneH, (containerH - 10) / speakers.length) : maxLaneH;
+  const getLaneH = useCallback(
+    (containerH: number) =>
+      speakers.length > 0 ? Math.min(maxLaneH, (containerH - 10) / speakers.length) : maxLaneH,
+    [speakers.length, maxLaneH],
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -439,7 +442,17 @@ export function SpeechTimelineCanvas({
       ctx.lineWidth = 1;
       ctx.strokeRect(bx, 0, bw, H);
     }
-  }, [timeline, speakers, totalDurationMs, playheadMs, overlapSegments, themeRev, H, brushRange]);
+  }, [
+    timeline,
+    speakers,
+    totalDurationMs,
+    playheadMs,
+    overlapSegments,
+    themeRev,
+    H,
+    brushRange,
+    getLaneH,
+  ]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (e.button !== 0 || totalDurationMs <= 0) return;

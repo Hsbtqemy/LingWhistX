@@ -5,12 +5,12 @@
  *
  * Code couleur (volontairement restreint, style produit) :
  * - Neutre ardoise : texte, bordures, surfaces — base de l’interface.
- * - Marque (teal) : actions primaires, focus, onglet actif, repères forts.
+ * - Marque (bleu océan) : actions primaires, focus, onglet actif, repères forts.
  * - Sémantique : danger / warning / états job — réservés au sens (pas décoratif).
  * - Hub (accueil) : 4 teintes distinctes (repère visuel fort) — le reste de l’app reste sobre.
  */
 :root {
-  /* Surfaces — neutre pierre / ardoise (mockup hub : fond gris très clair, pas de dominante verte) */
+  /* Surfaces — neutre pierre / ardoise (fond gris très clair, accent bleu océan discret) */
   --lx-surface-0: #f4f4f5;
   /* Fond page (alias) — hub ambiance, overlays ; suit --lx-surface-0 quand le thème change */
   --lx-bg: var(--lx-surface-0);
@@ -18,7 +18,7 @@
   --lx-surface-2: rgba(228, 231, 235, 0.55);
   /* Alias pratique (player / composants) — même surface que la carte principale */
   --lx-surface: var(--lx-surface-1);
-  /* Texte — ardoise (lisibilité sans dominante verte) */
+  /* Texte — ardoise (lisibilité neutre) */
   --lx-text-0: #0f172a;
   --lx-text-1: #334155;
   --lx-text-2: #64748b;
@@ -77,18 +77,18 @@
   --lx-waveform-handle-cold: color-mix(in srgb, #1a6fb0 100%, transparent);
   --lx-waveform-handle-hot: color-mix(in srgb, var(--lx-warning) 90%, transparent);
   /* Accent & états */
-  --lx-accent: #0f8a94;
-  --lx-accent-hover: #0c6f77;
-  --lx-accent-secondary: #0aa07a;
+  --lx-accent: #0369a1;
+  --lx-accent-hover: #075985;
+  --lx-accent-secondary: #0284c7;
   --lx-danger: #b42318;
   --lx-warning: #8a4b16;
   /* Jobs / pipeline — même sémantique partout (cartes, pills, barres) */
   --lx-status-queued-bg: #edf3f4;
   --lx-status-queued-fg: #456772;
   --lx-status-queued-border: rgba(69, 103, 114, 0.35);
-  --lx-status-running-bg: #daf4f3;
-  --lx-status-running-fg: #0e7680;
-  --lx-status-running-border: rgba(9, 139, 156, 0.45);
+  --lx-status-running-bg: #dbeafe;
+  --lx-status-running-fg: #1e40af;
+  --lx-status-running-border: rgba(37, 99, 235, 0.45);
   --lx-status-done-bg: #dcf3e5;
   --lx-status-done-fg: #1b7d5b;
   --lx-status-done-border: rgba(35, 154, 121, 0.45);
@@ -151,8 +151,8 @@
   --lx-body-gradient-stop-2: #f1f5f9;
   --lx-body-gradient-stop-3: #eef2f6;
   /* Fond page : une seule paume très discrète (évite la multiplication des teintes) */
-  --lx-body-radial-a: rgba(15, 118, 128, 0.06);
-  --lx-body-radial-b: rgba(15, 118, 128, 0.03);
+  --lx-body-radial-a: rgba(3, 105, 161, 0.06);
+  --lx-body-radial-b: rgba(3, 105, 161, 0.03);
   --lx-body-radial-c: rgba(15, 23, 42, 0.04);
   --lx-body-background:
     radial-gradient(ellipse 120% 80% at 50% -30%, var(--lx-body-radial-a), transparent 55%),
@@ -174,18 +174,18 @@
   --lx-hub-card-surface: #ffffff;
   --lx-hub-card-border: rgba(15, 23, 42, 0.1);
   --lx-hub-card-shadow: var(--lx-shadow-card);
-  --lx-hub-workspace-bar: #0d9488;
+  --lx-hub-workspace-bar: #0369a1;
   --lx-hub-player-bar: #ea580c;
   --lx-hub-jobs-bar: #4338ca;
   --lx-hub-about-bar: #7c3aed;
   /* Onglets hub (Transcrire / Annoter / Analyser) — une teinte par carte */
-  --lx-hub-tab-transcribe-bar: #0d9488;
+  --lx-hub-tab-transcribe-bar: #0369a1;
   --lx-hub-tab-transcribe-icon-bg: color-mix(
     in srgb,
     var(--lx-hub-tab-transcribe-bar) 14%,
     var(--lx-text-inverse)
   );
-  --lx-hub-tab-transcribe-icon-fg: #0f766e;
+  --lx-hub-tab-transcribe-icon-fg: #075985;
   --lx-hub-tab-annotate-bar: #4f46e5;
   --lx-hub-tab-annotate-icon-bg: color-mix(
     in srgb,
@@ -205,7 +205,7 @@
     var(--lx-hub-workspace-bar) 14%,
     var(--lx-text-inverse)
   );
-  --lx-hub-workspace-icon-fg: #0f766e;
+  --lx-hub-workspace-icon-fg: #075985;
   --lx-hub-player-icon-bg: color-mix(in srgb, var(--lx-hub-player-bar) 14%, var(--lx-text-inverse));
   --lx-hub-player-icon-fg: #9a3412;
   --lx-hub-jobs-icon-bg: color-mix(in srgb, var(--lx-hub-jobs-bar) 14%, var(--lx-text-inverse));
@@ -215,7 +215,7 @@
   --lx-hub-chevron: color-mix(in srgb, var(--lx-text-2) 88%, var(--lx-hub-workspace-bar));
   --lx-hub-icon-wrap-highlight: rgba(255, 255, 255, 0.75);
   /* Titre héros accueil — rappelle la diversité du hub sans toucher aux autres vues */
-  --lx-hero-brand-gradient: linear-gradient(118deg, #0c8a96 0%, #0d9488 38%, #7c3aed 100%);
+  --lx-hero-brand-gradient: linear-gradient(118deg, #0369a1 0%, #0284c7 38%, #7c3aed 100%);
   /* Chrome + navigation — inactif neutre ; actif = teinte marque discrète (pas de 2e couleur vive) */
   --lx-chrome-bg: #e2e8f0;
   --lx-chrome-bg-hover: #cbd5e1;
@@ -320,26 +320,26 @@ html::-webkit-scrollbar-thumb {
     --lx-nav-tab-hover-border: rgba(255, 255, 255, 0.12);
     --lx-nav-tab-hover-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     --lx-nav-tab-active-bg: color-mix(in srgb, var(--lx-accent) 26%, var(--lx-surface-2));
-    --lx-nav-tab-active-fg: #ecfdf5;
+    --lx-nav-tab-active-fg: #f0f9ff;
     --lx-nav-tab-active-border: color-mix(in srgb, var(--lx-accent) 38%, transparent);
     --lx-nav-tab-active-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
     --lx-nav-activity-ring-active: color-mix(in srgb, var(--lx-accent) 50%, transparent);
     --lx-badge-info-fg: var(--lx-text-1);
     --lx-badge-info-bg: var(--lx-surface-muted);
-    --lx-accent: #2dd4bf;
-    --lx-accent-hover: #5eead4;
-    --lx-accent-secondary: #34d399;
+    --lx-accent: #38bdf8;
+    --lx-accent-hover: #7dd3fc;
+    --lx-accent-secondary: #0ea5e9;
     --lx-danger: #f87171;
     --lx-warning: #fbbf24;
     --lx-warning-text: var(--lx-warning);
     --lx-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 22px 48px rgba(0, 0, 0, 0.4);
     --lx-focus-ring-surface: #0f1419;
-    --lx-focus-ring-color: #5eead4;
+    --lx-focus-ring-color: #7dd3fc;
     --lx-body-gradient-stop-1: #0f1419;
     --lx-body-gradient-stop-2: #111827;
     --lx-body-gradient-stop-3: #0f172a;
-    --lx-body-radial-a: rgba(45, 212, 191, 0.07);
-    --lx-body-radial-b: rgba(45, 212, 191, 0.04);
+    --lx-body-radial-a: rgba(56, 189, 248, 0.07);
+    --lx-body-radial-b: rgba(56, 189, 248, 0.04);
     --lx-body-radial-c: rgba(148, 163, 184, 0.06);
     --lx-body-background:
       radial-gradient(ellipse 120% 80% at 50% -30%, var(--lx-body-radial-a), transparent 55%),
@@ -357,18 +357,18 @@ html::-webkit-scrollbar-thumb {
     --lx-hub-card-surface: #1e293b;
     --lx-hub-card-border: rgba(255, 255, 255, 0.12);
     --lx-hub-card-shadow: var(--lx-shadow-card);
-    /* Hub sombre — 4 teintes lisibles sur fond sombre (comme le mockup) */
-    --lx-hub-workspace-bar: #22d3ee;
+    /* Hub sombre — 4 teintes lisibles sur fond sombre */
+    --lx-hub-workspace-bar: #38bdf8;
     --lx-hub-player-bar: #fbbf24;
     --lx-hub-jobs-bar: #c4b5fd;
     --lx-hub-about-bar: #e879f9;
-    --lx-hub-tab-transcribe-bar: #2dd4bf;
+    --lx-hub-tab-transcribe-bar: #38bdf8;
     --lx-hub-tab-transcribe-icon-bg: color-mix(
       in srgb,
       var(--lx-hub-tab-transcribe-bar) 24%,
       transparent
     );
-    --lx-hub-tab-transcribe-icon-fg: #ecfdf5;
+    --lx-hub-tab-transcribe-icon-fg: #f0f9ff;
     --lx-hub-tab-annotate-bar: #818cf8;
     --lx-hub-tab-annotate-icon-bg: color-mix(
       in srgb,
@@ -384,7 +384,7 @@ html::-webkit-scrollbar-thumb {
     );
     --lx-hub-tab-analyze-icon-fg: #fffbeb;
     --lx-hub-workspace-icon-bg: color-mix(in srgb, var(--lx-hub-workspace-bar) 24%, transparent);
-    --lx-hub-workspace-icon-fg: #ecfeff;
+    --lx-hub-workspace-icon-fg: #f0f9ff;
     --lx-hub-player-icon-bg: color-mix(in srgb, var(--lx-hub-player-bar) 26%, transparent);
     --lx-hub-player-icon-fg: #fffbeb;
     --lx-hub-jobs-icon-bg: color-mix(in srgb, var(--lx-hub-jobs-bar) 26%, transparent);
@@ -393,7 +393,7 @@ html::-webkit-scrollbar-thumb {
     --lx-hub-about-icon-fg: #fdf4ff;
     --lx-hub-chevron: color-mix(in srgb, var(--lx-text-2) 72%, var(--lx-text-inverse));
     --lx-hub-icon-wrap-highlight: rgba(255, 255, 255, 0.08);
-    --lx-hero-brand-gradient: linear-gradient(118deg, #22d3ee 0%, #a78bfa 45%, #e879f9 100%);
+    --lx-hero-brand-gradient: linear-gradient(118deg, #38bdf8 0%, #a78bfa 45%, #e879f9 100%);
     /* Carte héros accueil (nav.css) — une seule source pour prefers-color-scheme + data-lx-theme */
     --lx-hero-hub-card-border: color-mix(in srgb, var(--lx-text-inverse) 10%, transparent);
     --lx-hero-hub-card-bg: linear-gradient(
@@ -411,13 +411,13 @@ html::-webkit-scrollbar-thumb {
       color-mix(in srgb, var(--lx-hub-jobs-bar) 10%, transparent) 42%,
       transparent 70%
     );
-    /* Pills statut jobs — fonds/teintes adaptés au sombre (évite « tout vert ») */
+    /* Pills statut jobs — fonds/teintes adaptés au sombre */
     --lx-status-queued-bg: rgba(148, 163, 184, 0.18);
     --lx-status-queued-fg: #cbd5e1;
     --lx-status-queued-border: rgba(148, 163, 184, 0.38);
-    --lx-status-running-bg: rgba(45, 212, 191, 0.16);
-    --lx-status-running-fg: #5eead4;
-    --lx-status-running-border: rgba(45, 212, 191, 0.42);
+    --lx-status-running-bg: rgba(56, 189, 248, 0.16);
+    --lx-status-running-fg: #7dd3fc;
+    --lx-status-running-border: rgba(56, 189, 248, 0.42);
     --lx-status-done-bg: rgba(52, 211, 153, 0.14);
     --lx-status-done-fg: #6ee7b7;
     --lx-status-done-border: rgba(52, 211, 153, 0.4);
@@ -479,26 +479,26 @@ html::-webkit-scrollbar-thumb {
   --lx-nav-tab-hover-border: rgba(255, 255, 255, 0.12);
   --lx-nav-tab-hover-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   --lx-nav-tab-active-bg: color-mix(in srgb, var(--lx-accent) 26%, var(--lx-surface-2));
-  --lx-nav-tab-active-fg: #ecfdf5;
+  --lx-nav-tab-active-fg: #f0f9ff;
   --lx-nav-tab-active-border: color-mix(in srgb, var(--lx-accent) 38%, transparent);
   --lx-nav-tab-active-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
   --lx-nav-activity-ring-active: color-mix(in srgb, var(--lx-accent) 50%, transparent);
   --lx-badge-info-fg: var(--lx-text-1);
   --lx-badge-info-bg: var(--lx-surface-muted);
-  --lx-accent: #2dd4bf;
-  --lx-accent-hover: #5eead4;
-  --lx-accent-secondary: #34d399;
+  --lx-accent: #38bdf8;
+  --lx-accent-hover: #7dd3fc;
+  --lx-accent-secondary: #0ea5e9;
   --lx-danger: #f87171;
   --lx-warning: #fbbf24;
   --lx-warning-text: var(--lx-warning);
   --lx-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 22px 48px rgba(0, 0, 0, 0.4);
   --lx-focus-ring-surface: #0f1419;
-  --lx-focus-ring-color: #5eead4;
+  --lx-focus-ring-color: #7dd3fc;
   --lx-body-gradient-stop-1: #0f1419;
   --lx-body-gradient-stop-2: #111827;
   --lx-body-gradient-stop-3: #0f172a;
-  --lx-body-radial-a: rgba(45, 212, 191, 0.07);
-  --lx-body-radial-b: rgba(45, 212, 191, 0.04);
+  --lx-body-radial-a: rgba(56, 189, 248, 0.07);
+  --lx-body-radial-b: rgba(56, 189, 248, 0.04);
   --lx-body-radial-c: rgba(148, 163, 184, 0.06);
   --lx-body-background:
     radial-gradient(ellipse 120% 80% at 50% -30%, var(--lx-body-radial-a), transparent 55%),
@@ -516,17 +516,17 @@ html::-webkit-scrollbar-thumb {
   --lx-hub-card-surface: #1e293b;
   --lx-hub-card-border: rgba(255, 255, 255, 0.12);
   --lx-hub-card-shadow: var(--lx-shadow-card);
-  --lx-hub-workspace-bar: #22d3ee;
+  --lx-hub-workspace-bar: #38bdf8;
   --lx-hub-player-bar: #fbbf24;
   --lx-hub-jobs-bar: #c4b5fd;
   --lx-hub-about-bar: #e879f9;
-  --lx-hub-tab-transcribe-bar: #2dd4bf;
+  --lx-hub-tab-transcribe-bar: #38bdf8;
   --lx-hub-tab-transcribe-icon-bg: color-mix(
     in srgb,
     var(--lx-hub-tab-transcribe-bar) 24%,
     transparent
   );
-  --lx-hub-tab-transcribe-icon-fg: #ecfdf5;
+  --lx-hub-tab-transcribe-icon-fg: #f0f9ff;
   --lx-hub-tab-annotate-bar: #818cf8;
   --lx-hub-tab-annotate-icon-bg: color-mix(
     in srgb,
@@ -538,7 +538,7 @@ html::-webkit-scrollbar-thumb {
   --lx-hub-tab-analyze-icon-bg: color-mix(in srgb, var(--lx-hub-tab-analyze-bar) 26%, transparent);
   --lx-hub-tab-analyze-icon-fg: #fffbeb;
   --lx-hub-workspace-icon-bg: color-mix(in srgb, var(--lx-hub-workspace-bar) 24%, transparent);
-  --lx-hub-workspace-icon-fg: #ecfeff;
+  --lx-hub-workspace-icon-fg: #f0f9ff;
   --lx-hub-player-icon-bg: color-mix(in srgb, var(--lx-hub-player-bar) 26%, transparent);
   --lx-hub-player-icon-fg: #fffbeb;
   --lx-hub-jobs-icon-bg: color-mix(in srgb, var(--lx-hub-jobs-bar) 26%, transparent);
@@ -547,7 +547,7 @@ html::-webkit-scrollbar-thumb {
   --lx-hub-about-icon-fg: #fdf4ff;
   --lx-hub-chevron: color-mix(in srgb, var(--lx-text-2) 72%, var(--lx-text-inverse));
   --lx-hub-icon-wrap-highlight: rgba(255, 255, 255, 0.08);
-  --lx-hero-brand-gradient: linear-gradient(118deg, #22d3ee 0%, #a78bfa 45%, #e879f9 100%);
+  --lx-hero-brand-gradient: linear-gradient(118deg, #38bdf8 0%, #a78bfa 45%, #e879f9 100%);
   --lx-hero-hub-card-border: color-mix(in srgb, var(--lx-text-inverse) 10%, transparent);
   --lx-hero-hub-card-bg: linear-gradient(
     155deg,
@@ -567,9 +567,9 @@ html::-webkit-scrollbar-thumb {
   --lx-status-queued-bg: rgba(148, 163, 184, 0.18);
   --lx-status-queued-fg: #cbd5e1;
   --lx-status-queued-border: rgba(148, 163, 184, 0.38);
-  --lx-status-running-bg: rgba(45, 212, 191, 0.16);
-  --lx-status-running-fg: #5eead4;
-  --lx-status-running-border: rgba(45, 212, 191, 0.42);
+  --lx-status-running-bg: rgba(56, 189, 248, 0.16);
+  --lx-status-running-fg: #7dd3fc;
+  --lx-status-running-border: rgba(56, 189, 248, 0.42);
   --lx-status-done-bg: rgba(52, 211, 153, 0.14);
   --lx-status-done-fg: #6ee7b7;
   --lx-status-done-border: rgba(52, 211, 153, 0.4);

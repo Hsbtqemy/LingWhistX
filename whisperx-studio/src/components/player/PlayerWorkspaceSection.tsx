@@ -590,7 +590,7 @@ export function PlayerWorkspaceSection({
         wf.clearAnalysisSelection();
       }
     },
-    [wf.setAnalysisSelection, wf.clearAnalysisSelection],
+    [wf],
   );
 
   const toggleVideoFullscreen = useCallback(async () => {
@@ -934,7 +934,7 @@ export function PlayerWorkspaceSection({
                   checked={wordsWindowEnabled}
                   onChange={(e) => runInTransition(() => setWordsWindowEnabled(e.target.checked))}
                 />
-                Afficher les mots
+                <span>Afficher les mots</span>
               </label>
               <label className="player-panel-toggle small">
                 <input
@@ -942,7 +942,7 @@ export function PlayerWorkspaceSection({
                   checked={followPlayhead}
                   onChange={(e) => runInTransition(() => setFollowPlayhead(e.target.checked))}
                 />
-                Suivre la lecture
+                <span>Suivre la lecture</span>
               </label>
             </details>
 
