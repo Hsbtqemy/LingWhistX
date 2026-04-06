@@ -19,9 +19,6 @@ jobs:
           - platform: macos-latest
             args: --target aarch64-apple-darwin
             artifact-name: LingWhistX-macOS-arm64
-          - platform: macos-latest
-            args: --target x86_64-apple-darwin
-            artifact-name: LingWhistX-macOS-x64
           - platform: windows-latest
             args: ""
             artifact-name: LingWhistX-Windows-x64
@@ -47,8 +44,6 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ contains(matrix.args, 'x86_64-apple-darwin') && 'x86_64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
