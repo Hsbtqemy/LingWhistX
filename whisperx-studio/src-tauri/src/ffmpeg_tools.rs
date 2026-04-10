@@ -10,6 +10,7 @@ use tauri::{AppHandle, Manager};
 
 use crate::log_redaction::redact_user_home_in_text;
 use crate::models::ResolvedFfmpegTools;
+use crate::process_utils::hide_console_window;
 
 pub(crate) fn env_non_empty(var_name: &str) -> Option<String> {
     std::env::var(var_name).ok().and_then(|raw| {
@@ -167,6 +168,7 @@ pub(crate) fn run_probe(
     if let Some(prefix) = path_prefix {
         prepend_path_env(&mut process, prefix);
     }
+    hide_console_window(&mut process);
     let output = process
         .output()
         .map_err(|err| redact_user_home_in_text(&err.to_string()))?;
@@ -210,6 +212,7 @@ pub(crate) fn probe_duration_seconds(
     if let Some(prefix) = ffmpeg_tools.ffmpeg_dir.as_deref() {
         prepend_path_env(&mut command, prefix);
     }
+    hide_console_window(&mut command);
     let output = command.output().ok()?;
     if !output.status.success() {
         return None;

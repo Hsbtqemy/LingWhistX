@@ -15,6 +15,7 @@ use crate::embedded_resources::resolve_preview_preprocess_path;
 use crate::ffmpeg_tools::{prepend_path_env, resolve_ffmpeg_tools};
 use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::{resolve_existing_file_path, validate_custom_output_dir};
+use crate::process_utils::hide_console_window;
 use crate::python_runtime::resolve_python_command;
 
 /// Plafond taille fichier WAV lu puis encodé en base64 pour IPC (`read_extracted_wav_window` plafonne déjà à 60 s mono 16 kHz ; marge pour en-tête WAV).
@@ -125,6 +126,7 @@ pub fn extract_audio_wav_window(
     if let Some(prefix) = tools.ffmpeg_dir.as_deref() {
         prepend_path_env(&mut cmd, prefix);
     }
+    hide_console_window(&mut cmd);
 
     let status = cmd
         .status()
@@ -205,6 +207,7 @@ pub fn export_audio_wav_segment(
     if let Some(prefix) = tools.ffmpeg_dir.as_deref() {
         prepend_path_env(&mut cmd, prefix);
     }
+    hide_console_window(&mut cmd);
 
     let status = cmd
         .status()
@@ -306,6 +309,7 @@ pub fn generate_preprocessed_audio_preview(
     if let Some(prefix) = tools.ffmpeg_dir.as_deref() {
         prepend_path_env(&mut cmd, prefix);
     }
+    hide_console_window(&mut cmd);
     let status = cmd
         .status()
         .map_err(|e| format!("ffmpeg: {}", redact_err(e)))?;
@@ -367,6 +371,7 @@ pub fn generate_preprocessed_audio_preview(
         "--modules-json",
         &modules_json,
     ]);
+    hide_console_window(&mut py_cmd);
 
     let output = py_cmd
         .output()

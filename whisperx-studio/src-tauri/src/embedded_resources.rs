@@ -10,6 +10,7 @@ use tauri::{AppHandle, Manager};
 
 use crate::app_events::emit_runtime_setup_log;
 use crate::log_redaction::redact_user_home_in_text;
+use crate::process_utils::hide_console_window;
 
 pub(crate) const EMBEDDED_WORKER_SCRIPT: &str =
     include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../python/worker.py"));
@@ -280,6 +281,7 @@ pub(crate) fn run_runtime_setup_process(app: &AppHandle) -> Result<(), String> {
             .arg(&runtime_dir_raw)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        hide_console_window(&mut cmd);
         (cmd, script_path)
     };
 
@@ -291,6 +293,7 @@ pub(crate) fn run_runtime_setup_process(app: &AppHandle) -> Result<(), String> {
             .env("RUNTIME_DIR", &runtime_dir_raw)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        hide_console_window(&mut cmd);
         (cmd, script_path)
     };
 

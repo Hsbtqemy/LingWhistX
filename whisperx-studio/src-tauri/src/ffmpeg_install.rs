@@ -9,6 +9,7 @@ use tauri::AppHandle;
 use crate::app_events::{emit_ffmpeg_install_finished, emit_ffmpeg_install_log};
 use crate::ffmpeg_tools::{resolve_ffmpeg_tools, run_probe};
 use crate::log_redaction::redact_user_home_in_text;
+use crate::process_utils::hide_console_window;
 
 #[cfg(not(target_os = "windows"))]
 use std::path::PathBuf;
@@ -48,6 +49,7 @@ fn ffmpeg_detected_ok(app: &AppHandle) -> bool {
 }
 
 fn run_command_with_logs(app: &AppHandle, mut command: Command) -> Result<(), String> {
+    hide_console_window(&mut command);
     let mut child = command.spawn().map_err(|err| {
         if err.kind() == std::io::ErrorKind::NotFound {
             return "Executable introuvable (PATH).".to_string();
@@ -121,13 +123,18 @@ fn run_command_with_logs(app: &AppHandle, mut command: Command) -> Result<(), St
 }
 
 #[cfg(target_os = "windows")]
-pub(crate) fn run_ffmpeg_install_process(app: &AppHandle) -> Result<(), String> {
-    let mut command = if Command::new("winget")
-        .arg("--version")
-        .output()
+fn windows_program_version_ok(program: &str) -> bool {
+    let mut c = Command::new(program);
+    c.arg("--version");
+    hide_console_window(&mut c);
+    c.output()
         .map(|o| o.status.success())
         .unwrap_or(false)
-    {
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) fn run_ffmpeg_install_process(app: &AppHandle) -> Result<(), String> {
+    let mut command = if windows_program_version_ok("winget") {
         emit_ffmpeg_install_log(
             app,
             "system",
@@ -143,12 +150,7 @@ pub(crate) fn run_ffmpeg_install_process(app: &AppHandle) -> Result<(), String> 
             "--accept-source-agreements",
         ]);
         c
-    } else if Command::new("choco")
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-    {
+    } else if windows_program_version_ok("choco") {
         emit_ffmpeg_install_log(app, "system", "Utilisation de Chocolatey (ffmpeg).");
         let mut c = Command::new("choco");
         c.args(["install", "ffmpeg", "-y"]);
@@ -186,10 +188,7 @@ pub(crate) fn run_ffmpeg_install_process(app: &AppHandle) -> Result<(), String> 
     emit_ffmpeg_install_log(app, "system", &format!("Utilisation de {}", brew.display()));
 
     let mut command = Command::new(&brew);
-    command
-        .args(["install", "ffmpeg"])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+    command.args(["install", "ffmpeg"]).stdout(Stdio::piped()).stderr(Stdio::piped());
 
     run_command_with_logs(app, command)?;
 

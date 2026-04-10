@@ -9,10 +9,24 @@ use std::process::Command;
 
 use crate::log_redaction::redact_user_home_in_text;
 
+/// Sous Windows, évite les fenêtres console qui s’ouvrent puis se referment lorsque l’app desktop
+/// lance un sous-processus (Python, ffmpeg, winget, etc.).
+#[cfg(windows)]
+pub(crate) fn hide_console_window(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+pub(crate) fn hide_console_window(_cmd: &mut Command) {}
+
 #[cfg(target_os = "windows")]
 pub(crate) fn kill_process_tree(pid: u32) -> Result<(), String> {
-    let output = Command::new("taskkill")
-        .args(["/PID", &pid.to_string(), "/T", "/F"])
+    let mut taskkill = Command::new("taskkill");
+    taskkill.args(["/PID", &pid.to_string(), "/T", "/F"]);
+    hide_console_window(&mut taskkill);
+    let output = taskkill
         .output()
         .map_err(|err| {
             format!(

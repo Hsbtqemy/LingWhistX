@@ -13,6 +13,7 @@ use tauri::AppHandle;
 
 use crate::log_redaction::redact_user_home_in_text;
 use crate::path_guard::validate_path_string;
+use crate::process_utils::hide_console_window;
 use crate::python_runtime::resolve_python_command;
 
 /// Réponse de `__WXRESULT__` depuis Python.
@@ -100,8 +101,10 @@ pub async fn create_annotation_run(
     }
 
     // Spawn Python synchrone (le process peut durer quelques secondes)
-    let output = Command::new(&python_cmd)
-        .args(&args)
+    let mut py = Command::new(&python_cmd);
+    py.args(&args);
+    hide_console_window(&mut py);
+    let output = py
         .output()
         .map_err(|e| {
             format!(

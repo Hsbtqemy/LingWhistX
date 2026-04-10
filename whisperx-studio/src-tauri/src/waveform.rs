@@ -19,7 +19,7 @@ use crate::models::{
     WaveformReadyEvent, WaveformTaskStarted, WaveformTaskState,
 };
 use crate::path_guard::validate_path_string;
-use crate::process_utils::kill_process_tree;
+use crate::process_utils::{hide_console_window, kill_process_tree};
 use crate::time_utils::now_ms;
 
 /// FNV-1a 64-bit — déterministe entre compilations Rust (contrairement à `DefaultHasher`).
@@ -205,6 +205,7 @@ fn build_waveform_peaks_internal(
     if let Some(prefix) = ffmpeg_tools.ffmpeg_dir.as_deref() {
         prepend_path_env(&mut ffmpeg, prefix);
     }
+    hide_console_window(&mut ffmpeg);
 
     let mut child = ffmpeg.spawn().map_err(|err| {
         if err.kind() == std::io::ErrorKind::NotFound {

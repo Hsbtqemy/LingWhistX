@@ -16,6 +16,7 @@ use tauri::Manager;
 
 use crate::ffmpeg_tools::{prepend_path_env, probe_duration_seconds, resolve_ffmpeg_tools};
 use crate::log_redaction::redact_user_home_in_text;
+use crate::process_utils::hide_console_window;
 use crate::path_guard::validate_path_string;
 use crate::time_utils::now_ms;
 
@@ -220,6 +221,7 @@ pub fn build_waveform_pyramid_internal(
     if let Some(prefix) = ffmpeg_tools.ffmpeg_dir.as_deref() {
         prepend_path_env(&mut ffmpeg, prefix);
     }
+    hide_console_window(&mut ffmpeg);
 
     let mut child = ffmpeg.spawn().map_err(|err| {
         if err.kind() == std::io::ErrorKind::NotFound {

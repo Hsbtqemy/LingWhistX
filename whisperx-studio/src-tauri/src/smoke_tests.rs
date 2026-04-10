@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::log_redaction::redact_user_home_in_text;
+use crate::process_utils::hide_console_window;
 use crate::time_utils::now_ms;
 use crate::transcript_commands::{
     export_transcript, load_transcript_document, save_transcript_json,
@@ -18,6 +19,7 @@ use crate::{
 fn command_available(command: &str, base_args: &[&str]) -> bool {
     let mut probe = Command::new(command);
     probe.args(base_args).arg("--version");
+    hide_console_window(&mut probe);
     probe
         .output()
         .map(|output| output.status.success())
@@ -67,6 +69,7 @@ fn run_mock_worker_for_smoke(
         .arg(output_dir)
         .arg("--mode")
         .arg("mock");
+    hide_console_window(&mut command);
 
     let output = command.output().map_err(|err| {
         format!(
