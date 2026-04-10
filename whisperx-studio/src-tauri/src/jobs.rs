@@ -23,8 +23,8 @@ use crate::db::persist_job;
 use crate::embedded_resources::resolve_worker_path;
 use crate::ffmpeg_tools::{prepend_path_env, resolve_ffmpeg_tools};
 use crate::log_redaction::redact_user_home_in_text;
-use crate::process_utils::hide_console_window;
 use crate::models::{Job, JobLogEvent, WhisperxOptions, WorkerLog, WorkerMessage, WorkerResult};
+use crate::process_utils::hide_console_window;
 use crate::python_runtime::resolve_python_command;
 use crate::time_utils::now_ms;
 

@@ -104,14 +104,12 @@ pub async fn create_annotation_run(
     let mut py = Command::new(&python_cmd);
     py.args(&args);
     hide_console_window(&mut py);
-    let output = py
-        .output()
-        .map_err(|e| {
-            format!(
-                "Impossible de lancer Python pour import_transcript : {}",
-                redact_user_home_in_text(&e.to_string())
-            )
-        })?;
+    let output = py.output().map_err(|e| {
+        format!(
+            "Impossible de lancer Python pour import_transcript : {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

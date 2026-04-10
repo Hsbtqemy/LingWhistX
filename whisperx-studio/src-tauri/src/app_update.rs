@@ -49,8 +49,7 @@ fn pick_windows_installer_url(assets: &[GithubAsset]) -> Option<String> {
         .iter()
         .filter(|a| {
             let n = a.name.to_lowercase();
-            (n.ends_with(".msi") || n.ends_with(".exe"))
-                && n.contains("whisperx-studio")
+            (n.ends_with(".msi") || n.ends_with(".exe")) && n.contains("whisperx-studio")
         })
         .collect();
     if candidates.is_empty() {
@@ -62,9 +61,7 @@ fn pick_windows_installer_url(assets: &[GithubAsset]) -> Option<String> {
             })
             .collect();
     }
-    candidates
-        .first()
-        .map(|a| a.browser_download_url.clone())
+    candidates.first().map(|a| a.browser_download_url.clone())
 }
 
 async fn fetch_latest_release() -> Result<GithubLatestRelease, String> {

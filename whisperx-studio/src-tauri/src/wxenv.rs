@@ -16,8 +16,8 @@ use tauri::Manager;
 
 use crate::ffmpeg_tools::{prepend_path_env, probe_duration_seconds, resolve_ffmpeg_tools};
 use crate::log_redaction::redact_user_home_in_text;
-use crate::process_utils::hide_console_window;
 use crate::path_guard::validate_path_string;
+use crate::process_utils::hide_console_window;
 use crate::time_utils::now_ms;
 
 pub const WXENV_MAGIC: &[u8; 6] = b"WXENV1";

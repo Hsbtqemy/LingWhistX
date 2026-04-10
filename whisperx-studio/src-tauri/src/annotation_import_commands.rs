@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 
 use crate::log_redaction::redact_user_home_in_text;
-use crate::process_utils::hide_console_window;
 use crate::path_guard::resolve_existing_file_path;
+use crate::process_utils::hide_console_window;
 use crate::python_runtime::resolve_python_command;
 
 /// Un segment d'annotation : intervalle temporel + texte.
@@ -81,14 +81,12 @@ pub async fn import_annotation_file(
     let mut py = Command::new(&python_cmd);
     py.args(["-m", "whisperx", "import_annotation", &path_str]);
     hide_console_window(&mut py);
-    let output = py
-        .output()
-        .map_err(|e| {
-            format!(
-                "Failed to launch Python for annotation import: {}",
-                redact_user_home_in_text(&e.to_string())
-            )
-        })?;
+    let output = py.output().map_err(|e| {
+        format!(
+            "Failed to launch Python for annotation import: {}",
+            redact_user_home_in_text(&e.to_string())
+        )
+    })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

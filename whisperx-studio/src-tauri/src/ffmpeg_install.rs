@@ -127,9 +127,7 @@ fn windows_program_version_ok(program: &str) -> bool {
     let mut c = Command::new(program);
     c.arg("--version");
     hide_console_window(&mut c);
-    c.output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+    c.output().map(|o| o.status.success()).unwrap_or(false)
 }
 
 #[cfg(target_os = "windows")]
@@ -188,7 +186,10 @@ pub(crate) fn run_ffmpeg_install_process(app: &AppHandle) -> Result<(), String> 
     emit_ffmpeg_install_log(app, "system", &format!("Utilisation de {}", brew.display()));
 
     let mut command = Command::new(&brew);
-    command.args(["install", "ffmpeg"]).stdout(Stdio::piped()).stderr(Stdio::piped());
+    command
+        .args(["install", "ffmpeg"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
 
     run_command_with_logs(app, command)?;
 

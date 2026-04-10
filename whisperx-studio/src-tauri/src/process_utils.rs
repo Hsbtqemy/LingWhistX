@@ -26,14 +26,12 @@ pub(crate) fn kill_process_tree(pid: u32) -> Result<(), String> {
     let mut taskkill = Command::new("taskkill");
     taskkill.args(["/PID", &pid.to_string(), "/T", "/F"]);
     hide_console_window(&mut taskkill);
-    let output = taskkill
-        .output()
-        .map_err(|err| {
-            format!(
-                "Failed to execute taskkill: {}",
-                redact_user_home_in_text(&err.to_string())
-            )
-        })?;
+    let output = taskkill.output().map_err(|err| {
+        format!(
+            "Failed to execute taskkill: {}",
+            redact_user_home_in_text(&err.to_string())
+        )
+    })?;
     if output.status.success() {
         Ok(())
     } else {
