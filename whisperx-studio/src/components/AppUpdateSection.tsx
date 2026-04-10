@@ -70,10 +70,7 @@ export function AppUpdateSection() {
                 Une nouvelle version est disponible :{" "}
                 <span className="mono">{result.latestVersion ?? "—"}</span>
                 {result.publishedAt ? (
-                  <>
-                    {" "}
-                    (publiée le {new Date(result.publishedAt).toLocaleString()})
-                  </>
+                  <> (publiée le {new Date(result.publishedAt).toLocaleString()})</>
                 ) : null}
               </p>
               <p className="small">
@@ -111,10 +108,7 @@ export function AppUpdateSection() {
                 <p className="small">
                   Dernière release GitHub : <span className="mono">{result.latestVersion}</span>
                   {result.publishedAt ? (
-                    <>
-                      {" "}
-                      — {new Date(result.publishedAt).toLocaleDateString()}
-                    </>
+                    <> — {new Date(result.publishedAt).toLocaleDateString()}</>
                   ) : null}
                 </p>
               ) : null}
