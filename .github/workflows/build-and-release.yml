@@ -4,6 +4,10 @@ on:
   release:
     types: [published]
 
+# Requis pour softprops/action-gh-release (upload des .whl sur la release GitHub).
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,6 +30,7 @@ jobs:
       - name: Release to Github
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           files: dist/*.whl
 
       - name: Publish package to PyPi

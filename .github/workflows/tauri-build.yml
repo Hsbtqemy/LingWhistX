@@ -10,6 +10,10 @@ on:
     types: [published]
   workflow_dispatch:
 
+# Requis pour attacher les installateurs à la release (softprops/action-gh-release).
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -27,9 +31,6 @@ jobs:
             artifact-name: LingWhistX-Linux-x64
 
     runs-on: ${{ matrix.platform }}
-
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout
@@ -93,6 +94,7 @@ jobs:
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           files: |
             whisperx-studio/src-tauri/target/**/release/bundle/dmg/*.dmg
             whisperx-studio/src-tauri/target/**/release/bundle/macos/*.app.tar.gz
