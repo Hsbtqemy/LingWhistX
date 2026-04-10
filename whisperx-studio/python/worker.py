@@ -218,6 +218,15 @@ class WhisperxProgressMapper:
         return None
 
 
+def _print_json_line(payload: dict[str, object]) -> None:
+    """Écrit une ligne JSON sur stdout (Rust lit stdout en UTF-8). Évite UnicodeEncodeError sur consoles Windows non UTF-8."""
+    line = json.dumps(payload, ensure_ascii=False)
+    try:
+        print(line, flush=True)
+    except UnicodeEncodeError:
+        print(json.dumps(payload, ensure_ascii=True), flush=True)
+
+
 def emit_log(
     level: str,
     stage: str,
@@ -234,7 +243,7 @@ def emit_log(
     }
     if progress is not None:
         payload["progress"] = max(0, min(100, int(progress)))
-    print(json.dumps(payload, ensure_ascii=False), flush=True)
+    _print_json_line(payload)
 
 
 def emit_live_transcript(start: float, end: float, text: str) -> None:
@@ -245,7 +254,7 @@ def emit_live_transcript(start: float, end: float, text: str) -> None:
         "end": end,
         "text": text,
     }
-    print(json.dumps(payload, ensure_ascii=False), flush=True)
+    _print_json_line(payload)
 
 
 def emit_result(message: str, output_files: list[str]) -> None:
@@ -255,13 +264,13 @@ def emit_result(message: str, output_files: list[str]) -> None:
         "message": message,
         "output_files": output_files,
     }
-    print(json.dumps(payload, ensure_ascii=False), flush=True)
+    _print_json_line(payload)
 
 
 def emit_audio_quality(report: dict) -> None:
     """WX-661 : type=audio_quality — rapport d'évaluation qualité avant transcription."""
     payload: dict[str, object] = {"type": "audio_quality", **report}
-    print(json.dumps(payload, ensure_ascii=False), flush=True)
+    _print_json_line(payload)
 
 
 def classify_error(message: str) -> str | None:
@@ -341,7 +350,19 @@ def _whisperx_cli_is_lingwhistx_fork() -> bool:
     try:
         import whisperx.cli as wx_cli
 
-        cli_path = Path(inspect.getfile(wx_cli))
+        cli_file = getattr(wx_cli, "__file__", None)
+        if not cli_file:
+            try:
+                cli_file = inspect.getfile(wx_cli)
+            except TypeError:
+                cli_file = None
+        if not cli_file:
+            raise RuntimeError("whisperx.cli sans __file__ (import atypique)")
+        cli_path = Path(cli_file)
+        if cli_path.suffix.lower() in {".pyc", ".pyo"}:
+            cli_path = cli_path.with_suffix(".py")
+        if not cli_path.is_file():
+            raise FileNotFoundError(str(cli_path))
         source = cli_path.read_text(encoding="utf-8", errors="ignore")
         if "analysis_pause_min" in source:
             _whisperx_fork_cache = True
@@ -353,7 +374,12 @@ def _whisperx_cli_is_lingwhistx_fork() -> bool:
             )
             return True
     except Exception as exc:
-        emit_log("warning", "whisperx", f"Détection fork: lecture cli.py impossible: {exc}", 6)
+        emit_log(
+            "warning",
+            "whisperx",
+            f"Détection fork: lecture cli.py impossible: {exc}",
+            6,
+        )
 
     _whisperx_fork_cache = False
     return False
