@@ -257,6 +257,21 @@ export type JobLogEvent = {
   message: string;
 };
 
+/** Résultat de `check_app_update` (API GitHub Releases). */
+export type AppUpdateCheck = {
+  currentVersion: string;
+  latestVersion: string | null;
+  /** true si la version installée est >= dernière release GitHub. */
+  isUpToDate: boolean;
+  /** true si une release publique a un numéro de version supérieur. */
+  updateAvailable: boolean;
+  releaseUrl: string | null;
+  /** Lien direct vers un installateur Windows sur la release si trouvé. */
+  installerDownloadUrl: string | null;
+  publishedAt: string | null;
+  fetchError: string | null;
+};
+
 export type RuntimeStatus = {
   pythonCommand: string;
   pythonOk: boolean;

@@ -398,6 +398,47 @@ button.studio-nav-brand__btn:focus-visible {
   margin-bottom: 0;
 }
 
+.about-update-panel {
+  margin-bottom: 0;
+}
+
+.about-update-lead {
+  margin: 0 0 12px;
+  max-width: 48rem;
+  color: var(--lx-text-2);
+}
+
+.about-update-actions {
+  margin-bottom: 4px;
+}
+
+.about-update-status {
+  margin-top: 10px;
+}
+
+.about-update-error {
+  margin: 0 0 8px;
+  color: var(--lx-danger);
+}
+
+.about-update-available {
+  margin: 0 0 6px;
+  font-weight: 600;
+  color: var(--lx-text-1);
+}
+
+.about-update-ok {
+  margin: 0 0 6px;
+  color: var(--lx-text-1);
+}
+
+.about-update-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .about-prefs-row {
   align-items: flex-start;
   margin: 12px 0;

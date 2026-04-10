@@ -1,4 +1,5 @@
 import type { LocalRuntimePanelProps } from "./LocalRuntimePanel";
+import { AppUpdateSection } from "./AppUpdateSection";
 import { LocalRuntimePanel } from "./LocalRuntimePanel";
 import { MachineSummaryPanel } from "./MachineSummaryPanel";
 import { StudioPreferencesPanel } from "./StudioPreferencesPanel";
@@ -26,6 +27,8 @@ export function StudioAboutView({ runtime }: StudioAboutViewProps) {
           <span className="mono">whisperx-studio/README.md</span> pour le mode Studio.
         </p>
       </section>
+
+      <AppUpdateSection />
 
       <StudioPreferencesPanel />
 

@@ -13,6 +13,7 @@ mod annotation_import_commands;
 mod annotation_run_commands;
 mod app_events;
 mod app_setup;
+mod app_update;
 mod audio_preview;
 mod embedded_resources;
 mod ffmpeg_install;
@@ -58,6 +59,7 @@ pub fn run() {
             job_commands::load_more_jobs_from_db,
             job_commands::get_job,
             runtime_status::get_runtime_status,
+            app_update::check_app_update,
             runtime_setup_commands::get_runtime_setup_status,
             runtime_setup_commands::start_runtime_setup,
             ffmpeg_install_commands::get_ffmpeg_install_status,
