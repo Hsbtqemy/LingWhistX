@@ -848,6 +848,8 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
         )
 
     command_env = os.environ.copy()
+    # Compense l’absence de bufsize=1 sur le PIPE (Windows) : sortie Python enfant plus fluide pour Progress:/Transcript:.
+    command_env.setdefault("PYTHONUNBUFFERED", "1")
 
     if sys.platform == "darwin":
         ffmpeg_bin = command_env.get("FFMPEG_BINARY") or shutil.which("ffmpeg")
@@ -902,12 +904,13 @@ def run_whisperx(input_path: str, out_dir: Path, options: dict[str, object]) -> 
     emit_log("info", "wx_prep", f"Commande: {format_command_for_log(command)}", 15)
     emit_log("info", "wx_prep", "Lancement du sous-processus WhisperX…", 30)
 
+    # Pas de bufsize=1 ici : sous Windows, le tampon ligne sur un PIPE lève souvent
+    # OSError: [Errno 22] Invalid argument (CreatePipe / modes non supportés).
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
-        bufsize=1,
         env=command_env,
     )
 
@@ -983,12 +986,14 @@ def run_analyze_only(input_path: str, out_dir: Path, options: dict[str, object])
     emit_log("info", "wx_prep", f"Commande : {format_command_for_log(command)}", 15)
     emit_log("info", "wx_analyze", "Recalcul des métriques analytiques (analyze-only)…", 40)
 
+    analyze_env = os.environ.copy()
+    analyze_env.setdefault("PYTHONUNBUFFERED", "1")
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
-        bufsize=1,
+        env=analyze_env,
     )
 
     if process.stdout is None:

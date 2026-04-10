@@ -187,8 +187,8 @@ Generated installers/bundles are created under:
 
 Main Windows outputs:
 
-- `src-tauri/target/release/bundle/msi/whisperx-studio_0.1.2_x64_en-US.msi`
-- `src-tauri/target/release/bundle/nsis/whisperx-studio_0.1.2_x64-setup.exe`
+- `src-tauri/target/release/bundle/msi/whisperx-studio_0.1.3_x64_en-US.msi`
+- `src-tauri/target/release/bundle/nsis/whisperx-studio_0.1.3_x64-setup.exe`
 
 ## Build Portable EXE (Standalone)
 
@@ -200,8 +200,8 @@ npm run build:portable-exe
 
 Output:
 
-- `src-tauri/target/release/portable/whisperx-studio_0.1.2_portable.exe`
-- `src-tauri/target/release/portable/whisperx-studio_0.1.2_portable.exe.sha256`
+- `src-tauri/target/release/portable/whisperx-studio_0.1.3_portable.exe`
+- `src-tauri/target/release/portable/whisperx-studio_0.1.3_portable.exe.sha256`
 
 Notes:
 
