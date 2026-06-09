@@ -39,7 +39,11 @@ include-package-data = true
 where = ["."]
 include = ["whisperx*"]
 
-# torchcodec (transitive dep of pyannote-audio >=4) has no wheels for Linux aarch64
+# torchcodec (transitive dep of pyannote-audio >=4) has no wheels for Linux aarch64.
+# No version of torchcodec currently loads cleanly against the CPU-only torch 2.8 wheel
+# on macOS/ARM (0.10.x: MessageLogger::stream() removed in 2.8; 0.11+: aoti_torch_aten_*
+# missing from CPU wheel). whisperx passes pre-loaded waveforms to pyannote so torchcodec
+# is never called at runtime — the import warning is suppressed in whisperx/vads/pyannote.py.
 # Versions minimales pour pip-audit / correctifs sécurité (transitives).
 # pygments: CVE-2026-4539 sans release corrigée sur PyPI (2.19.2) — ignore pip-audit dans security-python.yml jusqu'à mise à jour.
 [tool.uv]

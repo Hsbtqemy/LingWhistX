@@ -1,13 +1,19 @@
 import os
+import warnings
 from typing import Callable, Text, Union
 from typing import Optional
 
 import numpy as np
 import torch
-from pyannote.audio import Model
-from pyannote.audio.core.io import AudioFile
-from pyannote.audio.pipelines import VoiceActivityDetection
-from pyannote.audio.pipelines.utils import PipelineModel
+# torchcodec's ABI is incompatible with the CPU-only torch wheel on macOS/ARM.
+# whisperx always passes pre-loaded waveforms to pyannote, so torchcodec is never
+# called at runtime — suppress the noisy warning that pyannote emits at import time.
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=UserWarning, module=r"pyannote\.audio\.core\.io")
+    from pyannote.audio import Model
+    from pyannote.audio.core.io import AudioFile
+    from pyannote.audio.pipelines import VoiceActivityDetection
+    from pyannote.audio.pipelines.utils import PipelineModel
 from pyannote.core import Annotation, SlidingWindowFeature
 from pyannote.core import Segment
 
